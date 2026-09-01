@@ -201,3 +201,35 @@ test('throws on empty input and mismatched frame sizes', () => {
     /mismatch/,
   );
 });
+
+test('LZW dictionary-full reset round-trips a large noise frame', () => {
+  const w = 128;
+  const data = new Uint8ClampedArray(w * w * 4);
+  let seed = 42;
+  const rand = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed;
+  };
+  for (let i = 0; i < w * w; i++) {
+    data[i * 4] = rand() % 256;
+    data[i * 4 + 1] = rand() % 256;
+    data[i * 4 + 2] = rand() % 256;
+    data[i * 4 + 3] = 255;
+  }
+  const gif = parseGIF(encodeGIF([{ data, width: w, height: w }]));
+  const indices = lzwDecode(gif.frames[0].minCodeSize, gif.frames[0].data, w * w);
+  assert.equal(indices.length, w * w);
+  for (let i = 0; i < w * w; i++) {
+    const r = data[i * 4];
+    const g = data[i * 4 + 1];
+    const b = data[i * 4 + 2];
+    const chosen = gif.gct[indices[i]];
+    const dc = (r - chosen[0]) ** 2 + (g - chosen[1]) ** 2 + (b - chosen[2]) ** 2;
+    let min = Infinity;
+    for (const p of gif.gct) {
+      const d = (r - p[0]) ** 2 + (g - p[1]) ** 2 + (b - p[2]) ** 2;
+      if (d < min) min = d;
+    }
+    assert.equal(dc, min, `pixel ${i} not nearest-mapped`);
+  }
+});

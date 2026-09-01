@@ -372,6 +372,7 @@ function presentGo(delta) {
 }
 
 function presentKeys(e) {
+  if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
   if (!presentState.active) return;
   if (e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); presentGo(1); }
   else if (e.key === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); presentGo(-1); }

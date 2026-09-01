@@ -18,6 +18,7 @@ export function createRecorder(svg) {
   let mode = null; // null | 'video' | 'gif'
   let recording = false;
   let encoding = false;
+  let starting = false;
   let startedAt = 0;
   let onState = null;
   let basename = 'schematica';
@@ -100,6 +101,7 @@ export function createRecorder(svg) {
       clone.setAttribute('width', rect.width);
       clone.setAttribute('height', rect.height);
       clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      clone.setAttribute('font-family', "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif");
       const blob = new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml' });
       const url = URL.createObjectURL(blob);
       const img = new Image();
@@ -107,7 +109,10 @@ export function createRecorder(svg) {
       await img.decode();
       ctx.fillStyle = CANVAS_BG;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const fit = Math.min(canvas.width / rect.width, canvas.height / rect.height);
+      const dw = rect.width * fit;
+      const dh = rect.height * fit;
+      ctx.drawImage(img, (canvas.width - dw) / 2, (canvas.height - dh) / 2, dw, dh);
       URL.revokeObjectURL(url);
       drew = true;
       try { drawOverlay(); } catch { /* caption box is best-effort */ }
@@ -163,84 +168,92 @@ export function createRecorder(svg) {
   }
 
   async function start(opts) {
-    if (recording || encoding) return;
-    formatId = opts.format;
-    basename = opts.basename || 'schematica';
-    onState = opts.onState || null;
-    const rect = svg.getBoundingClientRect();
-    canvas = document.createElement('canvas');
+    if (recording || encoding || starting) return;
+    starting = true;
+    try {
+      formatId = opts.format;
+      basename = opts.basename || 'schematica';
+      onState = opts.onState || null;
+      const rect = svg.getBoundingClientRect();
+      canvas = document.createElement('canvas');
 
-    if (formatId === 'gif') {
-      mode = 'gif';
-      const scale = Math.min(1, GIF_MAX_WIDTH / rect.width);
-      canvas.width = Math.round(rect.width * scale);
-      canvas.height = Math.round(rect.height * scale);
-      ctx = canvas.getContext('2d', { willReadFrequently: true });
-      gifFrames.length = 0;
-      recording = true;
-      startedAt = performance.now();
-      gifTimer = setInterval(async () => {
-        const drew = await pumpFrame();
-        if (!recording || !drew) return;
-        gifFrames.push({
-          data: ctx.getImageData(0, 0, canvas.width, canvas.height).data,
-          width: canvas.width,
-          height: canvas.height,
-        });
-        if (gifFrames.length >= GIF_MAX_FRAMES) stop();
-      }, 1000 / GIF_FPS);
-    } else {
-      mode = 'video';
-      const fmt = VIDEO_FORMATS.find((f) => f.id === formatId);
-      if (!fmt) throw new Error('Unknown recording format.');
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = Math.round(rect.width * dpr);
-      canvas.height = Math.round(rect.height * dpr);
-      ctx = canvas.getContext('2d');
-      try {
-        const stream = canvas.captureStream(30);
-        if (opts.audio === 'mic') {
-          try {
-            micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          } catch {
-            throw new Error('Microphone access was denied. Recording not started.');
-          }
-          stream.addTrack(micStream.getAudioTracks()[0]);
-        } else if (opts.audio === 'music' && opts.musicFile) {
-          audioCtx = new AudioContext();
-          const buf = await audioCtx.decodeAudioData(await opts.musicFile.arrayBuffer());
-          const src = audioCtx.createBufferSource();
-          src.buffer = buf;
-          src.loop = true;
-          const dest = audioCtx.createMediaStreamDestination();
-          src.connect(dest);
-          src.start();
-          stream.addTrack(dest.stream.getAudioTracks()[0]);
-        }
-        chunks = [];
-        mediaRecorder = new MediaRecorder(stream, { mimeType: fmt.mime });
-        mediaRecorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-        mediaRecorder.onerror = () => abort('Recording failed inside the browser encoder.');
-        mediaRecorder.onstop = () => {
-          if (chunks.length) {
-            download(`${basename}.${fmt.ext}`, new Blob(chunks, { type: fmt.mime.split(';')[0] }), fmt.mime);
-          }
-          chunks = [];
-        };
+      if (formatId === 'gif') {
+        mode = 'gif';
+        const scale = Math.min(1, GIF_MAX_WIDTH / rect.width);
+        canvas.width = Math.round(rect.width * scale);
+        canvas.height = Math.round(rect.height * scale);
+        ctx = canvas.getContext('2d', { willReadFrequently: true });
+        gifFrames.length = 0;
         recording = true;
         startedAt = performance.now();
-        mediaRecorder.start(500);
-        videoLoop();
-      } catch (err) {
-        cleanup();
-        throw err;
+        gifTimer = setInterval(async () => {
+          const drew = await pumpFrame();
+          if (!recording || !drew) return;
+          gifFrames.push({
+            data: ctx.getImageData(0, 0, canvas.width, canvas.height).data,
+            width: canvas.width,
+            height: canvas.height,
+          });
+          if (gifFrames.length >= GIF_MAX_FRAMES) {
+            stop('GIF recording reached the 60-second limit and was saved.');
+            return;
+          }
+        }, 1000 / GIF_FPS);
+      } else {
+        mode = 'video';
+        const fmt = VIDEO_FORMATS.find((f) => f.id === formatId);
+        if (!fmt) throw new Error('Unknown recording format.');
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(rect.width * dpr);
+        canvas.height = Math.round(rect.height * dpr);
+        ctx = canvas.getContext('2d');
+        try {
+          const stream = canvas.captureStream(30);
+          if (opts.audio === 'mic') {
+            try {
+              micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            } catch {
+              throw new Error('Microphone access was denied. Recording not started.');
+            }
+            stream.addTrack(micStream.getAudioTracks()[0]);
+          } else if (opts.audio === 'music' && opts.musicFile) {
+            audioCtx = new AudioContext();
+            const buf = await audioCtx.decodeAudioData(await opts.musicFile.arrayBuffer());
+            const src = audioCtx.createBufferSource();
+            src.buffer = buf;
+            src.loop = true;
+            const dest = audioCtx.createMediaStreamDestination();
+            src.connect(dest);
+            src.start();
+            stream.addTrack(dest.stream.getAudioTracks()[0]);
+          }
+          chunks = [];
+          mediaRecorder = new MediaRecorder(stream, { mimeType: fmt.mime });
+          mediaRecorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+          mediaRecorder.onerror = () => abort('Recording failed inside the browser encoder.');
+          mediaRecorder.onstop = () => {
+            if (chunks.length) {
+              download(`${basename}.${fmt.ext}`, new Blob(chunks, { type: fmt.mime.split(';')[0] }), fmt.mime);
+            }
+            chunks = [];
+          };
+          recording = true;
+          startedAt = performance.now();
+          mediaRecorder.start(500);
+          videoLoop();
+        } catch (err) {
+          cleanup();
+          throw err;
+        }
       }
+      elapsedTimer = setInterval(notify, 1000);
+      notify();
+    } finally {
+      starting = false;
     }
-    elapsedTimer = setInterval(notify, 1000);
-    notify();
   }
 
-  function stop() {
+  function stop(notice) {
     if (!recording) return;
     recording = false;
     if (mode === 'video') {
@@ -257,6 +270,7 @@ export function createRecorder(svg) {
           if (gifFrames.length) {
             const bytes = encodeGIF(gifFrames, { delayMs: 1000 / GIF_FPS });
             download(`${basename}.gif`, new Blob([bytes], { type: 'image/gif' }), 'image/gif');
+            if (notice) alert(notice);
           }
         } finally {
           gifFrames.length = 0;
