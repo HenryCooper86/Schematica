@@ -1,7 +1,7 @@
 import { Store, newDoc, addNode, updateItem, findItem, deleteItems } from './state.js';
 import { createRenderer } from './render.js';
 import { createTools } from './tools.js';
-import { CATEGORIES, PARTS, getPart } from './palette.js';
+import { CATEGORIES, CATEGORY_COLORS, PARTS, getPart } from './palette.js';
 import { snap } from './geometry.js';
 import { BUSES, BUS_ORDER } from './buses.js';
 import { serialize, deserialize } from './serialize.js';
@@ -93,6 +93,7 @@ function buildPalette() {
     h.textContent = cat.name;
     palette.appendChild(h);
     const box = document.createElement('div');
+    box.className = 'cat-grid';
     palette.appendChild(box);
     h.addEventListener('click', () => {
       box.hidden = !box.hidden;
@@ -101,7 +102,11 @@ function buildPalette() {
     for (const part of Object.values(PARTS).filter((p) => p.category === cat.id)) {
       const item = document.createElement('button');
       item.className = 'palette-item';
-      item.textContent = part.name;
+      const color = CATEGORY_COLORS[cat.id];
+      item.innerHTML = `<span class="badge" style="--c:${color}">`
+        + `<svg viewBox="0 0 16 16" fill="none" stroke="${color}" stroke-width="1.5"`
+        + ` stroke-linecap="round" stroke-linejoin="round"><path d="${part.icon}"/></svg></span>`
+        + `<span class="pi-name">${part.name}</span>`;
       item.draggable = true;
       item.addEventListener('dragstart', (e) => {
         e.dataTransfer.setData('text/schematica-kind', part.kind);
@@ -162,7 +167,7 @@ function renderProps() {
   if (type === 'node') {
     html += propField('Label', `<input type="text" data-prop="label" value="${escAttr(item.label)}">`);
     html += propField('Part number', `<input type="text" data-prop="sublabel" value="${escAttr(item.sublabel)}">`);
-    html += propField('Fill color', `<input type="color" data-prop="color" value="${escAttr(item.color || '#ffffff')}">`);
+    html += propField('Accent color', `<input type="color" data-prop="color" value="${escAttr(item.color || '#38bdf8')}">`);
   } else if (type === 'wire') {
     const options = BUS_ORDER.map((b) =>
       `<option value="${b}"${b === item.bus ? ' selected' : ''}>${BUSES[b].name}</option>`).join('');

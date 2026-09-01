@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CATEGORIES, PARTS, getPart } from '../src/palette.js';
+import { CATEGORIES, CATEGORY_COLORS, PARTS, getPart } from '../src/palette.js';
 import { BUSES } from '../src/buses.js';
 
 const SIDES = ['left', 'right', 'top', 'bottom'];
@@ -33,4 +33,13 @@ test('every category has at least one part', () => {
 test('getPart falls back to generic for unknown kinds', () => {
   assert.equal(getPart('definitely-not-real'), PARTS.generic);
   assert.equal(getPart('mcu'), PARTS.mcu);
+});
+
+test('every part has an icon path and every category a color', () => {
+  for (const [key, part] of Object.entries(PARTS)) {
+    assert.ok(typeof part.icon === 'string' && part.icon.startsWith('M'), `${key} icon`);
+  }
+  for (const c of CATEGORIES) {
+    assert.match(CATEGORY_COLORS[c.id] ?? '', /^#[0-9a-f]{6}$/i, `${c.id} color`);
+  }
 });
