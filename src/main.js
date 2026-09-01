@@ -1,8 +1,9 @@
-import { Store, newDoc, addNode } from './state.js';
+import { Store, newDoc, addNode, updateItem, findItem, deleteItems } from './state.js';
 import { createRenderer } from './render.js';
 import { createTools } from './tools.js';
 import { CATEGORIES, PARTS, getPart } from './palette.js';
 import { snap } from './geometry.js';
+import { BUSES, BUS_ORDER } from './buses.js';
 
 const svg = document.getElementById('canvas');
 const store = new Store(newDoc());
@@ -20,6 +21,7 @@ function render() {
   document.getElementById('zoom-label').textContent = `${Math.round(tools.view.zoom * 100)}%`;
   document.getElementById('undo').disabled = !store.canUndo();
   document.getElementById('redo').disabled = !store.canRedo();
+  renderProps();
 }
 
 store.subscribe(render);
@@ -89,6 +91,59 @@ svg.addEventListener('drop', (e) => {
   const id = addNode(store, kind, snap(pt.x - part.w / 2), snap(pt.y - part.h / 2));
   store.setSelection([id]);
 });
+
+// ---- Properties panel ----
+const props = document.getElementById('props');
+
+function propField(label, inner) {
+  return `<label>${label}</label>${inner}`;
+}
+
+function renderProps() {
+  if (props.contains(document.activeElement)) return;
+  const ids = [...store.selection];
+  if (!ids.length) {
+    props.hidden = true;
+    return;
+  }
+  props.hidden = false;
+  if (ids.length > 1) {
+    props.innerHTML = `<h3>${ids.length} items selected</h3><button id="props-delete">Delete selection</button>`;
+    document.getElementById('props-delete').addEventListener('click', () => {
+      deleteItems(store, [...store.selection]);
+    });
+    return;
+  }
+  const found = findItem(store.doc, ids[0]);
+  if (!found) {
+    props.hidden = true;
+    return;
+  }
+  const { type, item } = found;
+  const escAttr = (s) => String(s ?? '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  let html = `<h3>${type[0].toUpperCase()}${type.slice(1)}</h3>`;
+  if (type === 'node') {
+    html += propField('Label', `<input type="text" data-prop="label" value="${escAttr(item.label)}">`);
+    html += propField('Part number', `<input type="text" data-prop="sublabel" value="${escAttr(item.sublabel)}">`);
+    html += propField('Fill color', `<input type="color" data-prop="color" value="${escAttr(item.color || '#ffffff')}">`);
+  } else if (type === 'wire') {
+    const options = BUS_ORDER.map((b) =>
+      `<option value="${b}"${b === item.bus ? ' selected' : ''}>${BUSES[b].name}</option>`).join('');
+    html += propField('Bus type', `<select data-prop="bus">${options}</select>`);
+    html += propField('Label (blank = bus name)', `<input type="text" data-prop="label" value="${escAttr(item.label)}">`);
+  } else if (type === 'zone') {
+    html += propField('Label', `<input type="text" data-prop="label" value="${escAttr(item.label)}">`);
+    html += propField('Color', `<input type="color" data-prop="color" value="${escAttr(item.color)}">`);
+  } else if (type === 'note') {
+    html += propField('Text', `<textarea data-prop="text">${escAttr(item.text)}</textarea>`);
+  }
+  props.innerHTML = html;
+  props.querySelectorAll('[data-prop]').forEach((input) => {
+    input.addEventListener('change', () => {
+      updateItem(store, item.id, { [input.dataset.prop]: input.value });
+    });
+  });
+}
 
 buildPalette();
 render();

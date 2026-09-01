@@ -1,5 +1,5 @@
 import { snap, normRect, rectsIntersect, nodeRect } from './geometry.js';
-import { addWire, deleteItems, duplicateItems, findItem } from './state.js';
+import { addWire, addZone, addNote, updateItem, deleteItems, duplicateItems, findItem } from './state.js';
 import { BUSES, BUS_ORDER } from './buses.js';
 import { getPart } from './palette.js';
 import { esc } from './render.js';
@@ -96,8 +96,17 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
       return;
     }
 
-    if (tool === 'zone' || tool === 'note') {
-      // Zone/note creation lands in Task 8; until then these tools do nothing on the canvas.
+    if (tool === 'zone') {
+      drag = { mode: 'zone', start: pt };
+      ui.marquee = { x: pt.x, y: pt.y, w: 0, h: 0 };
+      svg.setPointerCapture(e.pointerId);
+      requestRender();
+      return;
+    }
+    if (tool === 'note') {
+      const id = addNote(store, doSnap(pt.x), doSnap(pt.y));
+      store.setSelection([id]);
+      setTool('select');
       return;
     }
 
@@ -181,6 +190,20 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
         && !(el.dataset.node === draft.from.node && el.dataset.port === draft.from.port)) {
         finishWire(draft.from, { node: el.dataset.node, port: el.dataset.port }, e);
       }
+      drag = null;
+      requestRender();
+      return;
+    }
+    if (drag.mode === 'zone') {
+      const m = ui.marquee;
+      ui.marquee = null;
+      if (m && m.w > 16 && m.h > 16) {
+        const id = addZone(store, {
+          x: doSnap(m.x), y: doSnap(m.y), w: doSnap(m.w), h: doSnap(m.h),
+        });
+        store.setSelection([id]);
+      }
+      setTool('select');
       drag = null;
       requestRender();
       return;
@@ -317,6 +340,49 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
       });
     }, 0);
   }
+
+  const editor = document.getElementById('inline-editor');
+  let editing = null; // { id, field }
+
+  function openInlineEditor(id, field, cx, cy) {
+    const found = findItem(store.doc, id);
+    if (!found) return;
+    editing = { id, field };
+    editor.value = found.item[field] ?? '';
+    editor.style.left = `${Math.min(cx - 100, window.innerWidth - 210)}px`;
+    editor.style.top = `${cy - 14}px`;
+    editor.hidden = false;
+    editor.focus();
+    editor.select();
+  }
+
+  function commitInlineEditor() {
+    if (!editing) return;
+    updateItem(store, editing.id, { [editing.field]: editor.value });
+    editing = null;
+    editor.hidden = true;
+  }
+
+  function cancelInlineEditor() {
+    editing = null;
+    editor.hidden = true;
+  }
+
+  editor.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') commitInlineEditor();
+    if (e.key === 'Escape') cancelInlineEditor();
+    e.stopPropagation();
+  });
+  editor.addEventListener('blur', commitInlineEditor);
+
+  svg.addEventListener('dblclick', (e) => {
+    const itemEl = e.target.closest('[data-type]');
+    if (!itemEl) return;
+    const editEl = e.target.closest('[data-edit]');
+    const defaults = { node: 'label', wire: 'label', zone: 'label', note: 'text' };
+    const field = editEl?.dataset.edit || defaults[itemEl.dataset.type];
+    openInlineEditor(itemEl.dataset.id, field, e.clientX, e.clientY);
+  });
 
   return { view, ui, setTool, getTool: () => tool, zoomBy, zoomReset, toWorld };
 }
