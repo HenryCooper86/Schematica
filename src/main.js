@@ -290,7 +290,8 @@ function flyTo(target, instant = false) {
 
 function renderJourney() {
   if (journeyPanel.hidden) return;
-  if (journeyPanel.contains(document.activeElement)) return;
+  const ae = document.activeElement;
+  if (journeyPanel.contains(ae) && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) return;
   const steps = store.doc.journey || [];
   const escA = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
   let html = '<h3>Journey</h3>';
@@ -386,6 +387,7 @@ function presentEnter() {
 }
 
 function presentExit() {
+  if (tweenRaf) { cancelAnimationFrame(tweenRaf); tweenRaf = null; }
   presentState.active = false;
   presentState.caption = '';
   presentState.counter = '';
