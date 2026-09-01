@@ -274,6 +274,16 @@ html, body {
 }
 #inline-editor:focus { outline: none; }
 
+/* ---- Scrollbars ---- */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line2) transparent;
+}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #3b4c73; }
+
 @media (prefers-reduced-motion: no-preference) {
   #toolbar button, .palette-item { transition: background 120ms ease, color 120ms ease, border-color 120ms ease; }
 }
