@@ -4,9 +4,22 @@ import { createTools } from './tools.js';
 import { CATEGORIES, PARTS, getPart } from './palette.js';
 import { snap } from './geometry.js';
 import { BUSES, BUS_ORDER } from './buses.js';
+import { serialize, deserialize } from './serialize.js';
 
 const svg = document.getElementById('canvas');
-const store = new Store(newDoc());
+
+function loadAutosave() {
+  try {
+    const text = localStorage.getItem('schematica.autosave');
+    if (!text) return null;
+    return deserialize(text).doc;
+  } catch (err) {
+    console.warn('Discarding unreadable autosave:', err);
+    return null;
+  }
+}
+
+const store = new Store(loadAutosave() || newDoc());
 const renderer = createRenderer(svg);
 const tools = createTools({ svg, store, requestRender: render, onToolChange: updateToolButtons });
 
@@ -25,6 +38,18 @@ function render() {
 }
 
 store.subscribe(render);
+
+let autosaveTimer = null;
+store.subscribe(() => {
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem('schematica.autosave', serialize(store.doc));
+    } catch (err) {
+      console.warn('Autosave failed:', err);
+    }
+  }, 300);
+});
 
 // ---- Toolbar ----
 function updateToolButtons(tool) {
@@ -46,6 +71,18 @@ document.getElementById('btn-grid').addEventListener('click', (e) => {
   tools.ui.grid = !tools.ui.grid;
   e.currentTarget.classList.toggle('active', tools.ui.grid);
   render();
+});
+
+const titleInput = document.getElementById('title');
+titleInput.value = store.doc.title;
+titleInput.addEventListener('change', () => {
+  store.apply((doc) => {
+    doc.title = titleInput.value.trim() || 'Untitled Board';
+  });
+  titleInput.value = store.doc.title;
+});
+store.subscribe(() => {
+  if (document.activeElement !== titleInput) titleInput.value = store.doc.title;
 });
 
 // ---- Palette ----
@@ -144,6 +181,45 @@ function renderProps() {
     });
   });
 }
+
+function download(filename, data, mime) {
+  const blob = data instanceof Blob ? data : new Blob([data], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function safeName(ext) {
+  return `${(store.doc.title || 'schematica').replace(/[^\w-]+/g, '_')}${ext}`;
+}
+
+document.getElementById('btn-new').addEventListener('click', () => {
+  if (confirm('Clear the board? Anything not saved to a file is lost.')) {
+    store.replaceDoc(newDoc());
+  }
+});
+
+document.getElementById('btn-save').addEventListener('click', () => {
+  download(safeName('.schematica.json'), serialize(store.doc), 'application/json');
+});
+
+const fileInput = document.getElementById('file-input');
+document.getElementById('btn-open').addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', async () => {
+  const file = fileInput.files[0];
+  fileInput.value = '';
+  if (!file) return;
+  try {
+    const { doc, warnings } = deserialize(await file.text());
+    store.replaceDoc(doc);
+    if (warnings.length) alert(`Opened with warnings:\n\n${warnings.join('\n')}`);
+  } catch (err) {
+    alert(err.message);
+  }
+});
 
 buildPalette();
 render();
