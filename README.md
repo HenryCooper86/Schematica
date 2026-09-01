@@ -38,8 +38,13 @@ then Settings → Pages → deploy from branch `main`, root folder.
 | Delete | `Delete` / `Backspace` |
 | Save / open | Toolbar — downloads/reads `*.schematica.json` |
 | Export | Toolbar — SVG or 2x PNG, cropped to content |
+| Record | Rec button — WebM/MP4 video (optional mic or music audio) or animated GIF |
+| Journey | Journey button — save camera steps with captions; Present plays the tour (arrow keys, Esc) |
 
 Work is autosaved to the browser's localStorage and restored on reload.
+
+Journeys are saved inside the `.schematica.json` document. Recording during
+Present captures the animated tour with captions burned into the frames.
 
 ## Develop
 
@@ -53,4 +58,6 @@ npm test   # node --test
 Layout: `src/state.js` owns the document model + undo; `src/render.js` draws
 it into layered SVG; `src/tools.js` is the pointer/keyboard state machine;
 `src/serialize.js` validates files; `src/export.js` builds standalone
-SVG/PNG. See `docs/superpowers/specs/` for the design spec.
+SVG/PNG. `src/gif.js` is a zero-dependency GIF89a encoder; `src/journey.js`
+holds journey steps and camera tween math; `src/recorder.js` drives frame
+capture and MediaRecorder. See `docs/superpowers/specs/` for the design spec.
