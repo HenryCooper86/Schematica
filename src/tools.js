@@ -243,6 +243,7 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
     }
     if (e.key === 'Escape') {
       ui.wireDraft = null;
+      drag = null;
       closeBusPopover();
       store.clearSelection();
       requestRender();
