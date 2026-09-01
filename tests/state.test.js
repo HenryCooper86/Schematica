@@ -15,7 +15,7 @@ test('uid is unique and prefixed', () => {
 
 test('newDoc shape', () => {
   const doc = newDoc('X');
-  assert.deepEqual(doc, { schema: 1, title: 'X', nodes: [], wires: [], zones: [], notes: [] });
+  assert.deepEqual(doc, { schema: 1, title: 'X', nodes: [], wires: [], zones: [], notes: [], journey: [] });
 });
 
 test('addNode uses part defaults', () => {

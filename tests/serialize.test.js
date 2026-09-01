@@ -127,3 +127,25 @@ test('valid hex colors pass through', () => {
   }));
   assert.equal(doc.nodes[0].color, '#aB12cD');
 });
+
+test('journey round-trips; invalid steps dropped; zoom clamped; missing -> []', () => {
+  const good = {
+    schema: 1,
+    journey: [
+      { id: 'j1', label: 'Intro', view: { x: 1, y: 2, zoom: 2 }, caption: 'hi' },
+      { id: 'j2', view: { x: 0, y: 0, zoom: 99 } },
+      { id: 'j3', view: { x: 'nope', y: 0, zoom: 1 } },
+      { id: 'j1', view: { x: 0, y: 0, zoom: 1 } },
+    ],
+  };
+  const { doc, warnings } = deserialize(JSON.stringify(good));
+  assert.equal(doc.journey.length, 2);
+  assert.deepEqual(doc.journey[0], { id: 'j1', label: 'Intro', view: { x: 1, y: 2, zoom: 2 }, caption: 'hi' });
+  assert.deepEqual(doc.journey[1], { id: 'j2', label: 'Step', view: { x: 0, y: 0, zoom: 4 }, caption: '' });
+  assert.equal(warnings.length, 2);
+  const { doc: empty } = deserialize('{"schema":1}');
+  assert.deepEqual(empty.journey, []);
+  assert.throws(() => deserialize('{"journey": 5}'), /"journey" must be an array/);
+  const back = deserialize(serialize(doc));
+  assert.deepEqual(back.doc.journey, doc.journey);
+});

@@ -16,7 +16,7 @@ export function deserialize(text) {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     throw new Error('Not a valid Schematica file: top level must be an object.');
   }
-  for (const key of ['nodes', 'wires', 'zones', 'notes']) {
+  for (const key of ['nodes', 'wires', 'zones', 'notes', 'journey']) {
     if (raw[key] !== undefined && !Array.isArray(raw[key])) {
       throw new Error(`Not a valid Schematica file: "${key}" must be an array.`);
     }
@@ -114,6 +114,21 @@ export function deserialize(text) {
     }
     seen.add(t.id);
     doc.notes.push({ id: t.id, x: t.x, y: t.y, text: typeof t.text === 'string' ? t.text : '' });
+  }
+
+  for (const s of raw.journey ?? []) {
+    if (!s || !validId(s.id) || seen.has(s.id) || !s.view
+      || !Number.isFinite(s.view.x) || !Number.isFinite(s.view.y) || !Number.isFinite(s.view.zoom)) {
+      warnings.push('Dropped a journey step with a bad id or view.');
+      continue;
+    }
+    seen.add(s.id);
+    doc.journey.push({
+      id: s.id,
+      label: typeof s.label === 'string' ? s.label : 'Step',
+      view: { x: s.view.x, y: s.view.y, zoom: Math.min(4, Math.max(0.2, s.view.zoom)) },
+      caption: typeof s.caption === 'string' ? s.caption : '',
+    });
   }
 
   return { doc, warnings };

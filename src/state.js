@@ -8,7 +8,7 @@ export function uid(prefix = 'id') {
 }
 
 export function newDoc(title = 'Untitled Board') {
-  return { schema: 1, title, nodes: [], wires: [], zones: [], notes: [] };
+  return { schema: 1, title, nodes: [], wires: [], zones: [], notes: [], journey: [] };
 }
 
 const MAX_UNDO = 100;
