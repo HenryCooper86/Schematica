@@ -235,7 +235,7 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
 
   function isEditingText(e) {
     const t = e.target;
-    return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+    return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
   }
 
   window.addEventListener('keydown', (e) => {
