@@ -1,5 +1,8 @@
 import { snap, normRect, rectsIntersect, nodeRect } from './geometry.js';
-import { deleteItems, duplicateItems, findItem } from './state.js';
+import { addWire, deleteItems, duplicateItems, findItem } from './state.js';
+import { BUSES, BUS_ORDER } from './buses.js';
+import { getPart } from './palette.js';
+import { esc } from './render.js';
 
 export function createTools({ svg, store, requestRender, onToolChange }) {
   const view = { x: 40, y: 40, zoom: 1 };
@@ -83,8 +86,13 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
 
     const portEl = e.target.closest('.port');
     if (portEl) {
-      // Wire drawing lands in Task 7; until then a port click selects its node.
-      store.setSelection([portEl.dataset.node]);
+      ui.wireDraft = {
+        from: { node: portEl.dataset.node, port: portEl.dataset.port },
+        cursor: pt,
+      };
+      drag = { mode: 'wire' };
+      svg.setPointerCapture(e.pointerId);
+      requestRender();
       return;
     }
 
@@ -135,6 +143,13 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
       requestRender();
       return;
     }
+    if (drag.mode === 'wire') {
+      ui.wireDraft.cursor = pt;
+      const el = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('.port');
+      ui.hoverPort = el ? { node: el.dataset.node, port: el.dataset.port } : null;
+      requestRender();
+      return;
+    }
     if (drag.mode === 'marquee' || drag.mode === 'zone') {
       ui.marquee = normRect(drag.start.x, drag.start.y, pt.x, pt.y);
       requestRender();
@@ -157,6 +172,19 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
 
   svg.addEventListener('pointerup', (e) => {
     if (!drag) return;
+    if (drag.mode === 'wire') {
+      const el = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('.port');
+      const draft = ui.wireDraft;
+      ui.wireDraft = null;
+      ui.hoverPort = null;
+      if (el && draft
+        && !(el.dataset.node === draft.from.node && el.dataset.port === draft.from.port)) {
+        finishWire(draft.from, { node: el.dataset.node, port: el.dataset.port }, e);
+      }
+      drag = null;
+      requestRender();
+      return;
+    }
     if (drag.mode === 'marquee') {
       const m = ui.marquee;
       ui.marquee = null;
@@ -215,6 +243,7 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
     }
     if (e.key === 'Escape') {
       ui.wireDraft = null;
+      closeBusPopover();
       store.clearSelection();
       requestRender();
       return;
@@ -233,6 +262,60 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
       svg.classList.remove('panning');
     }
   });
+
+  function portBus(ref) {
+    const node = store.doc.nodes.find((n) => n.id === ref.node);
+    if (!node) return null;
+    return getPart(node.kind).ports.find((p) => p.id === ref.port)?.bus ?? null;
+  }
+
+  function finishWire(from, to, e) {
+    const busFrom = portBus(from);
+    const busTo = portBus(to);
+    if (busFrom && busFrom === busTo) {
+      const id = addWire(store, busFrom, from, to);
+      store.setSelection([id]);
+      return;
+    }
+    const suggested = [...new Set([busFrom, busTo].filter(Boolean))];
+    openBusPopover(e.clientX, e.clientY, suggested, (bus) => {
+      const id = addWire(store, bus, from, to);
+      store.setSelection([id]);
+    });
+  }
+
+  const popover = document.getElementById('bus-popover');
+
+  function closeBusPopover() {
+    popover.hidden = true;
+    popover.innerHTML = '';
+  }
+
+  function openBusPopover(cx, cy, suggested, onPick) {
+    const order = [...suggested, ...BUS_ORDER.filter((b) => !suggested.includes(b))];
+    popover.innerHTML = order.map((id) => {
+      const b = BUSES[id];
+      return `<button data-bus="${esc(id)}"><span class="swatch" style="background:${esc(b.color)}"></span>`
+        + `${esc(b.name)}${suggested.includes(id) ? ' ★' : ''}</button>`;
+    }).join('');
+    popover.style.left = `${Math.min(cx, window.innerWidth - 190)}px`;
+    popover.style.top = `${Math.min(cy, window.innerHeight - 320)}px`;
+    popover.hidden = false;
+    popover.querySelectorAll('button').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        closeBusPopover();
+        onPick(btn.dataset.bus);
+      });
+    });
+    setTimeout(() => {
+      window.addEventListener('pointerdown', function dismiss(ev) {
+        if (!popover.contains(ev.target)) {
+          closeBusPopover();
+          window.removeEventListener('pointerdown', dismiss);
+        }
+      });
+    }, 0);
+  }
 
   return { view, ui, setTool, getTool: () => tool, zoomBy, zoomReset, toWorld };
 }
