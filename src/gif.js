@@ -129,7 +129,7 @@ function writeLZW(out, indices, minCodeSize) {
       if (next < 4096) {
         dict.set(key, next);
         next++;
-        if (next === (1 << codeSize) && codeSize < 12) codeSize++;
+        if (next === (1 << codeSize) + 1 && codeSize < 12) codeSize++;
       } else {
         bits.write(clear, codeSize);
         reset();
