@@ -18,7 +18,7 @@
 - Schema field is `"schema": 1` exactly.
 - Grid snap is 8 px. Visual grid dots every 24 px. Zoom clamps to [0.2, 4].
 - Undo stack cap: 100 entries.
-- Canvas background `#f7f7f5` (also the export background). Chrome (toolbar/panels) is dark slate.
+- Canvas background `#0a0e17` (also the export background); full dark net_draw-style UI (Task 12, user-directed redesign supersedes the original light canvas).
 - All model IDs are strings from `uid(prefix)` — prefixes: `n` nodes, `w` wires, `z` zones, `t` notes.
 - localStorage key for autosave: `schematica.autosave`.
 - Run all tests with: `npm test` (alias for `node --test tests/`).
@@ -2641,7 +2641,7 @@ git commit -m "feat: localStorage autosave, title, and New/Open/Save round trip"
 - [ ] **Step 1: Create `src/export.js`**
 
 ```js
-import { diagramMarkup } from './render.js';
+import { diagramMarkup, CANVAS_BG } from './render.js';
 import { contentBounds } from './geometry.js';
 
 const MARGIN = 24;
@@ -2654,7 +2654,7 @@ export function buildExportSVG(doc) {
   const h = b.h + MARGIN * 2;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${x} ${y} ${w} ${h}"`
     + ` font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">`
-    + `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#f7f7f5"/>`
+    + `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${CANVAS_BG}"/>`
     + diagramMarkup(doc)
     + '</svg>';
 }
@@ -2855,4 +2855,880 @@ Expected: PASS
 ```bash
 git add README.md
 git commit -m "docs: README with usage, hosting, and development guide"
+```
+
+---
+
+### Task 12: NetDraw-style dark redesign (user-directed; execute between Task 9 and Task 10)
+
+**Files:**
+- Rewrite: `src/buses.js`, `src/palette.js`, `src/render.js`, `index.html`, `css/style.css`
+- Modify: `src/main.js`, `tests/palette.test.js`
+
+**Interfaces:**
+- Consumes: everything from Tasks 1-9. All element ids from Task 5 are preserved.
+- Produces: `render.js` additionally exports `CANVAS_BG` (Task 10 imports it for the export background). `palette.js` additionally exports `CATEGORY_COLORS: Record<categoryId, hex>` and each part gains an `icon` field (16×16 SVG path string). Everything else keeps its exact existing signature — `diagramMarkup(doc, ui)`, `createRenderer(svg)`, `esc(s)`, `BUSES`/`BUS_ORDER`/`DEFAULT_BUS`, `PARTS`/`CATEGORIES`/`getPart` are unchanged in shape.
+- Design tokens: canvas `#0a0e17`, grid dots `#1c2333`, chrome `#0d1220`, cards `#131a2b`, card border `#2c3a5c`, hairline `#1e2942`, text `#e6ebf4`, muted `#8b96ab`, accent `#38bdf8`. Category colors: compute `#818cf8`, sensors `#22d3ee`, actuators `#fbbf24`, power `#f87171`, connectivity `#60a5fa`, misc `#34d399`. Mono stack `ui-monospace, 'SF Mono', Menlo, monospace` for sublabels, wire/zone chips, port tooltips, zoom label, hint bar.
+- `node.color` semantics change: it is now an accent-color override for the node's badge/border tint (fill stays the dark card), matching the dark design. The properties panel label changes from "Fill color" to "Accent color".
+
+- [ ] **Step 1: Add the failing palette test**
+
+Append to `tests/palette.test.js` (and change its import line to `import { CATEGORIES, CATEGORY_COLORS, PARTS, getPart } from '../src/palette.js';`):
+
+```js
+test('every part has an icon path and every category a color', () => {
+  for (const [key, part] of Object.entries(PARTS)) {
+    assert.ok(typeof part.icon === 'string' && part.icon.startsWith('M'), `${key} icon`);
+  }
+  for (const c of CATEGORIES) {
+    assert.match(CATEGORY_COLORS[c.id] ?? '', /^#[0-9a-f]{6}$/i, `${c.id} color`);
+  }
+});
+```
+
+Run: `npm test` — expected: FAIL (CATEGORY_COLORS undefined / icons missing).
+
+- [ ] **Step 2: Rewrite `src/buses.js`** (dark-friendly colors; structure unchanged)
+
+```js
+export const BUSES = {
+  power: { name: 'Power', short: 'PWR', color: '#f87171', width: 3.5, dash: null },
+  gnd:   { name: 'Ground', short: 'GND', color: '#cbd5e1', width: 3.5, dash: '8 4' },
+  i2c:   { name: 'I2C', short: 'I2C', color: '#38bdf8', width: 2, dash: null },
+  spi:   { name: 'SPI', short: 'SPI', color: '#a78bfa', width: 2, dash: null },
+  uart:  { name: 'UART', short: 'UART', color: '#4ade80', width: 2, dash: null },
+  can:   { name: 'CAN', short: 'CAN', color: '#facc15', width: 2, dash: null },
+  usb:   { name: 'USB', short: 'USB', color: '#f472b6', width: 2, dash: null },
+  eth:   { name: 'Ethernet', short: 'ETH', color: '#2dd4bf', width: 2, dash: null },
+  gpio:  { name: 'GPIO', short: 'GPIO', color: '#7d8ba1', width: 1.5, dash: null },
+  pwm:   { name: 'PWM', short: 'PWM', color: '#fb923c', width: 2, dash: '6 4' },
+  adc:   { name: 'ADC / analog', short: 'ADC', color: '#e879f9', width: 2, dash: '4 3' },
+  rf:    { name: 'RF', short: 'RF', color: '#818cf8', width: 2, dash: '1.5 5' },
+};
+
+export const BUS_ORDER = ['power', 'gnd', 'i2c', 'spi', 'uart', 'can', 'usb', 'eth', 'gpio', 'pwm', 'adc', 'rf'];
+
+export const DEFAULT_BUS = 'gpio';
+```
+
+- [ ] **Step 3: Rewrite `src/palette.js`** (adds CATEGORY_COLORS + per-part 16×16 icons; part shape gains `icon`)
+
+```js
+export const CATEGORIES = [
+  { id: 'compute', name: 'Compute' },
+  { id: 'sensors', name: 'Sensors' },
+  { id: 'actuators', name: 'Actuators' },
+  { id: 'power', name: 'Power' },
+  { id: 'connectivity', name: 'Connectivity' },
+  { id: 'misc', name: 'Storage / Misc' },
+];
+
+export const CATEGORY_COLORS = {
+  compute: '#818cf8',
+  sensors: '#22d3ee',
+  actuators: '#fbbf24',
+  power: '#f87171',
+  connectivity: '#60a5fa',
+  misc: '#34d399',
+};
+
+const p = (id, name, side, offset, bus) => ({ id, name, side, offset, bus });
+const pwr = (side = 'left') => [p('vcc', 'VCC', side, 0.3, 'power'), p('gnd', 'GND', side, 0.7, 'gnd')];
+const part = (kind, category, name, w, h, icon, ports) => ({ kind, category, name, w, h, icon, ports });
+
+export const PARTS = {
+  // Compute
+  mcu: part('mcu', 'compute', 'MCU', 160, 100,
+    'M4 4h8v8H4z M6 1v3 M10 1v3 M6 12v3 M10 12v3 M1 6h3 M1 10h3 M12 6h3 M12 10h3', [
+    ...pwr(),
+    p('i2c', 'I2C', 'right', 0.2, 'i2c'), p('spi', 'SPI', 'right', 0.4, 'spi'),
+    p('uart', 'UART', 'right', 0.6, 'uart'), p('usb', 'USB', 'right', 0.8, 'usb'),
+    p('gpio1', 'GPIO', 'bottom', 0.2, 'gpio'), p('gpio2', 'GPIO', 'bottom', 0.4, 'gpio'),
+    p('pwm', 'PWM', 'bottom', 0.6, 'pwm'), p('adc', 'ADC', 'bottom', 0.8, 'adc'),
+    p('can', 'CAN', 'top', 0.5, 'can'),
+  ]),
+  sbc: part('sbc', 'compute', 'SoC / SBC', 180, 110,
+    'M2 3h12v10H2z M4.5 5.5h3v3h-3z M10 5.5h2.5 M10 8h2.5 M4.5 11h7', [
+    ...pwr(),
+    p('eth', 'ETH', 'right', 0.25, 'eth'), p('usb', 'USB', 'right', 0.5, 'usb'),
+    p('uart', 'UART', 'right', 0.75, 'uart'),
+    p('gpio1', 'GPIO', 'bottom', 0.2, 'gpio'), p('gpio2', 'GPIO', 'bottom', 0.4, 'gpio'),
+    p('i2c', 'I2C', 'bottom', 0.6, 'i2c'), p('spi', 'SPI', 'bottom', 0.8, 'spi'),
+  ]),
+  fpga: part('fpga', 'compute', 'FPGA', 160, 110,
+    'M3 3h10v10H3z M6.3 3v10 M9.6 3v10 M3 6.3h10 M3 9.6h10', [
+    ...pwr(),
+    p('spi', 'SPI', 'right', 0.25, 'spi'), p('uart', 'UART', 'right', 0.5, 'uart'),
+    p('gpio1', 'IO', 'right', 0.75, 'gpio'),
+    p('gpio2', 'IO', 'bottom', 0.33, 'gpio'), p('gpio3', 'IO', 'bottom', 0.66, 'gpio'),
+  ]),
+  dsp: part('dsp', 'compute', 'DSP', 150, 90,
+    'M3 3h10v10H3z M5 8h1.5l1-2 1.5 4 1-2H11', [
+    ...pwr(),
+    p('spi', 'SPI', 'right', 0.33, 'spi'), p('i2c', 'I2C', 'right', 0.66, 'i2c'),
+    p('adc1', 'ADC', 'bottom', 0.33, 'adc'), p('adc2', 'ADC', 'bottom', 0.66, 'adc'),
+  ]),
+  // Sensors
+  temp: part('temp', 'sensors', 'Temp sensor', 130, 70,
+    'M7 2a1.5 1.5 0 0 1 3 0v7a3 3 0 1 1-3 0z M8.5 6v5',
+    [...pwr(), p('i2c', 'I2C', 'right', 0.5, 'i2c')]),
+  imu: part('imu', 'sensors', 'IMU', 130, 70,
+    'M8 8m-5 0a5 5 0 1 0 10 0a5 5 0 1 0-10 0 M8 1v3 M8 12v3 M1 8h3 M12 8h3',
+    [...pwr(), p('i2c', 'I2C', 'right', 0.35, 'i2c'), p('spi', 'SPI', 'right', 0.7, 'spi')]),
+  gps: part('gps', 'sensors', 'GPS', 130, 70,
+    'M8 15s-5-4.5-5-8a5 5 0 1 1 10 0c0 3.5-5 8-5 8z M8 7m-1.8 0a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0-3.6 0',
+    [...pwr(), p('uart', 'UART', 'right', 0.5, 'uart'), p('ant', 'ANT', 'top', 0.5, 'rf')]),
+  camera: part('camera', 'sensors', 'Camera', 140, 80,
+    'M2 5h3l1.5-2h3L11 5h3v8H2z M8 9m-2.2 0a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0-4.4 0',
+    [...pwr(), p('i2c', 'CTRL', 'right', 0.3, 'i2c'), p('spi', 'DATA', 'right', 0.7, 'spi')]),
+  adcin: part('adcin', 'sensors', 'Analog input', 130, 70,
+    'M2 11c2-6 4-6 6 0 M8 11h2V8h2V5h2',
+    [...pwr(), p('out', 'OUT', 'right', 0.5, 'adc')]),
+  sensor: part('sensor', 'sensors', 'Sensor', 130, 70,
+    'M8 8m-1.2 0a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0-2.4 0 M4.5 4.5a5 5 0 0 0 0 7 M11.5 4.5a5 5 0 0 1 0 7',
+    [...pwr(), p('i2c', 'I2C', 'right', 0.35, 'i2c'), p('int', 'INT', 'right', 0.7, 'gpio')]),
+  // Actuators (power on top, control on the left)
+  motor: part('motor', 'actuators', 'Motor + driver', 150, 80,
+    'M2 6h3V4h6v8H5v-2H2z M11 6h3v4h-3 M6.5 6.5v3 M8.5 6.5v3',
+    [...pwr('top'), p('pwm', 'PWM', 'left', 0.5, 'pwm')]),
+  servo: part('servo', 'actuators', 'Servo', 130, 70,
+    'M2 9h12v4H2z M6 9V5.5a2 2 0 0 1 4 0V9 M8 5.5 11 2.5',
+    [...pwr('top'), p('pwm', 'PWM', 'left', 0.5, 'pwm')]),
+  relay: part('relay', 'actuators', 'Relay', 130, 70,
+    'M1 8h4 M11 8h4 M5 8l5.5-4',
+    [...pwr('top'), p('in', 'IN', 'left', 0.5, 'gpio')]),
+  led: part('led', 'actuators', 'LED', 110, 60,
+    'M5 2h6v6a3 3 0 0 1-6 0z M5 8h6 M6.5 11v3 M9.5 11v3',
+    [...pwr('top'), p('in', 'IN', 'left', 0.5, 'gpio')]),
+  display: part('display', 'actuators', 'Display', 150, 80,
+    'M2 3h12v8H2z M5 13h6 M8 11v2',
+    [...pwr('top'), p('i2c', 'I2C', 'left', 0.35, 'i2c'), p('spi', 'SPI', 'left', 0.7, 'spi')]),
+  buzzer: part('buzzer', 'actuators', 'Buzzer', 110, 60,
+    'M2 6h3l4-3v10l-4-3H2z M11 5a4 4 0 0 1 0 6 M13 3a7 7 0 0 1 0 10',
+    [...pwr('top'), p('in', 'IN', 'left', 0.5, 'pwm')]),
+  // Power (outputs on the right)
+  battery: part('battery', 'power', 'Battery', 130, 70,
+    'M2 5h10v6H2z M12 7h2v2h-2 M4 7v2 M6.5 7v2',
+    [p('out', 'OUT', 'right', 0.35, 'power'), p('gnd', 'GND', 'right', 0.7, 'gnd')]),
+  regulator: part('regulator', 'power', 'Regulator', 140, 70,
+    'M4 4h8v8H4z M1 8h3 M12 8h3 M6 8h1l1-2 1 3 1-1',
+    [p('in', 'IN', 'left', 0.5, 'power'), p('out', 'OUT', 'right', 0.35, 'power'), p('gnd', 'GND', 'right', 0.7, 'gnd')]),
+  charger: part('charger', 'power', 'Charger', 140, 70,
+    'M3 3h10v10H3z M8.5 5 6.5 8.5h2L7 11l3-4H8z',
+    [p('in', 'USB IN', 'left', 0.5, 'usb'), p('out', 'OUT', 'right', 0.35, 'power'), p('gnd', 'GND', 'right', 0.7, 'gnd'), p('bat', 'BAT', 'bottom', 0.5, 'power')]),
+  solar: part('solar', 'power', 'Solar panel', 130, 70,
+    'M2 4h12l-2 8H4z M5.5 4l-1 8 M10.5 4l1 8 M2.7 8h10.6',
+    [p('out', 'OUT', 'right', 0.5, 'power')]),
+  jack: part('jack', 'power', 'Power jack', 120, 60,
+    'M2 5h8v6H2z M10 6h4 M10 10h4 M4 5V3',
+    [p('out', 'OUT', 'right', 0.35, 'power'), p('gnd', 'GND', 'right', 0.7, 'gnd')]),
+  // Connectivity
+  wifi: part('wifi', 'connectivity', 'WiFi / BLE', 140, 75,
+    'M1.5 6a9 9 0 0 1 13 0 M4 8.8a5.5 5.5 0 0 1 8 0 M6.5 11.5a2.5 2.5 0 0 1 3 0 M8 14h.01',
+    [...pwr(), p('uart', 'UART', 'right', 0.3, 'uart'), p('spi', 'SPI', 'right', 0.6, 'spi'), p('ant', 'ANT', 'top', 0.5, 'rf')]),
+  lora: part('lora', 'connectivity', 'LoRa', 140, 75,
+    'M8 8m-1 0a1 1 0 1 0 2 0a1 1 0 1 0-2 0 M5 5a4.5 4.5 0 0 0 0 6 M11 5a4.5 4.5 0 0 1 0 6 M3 3a8 8 0 0 0 0 10 M13 3a8 8 0 0 1 0 10',
+    [...pwr(), p('spi', 'SPI', 'right', 0.5, 'spi'), p('ant', 'ANT', 'top', 0.5, 'rf')]),
+  cellular: part('cellular', 'connectivity', 'Cellular', 140, 75,
+    'M2 13v-3 M5.5 13V7 M9 13V4 M12.5 13V1.5',
+    [...pwr(), p('uart', 'UART', 'right', 0.5, 'uart'), p('ant', 'ANT', 'top', 0.5, 'rf')]),
+  ethphy: part('ethphy', 'connectivity', 'Ethernet PHY', 140, 75,
+    'M3 3h10v7H3z M5 10v3 M11 10v3 M5.5 5.5v2 M8 5.5v2 M10.5 5.5v2',
+    [...pwr(), p('eth', 'ETH', 'right', 0.5, 'eth'), p('mii', 'MII', 'bottom', 0.5, 'gpio')]),
+  usbport: part('usbport', 'connectivity', 'USB port', 110, 60,
+    'M8 2v12 M8 11 4.5 9V6.5 M8 9l3.5-2V4.5 M8 2 6.5 4h3z',
+    [p('usb', 'USB', 'right', 0.5, 'usb')]),
+  cantrx: part('cantrx', 'connectivity', 'CAN transceiver', 140, 70,
+    'M1 8h14 M4 8V5h3v3 M9 8v3h3V8',
+    [...pwr('top'), p('mcu', 'TX/RX', 'left', 0.5, 'can'), p('bus', 'BUS', 'right', 0.5, 'can')]),
+  antenna: part('antenna', 'connectivity', 'RF antenna', 100, 60,
+    'M8 15V6 M3 2a7 7 0 0 1 10 0 M5.3 4.2a4 4 0 0 1 5.4 0 M8 6m-1 0a1 1 0 1 0 2 0a1 1 0 1 0-2 0',
+    [p('feed', 'FEED', 'bottom', 0.5, 'rf')]),
+  // Storage / Misc
+  eeprom: part('eeprom', 'misc', 'EEPROM / Flash', 140, 70,
+    'M4 3h8v10H4z M4 6h8 M4 9h8 M2 5h2 M2 8h2 M2 11h2 M12 5h2 M12 8h2 M12 11h2',
+    [...pwr(), p('spi', 'SPI', 'right', 0.35, 'spi'), p('i2c', 'I2C', 'right', 0.7, 'i2c')]),
+  sdcard: part('sdcard', 'misc', 'SD card', 130, 70,
+    'M4 2h6l3 3v9H4z M6 4v2 M8 4v2 M10 4v2',
+    [...pwr(), p('spi', 'SPI', 'right', 0.5, 'spi')]),
+  rtc: part('rtc', 'misc', 'RTC', 120, 65,
+    'M8 8m-6 0a6 6 0 1 0 12 0a6 6 0 1 0-12 0 M8 4.5V8l2.5 1.5',
+    [...pwr(), p('i2c', 'I2C', 'right', 0.5, 'i2c')]),
+  crystal: part('crystal', 'misc', 'Crystal', 100, 50,
+    'M5 4h6v8H5z M3 6v4 M1 8h2 M13 6v4 M13 8h2',
+    [p('osc', 'OSC', 'right', 0.5, 'gpio')]),
+  debug: part('debug', 'misc', 'Debug header', 130, 60,
+    'M3 4h10v8H3z M5.5 6.5h.01 M8 6.5h.01 M10.5 6.5h.01 M5.5 9.5h.01 M8 9.5h.01 M10.5 9.5h.01',
+    [p('swd', 'SWD', 'right', 0.35, 'gpio'), p('uart', 'UART', 'right', 0.7, 'uart')]),
+  ic: part('ic', 'misc', 'Generic IC', 130, 80,
+    'M5 3h6v10H5z M3 5h2 M3 8h2 M3 11h2 M11 5h2 M11 8h2 M11 11h2 M7 3a1 1 0 0 0 2 0',
+    [...pwr(), p('io1', 'IO', 'right', 0.35, 'gpio'), p('io2', 'IO', 'right', 0.7, 'gpio')]),
+  generic: part('generic', 'misc', 'Custom box', 140, 80,
+    'M2 5V2h3 M11 2h3v3 M14 11v3h-3 M5 14H2v-3', [
+    p('top', 'P1', 'top', 0.5, 'gpio'), p('right', 'P2', 'right', 0.5, 'gpio'),
+    p('bottom', 'P3', 'bottom', 0.5, 'gpio'), p('left', 'P4', 'left', 0.5, 'gpio'),
+  ]),
+};
+
+export function getPart(kind) {
+  return PARTS[kind] ?? PARTS.generic;
+}
+```
+
+Run: `npm test` — expected: PASS (all, including the new test).
+
+- [ ] **Step 4: Rewrite `src/render.js`**
+
+```js
+import { BUSES } from './buses.js';
+import { getPart, CATEGORY_COLORS } from './palette.js';
+import {
+  portPosition, wirePath, wireMidpoint, wrapText, noteHeight, NOTE_W,
+} from './geometry.js';
+
+export const CANVAS_BG = '#0a0e17';
+
+const ACCENT = '#38bdf8';
+const CARD_BG = '#131a2b';
+const CARD_LINE = '#2c3a5c';
+const CHIP_BG = '#0d1220';
+const TEXT = '#e6ebf4';
+const MUTED = '#8b96ab';
+const MONO = "ui-monospace, 'SF Mono', Menlo, monospace";
+
+export function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
+function badgeMarkup(x, y, size, color, icon) {
+  const pad = size * 0.2;
+  const k = (size - pad * 2) / 16;
+  return `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="7" fill="${color}" fill-opacity="0.13"/>`
+    + `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="7" fill="none" stroke="${color}" stroke-opacity="0.3"/>`
+    + `<g transform="translate(${x + pad} ${y + pad}) scale(${k})" fill="none" stroke="${color}"`
+    + ` stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="${icon}"/></g>`;
+}
+
+function portsMarkup(node, part, hoverPort) {
+  let s = '';
+  for (const port of part.ports) {
+    const pos = portPosition(node, port);
+    const hot = hoverPort && hoverPort.node === node.id && hoverPort.port === port.id;
+    s += `<circle class="port" data-node="${esc(node.id)}" data-port="${esc(port.id)}"`
+      + ` cx="${pos.x}" cy="${pos.y}" r="${hot ? 6 : 4}"`
+      + ` fill="${hot ? '#16324a' : CHIP_BG}" stroke="${hot ? ACCENT : '#46587a'}" stroke-width="1.5"/>`;
+    if (hot) {
+      const bus = BUSES[port.bus];
+      s += `<text x="${pos.x}" y="${pos.y - 11}" text-anchor="middle" font-size="9.5" font-weight="600"`
+        + ` font-family="${MONO}" fill="#7dd3fc" paint-order="stroke" stroke="${CANVAS_BG}" stroke-width="3"`
+        + ` pointer-events="none">${esc(port.name)} · ${esc(bus ? bus.short : '')}</text>`;
+    }
+  }
+  return s;
+}
+
+function nodeMarkup(node, selected, hoverPort) {
+  const part = getPart(node.kind);
+  const color = node.color || CATEGORY_COLORS[part.category] || ACCENT;
+  const badge = 26;
+  let s = `<g class="node" data-id="${esc(node.id)}" data-type="node">`;
+  if (selected) {
+    s += `<rect x="${node.x - 3}" y="${node.y - 3}" width="${node.w + 6}" height="${node.h + 6}" rx="15"`
+      + ` fill="none" stroke="${ACCENT}" stroke-opacity="0.35" stroke-width="5"/>`;
+  }
+  s += `<rect x="${node.x}" y="${node.y}" width="${node.w}" height="${node.h}" rx="12"`
+    + ` fill="${CARD_BG}" stroke="${selected ? ACCENT : CARD_LINE}" stroke-width="1.5"/>`;
+  if (node.h >= 78) {
+    s += badgeMarkup(node.x + node.w / 2 - badge / 2, node.y + 10, badge, color, part.icon);
+    const ty = node.y + 10 + badge + 16;
+    s += `<text x="${node.x + node.w / 2}" y="${ty}" text-anchor="middle" font-size="12.5"`
+      + ` font-weight="700" fill="${TEXT}" data-edit="label">${esc(node.label)}</text>`;
+    if (node.sublabel) {
+      s += `<text x="${node.x + node.w / 2}" y="${ty + 15}" text-anchor="middle" font-size="10"`
+        + ` font-family="${MONO}" fill="${MUTED}" data-edit="sublabel">${esc(node.sublabel)}</text>`;
+    }
+  } else {
+    const bx = node.x + 10;
+    const by = node.y + node.h / 2 - badge / 2;
+    s += badgeMarkup(bx, by, badge, color, part.icon);
+    const tx = bx + badge + 9;
+    const ty = node.y + node.h / 2 + (node.sublabel ? -3 : 4);
+    s += `<text x="${tx}" y="${ty}" font-size="12" font-weight="700" fill="${TEXT}"`
+      + ` data-edit="label">${esc(node.label)}</text>`;
+    if (node.sublabel) {
+      s += `<text x="${tx}" y="${ty + 14}" font-size="9.5" font-family="${MONO}" fill="${MUTED}"`
+        + ` data-edit="sublabel">${esc(node.sublabel)}</text>`;
+    }
+  }
+  s += portsMarkup(node, part, hoverPort);
+  s += '</g>';
+  return s;
+}
+
+function chipMarkup(cx, cy, label, color, editField) {
+  const w = label.length * 6 + 16;
+  return `<rect x="${cx - w / 2}" y="${cy - 9}" width="${w}" height="18" rx="9"`
+    + ` fill="${CHIP_BG}" stroke="${color}" stroke-opacity="0.55"/>`
+    + `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="9.5"`
+    + ` font-weight="600" font-family="${MONO}" fill="${color}"`
+    + `${editField ? ` data-edit="${editField}"` : ''}>${esc(label)}</text>`;
+}
+
+function wireMarkup(doc, wire, selected) {
+  const from = doc.nodes.find((n) => n.id === wire.from.node);
+  const to = doc.nodes.find((n) => n.id === wire.to.node);
+  if (!from || !to) return '';
+  const pf = getPart(from.kind).ports.find((q) => q.id === wire.from.port);
+  const pt = getPart(to.kind).ports.find((q) => q.id === wire.to.port);
+  if (!pf || !pt) return '';
+  const a = portPosition(from, pf);
+  const b = portPosition(to, pt);
+  const bus = BUSES[wire.bus] || BUSES.gpio;
+  const d = wirePath(a, pf.side, b, pt.side);
+  const mid = wireMidpoint(a, pf.side, b, pt.side);
+  let s = `<g class="wire" data-id="${esc(wire.id)}" data-type="wire">`;
+  s += `<path d="${d}" fill="none" stroke="transparent" stroke-width="12" pointer-events="stroke"/>`;
+  if (selected) {
+    s += `<path d="${d}" fill="none" stroke="${ACCENT}" stroke-opacity="0.3"`
+      + ` stroke-width="${bus.width + 5}" stroke-linecap="round" pointer-events="none"/>`;
+  }
+  s += `<path d="${d}" fill="none" stroke="${bus.color}" stroke-width="${bus.width}"`
+    + `${bus.dash ? ` stroke-dasharray="${bus.dash}"` : ''} stroke-linecap="round" pointer-events="none"/>`;
+  s += chipMarkup(mid.x, mid.y, wire.label || bus.short, bus.color, 'label');
+  s += '</g>';
+  return s;
+}
+
+function zoneMarkup(zone, selected) {
+  const color = zone.color || '#4a90d9';
+  let s = `<g class="zone" data-id="${esc(zone.id)}" data-type="zone">`;
+  s += `<rect x="${zone.x}" y="${zone.y}" width="${zone.w}" height="${zone.h}" rx="14"`
+    + ` fill="${esc(color)}" fill-opacity="0.06" stroke="none" pointer-events="none"/>`;
+  s += `<rect x="${zone.x}" y="${zone.y}" width="${zone.w}" height="${zone.h}" rx="14"`
+    + ` fill="none" stroke="${selected ? ACCENT : esc(color)}" stroke-opacity="${selected ? 1 : 0.8}"`
+    + ` stroke-width="${selected ? 2 : 1.5}"${selected ? '' : ' stroke-dasharray="6 5"'}/>`;
+  s += `<rect x="${zone.x}" y="${zone.y}" width="${zone.w}" height="${zone.h}" rx="14"`
+    + ` fill="none" stroke="transparent" stroke-width="12" pointer-events="stroke"/>`;
+  const label = zone.label || 'Zone';
+  const w = label.length * 6.2 + 18;
+  s += `<rect x="${zone.x + 12}" y="${zone.y - 9}" width="${w}" height="18" rx="9"`
+    + ` fill="${CHIP_BG}" stroke="${esc(color)}" stroke-opacity="0.8"/>`;
+  s += `<text x="${zone.x + 12 + w / 2}" y="${zone.y}" text-anchor="middle" dominant-baseline="central"`
+    + ` font-size="10" font-weight="700" fill="${esc(color)}" data-edit="label">${esc(label)}</text>`;
+  s += '</g>';
+  return s;
+}
+
+function noteMarkup(note, selected) {
+  const lines = wrapText(note.text);
+  const h = noteHeight(note.text);
+  let s = `<g class="note" data-id="${esc(note.id)}" data-type="note">`;
+  s += `<rect x="${note.x}" y="${note.y}" width="${NOTE_W}" height="${h}" rx="8"`
+    + ` fill="#1c1710" stroke="${selected ? ACCENT : '#8a6d3b'}" stroke-width="${selected ? 2 : 1}"/>`;
+  lines.forEach((line, i) => {
+    s += `<text x="${note.x + 10}" y="${note.y + 20 + i * 16}" font-size="11.5" fill="#e8c884"`
+      + `${i === 0 ? ' data-edit="text"' : ''}>${esc(line)}</text>`;
+  });
+  s += '</g>';
+  return s;
+}
+
+export function diagramMarkup(doc, ui = {}) {
+  const sel = ui.selection || new Set();
+  const zones = doc.zones.map((z) => zoneMarkup(z, sel.has(z.id))).join('');
+  const wires = doc.wires.map((w) => wireMarkup(doc, w, sel.has(w.id))).join('');
+  const nodes = doc.nodes.map((n) => nodeMarkup(n, sel.has(n.id), ui.hoverPort)).join('');
+  const notes = doc.notes.map((n) => noteMarkup(n, sel.has(n.id))).join('');
+  return `<g class="layer-zones">${zones}</g><g class="layer-wires">${wires}</g>`
+    + `<g class="layer-nodes">${nodes}</g><g class="layer-notes">${notes}</g>`;
+}
+
+function oppositeSide(side) {
+  return { left: 'right', right: 'left', top: 'bottom', bottom: 'top' }[side];
+}
+
+function overlayMarkup(doc, ui) {
+  let s = '<g class="layer-overlay" pointer-events="none">';
+  if (ui.marquee) {
+    const m = ui.marquee;
+    s += `<rect x="${m.x}" y="${m.y}" width="${m.w}" height="${m.h}"`
+      + ` fill="${ACCENT}" fill-opacity="0.08" stroke="${ACCENT}" stroke-dasharray="4 3"/>`;
+  }
+  if (ui.wireDraft) {
+    const { from, cursor } = ui.wireDraft;
+    const node = doc.nodes.find((n) => n.id === from.node);
+    const pd = node ? getPart(node.kind).ports.find((q) => q.id === from.port) : null;
+    if (node && pd) {
+      const a = portPosition(node, pd);
+      s += `<path d="${wirePath(a, pd.side, cursor, oppositeSide(pd.side))}" fill="none"`
+        + ` stroke="${ACCENT}" stroke-width="2" stroke-dasharray="6 4"/>`;
+    }
+  }
+  s += '</g>';
+  return s;
+}
+
+function gridMarkup() {
+  return '<rect x="-10000" y="-10000" width="20000" height="20000" fill="url(#gridpat)" pointer-events="none"/>';
+}
+
+export function createRenderer(svg) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const root = document.createElementNS(NS, 'g');
+  svg.appendChild(root);
+  return {
+    render(doc, view, ui = {}) {
+      root.setAttribute('transform', `translate(${view.x} ${view.y}) scale(${view.zoom})`);
+      let inner = '';
+      if (ui.grid !== false) inner += gridMarkup();
+      inner += diagramMarkup(doc, ui);
+      inner += overlayMarkup(doc, ui);
+      root.innerHTML = inner;
+    },
+  };
+}
+```
+
+Run: `node --check src/render.js` and `npm test` — expected: PASS.
+
+- [ ] **Step 5: Rewrite `index.html`**
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Schematica</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="toolbar">
+      <div id="brand">
+        <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 4h8v8H4z M6 1v3 M10 1v3 M6 12v3 M10 12v3 M1 6h3 M1 10h3 M12 6h3 M12 10h3"/>
+        </svg>
+        <span class="brand-name">Schematica</span>
+        <span class="brand-sub">hardware diagrams</span>
+      </div>
+      <input id="title" type="text" spellcheck="false" aria-label="Board title">
+      <div class="group" role="group" aria-label="Tools">
+        <button id="tool-select" data-tool="select" class="tool active" title="Select / move (V)">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M5 2l9 6.5-4.6 1L7.5 14z"/></svg>
+        </button>
+        <button id="tool-wire" data-tool="wire" class="tool" title="Draw wire (C)">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4 14c5 0 5-10 10-10"/><circle cx="4" cy="14" r="1.8"/><circle cx="14" cy="4" r="1.8"/></svg>
+        </button>
+        <button id="tool-zone" data-tool="zone" class="tool" title="Draw zone (Z)">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3 6V3h3 M12 3h3v3 M15 12v3h-3 M6 15H3v-3"/></svg>
+        </button>
+        <button id="tool-note" data-tool="note" class="tool" title="Add note (N)">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4 3h8l3 3v9H4z M12 3v3h3 M7 9h5 M7 12h4"/></svg>
+        </button>
+      </div>
+      <div class="group">
+        <button id="undo" title="Undo (Ctrl/Cmd-Z)" disabled>&#8630;</button>
+        <button id="redo" title="Redo (Ctrl/Cmd-Shift-Z)" disabled>&#8631;</button>
+      </div>
+      <div class="group">
+        <button id="zoom-out" title="Zoom out">&minus;</button>
+        <button id="zoom-reset" title="Reset zoom"><span id="zoom-label">100%</span></button>
+        <button id="zoom-in" title="Zoom in">+</button>
+      </div>
+      <div class="group">
+        <button id="btn-grid" class="active" title="Toggle grid snap + dots">Grid</button>
+        <button id="btn-legend" title="Toggle bus legend">Legend</button>
+      </div>
+      <div class="group push-right">
+        <button id="btn-export-png" title="Export PNG">PNG</button>
+        <button id="btn-export-svg" title="Export SVG">SVG</button>
+        <button id="btn-save" title="Download .schematica.json">Save</button>
+        <button id="btn-open" title="Open .schematica.json">Open</button>
+        <button id="btn-new" title="Clear board">New</button>
+      </div>
+    </header>
+    <aside id="palette"></aside>
+    <main id="canvas-wrap">
+      <svg id="canvas">
+        <defs>
+          <pattern id="gridpat" width="24" height="24" patternUnits="userSpaceOnUse">
+            <circle cx="1.2" cy="1.2" r="1.2" fill="#1c2333"></circle>
+          </pattern>
+        </defs>
+      </svg>
+      <div id="hintbar" aria-hidden="true">
+        <kbd>V</kbd> select &middot; <kbd>C</kbd> wire &middot; <kbd>Z</kbd> zone &middot; <kbd>N</kbd> note
+        &middot; drag ports to link &middot; double-click rename &middot; <kbd>Del</kbd> delete
+        &middot; <kbd>Space</kbd>+drag pan
+      </div>
+      <div id="legend" hidden></div>
+      <div id="bus-popover" hidden></div>
+      <input id="inline-editor" type="text" spellcheck="false" hidden>
+    </main>
+    <aside id="props" hidden></aside>
+  </div>
+  <input type="file" id="file-input" accept=".json,application/json" hidden>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
+```
+
+- [ ] **Step 6: Rewrite `css/style.css`**
+
+```css
+:root {
+  --bg0: #0a0e17;
+  --bg1: #0d1220;
+  --bg2: #131a2b;
+  --bg3: #182238;
+  --line: #1e2942;
+  --line2: #2c3a5c;
+  --text: #e6ebf4;
+  --muted: #8b96ab;
+  --faint: #566179;
+  --accent: #38bdf8;
+  --accent-dim: #0e2a40;
+  --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg0);
+}
+
+#app {
+  height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  grid-template-columns: 248px 1fr auto;
+  grid-template-areas:
+    "toolbar toolbar toolbar"
+    "palette canvas props";
+}
+
+/* ---- Toolbar ---- */
+#toolbar {
+  grid-area: toolbar;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--bg1);
+  border-bottom: 1px solid var(--line);
+}
+
+#brand { display: flex; align-items: center; gap: 8px; margin-right: 4px; }
+.brand-name { font-weight: 800; letter-spacing: 0.2px; font-size: 15px; }
+.brand-sub { color: var(--faint); font-size: 11.5px; margin-top: 2px; }
+
+#title {
+  background: var(--bg0);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 6px 10px;
+  width: 170px;
+  font-size: 13px;
+}
+#title:focus { outline: none; border-color: var(--accent); }
+
+.group {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  background: var(--bg1);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 3px;
+}
+.push-right { margin-left: auto; }
+
+#toolbar button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  border-radius: 7px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-family: inherit;
+  line-height: 1;
+}
+#toolbar button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+#toolbar button:hover:not(:disabled) { color: var(--text); background: var(--bg3); }
+#toolbar button:disabled { opacity: 0.35; cursor: default; }
+#toolbar button.active { background: var(--accent-dim); color: #7dd3fc; }
+#toolbar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+#zoom-label { font-family: var(--mono); font-size: 11.5px; min-width: 36px; text-align: center; }
+
+/* ---- Palette ---- */
+#palette {
+  grid-area: palette;
+  overflow-y: auto;
+  background: var(--bg1);
+  border-right: 1px solid var(--line);
+  padding: 12px 12px 24px;
+}
+#palette h3 {
+  margin: 16px 2px 8px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.6px;
+  color: var(--faint);
+  cursor: pointer;
+  user-select: none;
+}
+#palette h3:first-child { margin-top: 4px; }
+#palette h3.collapsed { opacity: 0.6; }
+.cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.palette-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  border-radius: 12px;
+  padding: 12px 6px 10px;
+  cursor: grab;
+  font-size: 11.5px;
+  font-family: inherit;
+  text-align: center;
+  line-height: 1.25;
+}
+.palette-item:hover { border-color: var(--line2); color: var(--text); background: var(--bg3); }
+.palette-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.palette-item .badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--c) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c) 30%, transparent);
+}
+.palette-item .badge svg { width: 18px; height: 18px; }
+
+/* ---- Canvas ---- */
+#canvas-wrap { grid-area: canvas; position: relative; overflow: hidden; }
+#canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: var(--bg0);
+  touch-action: none;
+}
+#canvas.panning { cursor: grab; }
+#canvas.tool-wire .port { cursor: crosshair; }
+
+#hintbar {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  background: rgba(13, 18, 32, 0.9);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 7px 14px;
+  color: var(--faint);
+  font-size: 11.5px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+#hintbar kbd {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  background: var(--bg3);
+  border: 1px solid var(--line2);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+/* ---- Properties panel ---- */
+#props {
+  grid-area: props;
+  width: 260px;
+  background: var(--bg1);
+  border-left: 1px solid var(--line);
+  padding: 14px;
+  overflow-y: auto;
+}
+#props h3 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: #7dd3fc; }
+#props label { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--faint); margin: 12px 0 4px; }
+#props input[type="text"], #props textarea, #props select {
+  width: 100%;
+  background: var(--bg0);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 7px 9px;
+  font-size: 13px;
+  font-family: inherit;
+}
+#props input:focus, #props textarea:focus, #props select:focus { outline: none; border-color: var(--accent); }
+#props input[type="color"] { width: 100%; height: 30px; padding: 2px; background: var(--bg0); border: 1px solid var(--line); border-radius: 8px; }
+#props textarea { min-height: 70px; resize: vertical; }
+#props button {
+  margin-top: 14px;
+  background: #2a1215;
+  border: 1px solid #7f1d1d;
+  color: #fca5a5;
+  border-radius: 8px;
+  padding: 7px 11px;
+  cursor: pointer;
+  font-family: inherit;
+}
+#props button:hover { background: #3b1519; }
+
+/* ---- Legend ---- */
+#legend {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  background: rgba(13, 18, 32, 0.95);
+  border: 1px solid var(--line2);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: var(--text);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+#legend h3 { margin: 0 0 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 1.6px; color: var(--faint); }
+.legend-row { display: flex; align-items: center; gap: 10px; font-size: 11.5px; line-height: 1.9; color: var(--muted); }
+
+/* ---- Bus popover ---- */
+#bus-popover {
+  position: fixed;
+  z-index: 30;
+  background: var(--bg1);
+  border: 1px solid var(--line2);
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  max-height: 300px;
+  overflow-y: auto;
+}
+#bus-popover button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 168px;
+  background: none;
+  border: none;
+  border-radius: 7px;
+  padding: 6px 9px;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-family: inherit;
+  color: var(--text);
+  text-align: left;
+}
+#bus-popover button:hover { background: var(--bg3); }
+#bus-popover .swatch { width: 20px; height: 4px; border-radius: 2px; flex: none; }
+
+/* ---- Inline editor ---- */
+#inline-editor {
+  position: fixed;
+  z-index: 40;
+  width: 200px;
+  background: var(--bg1);
+  color: var(--text);
+  border: 2px solid var(--accent);
+  border-radius: 7px;
+  padding: 5px 8px;
+  font-size: 13px;
+  font-family: inherit;
+}
+#inline-editor:focus { outline: none; }
+
+@media (prefers-reduced-motion: no-preference) {
+  #toolbar button, .palette-item { transition: background 120ms ease, color 120ms ease, border-color 120ms ease; }
+}
+```
+
+- [ ] **Step 7: Update `src/main.js`** (three exact edits)
+
+Edit 1 — replace:
+
+```js
+import { CATEGORIES, PARTS, getPart } from './palette.js';
+```
+
+with:
+
+```js
+import { CATEGORIES, CATEGORY_COLORS, PARTS, getPart } from './palette.js';
+```
+
+Edit 2 — in `buildPalette`, replace:
+
+```js
+    const box = document.createElement('div');
+    palette.appendChild(box);
+```
+
+with:
+
+```js
+    const box = document.createElement('div');
+    box.className = 'cat-grid';
+    palette.appendChild(box);
+```
+
+Edit 3 — in `buildPalette`, replace:
+
+```js
+      const item = document.createElement('button');
+      item.className = 'palette-item';
+      item.textContent = part.name;
+```
+
+with:
+
+```js
+      const item = document.createElement('button');
+      item.className = 'palette-item';
+      const color = CATEGORY_COLORS[cat.id];
+      item.innerHTML = `<span class="badge" style="--c:${color}">`
+        + `<svg viewBox="0 0 16 16" fill="none" stroke="${color}" stroke-width="1.5"`
+        + ` stroke-linecap="round" stroke-linejoin="round"><path d="${part.icon}"/></svg></span>`
+        + `<span class="pi-name">${part.name}</span>`;
+```
+
+Edit 4 — in `renderProps`, replace:
+
+```js
+    html += propField('Fill color', `<input type="color" data-prop="color" value="${escAttr(item.color || '#ffffff')}">`);
+```
+
+with:
+
+```js
+    html += propField('Accent color', `<input type="color" data-prop="color" value="${escAttr(item.color || '#38bdf8')}">`);
+```
+
+- [ ] **Step 8: Verify**
+
+Run: `npm test` (all pass, including the new palette test), `node --check src/render.js`, `node --check src/main.js`.
+Browser verification is performed by the controller against the reference screenshots.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add src/buses.js src/palette.js src/render.js src/main.js index.html css/style.css tests/palette.test.js
+git commit -m "feat: NetDraw-style dark redesign - tinted icon badges, wire chips, pill toolbar"
 ```
