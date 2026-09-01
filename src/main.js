@@ -5,6 +5,7 @@ import { CATEGORIES, CATEGORY_COLORS, PARTS, getPart } from './palette.js';
 import { snap } from './geometry.js';
 import { BUSES, BUS_ORDER } from './buses.js';
 import { serialize, deserialize } from './serialize.js';
+import { buildExportSVG, exportPNG, download } from './export.js';
 
 const svg = document.getElementById('canvas');
 
@@ -187,16 +188,6 @@ function renderProps() {
   });
 }
 
-function download(filename, data, mime) {
-  const blob = data instanceof Blob ? data : new Blob([data], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
 function safeName(ext) {
   return `${(store.doc.title || 'schematica').replace(/[^\w-]+/g, '_')}${ext}`;
 }
@@ -209,6 +200,17 @@ document.getElementById('btn-new').addEventListener('click', () => {
 
 document.getElementById('btn-save').addEventListener('click', () => {
   download(safeName('.schematica.json'), serialize(store.doc), 'application/json');
+});
+
+document.getElementById('btn-export-svg').addEventListener('click', () => {
+  download(safeName('.svg'), buildExportSVG(store.doc), 'image/svg+xml');
+});
+
+document.getElementById('btn-export-png').addEventListener('click', () => {
+  exportPNG(buildExportSVG(store.doc), (blob) => {
+    if (blob) download(safeName('.png'), blob);
+    else alert('PNG export failed in this browser. The SVG export still works.');
+  });
 });
 
 const fileInput = document.getElementById('file-input');
@@ -225,6 +227,26 @@ fileInput.addEventListener('change', async () => {
     alert(err.message);
   }
 });
+
+// ---- Legend ----
+function buildLegend() {
+  const legend = document.getElementById('legend');
+  legend.innerHTML = '<h3>Buses</h3>' + BUS_ORDER.map((id) => {
+    const b = BUSES[id];
+    const dash = b.dash ? ` stroke-dasharray="${b.dash}"` : '';
+    return `<div class="legend-row"><svg width="36" height="10">`
+      + `<line x1="2" y1="5" x2="34" y2="5" stroke="${b.color}" stroke-width="${Math.min(b.width, 4)}"${dash} stroke-linecap="round"/>`
+      + `</svg><span>${b.name}</span></div>`;
+  }).join('');
+}
+
+document.getElementById('btn-legend').addEventListener('click', (e) => {
+  const legend = document.getElementById('legend');
+  legend.hidden = !legend.hidden;
+  e.currentTarget.classList.toggle('active', !legend.hidden);
+});
+
+buildLegend();
 
 buildPalette();
 render();
