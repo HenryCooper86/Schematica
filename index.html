@@ -46,6 +46,7 @@
         <button id="btn-journey" title="Journey steps">Journey</button>
       </div>
       <div class="group push-right">
+        <button id="btn-rec" title="Record the canvas"><span class="rec-dot"></span>Rec</button>
         <button id="btn-export-png" title="Export PNG">PNG</button>
         <button id="btn-export-svg" title="Export SVG">SVG</button>
         <button id="btn-save" title="Download .schematica.json">Save</button>
@@ -84,6 +85,25 @@
     <aside id="journey-panel" hidden></aside>
   </div>
   <input type="file" id="file-input" accept=".json,application/json" hidden>
+  <div id="rec-dialog" hidden>
+    <div class="rec-card">
+      <h3>Record diagram</h3>
+      <p>Captures the canvas live while you present — pan, zoom, select, connect. Journey captions are included.</p>
+      <h4>Format</h4>
+      <div id="rec-formats"></div>
+      <h4>Audio</h4>
+      <div id="rec-audio">
+        <label><input type="radio" name="rec-audio" value="none" checked> No audio</label>
+        <label><input type="radio" name="rec-audio" value="mic"> Microphone narration</label>
+        <label><input type="radio" name="rec-audio" value="music"> Music file
+          <input type="file" id="rec-music" accept="audio/*"></label>
+      </div>
+      <div class="rec-buttons">
+        <button id="rec-start"><span class="rec-dot"></span>Start recording</button>
+        <button id="rec-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
   <script type="module" src="src/main.js"></script>
 </body>
 </html>

@@ -7,6 +7,7 @@ import { BUSES, BUS_ORDER } from './buses.js';
 import { serialize, deserialize } from './serialize.js';
 import { buildExportSVG, exportPNG, download } from './export.js';
 import { addStep, updateStep, removeStep, moveStep, tweenView } from './journey.js';
+import { createRecorder } from './recorder.js';
 
 const svg = document.getElementById('canvas');
 
@@ -359,6 +360,7 @@ function presentShow() {
   document.getElementById('present-caption').textContent = presentState.caption;
   document.getElementById('present-counter').textContent = presentState.counter;
   flyTo(step.view);
+  recorder.setOverlay(presentState.caption, presentState.counter);
 }
 
 function presentGo(delta) {
@@ -394,10 +396,84 @@ function presentExit() {
   document.getElementById('app').classList.remove('presenting');
   overlay.hidden = true;
   window.removeEventListener('keydown', presentKeys, true);
+  recorder.setOverlay('', '');
 }
 
 document.getElementById('present-prev').addEventListener('click', () => presentGo(-1));
 document.getElementById('present-next').addEventListener('click', () => presentGo(1));
 document.getElementById('present-exit').addEventListener('click', presentExit);
+
+// ---- Recording ----
+const recorder = createRecorder(svg);
+const recDialog = document.getElementById('rec-dialog');
+const recBtn = document.getElementById('btn-rec');
+
+function recRenderFormats() {
+  const formats = [...recorder.videoFormats(), { id: 'gif', label: 'GIF (animated)', ext: 'gif' }];
+  document.getElementById('rec-formats').innerHTML = formats.map((f, i) => (
+    `<label><input type="radio" name="rec-format" value="${f.id}"${i === 0 ? ' checked' : ''}> ${f.label}</label>`
+  )).join('');
+  document.querySelectorAll('input[name="rec-format"]').forEach((r) => {
+    r.addEventListener('change', () => {
+      document.getElementById('rec-audio').classList.toggle('disabled', r.value === 'gif' && r.checked);
+    });
+  });
+}
+
+function recOnState(s) {
+  if (s.encoding) {
+    recBtn.textContent = 'Encoding…';
+    recBtn.disabled = true;
+    recBtn.classList.remove('recording');
+    return;
+  }
+  recBtn.disabled = false;
+  if (s.recording) {
+    const m = Math.floor(s.elapsed / 60);
+    const sec = String(s.elapsed % 60).padStart(2, '0');
+    recBtn.innerHTML = `<span class="rec-dot"></span>${m}:${sec} Stop`;
+    recBtn.classList.add('recording');
+  } else {
+    recBtn.innerHTML = '<span class="rec-dot"></span>Rec';
+    recBtn.classList.remove('recording');
+  }
+}
+
+recBtn.addEventListener('click', () => {
+  if (recorder.state().recording) {
+    recorder.stop();
+    return;
+  }
+  if (recorder.state().encoding) return;
+  recRenderFormats();
+  document.getElementById('rec-audio').classList.remove('disabled');
+  recDialog.hidden = false;
+});
+
+document.getElementById('rec-cancel').addEventListener('click', () => {
+  recDialog.hidden = true;
+});
+recDialog.addEventListener('pointerdown', (e) => {
+  if (e.target === recDialog) recDialog.hidden = true;
+});
+
+document.getElementById('rec-start').addEventListener('click', async () => {
+  const format = document.querySelector('input[name="rec-format"]:checked')?.value;
+  if (!format) return;
+  const audio = document.querySelector('input[name="rec-audio"]:checked')?.value || 'none';
+  const musicFile = document.getElementById('rec-music').files[0] || null;
+  try {
+    await recorder.start({
+      format,
+      audio: format === 'gif' ? 'none' : audio,
+      musicFile,
+      basename: (store.doc.title || 'schematica').replace(/[^\w-]+/g, '_'),
+      onState: recOnState,
+    });
+    recDialog.hidden = true;
+  } catch (err) {
+    alert(err.message);
+  }
+});
 
 render();

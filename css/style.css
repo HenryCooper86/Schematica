@@ -396,6 +396,73 @@ html, body {
 #present-nav button:hover { color: var(--text); background: var(--bg3); }
 #present-counter { font-family: var(--mono); font-size: 11.5px; color: var(--muted); min-width: 46px; text-align: center; }
 
+/* ---- Recording ---- */
+.rec-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  margin-right: 6px;
+}
+#btn-rec.recording { color: #fca5a5; background: #2a1215; }
+#btn-rec.recording .rec-dot { animation: rec-blink 1.2s infinite; }
+@keyframes rec-blink { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { #btn-rec.recording .rec-dot { animation: none; } }
+
+#rec-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(4, 6, 12, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#rec-dialog[hidden] { display: none; }
+.rec-card {
+  width: 380px;
+  background: var(--bg1);
+  border: 1px solid var(--line2);
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6);
+}
+.rec-card h3 { margin: 0 0 6px; font-size: 15px; }
+.rec-card p { margin: 0 0 12px; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+.rec-card h4 { margin: 12px 0 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 1.4px; color: var(--faint); }
+.rec-card label { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 4px 0; color: var(--text); }
+.rec-card input[type="radio"] { accent-color: var(--accent); }
+.rec-card input[type="file"] { font-size: 11px; color: var(--muted); }
+#rec-audio.disabled { opacity: 0.4; pointer-events: none; }
+.rec-buttons { display: flex; gap: 8px; margin-top: 16px; }
+#rec-start {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #7f1d1d;
+  border: 1px solid #b91c1c;
+  color: #fecaca;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+}
+#rec-start:hover { background: #991b1b; }
+#rec-cancel {
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+}
+#rec-cancel:hover { color: var(--text); border-color: var(--line2); }
+
 /* ---- Scrollbars ---- */
 html {
   scrollbar-width: thin;
