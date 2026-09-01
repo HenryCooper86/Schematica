@@ -43,6 +43,7 @@
       <div class="group">
         <button id="btn-grid" class="active" title="Toggle grid snap + dots">Grid</button>
         <button id="btn-legend" title="Toggle bus legend">Legend</button>
+        <button id="btn-journey" title="Journey steps">Journey</button>
       </div>
       <div class="group push-right">
         <button id="btn-export-png" title="Export PNG">PNG</button>
@@ -66,11 +67,21 @@
         &middot; drag ports to link &middot; double-click rename &middot; <kbd>Del</kbd> delete
         &middot; <kbd>Space</kbd>+drag pan
       </div>
+      <div id="present-overlay" hidden>
+        <div id="present-caption"></div>
+        <div id="present-nav">
+          <button id="present-prev" title="Previous (Left arrow)">&lsaquo;</button>
+          <span id="present-counter"></span>
+          <button id="present-next" title="Next (Right arrow)">&rsaquo;</button>
+          <button id="present-exit" title="Exit (Esc)">&times;</button>
+        </div>
+      </div>
       <div id="legend" hidden></div>
       <div id="bus-popover" hidden></div>
       <input id="inline-editor" type="text" spellcheck="false" hidden>
     </main>
     <aside id="props" hidden></aside>
+    <aside id="journey-panel" hidden></aside>
   </div>
   <input type="file" id="file-input" accept=".json,application/json" hidden>
   <script type="module" src="src/main.js"></script>
