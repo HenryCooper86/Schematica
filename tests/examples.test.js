@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EXAMPLES } from '../src/examples.js';
 import { serialize, deserialize } from '../src/serialize.js';
+import { getPart } from '../src/palette.js';
 
 test('there are at least three examples with unique ids and names', () => {
   assert.ok(EXAMPLES.length >= 3);
@@ -25,6 +26,19 @@ test('every example is substantial and presentable', () => {
     assert.ok(ex.doc.journey.length >= 3, `${ex.id} journey`);
     for (const s of ex.doc.journey) {
       assert.ok(s.caption.length > 0, `${ex.id} step captions must not be empty`);
+    }
+  }
+});
+
+test('every example wire bus matches at least one endpoint port bus', () => {
+  for (const ex of EXAMPLES) {
+    for (const w of ex.doc.wires) {
+      const busOf = (ref) => getPart(ex.doc.nodes.find((n) => n.id === ref.node).kind)
+        .ports.find((p) => p.id === ref.port)?.bus;
+      assert.ok(
+        [busOf(w.from), busOf(w.to)].includes(w.bus),
+        `${ex.id} ${w.id}: bus "${w.bus}" matches neither endpoint`,
+      );
     }
   }
 });

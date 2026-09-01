@@ -409,9 +409,15 @@ document.getElementById('present-exit').addEventListener('click', presentExit);
 const examplesMenu = document.getElementById('examples-menu');
 const examplesBtn = document.getElementById('btn-examples');
 
+let examplesDismiss = null;
+
 function closeExamplesMenu() {
   examplesMenu.hidden = true;
   examplesMenu.innerHTML = '';
+  if (examplesDismiss) {
+    window.removeEventListener('pointerdown', examplesDismiss);
+    examplesDismiss = null;
+  }
 }
 
 examplesBtn.addEventListener('click', () => {
@@ -432,18 +438,23 @@ examplesBtn.addEventListener('click', () => {
       closeExamplesMenu();
       if (!ex) return;
       if (!confirm(`Load "${ex.name}"? Anything not saved to a file is lost.`)) return;
-      const { doc } = deserialize(serialize(ex.doc));
+      const { doc, warnings } = deserialize(serialize(ex.doc));
       store.replaceDoc(doc);
+      if (warnings.length) alert(`Example loaded with warnings:\n\n${warnings.join('\n')}`);
     });
   });
   setTimeout(() => {
-    window.addEventListener('pointerdown', function dismiss(ev) {
+    examplesDismiss = (ev) => {
       if (!examplesMenu.contains(ev.target) && ev.target !== examplesBtn) {
         closeExamplesMenu();
-        window.removeEventListener('pointerdown', dismiss);
       }
-    });
+    };
+    window.addEventListener('pointerdown', examplesDismiss);
   }, 0);
+});
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !examplesMenu.hidden) closeExamplesMenu();
 });
 
 // ---- Recording ----
