@@ -31,6 +31,7 @@ export function deserialize(text) {
   const seen = new Set();
   const num = (v, fallback) => (Number.isFinite(v) ? v : fallback);
   const validId = (v) => typeof v === 'string' && v.length > 0;
+  const HEX_COLOR = /^#[0-9a-fA-F]{3,8}$/;
 
   for (const n of raw.nodes ?? []) {
     if (!n || !validId(n.id) || !Number.isFinite(n.x) || !Number.isFinite(n.y)) {
@@ -48,12 +49,17 @@ export function deserialize(text) {
       kind = 'generic';
     }
     const part = PARTS[kind];
+    let color = typeof n.color === 'string' ? n.color : null;
+    if (color !== null && !HEX_COLOR.test(color)) {
+      warnings.push(`Ignored invalid color on node "${n.id}".`);
+      color = null;
+    }
     doc.nodes.push({
       id: n.id, kind, x: n.x, y: n.y,
       w: num(n.w, part.w), h: num(n.h, part.h),
       label: typeof n.label === 'string' ? n.label : part.name,
       sublabel: typeof n.sublabel === 'string' ? n.sublabel : '',
-      color: typeof n.color === 'string' ? n.color : null,
+      color,
     });
   }
 
@@ -90,10 +96,14 @@ export function deserialize(text) {
       continue;
     }
     seen.add(z.id);
+    let zColor = typeof z.color === 'string' && HEX_COLOR.test(z.color) ? z.color : '#4a90d9';
+    if (typeof z.color === 'string' && !HEX_COLOR.test(z.color)) {
+      warnings.push(`Replaced invalid color on zone "${z.id}".`);
+    }
     doc.zones.push({
       id: z.id, x: z.x, y: z.y, w: z.w, h: z.h,
       label: typeof z.label === 'string' ? z.label : 'Zone',
-      color: typeof z.color === 'string' ? z.color : '#4a90d9',
+      color: zColor,
     });
   }
 

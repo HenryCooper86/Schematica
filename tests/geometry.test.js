@@ -75,3 +75,21 @@ test('contentBounds covers nodes, zones, notes; null when empty', () => {
   assert.ok(b.h >= 150);
   assert.equal(contentBounds({ nodes: [], zones: [], notes: [], wires: [] }), null);
 });
+
+test('contentBounds includes wire curve extents when given a part resolver', () => {
+  const fakePart = { ports: [{ id: 'p', name: 'P', side: 'bottom', offset: 0.5, bus: 'gpio' }] };
+  const getPartFn = () => fakePart;
+  const doc = {
+    nodes: [
+      { id: 'a', kind: 'x', x: 0, y: 0, w: 100, h: 50 },
+      { id: 'b', kind: 'x', x: 200, y: 0, w: 100, h: 50 },
+    ],
+    wires: [{ id: 'w', bus: 'gpio', from: { node: 'a', port: 'p' }, to: { node: 'b', port: 'p' } }],
+    zones: [],
+    notes: [],
+  };
+  const plain = contentBounds(doc);
+  const withWires = contentBounds(doc, getPartFn);
+  assert.equal(plain.y + plain.h, 50);
+  assert.ok(withWires.y + withWires.h > 50, 'bottom-side wire control points must extend the bounds');
+});

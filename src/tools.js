@@ -1,4 +1,6 @@
-import { snap, normRect, rectsIntersect, nodeRect } from './geometry.js';
+import {
+  snap, normRect, rectsIntersect, nodeRect, NOTE_W, noteHeight,
+} from './geometry.js';
 import { addWire, addZone, addNote, updateItem, deleteItems, duplicateItems, findItem } from './state.js';
 import { BUSES, BUS_ORDER } from './buses.js';
 import { getPart } from './palette.js';
@@ -66,7 +68,7 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
   function hitMarquee(doc, m) {
     const ids = [];
     for (const n of doc.nodes) if (rectsIntersect(m, nodeRect(n))) ids.push(n.id);
-    for (const t of doc.notes) if (rectsIntersect(m, { x: t.x, y: t.y, w: 160, h: 40 })) ids.push(t.id);
+    for (const t of doc.notes) if (rectsIntersect(m, { x: t.x, y: t.y, w: NOTE_W, h: noteHeight(t.text) })) ids.push(t.id);
     for (const z of doc.zones) {
       const inside = z.x >= m.x && z.y >= m.y && z.x + z.w <= m.x + m.w && z.y + z.h <= m.y + m.h;
       if (inside) ids.push(z.id);
@@ -265,8 +267,10 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
       return;
     }
     if (e.key === 'Escape') {
-      ui.wireDraft = null;
+      if (drag && drag.mode === 'move') store.cancelDrag();
       drag = null;
+      ui.wireDraft = null;
+      ui.marquee = null;
       closeBusPopover();
       store.clearSelection();
       requestRender();

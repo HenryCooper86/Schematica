@@ -110,6 +110,16 @@ test('deleteItems cascades to attached wires', () => {
   assert.equal(findItem(store.doc, w), null);
 });
 
+test('deleteItems prunes cascade-deleted wires from the selection', () => {
+  const store = new Store();
+  const a = addNode(store, 'mcu', 0, 0);
+  const b = addNode(store, 'temp', 300, 0);
+  const w = addWire(store, 'i2c', { node: a, port: 'i2c' }, { node: b, port: 'i2c' });
+  store.setSelection([w]);
+  deleteItems(store, [b]);
+  assert.equal(store.selection.size, 0);
+});
+
 test('deleteItems with empty list is a no-op (no undo entry)', () => {
   const store = new Store();
   addNode(store, 'mcu', 0, 0);

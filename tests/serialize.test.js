@@ -110,3 +110,20 @@ test('zones and notes are validated', () => {
   assert.equal(doc.notes.length, 1);
   assert.equal(warnings.length, 2);
 });
+
+test('invalid colors are neutralized with warnings', () => {
+  const { doc, warnings } = deserialize(JSON.stringify({
+    nodes: [{ id: 'n1', kind: 'mcu', x: 0, y: 0, color: '#f00"/><image href=x onerror=alert(1)>' }],
+    zones: [{ id: 'z1', x: 0, y: 0, w: 10, h: 10, color: 'javascript:alert(1)' }],
+  }));
+  assert.equal(doc.nodes[0].color, null);
+  assert.equal(doc.zones[0].color, '#4a90d9');
+  assert.equal(warnings.length, 2);
+});
+
+test('valid hex colors pass through', () => {
+  const { doc } = deserialize(JSON.stringify({
+    nodes: [{ id: 'n1', kind: 'mcu', x: 0, y: 0, color: '#aB12cD' }],
+  }));
+  assert.equal(doc.nodes[0].color, '#aB12cD');
+});

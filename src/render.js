@@ -21,11 +21,12 @@ export function esc(s) {
 }
 
 function badgeMarkup(x, y, size, color, icon) {
+  const c = esc(color);
   const pad = size * 0.2;
   const k = (size - pad * 2) / 16;
-  return `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="7" fill="${color}" fill-opacity="0.13"/>`
-    + `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="7" fill="none" stroke="${color}" stroke-opacity="0.3"/>`
-    + `<g transform="translate(${x + pad} ${y + pad}) scale(${k})" fill="none" stroke="${color}"`
+  return `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="7" fill="${c}" fill-opacity="0.13"/>`
+    + `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="7" fill="none" stroke="${c}" stroke-opacity="0.3"/>`
+    + `<g transform="translate(${x + pad} ${y + pad}) scale(${k})" fill="none" stroke="${c}"`
     + ` stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="${icon}"/></g>`;
 }
 

@@ -163,7 +163,7 @@ function renderProps() {
     return;
   }
   const { type, item } = found;
-  const escAttr = (s) => String(s ?? '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const escAttr = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
   let html = `<h3>${type[0].toUpperCase()}${type.slice(1)}</h3>`;
   if (type === 'node') {
     html += propField('Label', `<input type="text" data-prop="label" value="${escAttr(item.label)}">`);

@@ -188,8 +188,8 @@ export function deleteItems(store, ids) {
     doc.wires = doc.wires.filter(
       (w) => !dead.has(w.id) && !dead.has(w.from.node) && !dead.has(w.to.node),
     );
+    store._pruneSelection();
   });
-  for (const id of dead) store.selection.delete(id);
 }
 
 export function duplicateItems(store, ids) {

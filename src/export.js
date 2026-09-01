@@ -1,10 +1,11 @@
 import { diagramMarkup, CANVAS_BG } from './render.js';
 import { contentBounds } from './geometry.js';
+import { getPart } from './palette.js';
 
 const MARGIN = 24;
 
 export function buildExportSVG(doc) {
-  const b = contentBounds(doc) || { x: 0, y: 0, w: 400, h: 300 };
+  const b = contentBounds(doc, getPart) || { x: 0, y: 0, w: 400, h: 300 };
   const x = b.x - MARGIN;
   const y = b.y - MARGIN;
   const w = b.w + MARGIN * 2;

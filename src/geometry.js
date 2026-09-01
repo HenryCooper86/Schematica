@@ -83,12 +83,27 @@ export function noteHeight(text) {
   return 16 + wrapText(text).length * 16;
 }
 
-export function contentBounds(doc) {
+export function contentBounds(doc, getPartFn = null) {
   const rects = [
     ...doc.nodes.map(nodeRect),
     ...doc.zones.map((z) => ({ x: z.x, y: z.y, w: z.w, h: z.h })),
     ...doc.notes.map((n) => ({ x: n.x, y: n.y, w: NOTE_W, h: noteHeight(n.text) })),
   ];
+  if (getPartFn) {
+    const nodeById = new Map(doc.nodes.map((n) => [n.id, n]));
+    for (const w of doc.wires) {
+      const from = nodeById.get(w.from.node);
+      const to = nodeById.get(w.to.node);
+      if (!from || !to) continue;
+      const pf = getPartFn(from.kind).ports.find((p) => p.id === w.from.port);
+      const pt = getPartFn(to.kind).ports.find((p) => p.id === w.to.port);
+      if (!pf || !pt) continue;
+      const a = portPosition(from, pf);
+      const b = portPosition(to, pt);
+      const [c1, c2] = controls(a, pf.side, b, pt.side);
+      for (const q of [a, b, c1, c2]) rects.push({ x: q.x, y: q.y, w: 0, h: 0 });
+    }
+  }
   if (!rects.length) return null;
   const x1 = Math.min(...rects.map((r) => r.x));
   const y1 = Math.min(...rects.map((r) => r.y));
