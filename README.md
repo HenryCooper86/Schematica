@@ -40,6 +40,7 @@ then Settings → Pages → deploy from branch `main`, root folder.
 | Export | Toolbar — SVG or 2x PNG, cropped to content |
 | Record | Rec button — WebM/MP4 video (optional mic or music audio) or animated GIF |
 | Journey | Journey button — save camera steps with captions; Present plays the tour (arrow keys, Esc) |
+| Examples | Examples menu — load a built-in board (Weather Station, Drone FC, CAN Bus), journey included |
 
 Work is autosaved to the browser's localStorage and restored on reload.
 

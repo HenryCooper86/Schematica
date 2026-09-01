@@ -8,6 +8,7 @@ import { serialize, deserialize } from './serialize.js';
 import { buildExportSVG, exportPNG, download } from './export.js';
 import { addStep, updateStep, removeStep, moveStep, tweenView } from './journey.js';
 import { createRecorder } from './recorder.js';
+import { EXAMPLES } from './examples.js';
 
 const svg = document.getElementById('canvas');
 
@@ -403,6 +404,47 @@ function presentExit() {
 document.getElementById('present-prev').addEventListener('click', () => presentGo(-1));
 document.getElementById('present-next').addEventListener('click', () => presentGo(1));
 document.getElementById('present-exit').addEventListener('click', presentExit);
+
+// ---- Examples ----
+const examplesMenu = document.getElementById('examples-menu');
+const examplesBtn = document.getElementById('btn-examples');
+
+function closeExamplesMenu() {
+  examplesMenu.hidden = true;
+  examplesMenu.innerHTML = '';
+}
+
+examplesBtn.addEventListener('click', () => {
+  if (!examplesMenu.hidden) {
+    closeExamplesMenu();
+    return;
+  }
+  examplesMenu.innerHTML = EXAMPLES.map((ex) => (
+    `<button data-example="${ex.id}">${ex.name}</button>`
+  )).join('');
+  const r = examplesBtn.getBoundingClientRect();
+  examplesMenu.style.left = `${Math.min(r.left, window.innerWidth - 230)}px`;
+  examplesMenu.style.top = `${r.bottom + 6}px`;
+  examplesMenu.hidden = false;
+  examplesMenu.querySelectorAll('button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const ex = EXAMPLES.find((e2) => e2.id === btn.dataset.example);
+      closeExamplesMenu();
+      if (!ex) return;
+      if (!confirm(`Load "${ex.name}"? Anything not saved to a file is lost.`)) return;
+      const { doc } = deserialize(serialize(ex.doc));
+      store.replaceDoc(doc);
+    });
+  });
+  setTimeout(() => {
+    window.addEventListener('pointerdown', function dismiss(ev) {
+      if (!examplesMenu.contains(ev.target) && ev.target !== examplesBtn) {
+        closeExamplesMenu();
+        window.removeEventListener('pointerdown', dismiss);
+      }
+    });
+  }, 0);
+});
 
 // ---- Recording ----
 const recorder = createRecorder(svg);

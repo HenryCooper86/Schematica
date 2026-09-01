@@ -1,0 +1,30 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { EXAMPLES } from '../src/examples.js';
+import { serialize, deserialize } from '../src/serialize.js';
+
+test('there are at least three examples with unique ids and names', () => {
+  assert.ok(EXAMPLES.length >= 3);
+  assert.equal(new Set(EXAMPLES.map((e) => e.id)).size, EXAMPLES.length);
+  assert.equal(new Set(EXAMPLES.map((e) => e.name)).size, EXAMPLES.length);
+});
+
+test('every example round-trips through deserialize with zero warnings', () => {
+  for (const ex of EXAMPLES) {
+    const { doc, warnings } = deserialize(serialize(ex.doc));
+    assert.deepEqual(warnings, [], `${ex.id}: ${warnings.join(' | ')}`);
+    assert.deepEqual(doc, ex.doc, `${ex.id} round trip`);
+  }
+});
+
+test('every example is substantial and presentable', () => {
+  for (const ex of EXAMPLES) {
+    assert.ok(ex.doc.nodes.length >= 5, `${ex.id} nodes`);
+    assert.ok(ex.doc.wires.length >= 4, `${ex.id} wires`);
+    assert.ok(ex.doc.zones.length >= 1, `${ex.id} zones`);
+    assert.ok(ex.doc.journey.length >= 3, `${ex.id} journey`);
+    for (const s of ex.doc.journey) {
+      assert.ok(s.caption.length > 0, `${ex.id} step captions must not be empty`);
+    }
+  }
+});

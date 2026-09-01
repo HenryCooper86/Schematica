@@ -259,6 +259,32 @@ html, body {
 #bus-popover button:hover { background: var(--bg3); }
 #bus-popover .swatch { width: 20px; height: 4px; border-radius: 2px; flex: none; }
 
+/* ---- Examples menu ---- */
+#examples-menu {
+  position: fixed;
+  z-index: 30;
+  background: var(--bg1);
+  border: 1px solid var(--line2);
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  min-width: 210px;
+}
+#examples-menu button {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 7px;
+  padding: 7px 10px;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-family: inherit;
+  color: var(--text);
+  text-align: left;
+}
+#examples-menu button:hover { background: var(--bg3); }
+
 /* ---- Inline editor ---- */
 #inline-editor {
   position: fixed;
