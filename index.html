@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Schematica</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="toolbar">
+      <span id="brand">Schematica</span>
+      <input id="title" type="text" spellcheck="false" aria-label="Board title">
+      <div class="group" role="group" aria-label="Tools">
+        <button id="tool-select" data-tool="select" class="tool active" title="Select / move (V)">Select</button>
+        <button id="tool-wire" data-tool="wire" class="tool" title="Draw wire (C)">Wire</button>
+        <button id="tool-zone" data-tool="zone" class="tool" title="Draw zone (Z)">Zone</button>
+        <button id="tool-note" data-tool="note" class="tool" title="Add note (N)">Note</button>
+      </div>
+      <div class="group">
+        <button id="undo" title="Undo (Ctrl/Cmd-Z)" disabled>&#8630;</button>
+        <button id="redo" title="Redo (Ctrl/Cmd-Shift-Z)" disabled>&#8631;</button>
+      </div>
+      <div class="group">
+        <button id="zoom-out" title="Zoom out">&minus;</button>
+        <button id="zoom-reset" title="Reset zoom"><span id="zoom-label">100%</span></button>
+        <button id="zoom-in" title="Zoom in">+</button>
+      </div>
+      <div class="group">
+        <button id="btn-grid" class="active" title="Toggle grid snap + dots">Grid</button>
+        <button id="btn-legend" title="Toggle bus legend">Legend</button>
+      </div>
+      <div class="group push-right">
+        <button id="btn-new" title="Clear board">New</button>
+        <button id="btn-open" title="Open .schematica.json">Open</button>
+        <button id="btn-save" title="Download .schematica.json">Save</button>
+        <button id="btn-export-svg" title="Export SVG">SVG</button>
+        <button id="btn-export-png" title="Export PNG">PNG</button>
+      </div>
+    </header>
+    <aside id="palette"></aside>
+    <main id="canvas-wrap">
+      <svg id="canvas">
+        <defs>
+          <pattern id="gridpat" width="24" height="24" patternUnits="userSpaceOnUse">
+            <circle cx="1" cy="1" r="1" fill="#d6d3d1"></circle>
+          </pattern>
+        </defs>
+      </svg>
+      <div id="legend" hidden></div>
+      <div id="bus-popover" hidden></div>
+      <input id="inline-editor" type="text" spellcheck="false" hidden>
+    </main>
+    <aside id="props" hidden></aside>
+  </div>
+  <input type="file" id="file-input" accept=".json,application/json" hidden>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
