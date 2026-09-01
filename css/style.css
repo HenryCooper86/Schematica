@@ -362,6 +362,7 @@ html, body {
   max-width: 560px;
   width: max-content;
 }
+#present-overlay[hidden] { display: none; }
 #present-caption {
   background: rgba(13, 18, 32, 0.94);
   border: 1px solid var(--line2);

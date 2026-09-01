@@ -61,7 +61,8 @@ export function createRecorder(svg) {
     if (!overlay.caption && !overlay.counter) return;
     const W = canvas.width;
     const H = canvas.height;
-    const scale = W / svg.getBoundingClientRect().width;
+    const svgW = svg.getBoundingClientRect().width;
+    const scale = svgW > 0 ? W / svgW : 1;
     const fs = Math.max(12, 14 * scale);
     ctx.font = `${fs}px system-ui, sans-serif`;
     const lines = overlay.caption ? wrapText(overlay.caption, 64) : [];
@@ -90,8 +91,9 @@ export function createRecorder(svg) {
   }
 
   async function pumpFrame() {
-    if (busy || !recording) return;
+    if (busy || !recording) return false;
     busy = true;
+    let drew = false;
     try {
       const rect = svg.getBoundingClientRect();
       const clone = svg.cloneNode(true);
@@ -107,7 +109,8 @@ export function createRecorder(svg) {
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       URL.revokeObjectURL(url);
-      drawOverlay();
+      drew = true;
+      try { drawOverlay(); } catch { /* caption box is best-effort */ }
       failures = 0;
     } catch (err) {
       failures += 1;
@@ -116,6 +119,7 @@ export function createRecorder(svg) {
       }
     }
     busy = false;
+    return drew;
   }
 
   function videoLoop() {
@@ -176,8 +180,8 @@ export function createRecorder(svg) {
       recording = true;
       startedAt = performance.now();
       gifTimer = setInterval(async () => {
-        await pumpFrame();
-        if (!recording) return;
+        const drew = await pumpFrame();
+        if (!recording || !drew) return;
         gifFrames.push({
           data: ctx.getImageData(0, 0, canvas.width, canvas.height).data,
           width: canvas.width,
@@ -193,39 +197,44 @@ export function createRecorder(svg) {
       canvas.width = Math.round(rect.width * dpr);
       canvas.height = Math.round(rect.height * dpr);
       ctx = canvas.getContext('2d');
-      const stream = canvas.captureStream(30);
-      if (opts.audio === 'mic') {
-        try {
-          micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        } catch {
-          throw new Error('Microphone access was denied. Recording not started.');
-        }
-        stream.addTrack(micStream.getAudioTracks()[0]);
-      } else if (opts.audio === 'music' && opts.musicFile) {
-        audioCtx = new AudioContext();
-        const buf = await audioCtx.decodeAudioData(await opts.musicFile.arrayBuffer());
-        const src = audioCtx.createBufferSource();
-        src.buffer = buf;
-        src.loop = true;
-        const dest = audioCtx.createMediaStreamDestination();
-        src.connect(dest);
-        src.start();
-        stream.addTrack(dest.stream.getAudioTracks()[0]);
-      }
-      chunks = [];
-      mediaRecorder = new MediaRecorder(stream, { mimeType: fmt.mime });
-      mediaRecorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-      mediaRecorder.onerror = () => abort('Recording failed inside the browser encoder.');
-      mediaRecorder.onstop = () => {
-        if (chunks.length) {
-          download(`${basename}.${fmt.ext}`, new Blob(chunks, { type: fmt.mime.split(';')[0] }), fmt.mime);
+      try {
+        const stream = canvas.captureStream(30);
+        if (opts.audio === 'mic') {
+          try {
+            micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          } catch {
+            throw new Error('Microphone access was denied. Recording not started.');
+          }
+          stream.addTrack(micStream.getAudioTracks()[0]);
+        } else if (opts.audio === 'music' && opts.musicFile) {
+          audioCtx = new AudioContext();
+          const buf = await audioCtx.decodeAudioData(await opts.musicFile.arrayBuffer());
+          const src = audioCtx.createBufferSource();
+          src.buffer = buf;
+          src.loop = true;
+          const dest = audioCtx.createMediaStreamDestination();
+          src.connect(dest);
+          src.start();
+          stream.addTrack(dest.stream.getAudioTracks()[0]);
         }
         chunks = [];
-      };
-      recording = true;
-      startedAt = performance.now();
-      mediaRecorder.start(500);
-      videoLoop();
+        mediaRecorder = new MediaRecorder(stream, { mimeType: fmt.mime });
+        mediaRecorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+        mediaRecorder.onerror = () => abort('Recording failed inside the browser encoder.');
+        mediaRecorder.onstop = () => {
+          if (chunks.length) {
+            download(`${basename}.${fmt.ext}`, new Blob(chunks, { type: fmt.mime.split(';')[0] }), fmt.mime);
+          }
+          chunks = [];
+        };
+        recording = true;
+        startedAt = performance.now();
+        mediaRecorder.start(500);
+        videoLoop();
+      } catch (err) {
+        cleanup();
+        throw err;
+      }
     }
     elapsedTimer = setInterval(notify, 1000);
     notify();
