@@ -349,12 +349,14 @@ function exportOpts() {
 }
 
 document.getElementById('export-png-go').addEventListener('click', () => {
-  const width = Math.min(16384, Math.max(16, Math.round(Number(exportW.value)) || 0));
+  const clampPx = (v) => Math.min(16384, Math.max(16, Math.round(Number(v)) || 16));
+  const width = clampPx(exportW.value);
+  const height = clampPx(exportH.value);
   exportDialog.hidden = true;
   exportPNG(buildExportSVG(store.doc, exportOpts()), (blob) => {
     if (blob) download(safeName('.png'), blob);
     else alert('PNG export failed in this browser. The SVG export still works.');
-  }, { width });
+  }, { width, height });
 });
 
 document.getElementById('export-svg-go').addEventListener('click', () => {
@@ -371,10 +373,9 @@ exportDialog.addEventListener('pointerdown', (e) => {
 
 // ---- BOM dialog ----
 const bomDialog = document.getElementById('bom-dialog');
-let bomRows = [];
 
 document.getElementById('btn-bom').addEventListener('click', () => {
-  bomRows = buildBOM(store.doc);
+  const bomRows = buildBOM(store.doc);
   const body = bomRows.map((r) => (
     `<tr><td>${esc(r.part)}</td><td>${esc(r.sublabel)}</td><td>${r.qty}</td>`
     + `<td class="wrap">${esc(r.refs.join(', '))}</td><td>${esc(r.addrs.join(', '))}</td>`
@@ -389,11 +390,13 @@ document.getElementById('btn-bom').addEventListener('click', () => {
   bomDialog.hidden = false;
 });
 
+// Rows are re-derived at click time so exports always match the live board,
+// even if it was edited (e.g. via undo) while the dialog was open.
 document.getElementById('bom-csv').addEventListener('click', () => {
-  download(safeName('.bom.csv'), bomCSV(bomRows), 'text/csv');
+  download(safeName('.bom.csv'), bomCSV(buildBOM(store.doc)), 'text/csv');
 });
 document.getElementById('bom-md').addEventListener('click', () => {
-  navigator.clipboard.writeText(bomMarkdown(bomRows))
+  navigator.clipboard.writeText(bomMarkdown(buildBOM(store.doc)))
     .then(() => alert('Markdown table copied to clipboard.'))
     .catch(() => alert('Could not access the clipboard - use Download CSV instead.'));
 });
@@ -738,12 +741,25 @@ document.getElementById('rec-start').addEventListener('click', async () => {
 render();
 syncAnimation();
 
-// A share link in the URL wins over the autosave: it is an explicit intent.
+// A share link in the URL loads the shared board — but never silently over the
+// visitor's own work: a non-empty board asks first, and the previous autosave
+// is kept under a backup key either way.
 (async () => {
   if (!location.hash || location.hash.length < 4) return;
   try {
     const text = await decodeShare(location.hash);
     const { doc, warnings } = deserialize(text);
+    const cur = store.doc;
+    const hasWork = cur.nodes.length || cur.wires.length || cur.zones.length
+      || cur.notes.length || (cur.journey || []).length;
+    if (hasWork && !confirm(`Load the shared board "${doc.title}"?\n\nYour current board will be replaced. A backup of it is kept in this browser.`)) {
+      history.replaceState(null, '', location.pathname + location.search);
+      return;
+    }
+    try {
+      const prev = localStorage.getItem('schematica.autosave');
+      if (prev) localStorage.setItem('schematica.autosave.backup', prev);
+    } catch { /* backup is best-effort */ }
     history.replaceState(null, '', location.pathname + location.search);
     store.replaceDoc(doc);
     if (warnings.length) alert(`Shared board loaded with warnings:\n\n${warnings.join('\n')}`);

@@ -23,17 +23,18 @@ export function buildExportSVG(doc, { transparent = false } = {}) {
     + '</svg>';
 }
 
-export function exportPNG(svgString, done, { scale = 2, width = null } = {}) {
+export function exportPNG(svgString, done, { scale = 2, width = null, height = null } = {}) {
   const svgBlob = new Blob([svgString], { type: 'image/svg+xml' });
   const url = URL.createObjectURL(svgBlob);
   const img = new Image();
   img.onload = () => {
-    const k = width ? width / img.width : scale;
+    const kw = width ? width / img.width : scale;
+    const kh = height ? height / img.height : kw;
     const canvas = document.createElement('canvas');
-    canvas.width = Math.round(img.width * k);
-    canvas.height = Math.round(img.height * k);
+    canvas.width = Math.round(img.width * kw);
+    canvas.height = Math.round(img.height * kh);
     const ctx = canvas.getContext('2d');
-    ctx.scale(k, k);
+    ctx.scale(kw, kh);
     ctx.drawImage(img, 0, 0);
     URL.revokeObjectURL(url);
     canvas.toBlob((blob) => done(blob), 'image/png');

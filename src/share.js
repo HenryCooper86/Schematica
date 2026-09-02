@@ -27,6 +27,9 @@ export async function decodeShare(fragment) {
   if (!m) throw new Error('Not a Schematica share link.');
   const bytes = fromBase64Url(m[2]);
   if (m[1] === 'j') return new TextDecoder().decode(bytes);
+  if (typeof DecompressionStream !== 'function') {
+    throw new Error('This browser cannot decode compressed share links.');
+  }
   const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
   return new TextDecoder().decode(await new Response(stream).arrayBuffer());
 }

@@ -55,15 +55,16 @@ export function bomCSV(rows) {
 }
 
 export function bomMarkdown(rows) {
-  const cell = (s) => String(s ?? '').replace(/\|/g, '\\|');
+  const cell = (s) => String(s ?? '').replace(/\s*\n\s*/g, ' ').replace(/\|/g, '\\|');
   const lines = [
-    '| Part | Part number | Qty | Refs | Addresses | Rails | Status | Flags |',
-    '|---|---|---|---|---|---|---|---|',
+    '| Part | Part number | Qty | Refs | Addresses | Rails | Status | Flags | Notes |',
+    '|---|---|---|---|---|---|---|---|---|',
   ];
   for (const r of rows) {
     lines.push(`| ${cell(r.part)} | ${cell(r.sublabel)} | ${r.qty} | ${cell(r.refs.join(', '))}`
       + ` | ${cell(r.addrs.join(', '))} | ${cell(r.rails.join(', '))}`
-      + ` | ${cell(r.statuses.join(', '))} | ${cell(r.flags.join(', '))} |`);
+      + ` | ${cell(r.statuses.join(', '))} | ${cell(r.flags.join(', '))}`
+      + ` | ${cell(r.notes.join('; '))} |`);
   }
   return lines.join('\n');
 }
