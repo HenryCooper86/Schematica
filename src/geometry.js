@@ -41,14 +41,17 @@ export function wirePath(a, sideA, b, sideB) {
   return `M ${a.x} ${a.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${b.x} ${b.y}`;
 }
 
-export function wireMidpoint(a, sideA, b, sideB) {
+export function wirePoint(a, sideA, b, sideB, t) {
   const [c1, c2] = controls(a, sideA, b, sideB);
-  const t = 0.5;
   const u = 1 - t;
   return {
     x: u * u * u * a.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * b.x,
     y: u * u * u * a.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * b.y,
   };
+}
+
+export function wireMidpoint(a, sideA, b, sideB) {
+  return wirePoint(a, sideA, b, sideB, 0.5);
 }
 
 export function rectContains(r, p) {
@@ -77,6 +80,33 @@ export function wrapText(text, maxChars = 22) {
   }
   if (line) lines.push(line);
   return lines.length ? lines : [''];
+}
+
+// ---- Swimlanes ----
+export const LANE_TITLE_H = 26;
+export const LANE_SNAP = 18;
+
+// Inside a swimlane, pull a point's cross-axis coordinate onto the nearest
+// lane centerline when it is within LANE_SNAP px. Returns {x, y} (possibly
+// adjusted). The title band and everything outside the lane body are left
+// untouched.
+export function laneSnapPoint(doc, x, y) {
+  for (const z of doc.zones) {
+    if (z.kind !== 'swimlane' || !z.lanes || !z.lanes.length) continue;
+    if (x <= z.x || x >= z.x + z.w || y <= z.y + LANE_TITLE_H || y >= z.y + z.h) continue;
+    if (z.orient === 'v') {
+      const laneW = z.w / z.lanes.length;
+      const i = Math.min(z.lanes.length - 1, Math.floor((x - z.x) / laneW));
+      const cx = z.x + (i + 0.5) * laneW;
+      if (Math.abs(x - cx) <= LANE_SNAP) return { x: cx, y };
+    } else {
+      const laneH = (z.h - LANE_TITLE_H) / z.lanes.length;
+      const i = Math.min(z.lanes.length - 1, Math.floor((y - z.y - LANE_TITLE_H) / laneH));
+      const cy = z.y + LANE_TITLE_H + (i + 0.5) * laneH;
+      if (Math.abs(y - cy) <= LANE_SNAP) return { x, y: cy };
+    }
+  }
+  return { x, y };
 }
 
 export const NOTE_W = 160;

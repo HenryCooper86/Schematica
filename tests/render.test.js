@@ -104,6 +104,34 @@ test('sneakernet style renders an air gap: sparse dash, shoe chip, no flow', () 
   assert.ok(anim.includes('\u{1F45F} air gap'), 'unlabeled sneakernet wire chip says so');
 });
 
+test('swimlanes render a title band, lane dividers, and lane names', () => {
+  const doc = sampleDoc();
+  doc.zones.push({
+    id: 'z9', x: 0, y: 200, w: 400, h: 300, label: 'Assembly', color: '#a78bfa',
+    kind: 'swimlane', orient: 'h', lanes: ['Intake', 'QA'],
+  });
+  const m = diagramMarkup(doc);
+  assert.ok(m.includes('class="zone swimlane"'));
+  assert.ok(m.includes('>Assembly</text>'));
+  assert.ok(m.includes('>Intake</text>') && m.includes('>QA</text>'));
+  assert.equal((m.match(/stroke-dasharray="5 5"/g) || []).length, 1, 'one divider for two lanes');
+});
+
+test('one LOOP_MS cycle is seamless: frame 0 equals frame LOOP_MS exactly', async () => {
+  const { LOOP_MS } = await import('../src/render.js');
+  const doc = sampleDoc();
+  doc.nodes[1].flags = ['thermal'];
+  doc.wires[1].style = 'sneakernet';
+  doc.wires[1].flow = 'on';
+  const f0 = diagramMarkup(doc, { animate: true, now: 0 });
+  const fLoop = diagramMarkup(doc, { animate: true, now: LOOP_MS });
+  assert.ok(f0.includes('stroke-dashoffset'), 'flow overlay present');
+  assert.ok(f0.includes('class="footstep"'), 'footprints walking the air gap');
+  assert.equal(fLoop, f0, 'every animated attribute returns to its start');
+  const mid = diagramMarkup(doc, { animate: true, now: LOOP_MS / 2 });
+  assert.notEqual(mid, f0, 'frames inside the loop actually move');
+});
+
 test('ports are hidden until their node is hovered', () => {
   const doc = sampleDoc();
   assert.ok(!diagramMarkup(doc).includes('class="port"'), 'no ports by default');

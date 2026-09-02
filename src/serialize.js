@@ -139,11 +139,23 @@ export function deserialize(text) {
     if (typeof z.color === 'string' && !HEX_COLOR.test(z.color)) {
       warnings.push(`Replaced invalid color on zone "${z.id}".`);
     }
-    doc.zones.push({
+    const zone = {
       id: z.id, x: z.x, y: z.y, w: z.w, h: z.h,
       label: typeof z.label === 'string' ? z.label : 'Zone',
       color: zColor,
-    });
+    };
+    // Swimlanes carry extra fields; plain zones keep their exact old shape.
+    if (z.kind === 'swimlane') {
+      zone.kind = 'swimlane';
+      zone.orient = z.orient === 'v' ? 'v' : 'h';
+      const lanes = Array.isArray(z.lanes)
+        ? z.lanes.filter((l) => typeof l === 'string' && l.length > 0) : [];
+      if (Array.isArray(z.lanes) && lanes.length !== z.lanes.length) {
+        warnings.push(`Dropped invalid lanes on swimlane "${z.id}".`);
+      }
+      zone.lanes = lanes.length ? lanes : ['Lane 1'];
+    }
+    doc.zones.push(zone);
   }
 
   for (const t of raw.notes ?? []) {

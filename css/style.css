@@ -266,6 +266,54 @@ html, body {
 }
 .swatches .swatch-auto.active { border-color: var(--accent); color: #7dd3fc; box-shadow: none; }
 
+/* ---- Toast ---- */
+#toast {
+  position: absolute;
+  left: 50%;
+  bottom: 54px;
+  transform: translateX(-50%);
+  z-index: 45;
+  background: rgba(13, 18, 32, 0.96);
+  border: 1px solid var(--line2);
+  border-radius: 10px;
+  padding: 9px 16px;
+  color: var(--text);
+  font-size: 12.5px;
+  white-space: pre-line;
+  max-width: 480px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+#toast[hidden] { display: none; }
+
+/* ---- Swimlane props rows ---- */
+.lane-row { display: flex; gap: 6px; margin-bottom: 6px; }
+.lane-row input { flex: 1; min-width: 0; }
+.lane-row button {
+  flex: none;
+  width: 30px;
+  background: var(--bg0);
+  border: 1px solid var(--line2);
+  color: var(--muted);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+}
+.lane-row button:hover { color: #fca5a5; border-color: #7f1d1d; }
+.lane-add {
+  width: 100%;
+  background: var(--bg2);
+  border: 1px solid var(--line2);
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+}
+.lane-add:hover { color: var(--text); border-color: var(--accent); }
+
 /* ---- Legend ---- */
 #legend {
   position: absolute;

@@ -160,6 +160,25 @@ export function addZone(store, rect, label = 'Zone') {
   return id;
 }
 
+export function addSwimlane(store, rect) {
+  const id = uid('z');
+  store.apply((doc) => {
+    doc.zones.push({
+      id,
+      x: rect.x,
+      y: rect.y,
+      w: Math.max(rect.w, 320),
+      h: Math.max(rect.h, 220),
+      label: 'Process',
+      color: '#a78bfa',
+      kind: 'swimlane',
+      orient: 'h',
+      lanes: ['Lane 1', 'Lane 2', 'Lane 3'],
+    });
+  });
+  return id;
+}
+
 export function addNote(store, x, y, text = 'Note') {
   const id = uid('t');
   store.apply((doc) => {

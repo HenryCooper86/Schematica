@@ -93,3 +93,32 @@ test('contentBounds includes wire curve extents when given a part resolver', () 
   assert.equal(plain.y + plain.h, 50);
   assert.ok(withWires.y + withWires.h > 50, 'bottom-side wire control points must extend the bounds');
 });
+
+test('laneSnapPoint pulls the cross-axis onto lane centerlines inside a swimlane', async () => {
+  const { laneSnapPoint, LANE_TITLE_H } = await import('../src/geometry.js');
+  const doc = {
+    zones: [{
+      id: 'z1', x: 0, y: 0, w: 300, h: LANE_TITLE_H + 300, label: 'P', color: '#a78bfa',
+      kind: 'swimlane', orient: 'h', lanes: ['A', 'B', 'C'],
+    }],
+  };
+  // Lane centerlines at LANE_TITLE_H + 50/150/250.
+  const c1 = LANE_TITLE_H + 50;
+  assert.deepEqual(laneSnapPoint(doc, 100, c1 + 10), { x: 100, y: c1 }, 'within threshold snaps');
+  assert.deepEqual(laneSnapPoint(doc, 100, c1 + 40), { x: 100, y: c1 + 40 }, 'beyond threshold stays');
+  assert.deepEqual(laneSnapPoint(doc, 100, LANE_TITLE_H - 4), { x: 100, y: LANE_TITLE_H - 4 }, 'title band never snaps');
+  assert.deepEqual(laneSnapPoint(doc, 999, c1 + 10), { x: 999, y: c1 + 10 }, 'outside the swimlane stays');
+  doc.zones[0].orient = 'v';
+  assert.deepEqual(laneSnapPoint(doc, 58, 200), { x: 50, y: 200 }, 'vertical lanes snap x');
+  const plain = { zones: [{ id: 'z2', x: 0, y: 0, w: 300, h: 300, label: 'Z', color: '#4a90d9' }] };
+  assert.deepEqual(laneSnapPoint(plain, 100, 100), { x: 100, y: 100 }, 'plain zones never snap');
+});
+
+test('wirePoint generalizes wireMidpoint', async () => {
+  const { wirePoint, wireMidpoint } = await import('../src/geometry.js');
+  const a = { x: 0, y: 0 };
+  const b = { x: 100, y: 100 };
+  assert.deepEqual(wirePoint(a, 'right', b, 'left', 0.5), wireMidpoint(a, 'right', b, 'left'));
+  assert.deepEqual(wirePoint(a, 'right', b, 'left', 0), a);
+  assert.deepEqual(wirePoint(a, 'right', b, 'left', 1), b);
+});

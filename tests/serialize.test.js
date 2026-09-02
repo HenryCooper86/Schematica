@@ -158,6 +158,34 @@ test('legacy journey views (screen offsets) convert to approximate centers', () 
   assert.deepEqual(doc.journey[0].view, { cx: 600, cy: 360, zoom: 1 });
 });
 
+test('swimlanes round-trip; junk orient and lanes are normalized', () => {
+  const { doc, warnings } = deserialize(JSON.stringify({
+    zones: [
+      { id: 'z1', x: 0, y: 0, w: 400, h: 300, label: 'Pipeline', color: '#a78bfa', kind: 'swimlane', orient: 'v', lanes: ['In', 'Out'] },
+      { id: 'z2', x: 500, y: 0, w: 400, h: 300, kind: 'swimlane', orient: 'diagonal', lanes: ['ok', 7, ''] },
+      { id: 'z3', x: 0, y: 400, w: 100, h: 100 },
+    ],
+  }));
+  assert.deepEqual(doc.zones[0], {
+    id: 'z1', x: 0, y: 0, w: 400, h: 300, label: 'Pipeline', color: '#a78bfa',
+    kind: 'swimlane', orient: 'v', lanes: ['In', 'Out'],
+  });
+  assert.equal(doc.zones[1].orient, 'h', 'junk orient becomes h');
+  assert.deepEqual(doc.zones[1].lanes, ['ok'], 'invalid lanes dropped');
+  assert.ok(warnings.some((w) => w.includes('lanes')));
+  assert.ok(!('kind' in doc.zones[2]), 'plain zones keep their exact shape');
+  const back = deserialize(serialize(doc));
+  assert.deepEqual(back.doc.zones, doc.zones);
+});
+
+test('swimlane with entirely invalid lanes gets one default lane', () => {
+  const { doc } = deserialize(JSON.stringify({
+    zones: [{ id: 'z1', x: 0, y: 0, w: 400, h: 300, kind: 'swimlane', lanes: 'nope' }],
+  }));
+  assert.deepEqual(doc.zones[0].lanes, ['Lane 1']);
+  assert.equal(doc.zones[0].orient, 'h');
+});
+
 test('wire flow and sneakernet style round-trip; junk flow becomes null', () => {
   const base = {
     schema: 1,

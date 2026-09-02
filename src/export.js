@@ -15,12 +15,12 @@ export function exportBounds(doc) {
   };
 }
 
-export function buildExportSVG(doc, { transparent = false } = {}) {
+export function buildExportSVG(doc, { transparent = false, now = null } = {}) {
   const { x, y, w, h } = exportBounds(doc);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${x} ${y} ${w} ${h}"`
     + ` font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">`
     + (transparent ? '' : `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${CANVAS_BG}"/>`)
-    + diagramMarkup(doc)
+    + diagramMarkup(doc, now != null ? { animate: true, now } : {})
     + '</svg>';
 }
 

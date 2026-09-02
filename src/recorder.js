@@ -26,7 +26,7 @@ export function fitRect(dstW, dstH, srcW, srcH) {
   return { x: (dstW - w) / 2, y: (dstH - h) / 2, w, h };
 }
 
-export function createRecorder(svg) {
+export function createRecorder(svg, { notify = (m) => alert(m) } = {}) {
   let mode = null; // null | 'video' | 'gif'
   let recording = false;
   let encoding = false;
@@ -182,7 +182,7 @@ export function createRecorder(svg) {
     gifFrames.length = 0;
     mode = null;
     notify();
-    if (wasRecording) alert(message);
+    if (wasRecording) notify(message);
   }
 
   async function start(opts) {
@@ -289,12 +289,12 @@ export function createRecorder(svg) {
           if (gifFrames.length) {
             const bytes = encodeGIF(gifFrames, { delayMs: 1000 / GIF_FPS });
             download(`${basename}.gif`, new Blob([bytes], { type: 'image/gif' }), 'image/gif');
-            if (notice) alert(notice);
+            if (notice) notify(notice);
           } else {
-            alert('No frames were captured, so no GIF was saved.');
+            notify('No frames were captured, so no GIF was saved.');
           }
         } catch {
-          alert('GIF encoding failed — nothing was saved.');
+          notify('GIF encoding failed — nothing was saved.');
         } finally {
           gifFrames.length = 0;
           encoding = false;

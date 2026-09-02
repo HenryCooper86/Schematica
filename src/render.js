@@ -1,7 +1,8 @@
 import { BUSES } from './buses.js';
 import { getPart, CATEGORY_COLORS } from './palette.js';
 import {
-  portPosition, portNormal, wirePath, wireMidpoint, wrapText, noteHeight, NOTE_W,
+  portPosition, portNormal, wirePath, wireMidpoint, wirePoint, wrapText, noteHeight,
+  NOTE_W, LANE_TITLE_H,
 } from './geometry.js';
 
 export const CANVAS_BG = '#0a0e17';
@@ -56,6 +57,14 @@ const FLOW_SPEED = {
 
 const FLOW_PERIOD = 24;
 
+// Every animation period divides LOOP_MS, and every FLOW_SPEED is a multiple
+// of 4 (so speed * LOOP_MS is a multiple of FLOW_PERIOD * 1000) — one LOOP_MS
+// cycle therefore returns every animated attribute to its exact start, which
+// is what makes the seamless-loop GIF export seamless.
+export const LOOP_MS = 6000;
+const PULSE_MS = 1500;
+const FOOTSTEP_MS = 2000;
+
 function pulsePhase(now, periodMs) {
   return 0.5 + 0.5 * Math.sin(((now % periodMs) / periodMs) * Math.PI * 2);
 }
@@ -100,7 +109,7 @@ function tagChipsMarkup(node, anim) {
     const { w } = tag;
     cx -= w;
     const blink = anim != null && tag.status === 'deprecated'
-      ? ` class="blink" opacity="${(0.45 + 0.55 * pulsePhase(anim, 1400)).toFixed(3)}"`
+      ? ` class="blink" opacity="${(0.45 + 0.55 * pulsePhase(anim, PULSE_MS)).toFixed(3)}"`
       : '';
     s += `<g${blink}><rect x="${cx}" y="${node.y - 8}" width="${w}" height="15" rx="7.5"`
       + ` fill="${CHIP_BG}" stroke="${tag.color}" stroke-opacity="0.7"/>`
@@ -144,7 +153,7 @@ function nodeMarkup(node, selected, hoverPort, anim, showPorts) {
   const flags = node.flags || [];
   const pulseColor = flags.includes('bug') ? '#f87171' : (flags.includes('thermal') ? '#fb923c' : null);
   if (anim != null && pulseColor) {
-    const phase = pulsePhase(anim, 1600);
+    const phase = pulsePhase(anim, PULSE_MS);
     const grow = 3 + 3 * phase;
     s += `<rect class="pulse" x="${node.x - grow}" y="${node.y - grow}"`
       + ` width="${node.w + grow * 2}" height="${node.h + grow * 2}" rx="${12 + grow}"`
@@ -207,7 +216,8 @@ function wireMarkup(doc, wire, selected, anim, now) {
   if (wire.arrow === 'fwd' || wire.arrow === 'both') s += arrowAt(b, pt.side);
   if (wire.arrow === 'both') s += arrowAt(a, pf.side);
   // Per-wire flow override: 'on' animates even with the global toggle off,
-  // 'off' never animates, null follows the toggle. An air gap never flows.
+  // 'off' never animates, null follows the toggle. An air gap never flows —
+  // its "traffic" is a pair of footprints walking the path instead.
   const speed = FLOW_SPEED[wire.bus] ?? 32;
   const flowNow = wire.flow === 'on' ? now : (wire.flow === 'off' ? null : anim);
   if (flowNow != null && speed > 0 && wire.style !== 'sneakernet') {
@@ -216,6 +226,15 @@ function wireMarkup(doc, wire, selected, anim, now) {
       + ` stroke-width="${Math.max(1.5, bus.width - 0.5)}" stroke-linecap="round"`
       + ` stroke-dasharray="2.5 ${FLOW_PERIOD - 2.5}" stroke-dashoffset="${offset.toFixed(2)}"`
       + ` pointer-events="none"/>`;
+  }
+  if (flowNow != null && wire.style === 'sneakernet') {
+    const walk = (flowNow % FOOTSTEP_MS) / FOOTSTEP_MS;
+    for (let j = 0; j < 3; j++) {
+      const t = (walk + j / 3) % 1;
+      const p = wirePoint(a, pf.side, b, pt.side, t);
+      s += `<text class="footstep" x="${p.x.toFixed(1)}" y="${(p.y + 3.5).toFixed(1)}"`
+        + ` text-anchor="middle" font-size="10" pointer-events="none">\u{1F463}</text>`;
+    }
   }
   s += '</g>';
   return s;
@@ -241,7 +260,44 @@ function wireChipMarkup(doc, wire) {
     + '</g>';
 }
 
+function swimlaneMarkup(zone, selected) {
+  const color = esc(zone.color || '#a78bfa');
+  const lanes = zone.lanes && zone.lanes.length ? zone.lanes : ['Lane 1'];
+  const vertical = zone.orient === 'v';
+  let s = `<g class="zone swimlane" data-id="${esc(zone.id)}" data-type="zone">`;
+  s += `<rect x="${zone.x}" y="${zone.y}" width="${zone.w}" height="${zone.h}" rx="10"`
+    + ` fill="${color}" fill-opacity="0.05" stroke="${selected ? ACCENT : color}"`
+    + ` stroke-opacity="${selected ? 1 : 0.75}" stroke-width="${selected ? 2 : 1.5}"/>`;
+  s += `<line x1="${zone.x}" y1="${zone.y + LANE_TITLE_H}" x2="${zone.x + zone.w}"`
+    + ` y2="${zone.y + LANE_TITLE_H}" stroke="${color}" stroke-opacity="0.55"/>`;
+  s += `<text x="${zone.x + zone.w / 2}" y="${zone.y + LANE_TITLE_H / 2 + 1}" text-anchor="middle"`
+    + ` dominant-baseline="central" font-size="11" font-weight="700" letter-spacing="1"`
+    + ` fill="${color}" data-edit="label">${esc(zone.label || 'Process')}</text>`;
+  const bodyY = zone.y + LANE_TITLE_H;
+  const bodyH = zone.h - LANE_TITLE_H;
+  lanes.forEach((lane, i) => {
+    if (i > 0) {
+      const pos = vertical
+        ? `x1="${zone.x + (i * zone.w) / lanes.length}" y1="${bodyY}" x2="${zone.x + (i * zone.w) / lanes.length}" y2="${zone.y + zone.h}"`
+        : `x1="${zone.x}" y1="${bodyY + (i * bodyH) / lanes.length}" x2="${zone.x + zone.w}" y2="${bodyY + (i * bodyH) / lanes.length}"`;
+      s += `<line ${pos} stroke="${color}" stroke-opacity="0.35" stroke-dasharray="5 5"/>`;
+    }
+    const lx = vertical ? zone.x + ((i + 0.5) * zone.w) / lanes.length : zone.x + 10;
+    const ly = vertical ? bodyY + 14 : bodyY + ((i + 0.5) * bodyH) / lanes.length;
+    s += `<text x="${lx}" y="${ly}"${vertical ? ' text-anchor="middle"' : ''}`
+      + ` dominant-baseline="central" font-size="9.5" font-family="${MONO}" fill="${color}"`
+      + ` fill-opacity="0.75" pointer-events="none">${esc(lane)}</text>`;
+  });
+  s += `<rect x="${zone.x}" y="${zone.y}" width="${zone.w}" height="${zone.h}" rx="10"`
+    + ' fill="none" stroke="transparent" stroke-width="12" pointer-events="stroke"/>';
+  s += `<rect x="${zone.x}" y="${zone.y}" width="${zone.w}" height="${LANE_TITLE_H}"`
+    + ' fill="transparent" stroke="none"/>';
+  s += '</g>';
+  return s;
+}
+
 function zoneMarkup(zone, selected) {
+  if (zone.kind === 'swimlane') return swimlaneMarkup(zone, selected);
   const color = zone.color || '#4a90d9';
   let s = `<g class="zone" data-id="${esc(zone.id)}" data-type="zone">`;
   s += `<rect x="${zone.x}" y="${zone.y}" width="${zone.w}" height="${zone.h}" rx="14"`

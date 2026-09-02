@@ -27,6 +27,9 @@
         <button id="tool-zone" data-tool="zone" class="tool" title="Draw zone (Z)">
           <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3 6V3h3 M12 3h3v3 M15 12v3h-3 M6 15H3v-3"/></svg>
         </button>
+        <button id="tool-lane" data-tool="lane" class="tool" title="Draw swimlane (L)">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3 3h12v12H3z M3 7h12 M3 11h12"/></svg>
+        </button>
         <button id="tool-note" data-tool="note" class="tool" title="Add note (N)">
           <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4 3h8l3 3v9H4z M12 3v3h3 M7 9h5 M7 12h4"/></svg>
         </button>
@@ -42,11 +45,17 @@
         <button id="zoom-out" title="Zoom out">&minus;</button>
         <button id="zoom-reset" title="Reset zoom"><span id="zoom-label">100%</span></button>
         <button id="zoom-in" title="Zoom in">+</button>
+        <button id="btn-fit" title="Fit diagram (F)">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3 6V3h3 M12 3h3v3 M15 12v3h-3 M6 15H3v-3"/><rect x="6.5" y="6.5" width="5" height="5" rx="1"/></svg>
+        </button>
         <button id="btn-fullscreen" title="Toggle fullscreen">&#x26F6;</button>
       </div>
       <div class="group">
-        <button id="btn-grid" class="active" title="Grid snap + dots">
+        <button id="btn-grid" class="active" title="Grid dots">
           <svg viewBox="0 0 18 18" aria-hidden="true"><g fill="currentColor" stroke="none"><circle cx="4" cy="4" r="1.4"/><circle cx="9" cy="4" r="1.4"/><circle cx="14" cy="4" r="1.4"/><circle cx="4" cy="9" r="1.4"/><circle cx="9" cy="9" r="1.4"/><circle cx="14" cy="9" r="1.4"/><circle cx="4" cy="14" r="1.4"/><circle cx="9" cy="14" r="1.4"/><circle cx="14" cy="14" r="1.4"/></g></svg>
+        </button>
+        <button id="btn-snap" class="active" title="Snap to grid + swimlane lanes">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M5 2.5v6a4 4 0 0 0 8 0v-6 M5 2.5h2.6 M10.4 2.5H13 M5 6h2.6 M10.4 6H13"/></svg>
         </button>
         <button id="btn-animate" title="Signal-flow animation">
           <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M2 9h3l2.5-5 3 10L13 9h3"/></svg>
@@ -89,8 +98,9 @@
         </defs>
       </svg>
       <div id="hintbar" aria-hidden="true">
-        <kbd>V</kbd> select &middot; <kbd>C</kbd> wire &middot; <kbd>Z</kbd> zone &middot; <kbd>N</kbd> note
-        &middot; <kbd>H</kbd> pan &middot; drag ports to link &middot; double-click rename
+        <kbd>V</kbd> select &middot; <kbd>C</kbd> wire &middot; <kbd>Z</kbd> zone &middot; <kbd>L</kbd> lane
+        &middot; <kbd>N</kbd> note &middot; <kbd>H</kbd> pan &middot; <kbd>F</kbd> fit
+        &middot; drag ports to link &middot; double-click rename
         &middot; <kbd>Del</kbd> delete &middot; <kbd>Space</kbd>+drag pan
       </div>
       <div id="present-overlay" hidden>
@@ -106,6 +116,7 @@
       <div id="bus-popover" hidden></div>
       <div id="examples-menu" hidden></div>
       <input id="inline-editor" type="text" spellcheck="false" hidden>
+      <div id="toast" hidden></div>
     </main>
     <aside id="props" hidden></aside>
     <aside id="journey-panel" hidden></aside>
@@ -149,9 +160,10 @@
         <label class="dialog-check"><input id="export-transparent" type="checkbox"> Transparent background <span class="dialog-unit">(PNG/SVG only)</span></label>
       </div>
       <div class="rec-buttons">
-        <button id="export-png-go">Export PNG</button>
-        <button id="export-svg-go">Export SVG</button>
-        <button id="export-pdf-go">Export PDF</button>
+        <button id="export-png-go">PNG</button>
+        <button id="export-svg-go">SVG</button>
+        <button id="export-pdf-go">PDF</button>
+        <button id="export-gifloop-go" title="A seamless 6-second loop of the flow animations">Loop GIF</button>
         <button id="export-cancel">Cancel</button>
       </div>
     </div>

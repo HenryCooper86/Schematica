@@ -29,3 +29,21 @@ test('export dimensions are content bounds plus margins', () => {
   assert.equal(w, b.w + 48);
   assert.equal(h, b.h + 48);
 });
+
+test('buildExportSVG renders an animation frame when given a timestamp', async () => {
+  const { buildExportSVG } = await import('../src/export.js');
+  const doc = {
+    schema: 1,
+    title: 'T',
+    nodes: [
+      { id: 'a', kind: 'mcu', x: 0, y: 0, w: 160, h: 100, label: 'a', sublabel: '', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
+      { id: 'b', kind: 'temp', x: 400, y: 0, w: 130, h: 70, label: 'b', sublabel: '', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
+    ],
+    wires: [{ id: 'w1', bus: 'i2c', from: { node: 'a', port: 'i2c' }, to: { node: 'b', port: 'i2c' }, label: '', arrow: null, style: null, flow: null }],
+    zones: [],
+    notes: [],
+    journey: [],
+  };
+  assert.ok(!buildExportSVG(doc).includes('stroke-dashoffset'), 'static export has no animation');
+  assert.ok(buildExportSVG(doc, { now: 500 }).includes('stroke-dashoffset'), 'timestamped export freezes the flow frame');
+});

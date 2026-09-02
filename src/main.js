@@ -8,6 +8,8 @@ import { snap } from './geometry.js';
 import { BUSES, BUS_ORDER } from './buses.js';
 import { serialize, deserialize } from './serialize.js';
 import { buildExportSVG, exportBounds, exportPNG, exportPDF, download } from './export.js';
+import { encodeGIF } from './gif.js';
+import { LOOP_MS } from './render.js';
 import { buildBOM, bomCSV, bomMarkdown } from './bom.js';
 import { checkDoc } from './drc.js';
 import { encodeShare, decodeShare } from './share.js';
@@ -31,7 +33,20 @@ function loadAutosave() {
 
 const store = new Store(loadAutosave() || newDoc());
 const renderer = createRenderer(svg);
-const tools = createTools({ svg, store, requestRender: render, onToolChange: updateToolButtons });
+const tools = createTools({
+  svg, store, requestRender: render, onToolChange: updateToolButtons,
+  onSave: () => saveJSON(),
+});
+
+// Non-blocking notice in the corner of the canvas, in place of alert().
+let toastTimer = null;
+function toast(message) {
+  const t = document.getElementById('toast');
+  t.textContent = message;
+  t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 3600);
+}
 
 function renderCanvas(now = performance.now()) {
   renderer.render(store.doc, tools.view, {
@@ -134,10 +149,15 @@ document.getElementById('redo').addEventListener('click', () => store.redo());
 document.getElementById('zoom-in').addEventListener('click', () => tools.zoomBy(1.2));
 document.getElementById('zoom-out').addEventListener('click', () => tools.zoomBy(1 / 1.2));
 document.getElementById('zoom-reset').addEventListener('click', () => tools.zoomReset());
+document.getElementById('btn-fit').addEventListener('click', () => tools.zoomFit());
 document.getElementById('btn-grid').addEventListener('click', (e) => {
   tools.ui.grid = !tools.ui.grid;
   e.currentTarget.classList.toggle('active', tools.ui.grid);
   render();
+});
+document.getElementById('btn-snap').addEventListener('click', (e) => {
+  tools.ui.snapOn = !tools.ui.snapOn;
+  e.currentTarget.classList.toggle('active', tools.ui.snapOn);
 });
 
 const titleInput = document.getElementById('title');
@@ -308,6 +328,20 @@ function renderProps() {
       `<button class="chip${(item.flow ?? null) === v ? ' active' : ''}" data-wflow="${v ?? ''}">${lab}</button>`
     )).join('')}</div>`;
     html += '<button id="props-delete-wire" class="danger">Delete wire</button>';
+  } else if (type === 'zone' && item.kind === 'swimlane') {
+    html = '<h3>Swimlane</h3>';
+    html += propField('Title', `<input type="text" data-prop="label" value="${escAttr(item.label)}">`);
+    const ORIENTS = [['h', 'Horizontal lanes'], ['v', 'Vertical lanes']];
+    html += `<label>Orientation</label><div class="chips">${ORIENTS.map(([v, lab]) => (
+      `<button class="chip${(item.orient || 'h') === v ? ' active' : ''}" data-orient="${v}">${lab}</button>`
+    )).join('')}</div>`;
+    html += `<label>Lanes</label>${(item.lanes || []).map((lane, i) => (
+      `<div class="lane-row"><input type="text" data-lane="${i}" value="${escAttr(lane)}">`
+      + `<button data-lanedel="${i}" title="Remove lane">&times;</button></div>`
+    )).join('')}`;
+    html += '<button id="lane-add" class="lane-add">+ Add lane</button>';
+    html += propField('Color', `<input type="color" data-prop="color" value="${escAttr(item.color)}">`);
+    html += '<button id="props-delete-swimlane" class="danger">Delete swimlane (keeps contents)</button>';
   } else if (type === 'zone') {
     html += propField('Label', `<input type="text" data-prop="label" value="${escAttr(item.label)}">`);
     html += propField('Color', `<input type="color" data-prop="color" value="${escAttr(item.color)}">`);
@@ -357,6 +391,43 @@ function renderProps() {
       updateItem(store, item.id, { flow: btn.dataset.wflow || null });
     });
   });
+  props.querySelectorAll('[data-orient]').forEach((btn) => {
+    onPress(btn, () => {
+      updateItem(store, item.id, { orient: btn.dataset.orient });
+    });
+  });
+  props.querySelectorAll('[data-lane]').forEach((input) => {
+    input.addEventListener('change', () => {
+      const cur = findItem(store.doc, item.id)?.item;
+      if (!cur) return;
+      const lanes = [...(cur.lanes || [])];
+      lanes[Number(input.dataset.lane)] = input.value || `Lane ${Number(input.dataset.lane) + 1}`;
+      updateItem(store, item.id, { lanes });
+    });
+  });
+  props.querySelectorAll('[data-lanedel]').forEach((btn) => {
+    onPress(btn, () => {
+      const cur = findItem(store.doc, item.id)?.item;
+      if (!cur) return;
+      if ((cur.lanes || []).length <= 1) { toast('A swimlane needs at least one lane.'); return; }
+      const lanes = cur.lanes.filter((_, i) => i !== Number(btn.dataset.lanedel));
+      updateItem(store, item.id, { lanes });
+    });
+  });
+  const laneAdd = document.getElementById('lane-add');
+  if (laneAdd) {
+    onPress(laneAdd, () => {
+      const cur = findItem(store.doc, item.id)?.item;
+      if (!cur) return;
+      updateItem(store, item.id, { lanes: [...(cur.lanes || []), `Lane ${(cur.lanes || []).length + 1}`] });
+    });
+  }
+  const delSwim = document.getElementById('props-delete-swimlane');
+  if (delSwim) {
+    onPress(delSwim, () => {
+      deleteItems(store, [item.id]);
+    });
+  }
   const delOne = document.getElementById('props-delete-one') || document.getElementById('props-delete-wire');
   if (delOne) {
     onPress(delOne, () => {
@@ -376,9 +447,11 @@ document.getElementById('btn-new').addEventListener('click', () => {
   }
 });
 
-document.getElementById('btn-save').addEventListener('click', () => {
+function saveJSON() {
   download(safeName('.schematica.json'), serialize(store.doc), 'application/json');
-});
+}
+
+document.getElementById('btn-save').addEventListener('click', saveJSON);
 
 document.getElementById('btn-export-svg').addEventListener('click', () => {
   download(safeName('.svg'), buildExportSVG(store.doc), 'image/svg+xml');
@@ -420,7 +493,7 @@ document.getElementById('export-png-go').addEventListener('click', () => {
   exportDialog.hidden = true;
   exportPNG(buildExportSVG(store.doc, exportOpts()), (blob) => {
     if (blob) download(safeName('.png'), blob);
-    else alert('PNG export failed in this browser. The SVG export still works.');
+    else toast('PNG export failed in this browser. The SVG export still works.');
   }, { width, height });
 });
 
@@ -434,8 +507,46 @@ document.getElementById('export-pdf-go').addEventListener('click', () => {
   exportDialog.hidden = true;
   exportPDF(buildExportSVG(store.doc), (blob) => {
     if (blob) download(safeName('.pdf'), blob);
-    else alert('PDF export failed in this browser. PNG and SVG still work.');
+    else toast('PDF export failed in this browser. PNG and SVG still work.');
   }, { width });
+});
+
+// A seamless loop: LOOP_MS returns every animated attribute to its start, so
+// the last frame leads perfectly back into the first.
+let loopBusy = false;
+document.getElementById('export-gifloop-go').addEventListener('click', async () => {
+  if (loopBusy) return;
+  loopBusy = true;
+  exportDialog.hidden = true;
+  toast('Rendering the seamless loop GIF…');
+  try {
+    const b = exportBounds(store.doc);
+    const width = Math.min(960, Math.max(16, Math.round(Number(exportW.value)) || 960));
+    const height = Math.max(16, Math.round(width * (b.h / b.w)));
+    const FRAMES = 60;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const frames = [];
+    for (let i = 0; i < FRAMES; i++) {
+      const svgStr = buildExportSVG(store.doc, { now: (i * LOOP_MS) / FRAMES });
+      const url = URL.createObjectURL(new Blob([svgStr], { type: 'image/svg+xml' }));
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      ctx.drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(url);
+      frames.push({ data: ctx.getImageData(0, 0, width, height).data, width, height });
+    }
+    const bytes = encodeGIF(frames, { delayMs: LOOP_MS / FRAMES });
+    download(safeName('.loop.gif'), new Blob([bytes], { type: 'image/gif' }), 'image/gif');
+    toast('Seamless loop GIF saved.');
+  } catch {
+    toast('Loop GIF export failed in this browser.');
+  } finally {
+    loopBusy = false;
+  }
 });
 
 document.getElementById('export-cancel').addEventListener('click', () => {
@@ -471,8 +582,8 @@ document.getElementById('bom-csv').addEventListener('click', () => {
 });
 document.getElementById('bom-md').addEventListener('click', () => {
   navigator.clipboard.writeText(bomMarkdown(buildBOM(store.doc)))
-    .then(() => alert('Markdown table copied to clipboard.'))
-    .catch(() => alert('Could not access the clipboard - use Download CSV instead.'));
+    .then(() => toast('Markdown table copied to clipboard.'))
+    .catch(() => toast('Could not access the clipboard - use Download CSV instead.'));
 });
 document.getElementById('bom-close').addEventListener('click', () => {
   bomDialog.hidden = true;
@@ -523,9 +634,9 @@ document.getElementById('btn-share').addEventListener('click', async () => {
     const fragment = await encodeShare(store.doc);
     const url = `${location.origin}${location.pathname}#${fragment}`;
     await navigator.clipboard.writeText(url);
-    alert(`Share link copied to clipboard (${url.length.toLocaleString()} characters).`);
+    toast(`Share link copied to clipboard (${url.length.toLocaleString()} characters).`);
   } catch (err) {
-    alert('Could not copy the share link - your browser blocked clipboard access.');
+    toast('Could not copy the share link - your browser blocked clipboard access.');
   }
 });
 
@@ -538,9 +649,9 @@ fileInput.addEventListener('change', async () => {
   try {
     const { doc, warnings } = deserialize(await file.text());
     store.replaceDoc(doc);
-    if (warnings.length) alert(`Opened with warnings:\n\n${warnings.join('\n')}`);
+    if (warnings.length) toast(`Opened with warnings:\n\n${warnings.join('\n')}`);
   } catch (err) {
-    alert(err.message);
+    toast(err.message);
   }
 });
 
@@ -787,7 +898,7 @@ examplesBtn.addEventListener('click', () => {
       if (!confirm(`Load "${ex.name}"? Anything not saved to a file is lost.`)) return;
       const { doc, warnings } = deserialize(serialize(ex.doc));
       store.replaceDoc(doc);
-      if (warnings.length) alert(`Example loaded with warnings:\n\n${warnings.join('\n')}`);
+      if (warnings.length) toast(`Example loaded with warnings:\n\n${warnings.join('\n')}`);
     });
   });
   setTimeout(() => {
@@ -805,7 +916,7 @@ window.addEventListener('keydown', (e) => {
 });
 
 // ---- Recording ----
-const recorder = createRecorder(svg);
+const recorder = createRecorder(svg, { notify: toast });
 const recDialog = document.getElementById('rec-dialog');
 const recBtn = document.getElementById('btn-rec');
 
@@ -864,7 +975,7 @@ recDialog.addEventListener('pointerdown', (e) => {
 
 document.getElementById('btn-export-gif').addEventListener('click', () => {
   if (recorder.state().recording || recorder.state().encoding) {
-    alert('Finish the current recording first.');
+    toast('Finish the current recording first.');
     return;
   }
   recRenderFormats();
@@ -880,7 +991,7 @@ document.getElementById('rec-start').addEventListener('click', async () => {
   const audio = document.querySelector('input[name="rec-audio"]:checked')?.value || 'none';
   const musicFile = document.getElementById('rec-music').files[0] || null;
   if (format !== 'gif' && audio === 'music' && !musicFile) {
-    alert('Choose a music file first, or pick a different audio option.');
+    toast('Choose a music file first, or pick a different audio option.');
     return;
   }
   try {
@@ -893,7 +1004,7 @@ document.getElementById('rec-start').addEventListener('click', async () => {
     });
     recDialog.hidden = true;
   } catch (err) {
-    alert(err.message);
+    toast(err.message);
   }
 });
 
@@ -921,7 +1032,7 @@ syncAnimation();
     } catch { /* backup is best-effort */ }
     history.replaceState(null, '', location.pathname + location.search);
     store.replaceDoc(doc);
-    if (warnings.length) alert(`Shared board loaded with warnings:\n\n${warnings.join('\n')}`);
+    if (warnings.length) toast(`Shared board loaded with warnings:\n\n${warnings.join('\n')}`);
   } catch {
     // Not a share link (or a corrupted one) - leave the current board alone.
   }

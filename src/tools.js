@@ -1,14 +1,19 @@
 import {
-  snap, normRect, rectsIntersect, nodeRect, NOTE_W, noteHeight,
+  snap, normRect, rectsIntersect, nodeRect, NOTE_W, noteHeight, laneSnapPoint, contentBounds,
 } from './geometry.js';
-import { addWire, addZone, addNote, updateItem, deleteItems, duplicateItems, findItem } from './state.js';
+import {
+  addWire, addZone, addSwimlane, addNote, updateItem, deleteItems, duplicateItems, findItem,
+} from './state.js';
 import { BUSES, BUS_ORDER } from './buses.js';
 import { getPart } from './palette.js';
 import { esc } from './render.js';
 
-export function createTools({ svg, store, requestRender, onToolChange }) {
+export function createTools({ svg, store, requestRender, onToolChange, onSave }) {
   const view = { x: 40, y: 40, zoom: 1 };
-  const ui = { marquee: null, wireDraft: null, hoverPort: null, hoverNode: null, grid: true, animate: true };
+  const ui = {
+    marquee: null, wireDraft: null, hoverPort: null, hoverNode: null,
+    grid: true, snapOn: true, animate: true,
+  };
   let tool = 'select';
   let spaceDown = false;
   let drag = null;
@@ -39,7 +44,7 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
   }
 
   function doSnap(v) {
-    return ui.grid ? snap(v) : Math.round(v);
+    return ui.snapOn ? snap(v) : Math.round(v);
   }
 
   function zoomAt(cx, cy, factor) {
@@ -60,6 +65,22 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
     view.x = 40;
     view.y = 40;
     view.zoom = 1;
+    requestRender();
+  }
+
+  function zoomFit() {
+    const b = contentBounds(store.doc, getPart);
+    if (!b) { zoomReset(); return; }
+    const r = svg.getBoundingClientRect();
+    const M = 40;
+    const z = Math.min(4, Math.max(0.2, Math.min(
+      (r.width - M * 2) / Math.max(b.w, 1),
+      (r.height - M * 2) / Math.max(b.h, 1),
+      1.5,
+    )));
+    view.zoom = z;
+    view.x = r.width / 2 - (b.x + b.w / 2) * z;
+    view.y = r.height / 2 - (b.y + b.h / 2) * z;
     requestRender();
   }
 
@@ -107,8 +128,8 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
       return;
     }
 
-    if (tool === 'zone') {
-      drag = { mode: 'zone', start: pt };
+    if (tool === 'zone' || tool === 'lane') {
+      drag = { mode: 'zone', start: pt, lane: tool === 'lane' };
       ui.marquee = { x: pt.x, y: pt.y, w: 0, h: 0 };
       capturePointer(e);
       requestRender();
@@ -190,9 +211,16 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
       store.mutate((doc) => {
         for (const [id, o] of drag.orig) {
           const found = findItem(doc, id);
-          if (found) {
-            found.item.x = doSnap(o.x + dx);
-            found.item.y = doSnap(o.y + dy);
+          if (!found) continue;
+          found.item.x = doSnap(o.x + dx);
+          found.item.y = doSnap(o.y + dy);
+          // Inside a swimlane, a node's center is pulled onto the nearest
+          // lane centerline while snap is on.
+          if (ui.snapOn && found.type === 'node') {
+            const n = found.item;
+            const c = laneSnapPoint(doc, n.x + n.w / 2, n.y + n.h / 2);
+            n.x = c.x - n.w / 2;
+            n.y = c.y - n.h / 2;
           }
         }
       });
@@ -218,9 +246,8 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
       const m = ui.marquee;
       ui.marquee = null;
       if (m && m.w > 16 && m.h > 16) {
-        const id = addZone(store, {
-          x: doSnap(m.x), y: doSnap(m.y), w: doSnap(m.w), h: doSnap(m.h),
-        });
+        const rect = { x: doSnap(m.x), y: doSnap(m.y), w: doSnap(m.w), h: doSnap(m.h) };
+        const id = drag.lane ? addSwimlane(store, rect) : addZone(store, rect);
         store.setSelection([id]);
       }
       setTool('select');
@@ -281,6 +308,16 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
       else store.undo();
       return;
     }
+    if (mod && e.key.toLowerCase() === 'y') {
+      e.preventDefault();
+      store.redo();
+      return;
+    }
+    if (mod && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      onSave?.();
+      return;
+    }
     if (mod && e.key.toLowerCase() === 'd') {
       e.preventDefault();
       const ids = duplicateItems(store, [...store.selection]);
@@ -307,8 +344,10 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
     if (k === 'v') setTool('select');
     if (k === 'c') setTool('wire');
     if (k === 'z') setTool('zone');
+    if (k === 'l') setTool('lane');
     if (k === 'n') setTool('note');
     if (k === 'h') setTool('pan');
+    if (k === 'f') zoomFit();
   });
 
   window.addEventListener('keyup', (e) => {
@@ -419,5 +458,5 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
     openInlineEditor(itemEl.dataset.id, field, e.clientX, e.clientY);
   });
 
-  return { view, ui, setTool, getTool: () => tool, zoomBy, zoomReset, toWorld };
+  return { view, ui, setTool, getTool: () => tool, zoomBy, zoomReset, zoomFit, toWorld };
 }
