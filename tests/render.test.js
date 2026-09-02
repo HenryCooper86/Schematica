@@ -114,7 +114,9 @@ test('swimlanes render a title band, lane dividers, and lane names', () => {
   assert.ok(m.includes('class="zone swimlane"'));
   assert.ok(m.includes('>Assembly</text>'));
   assert.ok(m.includes('>Intake</text>') && m.includes('>QA</text>'));
-  assert.equal((m.match(/stroke-dasharray="5 5"/g) || []).length, 1, 'one divider for two lanes');
+  assert.equal((m.match(/class="lane-divider"/g) || []).length, 1, 'one divider for two lanes');
+  assert.ok(m.includes('rotate(-90'), 'row-lane names read sideways in the gutter');
+  assert.ok(m.includes('fill-opacity="0.05"'), 'alternating lane tint present');
 });
 
 test('one LOOP_MS cycle is seamless: frame 0 equals frame LOOP_MS exactly', async () => {

@@ -84,6 +84,8 @@ html, body {
   font-size: 12.5px;
   font-family: inherit;
   line-height: 1;
+  white-space: nowrap;
+  flex: none;
 }
 #toolbar button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 #toolbar button:hover:not(:disabled) { color: var(--text); background: var(--bg3); }

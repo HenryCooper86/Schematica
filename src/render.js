@@ -260,35 +260,61 @@ function wireChipMarkup(doc, wire) {
     + '</g>';
 }
 
+// Styled after net_draw's swimlanes: a slim title band, a narrow label gutter
+// with rotated lane names (horizontal orientation), subtle alternating lane
+// tints, and solid hairline dividers.
+const LANE_GUTTER = 20;
+
 function swimlaneMarkup(zone, selected) {
   const color = esc(zone.color || '#a78bfa');
   const lanes = zone.lanes && zone.lanes.length ? zone.lanes : ['Lane 1'];
   const vertical = zone.orient === 'v';
-  let s = `<g class="zone swimlane" data-id="${esc(zone.id)}" data-type="zone">`;
-  s += `<rect x="${zone.x}" y="${zone.y}" width="${zone.w}" height="${zone.h}" rx="10"`
-    + ` fill="${color}" fill-opacity="0.05" stroke="${selected ? ACCENT : color}"`
-    + ` stroke-opacity="${selected ? 1 : 0.75}" stroke-width="${selected ? 2 : 1.5}"/>`;
-  s += `<line x1="${zone.x}" y1="${zone.y + LANE_TITLE_H}" x2="${zone.x + zone.w}"`
-    + ` y2="${zone.y + LANE_TITLE_H}" stroke="${color}" stroke-opacity="0.55"/>`;
-  s += `<text x="${zone.x + zone.w / 2}" y="${zone.y + LANE_TITLE_H / 2 + 1}" text-anchor="middle"`
-    + ` dominant-baseline="central" font-size="11" font-weight="700" letter-spacing="1"`
-    + ` fill="${color}" data-edit="label">${esc(zone.label || 'Process')}</text>`;
   const bodyY = zone.y + LANE_TITLE_H;
   const bodyH = zone.h - LANE_TITLE_H;
+  let s = `<g class="zone swimlane" data-id="${esc(zone.id)}" data-type="zone">`;
+  s += `<rect x="${zone.x}" y="${zone.y}" width="${zone.w}" height="${zone.h}" rx="4"`
+    + ` fill="${color}" fill-opacity="0.04" stroke="${selected ? ACCENT : color}"`
+    + ` stroke-opacity="${selected ? 1 : 0.75}" stroke-width="${selected ? 2 : 1.5}"/>`;
+  // Alternating lane tints, then dividers, then labels.
+  lanes.forEach((lane, i) => {
+    if (i % 2 === 1) {
+      const band = vertical
+        ? `x="${zone.x + (i * zone.w) / lanes.length}" y="${bodyY}" width="${zone.w / lanes.length}" height="${bodyH}"`
+        : `x="${zone.x}" y="${bodyY + (i * bodyH) / lanes.length}" width="${zone.w}" height="${bodyH / lanes.length}"`;
+      s += `<rect ${band} fill="${color}" fill-opacity="0.05" pointer-events="none"/>`;
+    }
+  });
   lanes.forEach((lane, i) => {
     if (i > 0) {
       const pos = vertical
         ? `x1="${zone.x + (i * zone.w) / lanes.length}" y1="${bodyY}" x2="${zone.x + (i * zone.w) / lanes.length}" y2="${zone.y + zone.h}"`
         : `x1="${zone.x}" y1="${bodyY + (i * bodyH) / lanes.length}" x2="${zone.x + zone.w}" y2="${bodyY + (i * bodyH) / lanes.length}"`;
-      s += `<line ${pos} stroke="${color}" stroke-opacity="0.35" stroke-dasharray="5 5"/>`;
+      s += `<line class="lane-divider" ${pos} stroke="${color}" stroke-opacity="0.3"/>`;
     }
-    const lx = vertical ? zone.x + ((i + 0.5) * zone.w) / lanes.length : zone.x + 10;
-    const ly = vertical ? bodyY + 14 : bodyY + ((i + 0.5) * bodyH) / lanes.length;
-    s += `<text x="${lx}" y="${ly}"${vertical ? ' text-anchor="middle"' : ''}`
-      + ` dominant-baseline="central" font-size="9.5" font-family="${MONO}" fill="${color}"`
-      + ` fill-opacity="0.75" pointer-events="none">${esc(lane)}</text>`;
+    if (vertical) {
+      const lx = zone.x + ((i + 0.5) * zone.w) / lanes.length;
+      s += `<text x="${lx}" y="${bodyY + 11}" text-anchor="middle" dominant-baseline="central"`
+        + ` font-size="9" font-family="${MONO}" fill="${color}" fill-opacity="0.7"`
+        + ` pointer-events="none">${esc(lane)}</text>`;
+    } else {
+      const ly = bodyY + ((i + 0.5) * bodyH) / lanes.length;
+      const lx = zone.x + LANE_GUTTER / 2 + 1;
+      s += `<text transform="rotate(-90 ${lx} ${ly})" x="${lx}" y="${ly}" text-anchor="middle"`
+        + ` dominant-baseline="central" font-size="9" font-family="${MONO}" fill="${color}"`
+        + ` fill-opacity="0.7" pointer-events="none">${esc(lane)}</text>`;
+    }
   });
-  s += `<rect x="${zone.x}" y="${zone.y}" width="${zone.w}" height="${zone.h}" rx="10"`
+  // Label gutter separator (left for rows, under the labels for columns).
+  const gutter = vertical
+    ? `x1="${zone.x}" y1="${bodyY + LANE_GUTTER}" x2="${zone.x + zone.w}" y2="${bodyY + LANE_GUTTER}"`
+    : `x1="${zone.x + LANE_GUTTER}" y1="${bodyY}" x2="${zone.x + LANE_GUTTER}" y2="${zone.y + zone.h}"`;
+  s += `<line ${gutter} stroke="${color}" stroke-opacity="0.3"/>`;
+  s += `<line x1="${zone.x}" y1="${bodyY}" x2="${zone.x + zone.w}" y2="${bodyY}"`
+    + ` stroke="${color}" stroke-opacity="0.55"/>`;
+  s += `<text x="${zone.x + zone.w / 2}" y="${zone.y + LANE_TITLE_H / 2 + 1}" text-anchor="middle"`
+    + ` dominant-baseline="central" font-size="10.5" font-weight="700" letter-spacing="1"`
+    + ` fill="${color}" data-edit="label">${esc(zone.label || 'Process')}</text>`;
+  s += `<rect x="${zone.x}" y="${zone.y}" width="${zone.w}" height="${zone.h}" rx="4"`
     + ' fill="none" stroke="transparent" stroke-width="12" pointer-events="stroke"/>';
   s += `<rect x="${zone.x}" y="${zone.y}" width="${zone.w}" height="${LANE_TITLE_H}"`
     + ' fill="transparent" stroke="none"/>';
