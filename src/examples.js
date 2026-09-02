@@ -178,7 +178,7 @@ export const EXAMPLES = [
         { id: 'w11', bus: 'rf', from: { node: 'n11', port: 'ble' }, to: { node: 'n8', port: 'rf' }, label: 'push' },
       ],
       zones: [
-        { id: 'z1', x: 24, y: 96, w: 680, h: 400, label: 'Greenhouse node', color: '#34d399' },
+        { id: 'z1', x: 24, y: 96, w: 704, h: 400, label: 'Greenhouse node', color: '#34d399' },
         { id: 'z2', x: 776, y: 112, w: 440, h: 288, label: 'Backend', color: '#e879f9' },
       ],
       notes: [

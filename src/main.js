@@ -85,8 +85,10 @@ document.getElementById('btn-animate').addEventListener('click', () => {
 
 // ---- Fullscreen ----
 document.getElementById('btn-fullscreen').addEventListener('click', () => {
-  if (document.fullscreenElement) document.exitFullscreen();
-  else document.documentElement.requestFullscreen();
+  const request = document.fullscreenElement
+    ? document.exitFullscreen()
+    : document.documentElement.requestFullscreen();
+  request?.catch?.(() => { /* denied by the browser; nothing to do */ });
 });
 
 let autosaveTimer = null;
