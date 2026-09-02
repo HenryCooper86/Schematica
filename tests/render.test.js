@@ -16,8 +16,8 @@ function sampleDoc() {
       node('b', 'temp', 400, 0, { status: 'deprecated' }),
     ],
     wires: [
-      { id: 'w1', bus: 'i2c', from: { node: 'a', port: 'i2c' }, to: { node: 'b', port: 'i2c' }, label: '' },
-      { id: 'w2', bus: 'gnd', from: { node: 'a', port: 'gnd' }, to: { node: 'b', port: 'gnd' }, label: '' },
+      { id: 'w1', bus: 'i2c', from: { node: 'a', port: 'i2c' }, to: { node: 'b', port: 'i2c' }, label: '', arrow: null, style: null },
+      { id: 'w2', bus: 'gnd', from: { node: 'a', port: 'gnd' }, to: { node: 'b', port: 'gnd' }, label: '', arrow: null, style: null },
     ],
     zones: [],
     notes: [],
@@ -53,6 +53,20 @@ test('bug flag pulses when animating; deprecated badge blinks', () => {
   const chipOp = (s) => s.match(/class="blink" opacity="([0-9.]+)"/)?.[1];
   assert.ok(chipOp(blinkA) !== undefined, 'deprecated chip carries a blink opacity');
   assert.notEqual(chipOp(blinkA), chipOp(blinkB), 'blink opacity oscillates');
+});
+
+test('wire arrowheads and style overrides render when set', () => {
+  const doc = sampleDoc();
+  doc.wires[0].arrow = 'fwd';
+  doc.wires[0].style = 'dotted';
+  const one = diagramMarkup(doc);
+  assert.equal((one.match(/class="arrow"/g) || []).length, 1, 'one arrowhead for fwd');
+  assert.ok(one.includes('stroke-dasharray="1.5 5"'), 'dotted style override applied');
+  doc.wires[0].arrow = 'both';
+  const two = diagramMarkup(doc);
+  assert.equal((two.match(/class="arrow"/g) || []).length, 2, 'two arrowheads for both');
+  doc.wires[0].style = 'solid';
+  assert.ok(!diagramMarkup(doc).match(/w1[^]*?stroke-dasharray="1.5 5"/), 'solid override removes dots');
 });
 
 test('thermal flag pulses in its own color when bug is absent', () => {

@@ -7,8 +7,9 @@ import { CATEGORIES, CATEGORY_COLORS, PARTS, getPart } from './palette.js';
 import { snap } from './geometry.js';
 import { BUSES, BUS_ORDER } from './buses.js';
 import { serialize, deserialize } from './serialize.js';
-import { buildExportSVG, exportBounds, exportPNG, download } from './export.js';
+import { buildExportSVG, exportBounds, exportPNG, exportPDF, download } from './export.js';
 import { buildBOM, bomCSV, bomMarkdown } from './bom.js';
+import { checkDoc } from './drc.js';
 import { encodeShare, decodeShare } from './share.js';
 import { esc } from './render.js';
 import { addStep, updateStep, removeStep, moveStep, tweenView } from './journey.js';
@@ -49,6 +50,7 @@ function render() {
   document.getElementById('zoom-label').textContent = `${Math.round(tools.view.zoom * 100)}%`;
   document.getElementById('undo').disabled = !store.canUndo();
   document.getElementById('redo').disabled = !store.canRedo();
+  document.getElementById('btn-remove').disabled = store.selection.size === 0;
   renderProps();
 }
 
@@ -260,6 +262,15 @@ function renderProps() {
       `<option value="${b}"${b === item.bus ? ' selected' : ''}>${BUSES[b].name}</option>`).join('');
     html += propField('Bus type', `<select data-prop="bus">${options}</select>`);
     html += propField('Label (blank = bus name)', `<input type="text" data-prop="label" value="${escAttr(item.label)}">`);
+    const ARROWS = [[null, 'None'], ['fwd', '&rarr; To'], ['both', '&harr; Both']];
+    html += `<label>Arrowheads</label><div class="chips">${ARROWS.map(([v, lab]) => (
+      `<button class="chip${(item.arrow ?? null) === v ? ' active' : ''}" data-warrow="${v ?? ''}">${lab}</button>`
+    )).join('')}</div>`;
+    const STYLES = [[null, 'Bus default'], ['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']];
+    html += `<label>Line style</label><div class="chips">${STYLES.map(([v, lab]) => (
+      `<button class="chip${(item.style ?? null) === v ? ' active' : ''}" data-wstyle="${v ?? ''}">${lab}</button>`
+    )).join('')}</div>`;
+    html += '<button id="props-delete-wire" class="danger">Delete wire</button>';
   } else if (type === 'zone') {
     html += propField('Label', `<input type="text" data-prop="label" value="${escAttr(item.label)}">`);
     html += propField('Color', `<input type="color" data-prop="color" value="${escAttr(item.color)}">`);
@@ -292,7 +303,17 @@ function renderProps() {
       updateItem(store, item.id, { color: btn.dataset.swatch || null });
     });
   });
-  const delOne = document.getElementById('props-delete-one');
+  props.querySelectorAll('[data-warrow]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      updateItem(store, item.id, { arrow: btn.dataset.warrow || null });
+    });
+  });
+  props.querySelectorAll('[data-wstyle]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      updateItem(store, item.id, { style: btn.dataset.wstyle || null });
+    });
+  });
+  const delOne = document.getElementById('props-delete-one') || document.getElementById('props-delete-wire');
   if (delOne) {
     delOne.addEventListener('click', () => {
       deleteItems(store, [item.id]);
@@ -364,6 +385,15 @@ document.getElementById('export-svg-go').addEventListener('click', () => {
   download(safeName('.svg'), buildExportSVG(store.doc, exportOpts()), 'image/svg+xml');
 });
 
+document.getElementById('export-pdf-go').addEventListener('click', () => {
+  const width = Math.min(16384, Math.max(16, Math.round(Number(exportW.value)) || 16));
+  exportDialog.hidden = true;
+  exportPDF(buildExportSVG(store.doc), (blob) => {
+    if (blob) download(safeName('.pdf'), blob);
+    else alert('PDF export failed in this browser. PNG and SVG still work.');
+  }, { width });
+});
+
 document.getElementById('export-cancel').addEventListener('click', () => {
   exportDialog.hidden = true;
 });
@@ -405,6 +435,42 @@ document.getElementById('bom-close').addEventListener('click', () => {
 });
 bomDialog.addEventListener('pointerdown', (e) => {
   if (e.target === bomDialog) bomDialog.hidden = true;
+});
+
+// ---- Delete selection (toolbar) ----
+document.getElementById('btn-remove').addEventListener('click', () => {
+  deleteItems(store, [...store.selection]);
+});
+
+// ---- Design rule check ----
+const drcDialog = document.getElementById('drc-dialog');
+
+document.getElementById('btn-check').addEventListener('click', () => {
+  const findings = checkDoc(store.doc);
+  const list = document.getElementById('drc-list');
+  if (!findings.length) {
+    list.innerHTML = '<p class="drc-clean">No issues found - the board passes every check.</p>';
+  } else {
+    list.innerHTML = findings.map((f, i) => (
+      `<div class="drc-row"><span class="drc-level ${f.level}">${f.level.toUpperCase()}</span>`
+      + `<span class="msg">${esc(f.message)}</span>`
+      + `<button data-drc="${i}">Select</button></div>`
+    )).join('');
+    list.querySelectorAll('[data-drc]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        store.setSelection(findings[Number(btn.dataset.drc)].ids);
+        drcDialog.hidden = true;
+      });
+    });
+  }
+  drcDialog.hidden = false;
+});
+
+document.getElementById('drc-close').addEventListener('click', () => {
+  drcDialog.hidden = true;
+});
+drcDialog.addEventListener('pointerdown', (e) => {
+  if (e.target === drcDialog) drcDialog.hidden = true;
 });
 
 // ---- Share link ----
@@ -461,12 +527,38 @@ const journeyPanel = document.getElementById('journey-panel');
 const presentState = { active: false, index: 0, caption: '', counter: '' };
 let tweenRaf = null;
 
-function currentView() {
-  return { x: tools.view.x, y: tools.view.y, zoom: tools.view.zoom };
+// Journey steps store world-space centers so they frame the same content on any
+// viewport — including present mode, where hiding the chrome resizes the canvas.
+function currentCenter() {
+  const r = svg.getBoundingClientRect();
+  const { zoom } = tools.view;
+  return {
+    cx: (r.width / 2 - tools.view.x) / zoom,
+    cy: (r.height / 2 - tools.view.y) / zoom,
+    zoom,
+  };
+}
+
+function centerToView(c) {
+  const r = svg.getBoundingClientRect();
+  return {
+    x: r.width / 2 - c.cx * c.zoom,
+    y: r.height / 2 - c.cy * c.zoom,
+    zoom: c.zoom,
+  };
+}
+
+function flyToCenter(c, instant = false) {
+  flyTo(centerToView(c), instant);
 }
 
 function flyTo(target, instant = false) {
   if (tweenRaf) cancelAnimationFrame(tweenRaf);
+  // Jump instead of tweening when frames won't run (hidden tab) or the user
+  // asked for reduced motion — otherwise the camera would silently never move.
+  if (document.hidden || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    instant = true;
+  }
   if (instant) {
     tools.view.x = target.x;
     tools.view.y = target.y;
@@ -515,7 +607,7 @@ function renderJourney() {
     + '</div>';
   journeyPanel.innerHTML = html;
   document.getElementById('journey-add').addEventListener('click', () => {
-    addStep(store, currentView());
+    addStep(store, currentCenter());
   });
   document.getElementById('journey-present').addEventListener('click', presentEnter);
   journeyPanel.querySelectorAll('[data-jfield]').forEach((input) => {
@@ -530,8 +622,8 @@ function renderJourney() {
       const act = btn.dataset.jact;
       const step = (store.doc.journey || []).find((s) => s.id === id);
       if (!step) return;
-      if (act === 'go') flyTo(step.view);
-      if (act === 'set') updateStep(store, id, { view: currentView() });
+      if (act === 'go') flyToCenter(step.view);
+      if (act === 'set') updateStep(store, id, { view: currentCenter() });
       if (act === 'up') moveStep(store, id, -1);
       if (act === 'down') moveStep(store, id, 1);
       if (act === 'del') removeStep(store, id);
@@ -553,13 +645,14 @@ const overlay = document.getElementById('present-overlay');
 
 function presentShow() {
   const steps = store.doc.journey || [];
+  if (!steps.length) { presentExit(); return; }
+  presentState.index = Math.min(presentState.index, steps.length - 1);
   const step = steps[presentState.index];
-  if (!step) { presentExit(); return; }
   presentState.caption = step.caption || '';
   presentState.counter = `${presentState.index + 1} / ${steps.length}`;
   document.getElementById('present-caption').textContent = presentState.caption;
   document.getElementById('present-counter').textContent = presentState.counter;
-  flyTo(step.view);
+  flyToCenter(step.view);
   recorder.setOverlay(presentState.caption, presentState.counter);
 }
 

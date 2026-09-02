@@ -132,22 +132,52 @@ test('journey round-trips; invalid steps dropped; zoom clamped; missing -> []', 
   const good = {
     schema: 1,
     journey: [
-      { id: 'j1', label: 'Intro', view: { x: 1, y: 2, zoom: 2 }, caption: 'hi' },
-      { id: 'j2', view: { x: 0, y: 0, zoom: 99 } },
-      { id: 'j3', view: { x: 'nope', y: 0, zoom: 1 } },
-      { id: 'j1', view: { x: 0, y: 0, zoom: 1 } },
+      { id: 'j1', label: 'Intro', view: { cx: 1, cy: 2, zoom: 2 }, caption: 'hi' },
+      { id: 'j2', view: { cx: 0, cy: 0, zoom: 99 } },
+      { id: 'j3', view: { cx: 'nope', cy: 0, zoom: 1 } },
+      { id: 'j1', view: { cx: 0, cy: 0, zoom: 1 } },
     ],
   };
   const { doc, warnings } = deserialize(JSON.stringify(good));
   assert.equal(doc.journey.length, 2);
-  assert.deepEqual(doc.journey[0], { id: 'j1', label: 'Intro', view: { x: 1, y: 2, zoom: 2 }, caption: 'hi' });
-  assert.deepEqual(doc.journey[1], { id: 'j2', label: 'Step', view: { x: 0, y: 0, zoom: 4 }, caption: '' });
+  assert.deepEqual(doc.journey[0], { id: 'j1', label: 'Intro', view: { cx: 1, cy: 2, zoom: 2 }, caption: 'hi' });
+  assert.deepEqual(doc.journey[1], { id: 'j2', label: 'Step', view: { cx: 0, cy: 0, zoom: 4 }, caption: '' });
   assert.equal(warnings.length, 2);
   const { doc: empty } = deserialize('{"schema":1}');
   assert.deepEqual(empty.journey, []);
   assert.throws(() => deserialize('{"journey": 5}'), /"journey" must be an array/);
   const back = deserialize(serialize(doc));
   assert.deepEqual(back.doc.journey, doc.journey);
+});
+
+test('legacy journey views (screen offsets) convert to approximate centers', () => {
+  const { doc, warnings } = deserialize(JSON.stringify({
+    journey: [{ id: 'j1', label: 'Old', view: { x: 40, y: 40, zoom: 1 }, caption: '' }],
+  }));
+  assert.deepEqual(warnings, []);
+  assert.deepEqual(doc.journey[0].view, { cx: 600, cy: 360, zoom: 1 });
+});
+
+test('wire arrow and style fields round-trip, default null, and reject junk', () => {
+  const base = {
+    schema: 1,
+    nodes: [
+      { id: 'n1', kind: 'mcu', x: 0, y: 0 },
+      { id: 'n2', kind: 'temp', x: 300, y: 0 },
+    ],
+    wires: [
+      { id: 'w1', bus: 'i2c', from: { node: 'n1', port: 'i2c' }, to: { node: 'n2', port: 'i2c' }, arrow: 'fwd', style: 'dotted' },
+      { id: 'w2', bus: 'gnd', from: { node: 'n1', port: 'gnd' }, to: { node: 'n2', port: 'gnd' }, arrow: 'sideways', style: 'zigzag' },
+    ],
+  };
+  const { doc, warnings } = deserialize(JSON.stringify(base));
+  assert.equal(doc.wires[0].arrow, 'fwd');
+  assert.equal(doc.wires[0].style, 'dotted');
+  assert.equal(doc.wires[1].arrow, null);
+  assert.equal(doc.wires[1].style, null);
+  assert.equal(warnings.length, 0, 'junk enum values are silently normalized');
+  const back = deserialize(serialize(doc));
+  assert.deepEqual(back.doc.wires, doc.wires);
 });
 
 test('node metadata fields round-trip and default correctly', () => {

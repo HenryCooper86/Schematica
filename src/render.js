@@ -1,7 +1,7 @@
 import { BUSES } from './buses.js';
 import { getPart, CATEGORY_COLORS } from './palette.js';
 import {
-  portPosition, wirePath, wireMidpoint, wrapText, noteHeight, NOTE_W,
+  portPosition, portNormal, wirePath, wireMidpoint, wrapText, noteHeight, NOTE_W,
 } from './geometry.js';
 
 export const CANVAS_BG = '#0a0e17';
@@ -180,8 +180,23 @@ function wireMarkup(doc, wire, selected, anim) {
     s += `<path d="${d}" fill="none" stroke="${ACCENT}" stroke-opacity="0.3"`
       + ` stroke-width="${bus.width + 5}" stroke-linecap="round" pointer-events="none"/>`;
   }
+  const dash = wire.style === 'solid' ? null
+    : wire.style === 'dashed' ? '6 4'
+      : wire.style === 'dotted' ? '1.5 5'
+        : bus.dash;
   s += `<path d="${d}" fill="none" stroke="${bus.color}" stroke-width="${bus.width}"`
-    + `${bus.dash ? ` stroke-dasharray="${bus.dash}"` : ''} stroke-linecap="round" pointer-events="none"/>`;
+    + `${dash ? ` stroke-dasharray="${dash}"` : ''} stroke-linecap="round" pointer-events="none"/>`;
+  const arrowAt = (p, side) => {
+    const n = portNormal(side);
+    const px = -n.y;
+    const py = n.x;
+    const bx = p.x + n.x * 9;
+    const by = p.y + n.y * 9;
+    return `<path class="arrow" d="M ${p.x} ${p.y} L ${bx + px * 4.5} ${by + py * 4.5}`
+      + ` L ${bx - px * 4.5} ${by - py * 4.5} Z" fill="${bus.color}" pointer-events="none"/>`;
+  };
+  if (wire.arrow === 'fwd' || wire.arrow === 'both') s += arrowAt(b, pt.side);
+  if (wire.arrow === 'both') s += arrowAt(a, pf.side);
   const speed = FLOW_SPEED[wire.bus] ?? 32;
   if (anim != null && speed > 0) {
     const offset = -(((anim / 1000) * speed) % FLOW_PERIOD);

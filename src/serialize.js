@@ -100,6 +100,8 @@ export function deserialize(text) {
       from: { node: w.from.node, port: w.from.port },
       to: { node: w.to.node, port: w.to.port },
       label: typeof w.label === 'string' ? w.label : '',
+      arrow: w.arrow === 'fwd' || w.arrow === 'both' ? w.arrow : null,
+      style: ['solid', 'dashed', 'dotted'].includes(w.style) ? w.style : null,
     });
   }
 
@@ -131,16 +133,25 @@ export function deserialize(text) {
   }
 
   for (const s of raw.journey ?? []) {
-    if (!s || !validId(s.id) || seen.has(s.id) || !s.view
-      || !Number.isFinite(s.view.x) || !Number.isFinite(s.view.y) || !Number.isFinite(s.view.zoom)) {
+    const v = s?.view;
+    const modern = v && Number.isFinite(v.cx) && Number.isFinite(v.cy);
+    const legacy = v && Number.isFinite(v.x) && Number.isFinite(v.y);
+    if (!s || !validId(s.id) || seen.has(s.id) || !v
+      || !Number.isFinite(v.zoom) || (!modern && !legacy)) {
       warnings.push('Dropped a journey step with a bad id or view.');
       continue;
     }
     seen.add(s.id);
+    const zoom = Math.min(4, Math.max(0.2, v.zoom));
+    // Legacy views stored raw screen offsets; convert to an approximate world
+    // center assuming the historical ~1280x800 canvas.
+    const view = modern
+      ? { cx: v.cx, cy: v.cy, zoom }
+      : { cx: (640 - v.x) / zoom, cy: (400 - v.y) / zoom, zoom };
     doc.journey.push({
       id: s.id,
       label: typeof s.label === 'string' ? s.label : 'Step',
-      view: { x: s.view.x, y: s.view.y, zoom: Math.min(4, Math.max(0.2, s.view.zoom)) },
+      view,
       caption: typeof s.caption === 'string' ? s.caption : '',
     });
   }

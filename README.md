@@ -47,6 +47,9 @@ then Settings → Pages → deploy from branch `main`, root folder.
 | Export dialog | PNG opens a size dialog — pixel dimensions, aspect lock, transparent background; the dialog's SVG button honors the transparency option (the toolbar SVG button is an instant opaque export) |
 | BOM | BOM button — bill of materials grouped by part number (qty, refs, addresses, rails, status, flags); CSV download or Markdown copy |
 | Share | Share button — the whole board compressed into a copyable URL; opening the link loads it, no backend |
+| Check | Check button — design rule checks: I2C address conflicts, unconnected power pins, floating parts, bus mismatches, lifecycle risks |
+| PDF | Export dialog — single-page PDF of the board (alongside PNG/SVG) |
+| Wire options | Select a wire — bus, label, arrowheads (→ or ↔), line style override, delete |
 
 Work is autosaved to the browser's localStorage and restored on reload.
 

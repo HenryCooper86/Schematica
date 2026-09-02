@@ -55,12 +55,18 @@
         <button id="btn-export-png" title="Export PNG">PNG</button>
         <button id="btn-export-svg" title="Export SVG">SVG</button>
         <button id="btn-export-gif" title="Record an animated GIF">GIF</button>
-        <button id="btn-save" title="Download .schematica.json">Save</button>
-        <button id="btn-open" title="Open .schematica.json">Open</button>
+        <button id="btn-save" class="ico" title="Download .schematica.json">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 2.5v8 M5.5 7.5 9 11l3.5-3.5 M3 14.5h12"/></svg>Save</button>
+        <button id="btn-open" class="ico" title="Open .schematica.json">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 11V3 M5.5 6.5 9 3l3.5 3.5 M3 14.5h12"/></svg>Open</button>
         <button id="btn-examples" title="Load an example board">Examples &#9662;</button>
+        <button id="btn-check" title="Run design rule checks">Check</button>
         <button id="btn-bom" title="Bill of materials">BOM</button>
-        <button id="btn-share" title="Copy a share link">Share</button>
+        <button id="btn-share" class="ico" title="Copy a share link">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M13.5 5m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M4.5 9m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M13.5 13.5m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M6.3 8.1l5.4-2.3 M6.3 9.9l5.4 2.7"/></svg>Share</button>
         <button id="btn-new" title="Clear board">New</button>
+        <button id="btn-remove" class="ico" title="Delete selection (Del)" disabled>
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4 5h10 M7.2 5V3.5h3.6V5 M5.5 5l.7 9.5h5.6l.7-9.5 M8 7.5v4.5 M10 7.5v4.5"/></svg></button>
       </div>
     </header>
     <aside id="palette"></aside>
@@ -135,7 +141,18 @@
       <div class="rec-buttons">
         <button id="export-png-go">Export PNG</button>
         <button id="export-svg-go">Export SVG</button>
+        <button id="export-pdf-go">Export PDF</button>
         <button id="export-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+  <div id="drc-dialog" hidden>
+    <div class="rec-card bom-card">
+      <h3>Design rule check</h3>
+      <p>I2C address conflicts, unconnected power pins, floating parts, bus mismatches, and lifecycle risks.</p>
+      <div id="drc-list"></div>
+      <div class="rec-buttons">
+        <button id="drc-close">Close</button>
       </div>
     </div>
   </div>

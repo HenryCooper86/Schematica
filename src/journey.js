@@ -1,5 +1,7 @@
 import { uid } from './state.js';
 
+// Step views are stored as WORLD-SPACE centers ({cx, cy, zoom}) so a journey
+// frames the same content on any screen size, panel state, or present mode.
 export function addStep(store, view, label) {
   const id = uid('j');
   store.apply((doc) => {
@@ -7,7 +9,7 @@ export function addStep(store, view, label) {
     doc.journey.push({
       id,
       label: label || `Step ${doc.journey.length + 1}`,
-      view: { x: view.x, y: view.y, zoom: view.zoom },
+      view: { cx: view.cx, cy: view.cy, zoom: view.zoom },
       caption: '',
     });
   });
@@ -18,7 +20,7 @@ export function updateStep(store, id, props) {
   store.apply((doc) => {
     const step = (doc.journey || []).find((s) => s.id === id);
     if (!step) return;
-    if (props.view) step.view = { x: props.view.x, y: props.view.y, zoom: props.view.zoom };
+    if (props.view) step.view = { cx: props.view.cx, cy: props.view.cy, zoom: props.view.zoom };
     if (props.label !== undefined) step.label = props.label;
     if (props.caption !== undefined) step.caption = props.caption;
   });

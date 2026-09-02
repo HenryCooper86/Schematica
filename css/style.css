@@ -483,7 +483,8 @@ html, body {
 
 #rec-dialog,
 #export-dialog,
-#bom-dialog {
+#bom-dialog,
+#drc-dialog {
   position: fixed;
   inset: 0;
   z-index: 50;
@@ -494,7 +495,8 @@ html, body {
 }
 #rec-dialog[hidden],
 #export-dialog[hidden],
-#bom-dialog[hidden] { display: none; }
+#bom-dialog[hidden],
+#drc-dialog[hidden] { display: none; }
 .rec-card {
   width: 380px;
   background: var(--bg1);
@@ -556,7 +558,8 @@ html, body {
 .dialog-check input { accent-color: var(--accent); }
 
 #export-dialog .rec-buttons button,
-#bom-dialog .rec-buttons button {
+#bom-dialog .rec-buttons button,
+#drc-dialog .rec-buttons button {
   background: var(--bg2);
   border: 1px solid var(--line);
   color: var(--text);
@@ -567,7 +570,8 @@ html, body {
   font-family: inherit;
 }
 #export-dialog .rec-buttons button:hover,
-#bom-dialog .rec-buttons button:hover { border-color: var(--accent); }
+#bom-dialog .rec-buttons button:hover,
+#drc-dialog .rec-buttons button:hover { border-color: var(--accent); }
 #export-cancel, #bom-close { color: var(--muted); }
 
 .bom-card { width: 680px; max-width: 92vw; }
@@ -585,6 +589,46 @@ html, body {
   background: var(--bg1);
 }
 #bom-table tr:last-child td { border-bottom: none; }
+
+#toolbar .ico svg { width: 13px; height: 13px; margin-right: 5px; }
+
+#drc-list { max-height: 320px; overflow: auto; margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.drc-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  color: var(--text);
+}
+.drc-level {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  border-radius: 999px;
+  padding: 3px 8px;
+}
+.drc-level.error { color: #fca5a5; border: 1px solid #7f1d1d; background: #2a1215; }
+.drc-level.warning { color: #fcd34d; border: 1px solid #92610e; background: #211a09; }
+.drc-row .msg { flex: 1; }
+.drc-row button {
+  flex: none;
+  background: var(--bg0);
+  border: 1px solid var(--line2);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 11.5px;
+  font-family: inherit;
+}
+.drc-row button:hover { color: var(--text); border-color: var(--accent); }
+.drc-clean { padding: 14px 4px; color: var(--muted); font-size: 13px; }
 
 /* ---- Scrollbars ---- */
 html {
