@@ -198,6 +198,29 @@ function propField(label, inner) {
   return `<label>${label}</label>${inner}`;
 }
 
+// Panel buttons act on pointerdown. A plain click handler loses the first
+// click after editing a field: the blur commits, the store emits, and the
+// panel rebuild replaces the button between mousedown and mouseup, so the
+// click never lands. Pointerdown fires before the blur; any pending edit is
+// committed explicitly first so ordering matches the old click path. The
+// click listener stays for keyboard activation, suppressed after a pointer
+// press so the same activation can't fire twice.
+function onPress(btn, fn) {
+  btn.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    const ae = document.activeElement;
+    if (ae && ae !== btn && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) ae.blur();
+    btn._pointerFired = true;
+    window.addEventListener('pointerup', () => {
+      setTimeout(() => { btn._pointerFired = false; }, 0);
+    }, { once: true });
+    fn(e);
+  });
+  btn.addEventListener('click', (e) => {
+    if (!btn._pointerFired) fn(e);
+  });
+}
+
 const STATUS_LABELS = {
   planned: 'Planned', prototype: 'Prototype', tested: 'Tested',
   production: 'Production', deprecated: 'Deprecated',
@@ -228,7 +251,7 @@ function renderProps() {
   props.hidden = false;
   if (ids.length > 1) {
     props.innerHTML = `<h3>${ids.length} items selected</h3><button id="props-delete" class="danger">Delete selection</button>`;
-    document.getElementById('props-delete').addEventListener('click', () => {
+    onPress(document.getElementById('props-delete'), () => {
       deleteItems(store, [...store.selection]);
     });
     return;
@@ -239,7 +262,7 @@ function renderProps() {
     return;
   }
   const { type, item } = found;
-  const escAttr = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const escAttr = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   let html = `<h3>${type[0].toUpperCase()}${type.slice(1)}</h3>`;
   if (type === 'node') {
     html += propField('Label', `<input type="text" data-prop="label" value="${escAttr(item.label)}">`);
@@ -284,38 +307,40 @@ function renderProps() {
     });
   });
   props.querySelectorAll('[data-status]').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    onPress(btn, () => {
       const st = btn.dataset.status;
-      updateItem(store, item.id, { status: item.status === st ? null : st });
+      const cur = findItem(store.doc, item.id)?.item;
+      updateItem(store, item.id, { status: cur?.status === st ? null : st });
     });
   });
   props.querySelectorAll('[data-flag]').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    onPress(btn, () => {
       const f = btn.dataset.flag;
-      const flags = (item.flags || []).includes(f)
-        ? item.flags.filter((x) => x !== f)
-        : [...(item.flags || []), f];
+      const cur = findItem(store.doc, item.id)?.item;
+      const flags = (cur?.flags || []).includes(f)
+        ? cur.flags.filter((x) => x !== f)
+        : [...(cur?.flags || []), f];
       updateItem(store, item.id, { flags });
     });
   });
   props.querySelectorAll('[data-swatch]').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    onPress(btn, () => {
       updateItem(store, item.id, { color: btn.dataset.swatch || null });
     });
   });
   props.querySelectorAll('[data-warrow]').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    onPress(btn, () => {
       updateItem(store, item.id, { arrow: btn.dataset.warrow || null });
     });
   });
   props.querySelectorAll('[data-wstyle]').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    onPress(btn, () => {
       updateItem(store, item.id, { style: btn.dataset.wstyle || null });
     });
   });
   const delOne = document.getElementById('props-delete-one') || document.getElementById('props-delete-wire');
   if (delOne) {
-    delOne.addEventListener('click', () => {
+    onPress(delOne, () => {
       deleteItems(store, [item.id]);
     });
   }
@@ -410,11 +435,11 @@ document.getElementById('btn-bom').addEventListener('click', () => {
     `<tr><td>${esc(r.part)}</td><td>${esc(r.sublabel)}</td><td>${r.qty}</td>`
     + `<td class="wrap">${esc(r.refs.join(', '))}</td><td>${esc(r.addrs.join(', '))}</td>`
     + `<td>${esc(r.rails.join(', '))}</td><td>${esc(r.statuses.join(', '))}</td>`
-    + `<td>${esc(r.flags.join(', '))}</td></tr>`
+    + `<td>${esc(r.flags.join(', '))}</td><td class="wrap">${esc(r.notes.join('; '))}</td></tr>`
   )).join('');
   document.getElementById('bom-table').innerHTML = bomRows.length
     ? '<table><thead><tr><th>Part</th><th>Part number</th><th>Qty</th><th>Refs</th>'
-      + '<th>Addresses</th><th>Rails</th><th>Status</th><th>Flags</th></tr></thead>'
+      + '<th>Addresses</th><th>Rails</th><th>Status</th><th>Flags</th><th>Notes</th></tr></thead>'
       + `<tbody>${body}</tbody></table>`
     : '<p style="padding:12px">The board is empty - add some parts first.</p>';
   bomDialog.hidden = false;
@@ -505,10 +530,10 @@ function buildLegend() {
   const legend = document.getElementById('legend');
   legend.innerHTML = '<h3>Buses</h3>' + BUS_ORDER.map((id) => {
     const b = BUSES[id];
-    const dash = b.dash ? ` stroke-dasharray="${b.dash}"` : '';
+    const dash = b.dash ? ` stroke-dasharray="${esc(b.dash)}"` : '';
     return `<div class="legend-row"><svg width="36" height="10">`
-      + `<line x1="2" y1="5" x2="34" y2="5" stroke="${b.color}" stroke-width="${Math.min(b.width, 4)}"${dash} stroke-linecap="round"/>`
-      + `</svg><span>${b.name}</span></div>`;
+      + `<line x1="2" y1="5" x2="34" y2="5" stroke="${esc(b.color)}" stroke-width="${Math.min(b.width, 4)}"${dash} stroke-linecap="round"/>`
+      + `</svg><span>${esc(b.name)}</span></div>`;
   }).join('');
 }
 
@@ -586,7 +611,7 @@ function renderJourney() {
   const ae = document.activeElement;
   if (journeyPanel.contains(ae) && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) return;
   const steps = store.doc.journey || [];
-  const escA = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const escA = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   let html = '<h3>Journey</h3>';
   steps.forEach((s, i) => {
     html += `<div class="journey-step" data-step="${escA(s.id)}">`
@@ -606,10 +631,10 @@ function renderJourney() {
     + `<button id="journey-present"${steps.length ? '' : ' disabled'}>&#9654; Present</button>`
     + '</div>';
   journeyPanel.innerHTML = html;
-  document.getElementById('journey-add').addEventListener('click', () => {
+  onPress(document.getElementById('journey-add'), () => {
     addStep(store, currentCenter());
   });
-  document.getElementById('journey-present').addEventListener('click', presentEnter);
+  onPress(document.getElementById('journey-present'), presentEnter);
   journeyPanel.querySelectorAll('[data-jfield]').forEach((input) => {
     input.addEventListener('change', () => {
       const id = input.closest('.journey-step').dataset.step;
@@ -617,7 +642,7 @@ function renderJourney() {
     });
   });
   journeyPanel.querySelectorAll('[data-jact]').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    onPress(btn, () => {
       const id = btn.closest('.journey-step').dataset.step;
       const act = btn.dataset.jact;
       const step = (store.doc.journey || []).find((s) => s.id === id);
@@ -646,6 +671,7 @@ const overlay = document.getElementById('present-overlay');
 function presentShow() {
   const steps = store.doc.journey || [];
   if (!steps.length) { presentExit(); return; }
+  presentedJourney = JSON.stringify(steps);
   presentState.index = Math.min(presentState.index, steps.length - 1);
   const step = steps[presentState.index];
   presentState.caption = step.caption || '';
@@ -696,6 +722,16 @@ function presentExit() {
 document.getElementById('present-prev').addEventListener('click', () => presentGo(-1));
 document.getElementById('present-next').addEventListener('click', () => presentGo(1));
 document.getElementById('present-exit').addEventListener('click', presentExit);
+
+// While presenting, an undo/redo or edit can change or remove the current
+// step; re-show so the caption, counter, and camera stay truthful (and don't
+// stay baked into recorded frames).
+let presentedJourney = '';
+store.subscribe(() => {
+  if (!presentState.active) return;
+  const j = JSON.stringify(store.doc.journey || []);
+  if (j !== presentedJourney) presentShow();
+});
 
 // ---- Examples ----
 const examplesMenu = document.getElementById('examples-menu');
@@ -785,12 +821,16 @@ function recOnState(s) {
   }
 }
 
+let recStoppedAt = 0;
 recBtn.addEventListener('click', () => {
   if (recorder.state().recording) {
     recorder.stop();
+    recStoppedAt = performance.now();
     return;
   }
   if (recorder.state().encoding) return;
+  // A double-click on Stop must not bounce straight into the record dialog.
+  if (performance.now() - recStoppedAt < 500) return;
   recRenderFormats();
   document.getElementById('rec-audio').classList.remove('disabled');
   recDialog.hidden = false;
@@ -804,7 +844,10 @@ recDialog.addEventListener('pointerdown', (e) => {
 });
 
 document.getElementById('btn-export-gif').addEventListener('click', () => {
-  if (recorder.state().recording || recorder.state().encoding) return;
+  if (recorder.state().recording || recorder.state().encoding) {
+    alert('Finish the current recording first.');
+    return;
+  }
   recRenderFormats();
   recDialog.hidden = false;
   const gifRadio = document.querySelector('input[name="rec-format"][value="gif"]');
@@ -817,6 +860,10 @@ document.getElementById('rec-start').addEventListener('click', async () => {
   if (!format) return;
   const audio = document.querySelector('input[name="rec-audio"]:checked')?.value || 'none';
   const musicFile = document.getElementById('rec-music').files[0] || null;
+  if (format !== 'gif' && audio === 'music' && !musicFile) {
+    alert('Choose a music file first, or pick a different audio option.');
+    return;
+  }
   try {
     await recorder.start({
       format,

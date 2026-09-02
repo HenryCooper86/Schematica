@@ -76,3 +76,21 @@ test('thermal flag pulses in its own color when bug is absent', () => {
   assert.ok(anim.includes('class="pulse"'));
   assert.ok(anim.includes('#fb923c'));
 });
+
+test('wire label chips render in their own layer above the nodes', () => {
+  const m = diagramMarkup(sampleDoc());
+  const nodesAt = m.indexOf('class="layer-nodes"');
+  const chipsAt = m.indexOf('class="layer-wire-chips"');
+  assert.ok(nodesAt >= 0 && chipsAt > nodesAt, 'chip layer follows the node layer');
+  assert.ok(m.slice(chipsAt).includes('data-id="w1"'), 'chip wrapper keeps the wire id');
+});
+
+test('narrow nodes keep the status chip and drop trailing flags', () => {
+  const doc = sampleDoc();
+  doc.nodes[0].w = 70;
+  doc.nodes[0].status = 'production';
+  doc.nodes[0].flags = ['bug', 'thermal', 'power', 'lead', 'safety', 'eol'];
+  const m = diagramMarkup(doc);
+  assert.ok(m.includes('>PROD</text>'), 'status chip survives');
+  assert.ok(!m.includes('>EOL</text>'), 'trailing flags drop first');
+});

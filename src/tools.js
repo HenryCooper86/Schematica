@@ -323,10 +323,15 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
   }
 
   const popover = document.getElementById('bus-popover');
+  let popoverDismiss = null;
 
   function closeBusPopover() {
     popover.hidden = true;
     popover.innerHTML = '';
+    if (popoverDismiss) {
+      window.removeEventListener('pointerdown', popoverDismiss);
+      popoverDismiss = null;
+    }
   }
 
   function openBusPopover(cx, cy, suggested, onPick) {
@@ -346,12 +351,11 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
       });
     });
     setTimeout(() => {
-      window.addEventListener('pointerdown', function dismiss(ev) {
-        if (!popover.contains(ev.target)) {
-          closeBusPopover();
-          window.removeEventListener('pointerdown', dismiss);
-        }
-      });
+      if (popoverDismiss) window.removeEventListener('pointerdown', popoverDismiss);
+      popoverDismiss = (ev) => {
+        if (!popover.contains(ev.target)) closeBusPopover();
+      };
+      window.addEventListener('pointerdown', popoverDismiss);
     }, 0);
   }
 

@@ -84,11 +84,20 @@ function tagChipsMarkup(node, anim) {
     if (FLAG_META[f]) tags.push(FLAG_META[f]);
   }
   if (!tags.length) return '';
+  // On narrow nodes, drop trailing flags before the status chip: keep the
+  // longest prefix that fits, then lay it out right-aligned as before.
+  const keep = [];
+  let used = 0;
+  for (const tag of tags) {
+    const w = tag.label.length * 5.5 + 10;
+    if (used + (keep.length ? 4 : 0) + w > node.w - 6) break;
+    used += (keep.length ? 4 : 0) + w;
+    keep.push({ ...tag, w });
+  }
   let s = '';
   let cx = node.x + node.w;
-  for (const tag of tags.reverse()) {
-    const w = tag.label.length * 5.5 + 10;
-    if (cx - w < node.x + 6) break; // clamp: drop chips that would overhang narrow nodes
+  for (const tag of keep.reverse()) {
+    const { w } = tag;
     cx -= w;
     const blink = anim != null && tag.status === 'deprecated'
       ? ` class="blink" opacity="${(0.45 + 0.55 * pulsePhase(anim, 1400)).toFixed(3)}"`
@@ -173,7 +182,6 @@ function wireMarkup(doc, wire, selected, anim) {
   const b = portPosition(to, pt);
   const bus = BUSES[wire.bus] || BUSES.gpio;
   const d = wirePath(a, pf.side, b, pt.side);
-  const mid = wireMidpoint(a, pf.side, b, pt.side);
   let s = `<g class="wire" data-id="${esc(wire.id)}" data-type="wire">`;
   s += `<path d="${d}" fill="none" stroke="transparent" stroke-width="12" pointer-events="stroke"/>`;
   if (selected) {
@@ -205,9 +213,27 @@ function wireMarkup(doc, wire, selected, anim) {
       + ` stroke-dasharray="2.5 ${FLOW_PERIOD - 2.5}" stroke-dashoffset="${offset.toFixed(2)}"`
       + ` pointer-events="none"/>`;
   }
-  s += chipMarkup(mid.x, mid.y, wire.label || bus.short, bus.color, 'label');
   s += '</g>';
   return s;
+}
+
+// Wire label chips render in their own layer above the node cards, so a short
+// wire's label never hides under an endpoint. The wrapper keeps the wire's
+// data-id so clicking or double-clicking a chip still targets the wire.
+function wireChipMarkup(doc, wire) {
+  const from = doc.nodes.find((n) => n.id === wire.from.node);
+  const to = doc.nodes.find((n) => n.id === wire.to.node);
+  if (!from || !to) return '';
+  const pf = getPart(from.kind).ports.find((q) => q.id === wire.from.port);
+  const pt = getPart(to.kind).ports.find((q) => q.id === wire.to.port);
+  if (!pf || !pt) return '';
+  const a = portPosition(from, pf);
+  const b = portPosition(to, pt);
+  const bus = BUSES[wire.bus] || BUSES.gpio;
+  const mid = wireMidpoint(a, pf.side, b, pt.side);
+  return `<g class="wire" data-id="${esc(wire.id)}" data-type="wire">`
+    + chipMarkup(mid.x, mid.y, wire.label || bus.short, bus.color, 'label')
+    + '</g>';
 }
 
 function zoneMarkup(zone, selected) {
@@ -250,9 +276,11 @@ export function diagramMarkup(doc, ui = {}) {
   const zones = doc.zones.map((z) => zoneMarkup(z, sel.has(z.id))).join('');
   const wires = doc.wires.map((w) => wireMarkup(doc, w, sel.has(w.id), anim)).join('');
   const nodes = doc.nodes.map((n) => nodeMarkup(n, sel.has(n.id), ui.hoverPort, anim)).join('');
+  const wireChips = doc.wires.map((w) => wireChipMarkup(doc, w)).join('');
   const notes = doc.notes.map((n) => noteMarkup(n, sel.has(n.id))).join('');
   return `<g class="layer-zones">${zones}</g><g class="layer-wires">${wires}</g>`
-    + `<g class="layer-nodes">${nodes}</g><g class="layer-notes">${notes}</g>`;
+    + `<g class="layer-nodes">${nodes}</g><g class="layer-wire-chips">${wireChips}</g>`
+    + `<g class="layer-notes">${notes}</g>`;
 }
 
 function oppositeSide(side) {

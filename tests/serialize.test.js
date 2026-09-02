@@ -217,3 +217,39 @@ test('invalid node status and unknown flags are neutralized with warnings', () =
   assert.deepEqual(doc.nodes[0].flags, ['bug']);
   assert.equal(warnings.length, 2);
 });
+
+test('non-positive node sizes fall back to part defaults with warnings', () => {
+  const { doc, warnings } = deserialize(JSON.stringify({
+    nodes: [{ id: 'n1', kind: 'mcu', x: 0, y: 0, w: -40, h: 0 }],
+  }));
+  assert.ok(doc.nodes[0].w > 0);
+  assert.ok(doc.nodes[0].h > 0);
+  assert.equal(warnings.length, 2);
+});
+
+test('zones with non-positive or non-finite size are dropped', () => {
+  const { doc, warnings } = deserialize(JSON.stringify({
+    zones: [
+      { id: 'z1', x: 0, y: 0, w: 0, h: 50 },
+      { id: 'z2', x: 0, y: 0, w: -10, h: 50 },
+      { id: 'z3', x: 0, y: 0, w: 100, h: 100 },
+    ],
+  }));
+  assert.equal(doc.zones.length, 1);
+  assert.equal(doc.zones[0].id, 'z3');
+  assert.equal(warnings.length, 2);
+});
+
+test('wires to an unknown-kind node survive on generic side ports', () => {
+  const { doc, warnings } = deserialize(JSON.stringify({
+    nodes: [
+      { id: 'n1', kind: 'mcu', x: 0, y: 0 },
+      { id: 'n2', kind: 'quantum-cpu', x: 300, y: 0 },
+    ],
+    wires: [{ id: 'w1', bus: 'i2c', from: { node: 'n1', port: 'i2c' }, to: { node: 'n2', port: 'qbit' } }],
+  }));
+  assert.equal(doc.wires.length, 1);
+  assert.deepEqual(doc.wires[0].from, { node: 'n1', port: 'i2c' });
+  assert.deepEqual(doc.wires[0].to, { node: 'n2', port: 'left' });
+  assert.ok(warnings.some((w) => w.includes('generic ports')));
+});

@@ -64,7 +64,7 @@ function parseGIF(bytes) {
   throw new Error('missing trailer');
 }
 
-function lzwDecode(minCodeSize, bytes, pixelCount) {
+function lzwDecode(minCodeSize, bytes, pixelCount, stats = null) {
   const clear = 1 << minCodeSize;
   const eoi = clear + 1;
   let codeSize = minCodeSize + 1;
@@ -89,6 +89,7 @@ function lzwDecode(minCodeSize, bytes, pixelCount) {
   while (out.length < pixelCount) {
     const code = readCode();
     if (code === clear) {
+      if (stats) stats.clears = (stats.clears || 0) + 1;
       initTable();
       codeSize = minCodeSize + 1;
       prev = null;
@@ -207,18 +208,23 @@ test('LZW dictionary-full reset round-trips a large noise frame', () => {
   const data = new Uint8ClampedArray(w * w * 4);
   let seed = 42;
   const rand = () => {
-    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-    return seed;
+    // Math.imul keeps the multiply exact in 32 bits (a plain * overflows the
+    // float mantissa), and the HIGH bits are taken because an LCG's low byte
+    // cycles with period 256 — both flaws made the old noise nearly periodic.
+    seed = (Math.imul(seed, 1103515245) + 12345) & 0x7fffffff;
+    return (seed >>> 15) & 0xff;
   };
   for (let i = 0; i < w * w; i++) {
-    data[i * 4] = rand() % 256;
-    data[i * 4 + 1] = rand() % 256;
-    data[i * 4 + 2] = rand() % 256;
+    data[i * 4] = rand();
+    data[i * 4 + 1] = rand();
+    data[i * 4 + 2] = rand();
     data[i * 4 + 3] = 255;
   }
   const gif = parseGIF(encodeGIF([{ data, width: w, height: w }]));
-  const indices = lzwDecode(gif.frames[0].minCodeSize, gif.frames[0].data, w * w);
+  const stats = {};
+  const indices = lzwDecode(gif.frames[0].minCodeSize, gif.frames[0].data, w * w, stats);
   assert.equal(indices.length, w * w);
+  assert.ok(stats.clears >= 2, `expected a mid-stream dictionary reset, saw ${stats.clears} clear codes`);
   for (let i = 0; i < w * w; i++) {
     const r = data[i * 4];
     const g = data[i * 4 + 1];

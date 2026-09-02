@@ -205,3 +205,25 @@ test('replaceDoc resets history and selection', () => {
   assert.ok(!store.canRedo());
   assert.equal(store.selection.size, 0);
 });
+
+test('no-op apply pushes no undo entry and preserves the redo stack', () => {
+  const store = new Store();
+  addNode(store, 'mcu', 0, 0);
+  assert.equal(store.undoStack.length, 1);
+  store.apply(() => {}); // e.g. a blur committing an unedited field
+  assert.equal(store.undoStack.length, 1);
+  store.undo();
+  assert.ok(store.canRedo());
+  store.apply(() => {}); // a no-op must not clear redo either
+  assert.ok(store.canRedo());
+  store.redo();
+  assert.equal(store.doc.nodes.length, 1);
+});
+
+test('updateItem with unchanged values is not undoable', () => {
+  const store = new Store();
+  const id = addNode(store, 'mcu', 0, 0);
+  const depth = store.undoStack.length;
+  updateItem(store, id, { label: store.doc.nodes[0].label });
+  assert.equal(store.undoStack.length, depth);
+});

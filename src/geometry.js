@@ -1,4 +1,6 @@
 export function snap(v, grid = 8) {
+  // "+ 0" folds the -0 that rounding small negatives produces into +0, so
+  // snapped coordinates never serialize as "-0".
   return Math.round(v / grid) * grid + 0;
 }
 

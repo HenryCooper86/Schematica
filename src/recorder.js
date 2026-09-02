@@ -14,6 +14,18 @@ const GIF_FPS = 10;
 const GIF_MAX_FRAMES = 600;
 const GIF_MAX_WIDTH = 960;
 
+// Letterbox a source rectangle into a destination, preserving aspect ratio.
+// Returns null when either size is degenerate (mid-resize, collapsing layout)
+// so callers can skip the frame instead of drawing garbage.
+export function fitRect(dstW, dstH, srcW, srcH) {
+  if (!(dstW > 0) || !(dstH > 0) || !(srcW > 0) || !(srcH > 0)
+    || !Number.isFinite(srcW) || !Number.isFinite(srcH)) return null;
+  const fit = Math.min(dstW / srcW, dstH / srcH);
+  const w = srcW * fit;
+  const h = srcH * fit;
+  return { x: (dstW - w) / 2, y: (dstH - h) / 2, w, h };
+}
+
 export function createRecorder(svg) {
   let mode = null; // null | 'video' | 'gif'
   let recording = false;
@@ -35,6 +47,7 @@ export function createRecorder(svg) {
   let mediaRecorder = null;
   let chunks = [];
   let micStream = null;
+  let canvasStream = null;
   let audioCtx = null;
 
   const gifFrames = [];
@@ -75,7 +88,8 @@ export function createRecorder(svg) {
     ctx.fillStyle = 'rgba(13, 18, 32, 0.94)';
     ctx.strokeStyle = '#2c3a5c';
     ctx.beginPath();
-    ctx.roundRect(bx, by, boxW, boxH, 10 * scale);
+    if (ctx.roundRect) ctx.roundRect(bx, by, boxW, boxH, 10 * scale);
+    else ctx.rect(bx, by, boxW, boxH);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = '#e6ebf4';
@@ -93,10 +107,12 @@ export function createRecorder(svg) {
 
   async function pumpFrame() {
     if (busy || !recording) return false;
+    const rect = svg.getBoundingClientRect();
+    const box = fitRect(canvas.width, canvas.height, rect.width, rect.height);
+    if (!box) return false; // degenerate rect: skip the frame, keep recording
     busy = true;
     let drew = false;
     try {
-      const rect = svg.getBoundingClientRect();
       const clone = svg.cloneNode(true);
       clone.setAttribute('width', rect.width);
       clone.setAttribute('height', rect.height);
@@ -109,10 +125,7 @@ export function createRecorder(svg) {
       await img.decode();
       ctx.fillStyle = CANVAS_BG;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      const fit = Math.min(canvas.width / rect.width, canvas.height / rect.height);
-      const dw = rect.width * fit;
-      const dh = rect.height * fit;
-      ctx.drawImage(img, (canvas.width - dw) / 2, (canvas.height - dh) / 2, dw, dh);
+      ctx.drawImage(img, box.x, box.y, box.w, box.h);
       URL.revokeObjectURL(url);
       drew = true;
       try { drawOverlay(); } catch { /* caption box is best-effort */ }
@@ -143,6 +156,11 @@ export function createRecorder(svg) {
     if (micStream) {
       for (const t of micStream.getTracks()) t.stop();
       micStream = null;
+    }
+    if (canvasStream) {
+      // Stop the capture tracks explicitly rather than relying on GC.
+      for (const t of canvasStream.getTracks()) t.stop();
+      canvasStream = null;
     }
     if (audioCtx) {
       audioCtx.close();
@@ -209,6 +227,7 @@ export function createRecorder(svg) {
         ctx = canvas.getContext('2d');
         try {
           const stream = canvas.captureStream(30);
+          canvasStream = stream;
           if (opts.audio === 'mic') {
             try {
               micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -271,7 +290,11 @@ export function createRecorder(svg) {
             const bytes = encodeGIF(gifFrames, { delayMs: 1000 / GIF_FPS });
             download(`${basename}.gif`, new Blob([bytes], { type: 'image/gif' }), 'image/gif');
             if (notice) alert(notice);
+          } else {
+            alert('No frames were captured, so no GIF was saved.');
           }
+        } catch {
+          alert('GIF encoding failed — nothing was saved.');
         } finally {
           gifFrames.length = 0;
           encoding = false;

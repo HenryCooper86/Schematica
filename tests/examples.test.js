@@ -42,3 +42,13 @@ test('every example wire bus matches at least one endpoint port bus', () => {
     }
   }
 });
+
+test('every zone fully contains at least one node', () => {
+  for (const ex of EXAMPLES) {
+    for (const z of ex.doc.zones) {
+      const inside = ex.doc.nodes.some((n) => n.x >= z.x && n.y >= z.y
+        && n.x + n.w <= z.x + z.w && n.y + n.h <= z.y + z.h);
+      assert.ok(inside, `${ex.id} zone "${z.label}" contains no node`);
+    }
+  }
+});

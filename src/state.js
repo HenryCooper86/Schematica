@@ -41,7 +41,9 @@ export class Store {
   apply(fn) {
     const snap = structuredClone(this.doc);
     fn(this.doc);
-    this._push(snap);
+    // A mutation that changed nothing (e.g. a blur committing an unedited
+    // field) must not cost an undo step or clear the redo stack.
+    if (JSON.stringify(snap) !== JSON.stringify(this.doc)) this._push(snap);
     this.emit();
   }
 

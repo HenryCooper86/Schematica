@@ -29,9 +29,9 @@ export function deserialize(text) {
 
   const doc = newDoc(typeof raw.title === 'string' && raw.title.trim() ? raw.title : 'Untitled Board');
   const seen = new Set();
-  const num = (v, fallback) => (Number.isFinite(v) ? v : fallback);
   const validId = (v) => typeof v === 'string' && v.length > 0;
   const HEX_COLOR = /^#[0-9a-fA-F]{3,8}$/;
+  const coerced = new Set(); // nodes whose unknown kind became a custom box
 
   for (const n of raw.nodes ?? []) {
     if (!n || !validId(n.id) || !Number.isFinite(n.x) || !Number.isFinite(n.y)) {
@@ -47,8 +47,15 @@ export function deserialize(text) {
     if (!PARTS[kind]) {
       warnings.push(`Unknown part "${kind}" became a custom box.`);
       kind = 'generic';
+      coerced.add(n.id);
     }
     const part = PARTS[kind];
+    const dim = (v, fallback, what) => {
+      if (v === undefined) return fallback;
+      if (Number.isFinite(v) && v > 0) return v;
+      warnings.push(`Replaced invalid ${what} on node "${n.id}".`);
+      return fallback;
+    };
     let color = typeof n.color === 'string' ? n.color : null;
     if (color !== null && !HEX_COLOR.test(color)) {
       warnings.push(`Ignored invalid color on node "${n.id}".`);
@@ -65,7 +72,7 @@ export function deserialize(text) {
     }
     doc.nodes.push({
       id: n.id, kind, x: n.x, y: n.y,
-      w: num(n.w, part.w), h: num(n.h, part.h),
+      w: dim(n.w, part.w, 'width'), h: dim(n.h, part.h, 'height'),
       label: typeof n.label === 'string' ? n.label : part.name,
       sublabel: typeof n.sublabel === 'string' ? n.sublabel : '',
       color,
@@ -78,18 +85,30 @@ export function deserialize(text) {
   }
 
   const nodeById = new Map(doc.nodes.map((n) => [n.id, n]));
-  const hasPort = (ref) => {
-    if (!ref || typeof ref !== 'object') return false;
+  // A wire endpoint on a node whose unknown kind became a custom box loses its
+  // original ports; keep the wire by moving it onto a generic side port.
+  const resolvePort = (ref, fallbackPort) => {
+    if (!ref || typeof ref !== 'object') return null;
     const node = nodeById.get(ref.node);
-    return !!node && getPart(node.kind).ports.some((p) => p.id === ref.port);
+    if (!node) return null;
+    if (getPart(node.kind).ports.some((p) => p.id === ref.port)) {
+      return { node: ref.node, port: ref.port, remapped: false };
+    }
+    if (coerced.has(ref.node)) return { node: ref.node, port: fallbackPort, remapped: true };
+    return null;
   };
 
   for (const w of raw.wires ?? []) {
-    if (!w || !validId(w.id) || seen.has(w.id) || !hasPort(w.from) || !hasPort(w.to)) {
+    const from = w ? resolvePort(w.from, 'right') : null;
+    const to = w ? resolvePort(w.to, 'left') : null;
+    if (!w || !validId(w.id) || seen.has(w.id) || !from || !to) {
       warnings.push('Dropped a wire with a bad id or missing endpoint.');
       continue;
     }
     seen.add(w.id);
+    if (from.remapped || to.remapped) {
+      warnings.push(`Wire "${w.id}" was moved onto the custom box's generic ports.`);
+    }
     let bus = typeof w.bus === 'string' ? w.bus : DEFAULT_BUS;
     if (!BUSES[bus]) {
       warnings.push(`Unknown bus "${bus}" became ${BUSES[DEFAULT_BUS].short}.`);
@@ -97,8 +116,8 @@ export function deserialize(text) {
     }
     doc.wires.push({
       id: w.id, bus,
-      from: { node: w.from.node, port: w.from.port },
-      to: { node: w.to.node, port: w.to.port },
+      from: { node: from.node, port: from.port },
+      to: { node: to.node, port: to.port },
       label: typeof w.label === 'string' ? w.label : '',
       arrow: w.arrow === 'fwd' || w.arrow === 'both' ? w.arrow : null,
       style: ['solid', 'dashed', 'dotted'].includes(w.style) ? w.style : null,
@@ -107,7 +126,7 @@ export function deserialize(text) {
 
   for (const z of raw.zones ?? []) {
     if (!z || !validId(z.id) || seen.has(z.id) || !Number.isFinite(z.x) || !Number.isFinite(z.y)
-      || !Number.isFinite(z.w) || !Number.isFinite(z.h)) {
+      || !(Number.isFinite(z.w) && z.w > 0) || !(Number.isFinite(z.h) && z.h > 0)) {
       warnings.push('Dropped a zone with a bad id or geometry.');
       continue;
     }
