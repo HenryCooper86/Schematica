@@ -4,6 +4,7 @@ export const CATEGORIES = [
   { id: 'actuators', name: 'Actuators' },
   { id: 'power', name: 'Power' },
   { id: 'connectivity', name: 'Connectivity' },
+  { id: 'system', name: 'System & Cloud' },
   { id: 'misc', name: 'Storage / Misc' },
 ];
 
@@ -13,6 +14,7 @@ export const CATEGORY_COLORS = {
   actuators: '#fbbf24',
   power: '#f87171',
   connectivity: '#60a5fa',
+  system: '#e879f9',
   misc: '#34d399',
 };
 
@@ -128,6 +130,25 @@ export const PARTS = {
   antenna: part('antenna', 'connectivity', 'RF antenna', 100, 60,
     'M8 15V6 M3 2a7 7 0 0 1 10 0 M5.3 4.2a4 4 0 0 1 5.4 0 M8 6m-1 0a1 1 0 1 0 2 0a1 1 0 1 0-2 0',
     [p('feed', 'FEED', 'bottom', 0.5, 'rf')]),
+  // System & Cloud
+  cloud: part('cloud', 'system', 'Cloud / MQTT', 150, 80,
+    'M5 12a3 3 0 0 1-.4-6A4.5 4.5 0 0 1 13.3 7 2.5 2.5 0 0 1 12.5 12z',
+    [p('net', 'NET', 'left', 0.5, 'eth'), p('rf', 'RF', 'bottom', 0.5, 'rf')]),
+  server: part('server', 'system', 'Server', 140, 80,
+    'M3 2h10v5H3z M3 9h10v5H3z M5 4.5h.01 M5 11.5h.01 M8 4.5h3 M8 11.5h3',
+    [p('net', 'NET', 'left', 0.5, 'eth'), p('db', 'DB', 'right', 0.5, 'eth')]),
+  database: part('database', 'system', 'Database', 130, 80,
+    'M8 2c3 0 5 .9 5 2s-2 2-5 2-5-.9-5-2 2-2 5-2z M3 4v8c0 1.1 2 2 5 2s5-.9 5-2V4 M3 8c0 1.1 2 2 5 2s5-.9 5-2',
+    [p('net', 'NET', 'left', 0.5, 'eth')]),
+  gateway: part('gateway', 'system', 'Edge gateway', 150, 80,
+    'M2 9h12v4H2z M4.5 11h.01 M7 11h.01 M8 9V3 M5 6l3-3 3 3',
+    [p('lan', 'LAN', 'left', 0.5, 'eth'), p('wan', 'WAN', 'right', 0.5, 'eth'), p('rf', 'RF', 'top', 0.5, 'rf')]),
+  mobile: part('mobile', 'system', 'Mobile app', 120, 70,
+    'M5 1.5h6a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1z M7 12.5h2',
+    [p('ble', 'BLE', 'left', 0.5, 'rf'), p('net', 'NET', 'bottom', 0.5, 'eth')]),
+  hostpc: part('hostpc', 'system', 'Host PC', 140, 75,
+    'M3 3h10v7H3z M1.5 12.5h13L13 10H3z',
+    [p('usb', 'USB', 'left', 0.5, 'usb'), p('eth', 'ETH', 'bottom', 0.5, 'eth')]),
   // Storage / Misc
   eeprom: part('eeprom', 'misc', 'EEPROM / Flash', 140, 70,
     'M4 3h8v10H4z M4 6h8 M4 9h8 M2 5h2 M2 8h2 M2 11h2 M12 5h2 M12 8h2 M12 11h2',
@@ -147,6 +168,15 @@ export const PARTS = {
   ic: part('ic', 'misc', 'Generic IC', 130, 80,
     'M5 3h6v10H5z M3 5h2 M3 8h2 M3 11h2 M11 5h2 M11 8h2 M11 11h2 M7 3a1 1 0 0 0 2 0',
     [...pwr(), p('io1', 'IO', 'right', 0.35, 'gpio'), p('io2', 'IO', 'right', 0.7, 'gpio')]),
+  header: part('header', 'misc', 'Pin header', 120, 55,
+    'M2 6h12v4H2z M4.5 8h.01 M7 8h.01 M9.5 8h.01 M12 8h.01',
+    [p('p1', 'P1', 'left', 0.5, 'gpio'), p('p2', 'P2', 'right', 0.5, 'gpio')]),
+  testpoint: part('testpoint', 'misc', 'Test point', 100, 50,
+    'M8 8m-1 0a1 1 0 1 0 2 0a1 1 0 1 0-2 0 M8 8m-4.5 0a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0-9 0 M8 1v2.5 M8 12.5V15',
+    [p('tp', 'TP', 'right', 0.5, 'gpio')]),
+  fuse: part('fuse', 'misc', 'Fuse', 110, 50,
+    'M1 8h3 M12 8h3 M4 5.5h8v5H4z M5 8h6',
+    [p('in', 'IN', 'left', 0.5, 'power'), p('out', 'OUT', 'right', 0.5, 'power')]),
   generic: part('generic', 'misc', 'Custom box', 140, 80,
     'M2 5V2h3 M11 2h3v3 M14 11v3h-3 M5 14H2v-3', [
     p('top', 'P1', 'top', 0.5, 'gpio'), p('right', 'P2', 'right', 0.5, 'gpio'),

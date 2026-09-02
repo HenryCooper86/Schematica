@@ -1,6 +1,6 @@
 import { BUSES, DEFAULT_BUS } from './buses.js';
 import { PARTS, getPart } from './palette.js';
-import { newDoc } from './state.js';
+import { newDoc, NODE_STATUSES, NODE_FLAGS } from './state.js';
 
 export function serialize(doc) {
   return JSON.stringify(doc, null, 2);
@@ -54,12 +54,26 @@ export function deserialize(text) {
       warnings.push(`Ignored invalid color on node "${n.id}".`);
       color = null;
     }
+    let status = typeof n.status === 'string' ? n.status : null;
+    if (status !== null && !NODE_STATUSES.includes(status)) {
+      warnings.push(`Ignored unknown status "${status}" on node "${n.id}".`);
+      status = null;
+    }
+    let flags = Array.isArray(n.flags) ? n.flags.filter((f) => NODE_FLAGS.includes(f)) : [];
+    if (Array.isArray(n.flags) && flags.length !== n.flags.length) {
+      warnings.push(`Dropped unknown flags on node "${n.id}".`);
+    }
     doc.nodes.push({
       id: n.id, kind, x: n.x, y: n.y,
       w: num(n.w, part.w), h: num(n.h, part.h),
       label: typeof n.label === 'string' ? n.label : part.name,
       sublabel: typeof n.sublabel === 'string' ? n.sublabel : '',
       color,
+      addr: typeof n.addr === 'string' ? n.addr : '',
+      rail: typeof n.rail === 'string' ? n.rail : '',
+      notes: typeof n.notes === 'string' ? n.notes : '',
+      status,
+      flags,
     });
   }
 

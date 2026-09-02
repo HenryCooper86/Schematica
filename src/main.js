@@ -1,4 +1,6 @@
-import { Store, newDoc, addNode, updateItem, findItem, deleteItems } from './state.js';
+import {
+  Store, newDoc, addNode, updateItem, findItem, deleteItems, NODE_STATUSES, NODE_FLAGS,
+} from './state.js';
 import { createRenderer } from './render.js';
 import { createTools } from './tools.js';
 import { CATEGORIES, CATEGORY_COLORS, PARTS, getPart } from './palette.js';
@@ -150,7 +152,8 @@ function renderProps() {
     props.hidden = true;
     return;
   }
-  if (props.contains(document.activeElement)) return;
+  const ae = document.activeElement;
+  if (props.contains(ae) && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return;
   const ids = [...store.selection];
   if (!ids.length) {
     props.hidden = true;
@@ -158,7 +161,7 @@ function renderProps() {
   }
   props.hidden = false;
   if (ids.length > 1) {
-    props.innerHTML = `<h3>${ids.length} items selected</h3><button id="props-delete">Delete selection</button>`;
+    props.innerHTML = `<h3>${ids.length} items selected</h3><button id="props-delete" class="danger">Delete selection</button>`;
     document.getElementById('props-delete').addEventListener('click', () => {
       deleteItems(store, [...store.selection]);
     });
@@ -174,8 +177,20 @@ function renderProps() {
   let html = `<h3>${type[0].toUpperCase()}${type.slice(1)}</h3>`;
   if (type === 'node') {
     html += propField('Label', `<input type="text" data-prop="label" value="${escAttr(item.label)}">`);
-    html += propField('Part number', `<input type="text" data-prop="sublabel" value="${escAttr(item.sublabel)}">`);
-    html += propField('Accent color', `<input type="color" data-prop="color" value="${escAttr(item.color || '#38bdf8')}">`);
+    html += propField('Part number', `<input type="text" data-prop="sublabel" placeholder="e.g. STM32F405" value="${escAttr(item.sublabel)}">`);
+    html += propField('Interface address', `<input type="text" data-prop="addr" placeholder="e.g. 0x76, CAN ID 0x120" value="${escAttr(item.addr)}">`);
+    html += propField('Voltage rail', `<input type="text" data-prop="rail" placeholder="e.g. 3.3V" value="${escAttr(item.rail)}">`);
+    html += propField('Notes', `<textarea data-prop="notes" placeholder="Free-form notes...">${escAttr(item.notes)}</textarea>`);
+    html += `<label>Lifecycle</label><div class="chips">${NODE_STATUSES.map((st) => (
+      `<button class="chip${item.status === st ? ' active' : ''}" data-status="${st}">${STATUS_LABELS[st]}</button>`
+    )).join('')}</div>`;
+    html += `<label>Flags</label><div class="chips">${NODE_FLAGS.map((f) => (
+      `<button class="chip${(item.flags || []).includes(f) ? ' active' : ''}" data-flag="${f}">${FLAG_LABELS[f]}</button>`
+    )).join('')}</div>`;
+    html += `<label>Accent color</label><div class="swatches">${ACCENT_SWATCHES.map((c) => (
+      `<button class="swatch${item.color === c ? ' active' : ''}" data-swatch="${c}" style="background:${c}" title="${c}"></button>`
+    )).join('')}<button class="swatch swatch-auto${item.color === null ? ' active' : ''}" data-swatch="" title="Category color">Auto</button></div>`;
+    html += '<button id="props-delete-one" class="danger">Delete node</button>';
   } else if (type === 'wire') {
     const options = BUS_ORDER.map((b) =>
       `<option value="${b}"${b === item.bus ? ' selected' : ''}>${BUSES[b].name}</option>`).join('');
@@ -193,7 +208,48 @@ function renderProps() {
       updateItem(store, item.id, { [input.dataset.prop]: input.value });
     });
   });
+  props.querySelectorAll('[data-status]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const st = btn.dataset.status;
+      updateItem(store, item.id, { status: item.status === st ? null : st });
+    });
+  });
+  props.querySelectorAll('[data-flag]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const f = btn.dataset.flag;
+      const flags = (item.flags || []).includes(f)
+        ? item.flags.filter((x) => x !== f)
+        : [...(item.flags || []), f];
+      updateItem(store, item.id, { flags });
+    });
+  });
+  props.querySelectorAll('[data-swatch]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      updateItem(store, item.id, { color: btn.dataset.swatch || null });
+    });
+  });
+  const delOne = document.getElementById('props-delete-one');
+  if (delOne) {
+    delOne.addEventListener('click', () => {
+      deleteItems(store, [item.id]);
+    });
+  }
 }
+
+const STATUS_LABELS = {
+  planned: 'Planned', prototype: 'Prototype', tested: 'Tested',
+  production: 'Production', deprecated: 'Deprecated',
+};
+
+const FLAG_LABELS = {
+  bug: 'Bug', thermal: 'Thermal', power: 'Power hungry',
+  lead: 'Long lead', safety: 'Safety critical', eol: 'EOL part',
+};
+
+const ACCENT_SWATCHES = [
+  '#38bdf8', '#60a5fa', '#818cf8', '#a78bfa', '#e879f9',
+  '#f87171', '#fb923c', '#fbbf24', '#34d399', '#2dd4bf', '#94a3b8',
+];
 
 function safeName(ext) {
   return `${(store.doc.title || 'schematica').replace(/[^\w-]+/g, '_')}${ext}`;

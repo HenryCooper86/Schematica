@@ -125,6 +125,10 @@ export class Store {
   }
 }
 
+export const NODE_STATUSES = ['planned', 'prototype', 'tested', 'production', 'deprecated'];
+
+export const NODE_FLAGS = ['bug', 'thermal', 'power', 'lead', 'safety', 'eol'];
+
 export function addNode(store, kind, x, y) {
   const part = getPart(kind);
   const id = uid('n');
@@ -132,6 +136,7 @@ export function addNode(store, kind, x, y) {
     doc.nodes.push({
       id, kind: part.kind, x, y, w: part.w, h: part.h,
       label: part.name, sublabel: '', color: null,
+      addr: '', rail: '', notes: '', status: null, flags: [],
     });
   });
   return id;

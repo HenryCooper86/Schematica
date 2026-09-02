@@ -149,3 +149,41 @@ test('journey round-trips; invalid steps dropped; zoom clamped; missing -> []', 
   const back = deserialize(serialize(doc));
   assert.deepEqual(back.doc.journey, doc.journey);
 });
+
+test('node metadata fields round-trip and default correctly', () => {
+  const rich = {
+    schema: 1,
+    nodes: [{
+      id: 'n1', kind: 'temp', x: 0, y: 0,
+      addr: '0x76', rail: '3.3V', notes: 'ship with conformal coating',
+      status: 'production', flags: ['bug', 'thermal'],
+    }],
+  };
+  const { doc, warnings } = deserialize(JSON.stringify(rich));
+  assert.deepEqual(warnings, []);
+  assert.equal(doc.nodes[0].addr, '0x76');
+  assert.equal(doc.nodes[0].rail, '3.3V');
+  assert.equal(doc.nodes[0].notes, 'ship with conformal coating');
+  assert.equal(doc.nodes[0].status, 'production');
+  assert.deepEqual(doc.nodes[0].flags, ['bug', 'thermal']);
+  const back = deserialize(serialize(doc));
+  assert.deepEqual(back.doc, doc);
+  const { doc: old } = deserialize(JSON.stringify({ nodes: [{ id: 'n1', kind: 'mcu', x: 0, y: 0 }] }));
+  assert.equal(old.nodes[0].addr, '');
+  assert.equal(old.nodes[0].rail, '');
+  assert.equal(old.nodes[0].notes, '');
+  assert.equal(old.nodes[0].status, null);
+  assert.deepEqual(old.nodes[0].flags, []);
+});
+
+test('invalid node status and unknown flags are neutralized with warnings', () => {
+  const { doc, warnings } = deserialize(JSON.stringify({
+    nodes: [{
+      id: 'n1', kind: 'mcu', x: 0, y: 0,
+      status: 'vaporware', flags: ['bug', 'cursed', 7],
+    }],
+  }));
+  assert.equal(doc.nodes[0].status, null);
+  assert.deepEqual(doc.nodes[0].flags, ['bug']);
+  assert.equal(warnings.length, 2);
+});

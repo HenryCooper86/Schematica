@@ -27,6 +27,19 @@ test('addNode uses part defaults', () => {
   assert.equal(node.w, PARTS.mcu.w);
   assert.equal(node.label, 'MCU');
   assert.equal(node.sublabel, '');
+  assert.equal(node.addr, '');
+  assert.equal(node.rail, '');
+  assert.equal(node.notes, '');
+  assert.equal(node.status, null);
+  assert.deepEqual(node.flags, []);
+});
+
+test('node status and flag vocabularies are exported and non-empty', async () => {
+  const { NODE_STATUSES, NODE_FLAGS } = await import('../src/state.js');
+  assert.ok(NODE_STATUSES.length >= 5);
+  assert.ok(NODE_FLAGS.length >= 6);
+  assert.ok(NODE_STATUSES.includes('prototype'));
+  assert.ok(NODE_FLAGS.includes('bug'));
 });
 
 test('addNode with unknown kind becomes generic', () => {

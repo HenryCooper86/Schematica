@@ -48,6 +48,45 @@ function portsMarkup(node, part, hoverPort) {
   return s;
 }
 
+const STATUS_META = {
+  planned: { label: 'PLANNED', color: '#94a3b8' },
+  prototype: { label: 'PROTO', color: '#f59e0b' },
+  tested: { label: 'TESTED', color: '#38bdf8' },
+  production: { label: 'PROD', color: '#34d399' },
+  deprecated: { label: 'DEPRECATED', color: '#f87171' },
+};
+
+const FLAG_META = {
+  bug: { label: 'BUG', color: '#f87171' },
+  thermal: { label: 'HOT', color: '#fb923c' },
+  power: { label: 'PWR!', color: '#facc15' },
+  lead: { label: 'LEAD', color: '#94a3b8' },
+  safety: { label: 'SAFE', color: '#38bdf8' },
+  eol: { label: 'EOL', color: '#e879f9' },
+};
+
+function tagChipsMarkup(node) {
+  const tags = [];
+  if (node.status && STATUS_META[node.status]) tags.push(STATUS_META[node.status]);
+  for (const f of node.flags || []) {
+    if (FLAG_META[f]) tags.push(FLAG_META[f]);
+  }
+  if (!tags.length) return '';
+  let s = '';
+  let cx = node.x + node.w;
+  for (const tag of tags.reverse()) {
+    const w = tag.label.length * 5.5 + 10;
+    cx -= w;
+    s += `<rect x="${cx}" y="${node.y - 8}" width="${w}" height="15" rx="7.5"`
+      + ` fill="${CHIP_BG}" stroke="${tag.color}" stroke-opacity="0.7"/>`
+      + `<text x="${cx + w / 2}" y="${node.y - 0.5}" text-anchor="middle" dominant-baseline="central"`
+      + ` font-size="8" font-weight="700" font-family="${MONO}" fill="${tag.color}"`
+      + ` pointer-events="none">${tag.label}</text>`;
+    cx -= 4;
+  }
+  return s;
+}
+
 function nodeMarkup(node, selected, hoverPort) {
   const part = getPart(node.kind);
   const color = node.color || CATEGORY_COLORS[part.category] || ACCENT;
@@ -81,6 +120,7 @@ function nodeMarkup(node, selected, hoverPort) {
         + ` data-edit="sublabel">${esc(node.sublabel)}</text>`;
     }
   }
+  s += tagChipsMarkup(node);
   s += portsMarkup(node, part, hoverPort);
   s += '</g>';
   return s;

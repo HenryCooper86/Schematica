@@ -13,6 +13,14 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
   let spaceDown = false;
   let drag = null;
 
+  function capturePointer(e) {
+    try {
+      svg.setPointerCapture(e.pointerId);
+    } catch {
+      // Synthetic events may carry a pointerId with no active pointer.
+    }
+  }
+
   function toWorld(e) {
     const r = svg.getBoundingClientRect();
     return {
@@ -79,7 +87,7 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
   svg.addEventListener('pointerdown', (e) => {
     if (e.button === 1 || (e.button === 0 && spaceDown)) {
       drag = { mode: 'pan', sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y };
-      svg.setPointerCapture(e.pointerId);
+      capturePointer(e);
       e.preventDefault();
       return;
     }
@@ -93,7 +101,7 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
         cursor: pt,
       };
       drag = { mode: 'wire' };
-      svg.setPointerCapture(e.pointerId);
+      capturePointer(e);
       requestRender();
       return;
     }
@@ -101,7 +109,7 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
     if (tool === 'zone') {
       drag = { mode: 'zone', start: pt };
       ui.marquee = { x: pt.x, y: pt.y, w: 0, h: 0 };
-      svg.setPointerCapture(e.pointerId);
+      capturePointer(e);
       requestRender();
       return;
     }
@@ -124,7 +132,7 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
       if (found && found.type !== 'wire') {
         drag = { mode: 'move', start: pt, orig: movableSelection() };
         store.beginDrag();
-        svg.setPointerCapture(e.pointerId);
+        capturePointer(e);
       }
       requestRender();
       return;
@@ -132,7 +140,7 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
 
     if (!e.shiftKey) store.clearSelection();
     drag = { mode: 'marquee', start: pt, additive: e.shiftKey };
-    svg.setPointerCapture(e.pointerId);
+    capturePointer(e);
     requestRender();
   });
 
