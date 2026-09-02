@@ -29,14 +29,20 @@ const store = new Store(loadAutosave() || newDoc());
 const renderer = createRenderer(svg);
 const tools = createTools({ svg, store, requestRender: render, onToolChange: updateToolButtons });
 
-function render() {
+function renderCanvas(now = performance.now()) {
   renderer.render(store.doc, tools.view, {
     selection: store.selection,
     marquee: tools.ui.marquee,
     wireDraft: tools.ui.wireDraft,
     hoverPort: tools.ui.hoverPort,
     grid: tools.ui.grid,
+    animate: tools.ui.animate,
+    now,
   });
+}
+
+function render() {
+  renderCanvas();
   document.getElementById('zoom-label').textContent = `${Math.round(tools.view.zoom * 100)}%`;
   document.getElementById('undo').disabled = !store.canUndo();
   document.getElementById('redo').disabled = !store.canRedo();
@@ -44,6 +50,44 @@ function render() {
 }
 
 store.subscribe(render);
+
+// ---- Animation ticker ----
+// Attribute-driven so recordings capture the motion; ~30fps, runs only while enabled.
+let animRaf = null;
+let lastAnimFrame = 0;
+
+function animTick(now) {
+  if (!tools.ui.animate) {
+    animRaf = null;
+    return;
+  }
+  if (now - lastAnimFrame >= 33) {
+    lastAnimFrame = now;
+    renderCanvas(now);
+  }
+  animRaf = requestAnimationFrame(animTick);
+}
+
+function syncAnimation() {
+  document.getElementById('btn-animate').classList.toggle('active', tools.ui.animate);
+  if (tools.ui.animate && !animRaf) animRaf = requestAnimationFrame(animTick);
+}
+
+if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  tools.ui.animate = false;
+}
+
+document.getElementById('btn-animate').addEventListener('click', () => {
+  tools.ui.animate = !tools.ui.animate;
+  syncAnimation();
+  render();
+});
+
+// ---- Fullscreen ----
+document.getElementById('btn-fullscreen').addEventListener('click', () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen();
+});
 
 let autosaveTimer = null;
 store.subscribe(() => {
@@ -588,3 +632,4 @@ document.getElementById('rec-start').addEventListener('click', async () => {
 });
 
 render();
+syncAnimation();

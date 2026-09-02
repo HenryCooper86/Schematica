@@ -145,4 +145,108 @@ export const EXAMPLES = [
       ],
     },
   },
+  {
+    id: 'smart-greenhouse',
+    name: 'Smart Greenhouse (edge to cloud)',
+    doc: {
+      schema: 1,
+      title: 'Smart Greenhouse',
+      nodes: [
+        { id: 'n1', kind: 'temp', x: 48, y: 120, w: 130, h: 70, label: 'Climate sensor', sublabel: 'BME280', color: null, addr: '0x76', rail: '3.3V', notes: '', status: 'production', flags: [] },
+        { id: 'n2', kind: 'adcin', x: 48, y: 248, w: 130, h: 70, label: 'Soil probe', sublabel: 'capacitive', color: null, addr: '', rail: '', notes: 'Reads noisy near the pump - needs filtering.', status: 'prototype', flags: ['bug'] },
+        { id: 'n3', kind: 'battery', x: 48, y: 392, w: 130, h: 70, label: 'Battery', sublabel: 'LiFePO4', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
+        { id: 'n4', kind: 'regulator', x: 248, y: 392, w: 140, h: 70, label: 'Regulator', sublabel: '3.3V buck', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
+        { id: 'n5', kind: 'mcu', x: 296, y: 160, w: 160, h: 100, label: 'Node MCU', sublabel: 'ESP32-C6', color: null, addr: '', rail: '3.3V', notes: '', status: 'production', flags: [] },
+        { id: 'n6', kind: 'lora', x: 536, y: 176, w: 140, h: 75, label: 'LoRa', sublabel: 'SX1262', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
+        { id: 'n7', kind: 'gateway', x: 560, y: 392, w: 150, h: 80, label: 'Edge gateway', sublabel: 'LoRaWAN', color: null, addr: '', rail: '', notes: '', status: 'tested', flags: [] },
+        { id: 'n8', kind: 'cloud', x: 800, y: 240, w: 150, h: 80, label: 'Cloud / MQTT', sublabel: 'broker', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
+        { id: 'n9', kind: 'server', x: 1048, y: 144, w: 140, h: 80, label: 'Server', sublabel: 'ingest API', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
+        { id: 'n10', kind: 'database', x: 1056, y: 296, w: 130, h: 80, label: 'Database', sublabel: 'timeseries', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
+        { id: 'n11', kind: 'mobile', x: 816, y: 432, w: 120, h: 70, label: 'Mobile app', sublabel: 'grower UI', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
+      ],
+      wires: [
+        { id: 'w1', bus: 'i2c', from: { node: 'n5', port: 'i2c' }, to: { node: 'n1', port: 'i2c' }, label: '' },
+        { id: 'w2', bus: 'adc', from: { node: 'n5', port: 'adc' }, to: { node: 'n2', port: 'out' }, label: '' },
+        { id: 'w3', bus: 'power', from: { node: 'n3', port: 'out' }, to: { node: 'n4', port: 'in' }, label: '' },
+        { id: 'w4', bus: 'power', from: { node: 'n4', port: 'out' }, to: { node: 'n5', port: 'vcc' }, label: '3V3' },
+        { id: 'w5', bus: 'gnd', from: { node: 'n4', port: 'gnd' }, to: { node: 'n5', port: 'gnd' }, label: '' },
+        { id: 'w6', bus: 'spi', from: { node: 'n5', port: 'spi' }, to: { node: 'n6', port: 'spi' }, label: '' },
+        { id: 'w7', bus: 'rf', from: { node: 'n6', port: 'ant' }, to: { node: 'n7', port: 'rf' }, label: '868 MHz' },
+        { id: 'w8', bus: 'eth', from: { node: 'n7', port: 'wan' }, to: { node: 'n8', port: 'net' }, label: '' },
+        { id: 'w9', bus: 'eth', from: { node: 'n9', port: 'net' }, to: { node: 'n8', port: 'net' }, label: '' },
+        { id: 'w10', bus: 'eth', from: { node: 'n9', port: 'db' }, to: { node: 'n10', port: 'net' }, label: '' },
+        { id: 'w11', bus: 'rf', from: { node: 'n11', port: 'ble' }, to: { node: 'n8', port: 'rf' }, label: 'push' },
+      ],
+      zones: [
+        { id: 'z1', x: 24, y: 96, w: 680, h: 400, label: 'Greenhouse node', color: '#34d399' },
+        { id: 'z2', x: 776, y: 112, w: 440, h: 288, label: 'Backend', color: '#e879f9' },
+      ],
+      notes: [
+        { id: 't1', x: 792, y: 40, text: 'MQTT topics: greenhouse/#' },
+      ],
+      journey: [
+        {
+          id: 'j1', label: 'In the greenhouse', view: { x: 20, y: -20, zoom: 1.05 },
+          caption: 'Sensors feed an ESP32-C6; everything runs from a LiFePO4 pack.',
+        },
+        {
+          id: 'j2', label: 'Over the air', view: { x: -280, y: -80, zoom: 1.05 },
+          caption: 'Readings hop over 868 MHz LoRa to the edge gateway, then up to the MQTT broker.',
+        },
+        {
+          id: 'j3', label: 'To the grower', view: { x: -560, y: -60, zoom: 1 },
+          caption: 'The ingest API stores timeseries; the mobile app subscribes for live alerts.',
+        },
+      ],
+    },
+  },
+  {
+    id: 'robot-arm',
+    name: 'Robot Arm Controller',
+    doc: {
+      schema: 1,
+      title: 'Robot Arm Controller',
+      nodes: [
+        { id: 'n1', kind: 'battery', x: 48, y: 140, w: 130, h: 70, label: 'Battery', sublabel: '2S LiPo', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
+        { id: 'n2', kind: 'regulator', x: 296, y: 140, w: 140, h: 70, label: 'Regulator', sublabel: '5V 5A', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
+        { id: 'n3', kind: 'hostpc', x: 48, y: 320, w: 140, h: 75, label: 'Host PC', sublabel: 'teach pendant', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
+        { id: 'n4', kind: 'mcu', x: 296, y: 300, w: 160, h: 100, label: 'Motion MCU', sublabel: 'STM32F7', color: null, addr: '', rail: '3.3V', notes: 'Trajectory interpolation at 1 kHz.', status: 'tested', flags: ['safety'] },
+        { id: 'n5', kind: 'servo', x: 600, y: 140, w: 130, h: 70, label: 'Base servo', sublabel: 'MG996R', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
+        { id: 'n6', kind: 'servo', x: 600, y: 260, w: 130, h: 70, label: 'Elbow servo', sublabel: 'MG996R', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
+        { id: 'n7', kind: 'motor', x: 600, y: 380, w: 150, h: 80, label: 'Gripper motor', sublabel: 'N20 + driver', color: null, addr: '', rail: '', notes: '', status: null, flags: ['power'] },
+        { id: 'n8', kind: 'imu', x: 600, y: 520, w: 130, h: 70, label: 'Wrist IMU', sublabel: 'BNO055', color: null, addr: '0x28', rail: '3.3V', notes: '', status: null, flags: [] },
+      ],
+      wires: [
+        { id: 'w1', bus: 'power', from: { node: 'n1', port: 'out' }, to: { node: 'n2', port: 'in' }, label: '' },
+        { id: 'w2', bus: 'power', from: { node: 'n2', port: 'out' }, to: { node: 'n4', port: 'vcc' }, label: '5V' },
+        { id: 'w3', bus: 'gnd', from: { node: 'n2', port: 'gnd' }, to: { node: 'n4', port: 'gnd' }, label: '' },
+        { id: 'w4', bus: 'usb', from: { node: 'n3', port: 'usb' }, to: { node: 'n4', port: 'usb' }, label: 'CDC' },
+        { id: 'w5', bus: 'pwm', from: { node: 'n4', port: 'pwm' }, to: { node: 'n5', port: 'pwm' }, label: '' },
+        { id: 'w6', bus: 'pwm', from: { node: 'n4', port: 'gpio1' }, to: { node: 'n6', port: 'pwm' }, label: '' },
+        { id: 'w7', bus: 'pwm', from: { node: 'n4', port: 'gpio2' }, to: { node: 'n7', port: 'pwm' }, label: '' },
+        { id: 'w8', bus: 'i2c', from: { node: 'n4', port: 'i2c' }, to: { node: 'n8', port: 'i2c' }, label: '' },
+      ],
+      zones: [
+        { id: 'z1', x: 272, y: 112, w: 220, h: 320, label: 'Controller', color: '#818cf8' },
+        { id: 'z2', x: 576, y: 112, w: 220, h: 500, label: 'Arm', color: '#fbbf24' },
+      ],
+      notes: [
+        { id: 't1', x: 64, y: 480, text: 'E-stop cuts the 5V rail directly' },
+      ],
+      journey: [
+        {
+          id: 'j1', label: 'Command in', view: { x: 30, y: -60, zoom: 1.05 },
+          caption: 'The host PC streams waypoints over USB CDC to the motion MCU.',
+        },
+        {
+          id: 'j2', label: 'Motion out', view: { x: -220, y: -40, zoom: 1.05 },
+          caption: 'Three PWM channels drive the joints; trajectories interpolate at 1 kHz.',
+        },
+        {
+          id: 'j3', label: 'Feedback', view: { x: -220, y: -220, zoom: 1.1 },
+          caption: 'A wrist IMU closes the loop over I2C at address 0x28.',
+        },
+      ],
+    },
+  },
 ];

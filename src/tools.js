@@ -8,7 +8,7 @@ import { esc } from './render.js';
 
 export function createTools({ svg, store, requestRender, onToolChange }) {
   const view = { x: 40, y: 40, zoom: 1 };
-  const ui = { marquee: null, wireDraft: null, hoverPort: null, grid: true };
+  const ui = { marquee: null, wireDraft: null, hoverPort: null, grid: true, animate: true };
   let tool = 'select';
   let spaceDown = false;
   let drag = null;
@@ -33,6 +33,7 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
     tool = t;
     ui.wireDraft = null;
     svg.classList.toggle('tool-wire', t === 'wire');
+    svg.classList.toggle('tool-pan', t === 'pan');
     onToolChange?.(t);
     requestRender();
   }
@@ -85,7 +86,7 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
   }
 
   svg.addEventListener('pointerdown', (e) => {
-    if (e.button === 1 || (e.button === 0 && spaceDown)) {
+    if (e.button === 1 || (e.button === 0 && (spaceDown || tool === 'pan'))) {
       drag = { mode: 'pan', sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y };
       capturePointer(e);
       e.preventDefault();
@@ -290,6 +291,7 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
     if (k === 'c') setTool('wire');
     if (k === 'z') setTool('zone');
     if (k === 'n') setTool('note');
+    if (k === 'h') setTool('pan');
   });
 
   window.addEventListener('keyup', (e) => {

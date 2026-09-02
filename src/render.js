@@ -48,6 +48,18 @@ function portsMarkup(node, part, hoverPort) {
   return s;
 }
 
+// Signal-flow speeds in px/s per bus; 0 = no flow animation (ground doesn't "flow").
+const FLOW_SPEED = {
+  power: 20, gnd: 0, i2c: 40, spi: 56, uart: 40, can: 44,
+  usb: 56, eth: 64, gpio: 28, pwm: 48, adc: 32, rf: 64,
+};
+
+const FLOW_PERIOD = 24;
+
+function pulsePhase(now, periodMs) {
+  return 0.5 + 0.5 * Math.sin(((now % periodMs) / periodMs) * Math.PI * 2);
+}
+
 const STATUS_META = {
   planned: { label: 'PLANNED', color: '#94a3b8' },
   prototype: { label: 'PROTO', color: '#f59e0b' },
@@ -65,9 +77,9 @@ const FLAG_META = {
   eol: { label: 'EOL', color: '#e879f9' },
 };
 
-function tagChipsMarkup(node) {
+function tagChipsMarkup(node, anim) {
   const tags = [];
-  if (node.status && STATUS_META[node.status]) tags.push(STATUS_META[node.status]);
+  if (node.status && STATUS_META[node.status]) tags.push({ ...STATUS_META[node.status], status: node.status });
   for (const f of node.flags || []) {
     if (FLAG_META[f]) tags.push(FLAG_META[f]);
   }
@@ -78,17 +90,20 @@ function tagChipsMarkup(node) {
     const w = tag.label.length * 5.5 + 10;
     if (cx - w < node.x + 6) break; // clamp: drop chips that would overhang narrow nodes
     cx -= w;
-    s += `<rect x="${cx}" y="${node.y - 8}" width="${w}" height="15" rx="7.5"`
+    const blink = anim != null && tag.status === 'deprecated'
+      ? ` class="blink" opacity="${(0.45 + 0.55 * pulsePhase(anim, 1400)).toFixed(3)}"`
+      : '';
+    s += `<g${blink}><rect x="${cx}" y="${node.y - 8}" width="${w}" height="15" rx="7.5"`
       + ` fill="${CHIP_BG}" stroke="${tag.color}" stroke-opacity="0.7"/>`
       + `<text x="${cx + w / 2}" y="${node.y - 0.5}" text-anchor="middle" dominant-baseline="central"`
       + ` font-size="8" font-weight="700" font-family="${MONO}" fill="${tag.color}"`
-      + ` pointer-events="none">${tag.label}</text>`;
+      + ` pointer-events="none">${tag.label}</text></g>`;
     cx -= 4;
   }
   return s;
 }
 
-function nodeMarkup(node, selected, hoverPort) {
+function nodeMarkup(node, selected, hoverPort, anim) {
   const part = getPart(node.kind);
   const color = node.color || CATEGORY_COLORS[part.category] || ACCENT;
   const badge = 26;
@@ -117,7 +132,17 @@ function nodeMarkup(node, selected, hoverPort) {
         + ` data-edit="sublabel">${esc(node.sublabel)}</text>`;
     }
   }
-  s += tagChipsMarkup(node);
+  const flags = node.flags || [];
+  const pulseColor = flags.includes('bug') ? '#f87171' : (flags.includes('thermal') ? '#fb923c' : null);
+  if (anim != null && pulseColor) {
+    const phase = pulsePhase(anim, 1600);
+    const grow = 3 + 3 * phase;
+    s += `<rect class="pulse" x="${node.x - grow}" y="${node.y - grow}"`
+      + ` width="${node.w + grow * 2}" height="${node.h + grow * 2}" rx="${12 + grow}"`
+      + ` fill="none" stroke="${pulseColor}" stroke-opacity="${(0.12 + 0.3 * (1 - phase)).toFixed(3)}"`
+      + ` stroke-width="4" pointer-events="none"/>`;
+  }
+  s += tagChipsMarkup(node, anim);
   if (selected) {
     // Drawn above the chips so the translucent glow tints rather than clips them.
     s += `<rect x="${node.x - 3}" y="${node.y - 3}" width="${node.w + 6}" height="${node.h + 6}" rx="15"`
@@ -137,7 +162,7 @@ function chipMarkup(cx, cy, label, color, editField) {
     + `${editField ? ` data-edit="${editField}"` : ''}>${esc(label)}</text>`;
 }
 
-function wireMarkup(doc, wire, selected) {
+function wireMarkup(doc, wire, selected, anim) {
   const from = doc.nodes.find((n) => n.id === wire.from.node);
   const to = doc.nodes.find((n) => n.id === wire.to.node);
   if (!from || !to) return '';
@@ -157,6 +182,14 @@ function wireMarkup(doc, wire, selected) {
   }
   s += `<path d="${d}" fill="none" stroke="${bus.color}" stroke-width="${bus.width}"`
     + `${bus.dash ? ` stroke-dasharray="${bus.dash}"` : ''} stroke-linecap="round" pointer-events="none"/>`;
+  const speed = FLOW_SPEED[wire.bus] ?? 32;
+  if (anim != null && speed > 0) {
+    const offset = -(((anim / 1000) * speed) % FLOW_PERIOD);
+    s += `<path d="${d}" fill="none" stroke="#ffffff" stroke-opacity="0.55"`
+      + ` stroke-width="${Math.max(1.5, bus.width - 0.5)}" stroke-linecap="round"`
+      + ` stroke-dasharray="2.5 ${FLOW_PERIOD - 2.5}" stroke-dashoffset="${offset.toFixed(2)}"`
+      + ` pointer-events="none"/>`;
+  }
   s += chipMarkup(mid.x, mid.y, wire.label || bus.short, bus.color, 'label');
   s += '</g>';
   return s;
@@ -198,9 +231,10 @@ function noteMarkup(note, selected) {
 
 export function diagramMarkup(doc, ui = {}) {
   const sel = ui.selection || new Set();
+  const anim = ui.animate && Number.isFinite(ui.now) ? ui.now : null;
   const zones = doc.zones.map((z) => zoneMarkup(z, sel.has(z.id))).join('');
-  const wires = doc.wires.map((w) => wireMarkup(doc, w, sel.has(w.id))).join('');
-  const nodes = doc.nodes.map((n) => nodeMarkup(n, sel.has(n.id), ui.hoverPort)).join('');
+  const wires = doc.wires.map((w) => wireMarkup(doc, w, sel.has(w.id), anim)).join('');
+  const nodes = doc.nodes.map((n) => nodeMarkup(n, sel.has(n.id), ui.hoverPort, anim)).join('');
   const notes = doc.notes.map((n) => noteMarkup(n, sel.has(n.id))).join('');
   return `<g class="layer-zones">${zones}</g><g class="layer-wires">${wires}</g>`
     + `<g class="layer-nodes">${nodes}</g><g class="layer-notes">${notes}</g>`;

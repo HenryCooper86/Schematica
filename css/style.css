@@ -153,6 +153,7 @@ html, body {
 }
 #canvas.panning { cursor: grab; }
 #canvas.tool-wire .port { cursor: crosshair; }
+#canvas.tool-pan { cursor: grab; }
 
 #hintbar {
   position: absolute;
