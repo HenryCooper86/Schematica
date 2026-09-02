@@ -253,3 +253,17 @@ test('wires to an unknown-kind node survive on generic side ports', () => {
   assert.deepEqual(doc.wires[0].to, { node: 'n2', port: 'left' });
   assert.ok(warnings.some((w) => w.includes('generic ports')));
 });
+
+test('wires to a node with a missing kind survive on generic side ports too', () => {
+  const { doc, warnings } = deserialize(JSON.stringify({
+    nodes: [
+      { id: 'n1', kind: 'mcu', x: 0, y: 0 },
+      { id: 'n2', x: 300, y: 0 },
+    ],
+    wires: [{ id: 'w1', bus: 'gpio', from: { node: 'n1', port: 'gpio1' }, to: { node: 'n2', port: 'mystery' } }],
+  }));
+  assert.equal(doc.nodes[1].kind, 'generic');
+  assert.equal(doc.wires.length, 1);
+  assert.deepEqual(doc.wires[0].to, { node: 'n2', port: 'left' });
+  assert.ok(warnings.some((w) => w.includes('generic ports')));
+});

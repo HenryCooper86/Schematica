@@ -44,7 +44,10 @@ export function deserialize(text) {
     }
     seen.add(n.id);
     let kind = typeof n.kind === 'string' ? n.kind : 'generic';
-    if (!PARTS[kind]) {
+    if (typeof n.kind !== 'string') {
+      // A missing kind quietly becomes a custom box; its wires may remap too.
+      coerced.add(n.id);
+    } else if (!PARTS[kind]) {
       warnings.push(`Unknown part "${kind}" became a custom box.`);
       kind = 'generic';
       coerced.add(n.id);
