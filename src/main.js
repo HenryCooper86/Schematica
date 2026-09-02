@@ -566,7 +566,7 @@ function flyTo(target, instant = false) {
     render();
     return;
   }
-  const from = currentView();
+  const from = { x: tools.view.x, y: tools.view.y, zoom: tools.view.zoom };
   const t0 = performance.now();
   const dur = 600;
   const tick = (now) => {
