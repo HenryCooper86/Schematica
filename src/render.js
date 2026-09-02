@@ -112,7 +112,7 @@ function tagChipsMarkup(node, anim) {
   return s;
 }
 
-function nodeMarkup(node, selected, hoverPort, anim) {
+function nodeMarkup(node, selected, hoverPort, anim, showPorts) {
   const part = getPart(node.kind);
   const color = node.color || CATEGORY_COLORS[part.category] || ACCENT;
   const badge = 26;
@@ -157,7 +157,7 @@ function nodeMarkup(node, selected, hoverPort, anim) {
     s += `<rect x="${node.x - 3}" y="${node.y - 3}" width="${node.w + 6}" height="${node.h + 6}" rx="15"`
       + ` fill="none" stroke="${ACCENT}" stroke-opacity="0.35" stroke-width="5" pointer-events="none"/>`;
   }
-  s += portsMarkup(node, part, hoverPort);
+  if (showPorts) s += portsMarkup(node, part, hoverPort);
   s += '</g>';
   return s;
 }
@@ -275,7 +275,12 @@ export function diagramMarkup(doc, ui = {}) {
   const anim = ui.animate && Number.isFinite(ui.now) ? ui.now : null;
   const zones = doc.zones.map((z) => zoneMarkup(z, sel.has(z.id))).join('');
   const wires = doc.wires.map((w) => wireMarkup(doc, w, sel.has(w.id), anim)).join('');
-  const nodes = doc.nodes.map((n) => nodeMarkup(n, sel.has(n.id), ui.hoverPort, anim)).join('');
+  // Ports stay hidden until their node is hovered (net_draw-style); the wire
+  // tool and an in-flight wire draft reveal every port as a drop target.
+  const allPorts = !!ui.wireDraft || ui.tool === 'wire';
+  const nodes = doc.nodes.map((n) => nodeMarkup(
+    n, sel.has(n.id), ui.hoverPort, anim, allPorts || ui.hoverNode === n.id,
+  )).join('');
   const wireChips = doc.wires.map((w) => wireChipMarkup(doc, w)).join('');
   const notes = doc.notes.map((n) => noteMarkup(n, sel.has(n.id))).join('');
   return `<g class="layer-zones">${zones}</g><g class="layer-wires">${wires}</g>`

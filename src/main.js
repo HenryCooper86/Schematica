@@ -39,6 +39,8 @@ function renderCanvas(now = performance.now()) {
     marquee: tools.ui.marquee,
     wireDraft: tools.ui.wireDraft,
     hoverPort: tools.ui.hoverPort,
+    hoverNode: tools.ui.hoverNode,
+    tool: tools.getTool(),
     grid: tools.ui.grid,
     animate: tools.ui.animate,
     now,

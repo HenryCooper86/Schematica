@@ -85,6 +85,24 @@ test('wire label chips render in their own layer above the nodes', () => {
   assert.ok(m.slice(chipsAt).includes('data-id="w1"'), 'chip wrapper keeps the wire id');
 });
 
+test('ports are hidden until their node is hovered', () => {
+  const doc = sampleDoc();
+  assert.ok(!diagramMarkup(doc).includes('class="port"'), 'no ports by default');
+  const hovered = diagramMarkup(doc, { hoverNode: 'a' });
+  assert.ok(hovered.includes('data-node="a"'), 'hovered node shows its ports');
+  assert.ok(!hovered.includes('data-node="b"'), 'other nodes stay clean');
+});
+
+test('wire mode and an active wire draft reveal every port', () => {
+  const doc = sampleDoc();
+  const wireMode = diagramMarkup(doc, { tool: 'wire' });
+  assert.ok(wireMode.includes('data-node="a"') && wireMode.includes('data-node="b"'));
+  const drafting = diagramMarkup(doc, {
+    wireDraft: { from: { node: 'a', port: 'i2c' }, cursor: { x: 0, y: 0 } },
+  });
+  assert.ok(drafting.includes('data-node="b"'), 'drafting shows the drop targets');
+});
+
 test('narrow nodes keep the status chip and drop trailing flags', () => {
   const doc = sampleDoc();
   doc.nodes[0].w = 70;

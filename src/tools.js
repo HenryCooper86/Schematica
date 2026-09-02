@@ -8,7 +8,7 @@ import { esc } from './render.js';
 
 export function createTools({ svg, store, requestRender, onToolChange }) {
   const view = { x: 40, y: 40, zoom: 1 };
-  const ui = { marquee: null, wireDraft: null, hoverPort: null, grid: true, animate: true };
+  const ui = { marquee: null, wireDraft: null, hoverPort: null, hoverNode: null, grid: true, animate: true };
   let tool = 'select';
   let spaceDown = false;
   let drag = null;
@@ -150,9 +150,18 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
     if (!drag) {
       const portEl = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('.port');
       const hp = portEl ? { node: portEl.dataset.node, port: portEl.dataset.port } : null;
-      const changed = JSON.stringify(hp) !== JSON.stringify(ui.hoverPort);
-      if (changed) {
+      // Ports render only on the hovered node (like net_draw). Hover is
+      // detected geometrically with a margin because the port circles straddle
+      // the card edge and must be reachable from just outside it.
+      const PAD = 12;
+      let hn = null;
+      for (const n of store.doc.nodes) {
+        if (pt.x >= n.x - PAD && pt.x <= n.x + n.w + PAD
+          && pt.y >= n.y - PAD && pt.y <= n.y + n.h + PAD) hn = n.id;
+      }
+      if (JSON.stringify(hp) !== JSON.stringify(ui.hoverPort) || hn !== ui.hoverNode) {
         ui.hoverPort = hp;
+        ui.hoverNode = hn;
         requestRender();
       }
       return;
@@ -236,6 +245,14 @@ export function createTools({ svg, store, requestRender, onToolChange }) {
     }
     drag = null;
     requestRender();
+  });
+
+  svg.addEventListener('pointerleave', () => {
+    if ((ui.hoverNode || ui.hoverPort) && !drag) {
+      ui.hoverNode = null;
+      ui.hoverPort = null;
+      requestRender();
+    }
   });
 
   svg.addEventListener('wheel', (e) => {
