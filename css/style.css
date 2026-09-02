@@ -28,10 +28,10 @@ html, body {
   height: 100vh;
   display: grid;
   grid-template-rows: auto 1fr;
-  grid-template-columns: 248px 1fr auto;
+  grid-template-columns: 248px 1fr;
   grid-template-areas:
-    "toolbar toolbar toolbar"
-    "palette canvas props";
+    "toolbar toolbar"
+    "palette canvas";
 }
 
 /* ---- Toolbar ---- */
@@ -179,14 +179,22 @@ html, body {
   padding: 1px 5px;
 }
 
-/* ---- Properties panel ---- */
+/* ---- Properties panel ----
+   A floating card pinned to the top-right of the canvas: it hugs its content
+   instead of running the full height like the attached palette column. */
 #props {
-  grid-area: props;
-  width: 260px;
-  background: var(--bg1);
-  border-left: 1px solid var(--line);
+  position: fixed;
+  z-index: 20;
+  top: 60px;
+  right: 14px;
+  width: 262px;
+  max-height: calc(100vh - 84px);
+  background: rgba(13, 18, 32, 0.96);
+  border: 1px solid var(--line2);
+  border-radius: 14px;
   padding: 14px;
   overflow-y: auto;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
 }
 #props h3 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: #7dd3fc; }
 #props label { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--faint); margin: 12px 0 4px; }
@@ -346,12 +354,18 @@ html, body {
 
 /* ---- Journey panel ---- */
 #journey-panel {
-  grid-area: props;
-  width: 280px;
-  background: var(--bg1);
-  border-left: 1px solid var(--line);
+  position: fixed;
+  z-index: 20;
+  top: 60px;
+  right: 14px;
+  width: 282px;
+  max-height: calc(100vh - 84px);
+  background: rgba(13, 18, 32, 0.96);
+  border: 1px solid var(--line2);
+  border-radius: 14px;
   padding: 14px;
   overflow-y: auto;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
 }
 #journey-panel h3 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: #7dd3fc; }
 .journey-step {
@@ -419,7 +433,7 @@ html, body {
 #app.presenting #journey-panel,
 #app.presenting #hintbar,
 #app.presenting #legend { display: none; }
-#app.presenting { grid-template-columns: 0 1fr 0; grid-template-rows: 0 1fr; }
+#app.presenting { grid-template-columns: 0 1fr; grid-template-rows: 0 1fr; }
 #present-overlay {
   position: absolute;
   left: 50%;
@@ -590,8 +604,10 @@ html, body {
 }
 #bom-table tr:last-child td { border-bottom: none; }
 
-#toolbar .ico svg { width: 13px; height: 13px; margin-right: 5px; }
-#btn-remove svg { width: 16px; height: 16px; margin-right: 0; }
+/* Hide the tagline before the toolbar runs out of room on narrow windows. */
+@media (max-width: 1360px) {
+  .brand-sub { display: none; }
+}
 
 #drc-list { max-height: 320px; overflow: auto; margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
 .drc-row {

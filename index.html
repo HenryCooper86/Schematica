@@ -45,27 +45,37 @@
         <button id="btn-fullscreen" title="Toggle fullscreen">&#x26F6;</button>
       </div>
       <div class="group">
-        <button id="btn-grid" class="active" title="Toggle grid snap + dots">Grid</button>
-        <button id="btn-animate" title="Toggle signal-flow animation">Animate</button>
-        <button id="btn-legend" title="Toggle bus legend">Legend</button>
-        <button id="btn-journey" title="Journey steps">Journey</button>
+        <button id="btn-grid" class="active" title="Grid snap + dots">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><g fill="currentColor" stroke="none"><circle cx="4" cy="4" r="1.4"/><circle cx="9" cy="4" r="1.4"/><circle cx="14" cy="4" r="1.4"/><circle cx="4" cy="9" r="1.4"/><circle cx="9" cy="9" r="1.4"/><circle cx="14" cy="9" r="1.4"/><circle cx="4" cy="14" r="1.4"/><circle cx="9" cy="14" r="1.4"/><circle cx="14" cy="14" r="1.4"/></g></svg>
+        </button>
+        <button id="btn-animate" title="Signal-flow animation">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M2 9h3l2.5-5 3 10L13 9h3"/></svg>
+        </button>
+        <button id="btn-legend" title="Bus legend">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M7 4.5h8 M7 9h8 M7 13.5h8"/><g fill="currentColor" stroke="none"><circle cx="3.5" cy="4.5" r="1.2"/><circle cx="3.5" cy="9" r="1.2"/><circle cx="3.5" cy="13.5" r="1.2"/></g></svg>
+        </button>
+        <button id="btn-journey" title="Journey steps + presenting">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M5 16V3 M5 3.5h8.5l-2.2 3 2.2 3H5"/></svg>
+        </button>
       </div>
       <div class="group push-right">
         <button id="btn-rec" title="Record the canvas"><span class="rec-dot"></span>Rec</button>
         <button id="btn-export-png" title="Export PNG">PNG</button>
         <button id="btn-export-svg" title="Export SVG">SVG</button>
         <button id="btn-export-gif" title="Record an animated GIF">GIF</button>
-        <button id="btn-save" class="ico" title="Download .schematica.json">
-          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 2.5v8 M5.5 7.5 9 11l3.5-3.5 M3 14.5h12"/></svg>Save</button>
-        <button id="btn-open" class="ico" title="Open .schematica.json">
-          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 11V3 M5.5 6.5 9 3l3.5 3.5 M3 14.5h12"/></svg>Open</button>
+        <button id="btn-save" title="Save — download .schematica.json">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 2.5v8 M5.5 7.5 9 11l3.5-3.5 M3 14.5h12"/></svg></button>
+        <button id="btn-open" title="Open a .schematica.json file">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 11V3 M5.5 6.5 9 3l3.5 3.5 M3 14.5h12"/></svg></button>
         <button id="btn-examples" title="Load an example board">Examples &#9662;</button>
-        <button id="btn-check" title="Run design rule checks">Check</button>
+        <button id="btn-check" title="Run design rule checks">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="6.5"/><path d="M6.2 9.3l2 2 3.6-4.2"/></svg></button>
         <button id="btn-bom" title="Bill of materials">BOM</button>
-        <button id="btn-share" class="ico" title="Copy a share link">
-          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M13.5 5m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M4.5 9m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M13.5 13.5m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M6.3 8.1l5.4-2.3 M6.3 9.9l5.4 2.7"/></svg>Share</button>
-        <button id="btn-new" title="Clear board">New</button>
-        <button id="btn-remove" class="ico" title="Delete selection (Del)" disabled>
+        <button id="btn-share" title="Copy a share link">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M13.5 5m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M4.5 9m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M13.5 13.5m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M6.3 8.1l5.4-2.3 M6.3 9.9l5.4 2.7"/></svg></button>
+        <button id="btn-new" title="New — clear the board">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M5 2.5h5.5L14 6v9.5H5z M10.5 2.5V6H14 M9.5 8.5v4 M7.5 10.5h4"/></svg></button>
+        <button id="btn-remove" title="Delete selection (Del)" disabled>
           <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4 5h10 M7.2 5V3.5h3.6V5 M5.5 5l.7 9.5h5.6l.7-9.5 M8 7.5v4.5 M10 7.5v4.5"/></svg></button>
       </div>
     </header>
