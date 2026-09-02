@@ -360,4 +360,52 @@ export const EXAMPLES = [
       ],
     },
   },
+  {
+    id: 'ota-pipeline',
+    name: 'OTA Update Pipeline (swimlane)',
+    doc: {
+      schema: 1,
+      title: 'OTA Update Pipeline',
+      nodes: [
+        { id: 'n1', kind: 'server', x: 100, y: 157, w: 140, h: 80, label: 'Build server', sublabel: 'CI artifacts', color: null, addr: '', rail: '', notes: '', status: 'production', flags: [] },
+        { id: 'n2', kind: 'database', x: 320, y: 157, w: 130, h: 80, label: 'Release DB', sublabel: 'versions', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
+        { id: 'n3', kind: 'cloud', x: 620, y: 157, w: 150, h: 80, label: 'Update broker', sublabel: 'MQTT', color: null, addr: 'mqtts://updates:8883', rail: '', notes: '', status: 'production', flags: [] },
+        { id: 'n4', kind: 'gateway', x: 600, y: 307, w: 150, h: 80, label: 'Edge gateway', sublabel: 'site LAN', color: null, addr: '', rail: '', notes: '', status: 'tested', flags: [] },
+        { id: 'n5', kind: 'wifi', x: 240, y: 460, w: 140, h: 75, label: 'WiFi radio', sublabel: 'ESP32 NIC', color: null, addr: '', rail: '3.3V', notes: '', status: null, flags: [] },
+        { id: 'n6', kind: 'mcu', x: 560, y: 447, w: 160, h: 100, label: 'Device MCU', sublabel: 'STM32F4', color: null, addr: '', rail: '3.3V', notes: 'Verifies the image signature before flashing.', status: 'production', flags: [] },
+        { id: 'n7', kind: 'ic', x: 800, y: 457, w: 130, h: 80, label: 'SPI flash', sublabel: 'W25Q128', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
+      ],
+      wires: [
+        { id: 'w1', bus: 'eth', from: { node: 'n1', port: 'db' }, to: { node: 'n2', port: 'net' }, label: 'artifacts', arrow: 'fwd', style: null, flow: null },
+        { id: 'w2', bus: 'eth', from: { node: 'n1', port: 'db' }, to: { node: 'n3', port: 'net' }, label: 'publish', arrow: 'fwd', style: null, flow: null },
+        { id: 'w3', bus: 'eth', from: { node: 'n4', port: 'wan' }, to: { node: 'n3', port: 'net' }, label: 'TLS uplink', arrow: 'both', style: null, flow: null },
+        { id: 'w4', bus: 'rf', from: { node: 'n4', port: 'rf' }, to: { node: 'n5', port: 'ant' }, label: 'OTA push', arrow: 'fwd', style: null, flow: null },
+        { id: 'w5', bus: 'uart', from: { node: 'n5', port: 'uart' }, to: { node: 'n6', port: 'uart' }, label: 'AT link', arrow: null, style: null, flow: null },
+        { id: 'w6', bus: 'spi', from: { node: 'n6', port: 'spi' }, to: { node: 'n7', port: 'io1' }, label: 'image', arrow: 'fwd', style: null, flow: null },
+      ],
+      zones: [
+        {
+          id: 'z1', x: 48, y: 96, w: 940, h: 476, label: 'Firmware OTA pipeline', color: '#a78bfa',
+          kind: 'swimlane', orient: 'h', lanes: ['Cloud', 'Gateway', 'Device'],
+        },
+      ],
+      notes: [
+        { id: 't1', x: 1010, y: 130, text: 'Signed images only - the MCU verifies before flashing' },
+      ],
+      journey: [
+        {
+          id: 'j1', label: 'Three lanes', view: { cx: 540, cy: 334, zoom: 0.9 },
+          caption: 'One swimlane, three owners: the cloud builds, the gateway relays, the device flashes.',
+        },
+        {
+          id: 'j2', label: 'Cloud lane', view: { cx: 440, cy: 210, zoom: 1.1 },
+          caption: 'CI drops artifacts into the release DB and publishes to the MQTT broker.',
+        },
+        {
+          id: 'j3', label: 'Down to the device', view: { cx: 590, cy: 430, zoom: 1 },
+          caption: 'The gateway pushes the image over the air; the MCU checks the signature, then writes SPI flash.',
+        },
+      ],
+    },
+  },
 ];

@@ -266,6 +266,14 @@ const ACCENT_SWATCHES = [
   '#f87171', '#fb923c', '#fbbf24', '#34d399', '#2dd4bf', '#94a3b8',
 ];
 
+// Zone and swimlane color rows use the same swatch picker as net_draw
+// (no "Auto" — containers always carry an explicit color).
+function colorSwatchRow(current) {
+  return `<label>Color</label><div class="swatches">${ACCENT_SWATCHES.map((c) => (
+    `<button class="swatch${current === c ? ' active' : ''}" data-swatch="${c}" style="background:${c}" title="${c}"></button>`
+  )).join('')}</div>`;
+}
+
 function renderProps() {
   if (!document.getElementById('journey-panel').hidden) {
     props.hidden = true;
@@ -340,11 +348,11 @@ function renderProps() {
       + `<button data-lanedel="${i}" title="Remove lane">&times;</button></div>`
     )).join('')}`;
     html += '<button id="lane-add" class="lane-add">+ Add lane</button>';
-    html += propField('Color', `<input type="color" data-prop="color" value="${escAttr(item.color)}">`);
+    html += colorSwatchRow(item.color);
     html += '<button id="props-delete-swimlane" class="danger">Delete swimlane (keeps contents)</button>';
   } else if (type === 'zone') {
     html += propField('Label', `<input type="text" data-prop="label" value="${escAttr(item.label)}">`);
-    html += propField('Color', `<input type="color" data-prop="color" value="${escAttr(item.color)}">`);
+    html += colorSwatchRow(item.color);
   } else if (type === 'note') {
     html += propField('Text', `<textarea data-prop="text">${escAttr(item.text)}</textarea>`);
   }
