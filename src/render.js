@@ -274,7 +274,8 @@ function swimlaneMarkup(zone, selected) {
   let s = `<g class="zone swimlane" data-id="${esc(zone.id)}" data-type="zone">`;
   s += `<rect x="${zone.x}" y="${zone.y}" width="${zone.w}" height="${zone.h}" rx="4"`
     + ` fill="${color}" fill-opacity="0.04" stroke="${selected ? ACCENT : color}"`
-    + ` stroke-opacity="${selected ? 1 : 0.75}" stroke-width="${selected ? 2 : 1.5}"/>`;
+    + ` stroke-opacity="${selected ? 1 : 0.75}" stroke-width="${selected ? 2 : 1.5}"`
+    + ' pointer-events="none"/>';
   // Alternating lane tints, then dividers, then labels.
   lanes.forEach((lane, i) => {
     if (i % 2 === 1) {

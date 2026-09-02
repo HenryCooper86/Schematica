@@ -117,6 +117,9 @@ test('swimlanes render a title band, lane dividers, and lane names', () => {
   assert.equal((m.match(/class="lane-divider"/g) || []).length, 1, 'one divider for two lanes');
   assert.ok(m.includes('rotate(-90'), 'row-lane names read sideways in the gutter');
   assert.ok(m.includes('fill-opacity="0.05"'), 'alternating lane tint present');
+  const body = m.match(/<rect [^>]*fill-opacity="0\.04"[^>]*>/)[0];
+  assert.ok(body.includes('pointer-events="none"'),
+    'the tinted body must not swallow clicks — marquee selection happens through it');
 });
 
 test('one LOOP_MS cycle is seamless: frame 0 equals frame LOOP_MS exactly', async () => {

@@ -26,7 +26,9 @@ export function fitRect(dstW, dstH, srcW, srcH) {
   return { x: (dstW - w) / 2, y: (dstH - h) / 2, w, h };
 }
 
-export function createRecorder(svg, { notify = (m) => alert(m) } = {}) {
+// notifyUser must not be named "notify": the internal state-change notifier
+// below is a function declaration and would shadow a same-named parameter.
+export function createRecorder(svg, { notify: notifyUser = (m) => alert(m) } = {}) {
   let mode = null; // null | 'video' | 'gif'
   let recording = false;
   let encoding = false;
@@ -182,7 +184,7 @@ export function createRecorder(svg, { notify = (m) => alert(m) } = {}) {
     gifFrames.length = 0;
     mode = null;
     notify();
-    if (wasRecording) notify(message);
+    if (wasRecording) notifyUser(message);
   }
 
   async function start(opts) {
@@ -289,12 +291,12 @@ export function createRecorder(svg, { notify = (m) => alert(m) } = {}) {
           if (gifFrames.length) {
             const bytes = encodeGIF(gifFrames, { delayMs: 1000 / GIF_FPS });
             download(`${basename}.gif`, new Blob([bytes], { type: 'image/gif' }), 'image/gif');
-            if (notice) notify(notice);
+            if (notice) notifyUser(notice);
           } else {
-            notify('No frames were captured, so no GIF was saved.');
+            notifyUser('No frames were captured, so no GIF was saved.');
           }
         } catch {
-          notify('GIF encoding failed — nothing was saved.');
+          notifyUser('GIF encoding failed — nothing was saved.');
         } finally {
           gifFrames.length = 0;
           encoding = false;

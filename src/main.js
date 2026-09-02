@@ -521,8 +521,13 @@ document.getElementById('export-gifloop-go').addEventListener('click', async () 
   toast('Rendering the seamless loop GIF…');
   try {
     const b = exportBounds(store.doc);
-    const width = Math.min(960, Math.max(16, Math.round(Number(exportW.value)) || 960));
-    const height = Math.max(16, Math.round(width * (b.h / b.w)));
+    let width = Math.min(960, Math.max(16, Math.round(Number(exportW.value)) || 960));
+    let height = Math.max(16, Math.round(width * (b.h / b.w)));
+    if (height > 960) {
+      // Tall boards get the same cap as wide ones — 60 retained frames add up.
+      width = Math.max(16, Math.round(width * (960 / height)));
+      height = 960;
+    }
     const FRAMES = 60;
     const canvas = document.createElement('canvas');
     canvas.width = width;
@@ -532,11 +537,14 @@ document.getElementById('export-gifloop-go').addEventListener('click', async () 
     for (let i = 0; i < FRAMES; i++) {
       const svgStr = buildExportSVG(store.doc, { now: (i * LOOP_MS) / FRAMES });
       const url = URL.createObjectURL(new Blob([svgStr], { type: 'image/svg+xml' }));
-      const img = new Image();
-      img.src = url;
-      await img.decode();
-      ctx.drawImage(img, 0, 0, width, height);
-      URL.revokeObjectURL(url);
+      try {
+        const img = new Image();
+        img.src = url;
+        await img.decode();
+        ctx.drawImage(img, 0, 0, width, height);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
       frames.push({ data: ctx.getImageData(0, 0, width, height).data, width, height });
     }
     const bytes = encodeGIF(frames, { delayMs: LOOP_MS / FRAMES });
@@ -826,6 +834,11 @@ function presentKeys(e) {
   if (e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); presentGo(1); }
   else if (e.key === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); presentGo(-1); }
   else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); presentExit(); }
+  else if (/^[a-z]$/i.test(e.key) && !e.metaKey && !e.ctrlKey) {
+    // Tool switches and F (fit) would silently move the presented camera.
+    // Modifier shortcuts (undo/redo) stay live — presenting re-syncs to them.
+    e.stopPropagation();
+  }
 }
 
 function presentEnter() {

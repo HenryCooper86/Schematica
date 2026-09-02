@@ -287,6 +287,8 @@ html, body {
   pointer-events: none;
 }
 #toast[hidden] { display: none; }
+/* While presenting, sit above the caption + nav instead of overlapping them. */
+#app.presenting #toast { bottom: 132px; }
 
 /* ---- Swimlane props rows ---- */
 .lane-row { display: flex; gap: 6px; margin-bottom: 6px; }
