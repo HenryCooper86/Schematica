@@ -158,6 +158,27 @@ test('legacy journey views (screen offsets) convert to approximate centers', () 
   assert.deepEqual(doc.journey[0].view, { cx: 600, cy: 360, zoom: 1 });
 });
 
+test('wire flow and sneakernet style round-trip; junk flow becomes null', () => {
+  const base = {
+    schema: 1,
+    nodes: [
+      { id: 'n1', kind: 'mcu', x: 0, y: 0 },
+      { id: 'n2', kind: 'temp', x: 300, y: 0 },
+    ],
+    wires: [
+      { id: 'w1', bus: 'i2c', from: { node: 'n1', port: 'i2c' }, to: { node: 'n2', port: 'i2c' }, style: 'sneakernet', flow: 'off' },
+      { id: 'w2', bus: 'gnd', from: { node: 'n1', port: 'gnd' }, to: { node: 'n2', port: 'gnd' }, flow: 'sometimes' },
+    ],
+  };
+  const { doc, warnings } = deserialize(JSON.stringify(base));
+  assert.equal(doc.wires[0].style, 'sneakernet');
+  assert.equal(doc.wires[0].flow, 'off');
+  assert.equal(doc.wires[1].flow, null);
+  assert.equal(warnings.length, 0, 'junk flow values are silently normalized');
+  const back = deserialize(serialize(doc));
+  assert.deepEqual(back.doc.wires, doc.wires);
+});
+
 test('wire arrow and style fields round-trip, default null, and reject junk', () => {
   const base = {
     schema: 1,

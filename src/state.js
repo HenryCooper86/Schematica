@@ -147,7 +147,7 @@ export function addNode(store, kind, x, y) {
 export function addWire(store, bus, from, to) {
   const id = uid('w');
   store.apply((doc) => {
-    doc.wires.push({ id, bus, from, to, label: '', arrow: null, style: null });
+    doc.wires.push({ id, bus, from, to, label: '', arrow: null, style: null, flow: null });
   });
   return id;
 }

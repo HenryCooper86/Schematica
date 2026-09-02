@@ -123,7 +123,8 @@ export function deserialize(text) {
       to: { node: to.node, port: to.port },
       label: typeof w.label === 'string' ? w.label : '',
       arrow: w.arrow === 'fwd' || w.arrow === 'both' ? w.arrow : null,
-      style: ['solid', 'dashed', 'dotted'].includes(w.style) ? w.style : null,
+      style: ['solid', 'dashed', 'dotted', 'sneakernet'].includes(w.style) ? w.style : null,
+      flow: w.flow === 'on' || w.flow === 'off' ? w.flow : null,
     });
   }
 

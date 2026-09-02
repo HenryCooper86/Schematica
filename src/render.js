@@ -171,7 +171,7 @@ function chipMarkup(cx, cy, label, color, editField) {
     + `${editField ? ` data-edit="${editField}"` : ''}>${esc(label)}</text>`;
 }
 
-function wireMarkup(doc, wire, selected, anim) {
+function wireMarkup(doc, wire, selected, anim, now) {
   const from = doc.nodes.find((n) => n.id === wire.from.node);
   const to = doc.nodes.find((n) => n.id === wire.to.node);
   if (!from || !to) return '';
@@ -191,7 +191,8 @@ function wireMarkup(doc, wire, selected, anim) {
   const dash = wire.style === 'solid' ? null
     : wire.style === 'dashed' ? '6 4'
       : wire.style === 'dotted' ? '1.5 5'
-        : bus.dash;
+        : wire.style === 'sneakernet' ? '2 9'
+          : bus.dash;
   s += `<path d="${d}" fill="none" stroke="${bus.color}" stroke-width="${bus.width}"`
     + `${dash ? ` stroke-dasharray="${dash}"` : ''} stroke-linecap="round" pointer-events="none"/>`;
   const arrowAt = (p, side) => {
@@ -205,9 +206,12 @@ function wireMarkup(doc, wire, selected, anim) {
   };
   if (wire.arrow === 'fwd' || wire.arrow === 'both') s += arrowAt(b, pt.side);
   if (wire.arrow === 'both') s += arrowAt(a, pf.side);
+  // Per-wire flow override: 'on' animates even with the global toggle off,
+  // 'off' never animates, null follows the toggle. An air gap never flows.
   const speed = FLOW_SPEED[wire.bus] ?? 32;
-  if (anim != null && speed > 0) {
-    const offset = -(((anim / 1000) * speed) % FLOW_PERIOD);
+  const flowNow = wire.flow === 'on' ? now : (wire.flow === 'off' ? null : anim);
+  if (flowNow != null && speed > 0 && wire.style !== 'sneakernet') {
+    const offset = -(((flowNow / 1000) * speed) % FLOW_PERIOD);
     s += `<path d="${d}" fill="none" stroke="#ffffff" stroke-opacity="0.55"`
       + ` stroke-width="${Math.max(1.5, bus.width - 0.5)}" stroke-linecap="round"`
       + ` stroke-dasharray="2.5 ${FLOW_PERIOD - 2.5}" stroke-dashoffset="${offset.toFixed(2)}"`
@@ -231,8 +235,9 @@ function wireChipMarkup(doc, wire) {
   const b = portPosition(to, pt);
   const bus = BUSES[wire.bus] || BUSES.gpio;
   const mid = wireMidpoint(a, pf.side, b, pt.side);
+  const fallback = wire.style === 'sneakernet' ? '\u{1F45F} air gap' : bus.short;
   return `<g class="wire" data-id="${esc(wire.id)}" data-type="wire">`
-    + chipMarkup(mid.x, mid.y, wire.label || bus.short, bus.color, 'label')
+    + chipMarkup(mid.x, mid.y, wire.label || fallback, bus.color, 'label')
     + '</g>';
 }
 
@@ -274,7 +279,8 @@ export function diagramMarkup(doc, ui = {}) {
   const sel = ui.selection || new Set();
   const anim = ui.animate && Number.isFinite(ui.now) ? ui.now : null;
   const zones = doc.zones.map((z) => zoneMarkup(z, sel.has(z.id))).join('');
-  const wires = doc.wires.map((w) => wireMarkup(doc, w, sel.has(w.id), anim)).join('');
+  const now = Number.isFinite(ui.now) ? ui.now : null;
+  const wires = doc.wires.map((w) => wireMarkup(doc, w, sel.has(w.id), anim, now)).join('');
   // Ports stay hidden until their node is hovered (net_draw-style); the wire
   // tool and an in-flight wire draft reveal every port as a drop target.
   const allPorts = !!ui.wireDraft || ui.tool === 'wire';

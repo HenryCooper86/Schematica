@@ -85,6 +85,25 @@ test('wire label chips render in their own layer above the nodes', () => {
   assert.ok(m.slice(chipsAt).includes('data-id="w1"'), 'chip wrapper keeps the wire id');
 });
 
+test('per-wire flow overrides: off suppresses, on animates without the global toggle', () => {
+  const doc = sampleDoc();
+  doc.wires[0].flow = 'off';
+  const anim = diagramMarkup(doc, { animate: true, now: 1234 });
+  assert.ok(!anim.includes('stroke-dashoffset'), 'flow "off" wins over global animate');
+  doc.wires[0].flow = 'on';
+  const still = diagramMarkup(doc, { now: 1234 });
+  assert.equal((still.match(/stroke-dashoffset/g) || []).length, 1, 'flow "on" animates alone');
+});
+
+test('sneakernet style renders an air gap: sparse dash, shoe chip, no flow', () => {
+  const doc = sampleDoc();
+  doc.wires[0].style = 'sneakernet';
+  const anim = diagramMarkup(doc, { animate: true, now: 500 });
+  assert.ok(anim.includes('stroke-dasharray="2 9"'), 'air-gap dash applied');
+  assert.ok(!anim.includes('stroke-dashoffset'), 'nothing flows across an air gap');
+  assert.ok(anim.includes('\u{1F45F} air gap'), 'unlabeled sneakernet wire chip says so');
+});
+
 test('ports are hidden until their node is hovered', () => {
   const doc = sampleDoc();
   assert.ok(!diagramMarkup(doc).includes('class="port"'), 'no ports by default');

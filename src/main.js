@@ -63,8 +63,14 @@ store.subscribe(render);
 let animRaf = null;
 let lastAnimFrame = 0;
 
+// The ticker runs while the global toggle is on, or while any wire opts into
+// "Always" traffic flow — that per-wire override animates on its own.
+function needsTicker() {
+  return tools.ui.animate || store.doc.wires.some((w) => w.flow === 'on');
+}
+
 function animTick(now) {
-  if (!tools.ui.animate) {
+  if (!needsTicker()) {
     animRaf = null;
     return;
   }
@@ -77,8 +83,10 @@ function animTick(now) {
 
 function syncAnimation() {
   document.getElementById('btn-animate').classList.toggle('active', tools.ui.animate);
-  if (tools.ui.animate && !animRaf) animRaf = requestAnimationFrame(animTick);
+  if (needsTicker() && !animRaf) animRaf = requestAnimationFrame(animTick);
 }
+
+store.subscribe(syncAnimation);
 
 if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
   tools.ui.animate = false;
@@ -291,9 +299,13 @@ function renderProps() {
     html += `<label>Arrowheads</label><div class="chips">${ARROWS.map(([v, lab]) => (
       `<button class="chip${(item.arrow ?? null) === v ? ' active' : ''}" data-warrow="${v ?? ''}">${lab}</button>`
     )).join('')}</div>`;
-    const STYLES = [[null, 'Bus default'], ['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']];
+    const STYLES = [[null, 'Bus default'], ['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted'], ['sneakernet', 'Sneakernet &middot; air gap &#x1F45F;']];
     html += `<label>Line style</label><div class="chips">${STYLES.map(([v, lab]) => (
       `<button class="chip${(item.style ?? null) === v ? ' active' : ''}" data-wstyle="${v ?? ''}">${lab}</button>`
+    )).join('')}</div>`;
+    const FLOWS = [[null, 'With Animate'], ['on', 'Always'], ['off', 'Never']];
+    html += `<label>Traffic flow</label><div class="chips">${FLOWS.map(([v, lab]) => (
+      `<button class="chip${(item.flow ?? null) === v ? ' active' : ''}" data-wflow="${v ?? ''}">${lab}</button>`
     )).join('')}</div>`;
     html += '<button id="props-delete-wire" class="danger">Delete wire</button>';
   } else if (type === 'zone') {
@@ -338,6 +350,11 @@ function renderProps() {
   props.querySelectorAll('[data-wstyle]').forEach((btn) => {
     onPress(btn, () => {
       updateItem(store, item.id, { style: btn.dataset.wstyle || null });
+    });
+  });
+  props.querySelectorAll('[data-wflow]').forEach((btn) => {
+    onPress(btn, () => {
+      updateItem(store, item.id, { flow: btn.dataset.wflow || null });
     });
   });
   const delOne = document.getElementById('props-delete-one') || document.getElementById('props-delete-wire');
