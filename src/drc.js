@@ -67,7 +67,9 @@ export function checkDoc(doc) {
   // 2. Unconnected VCC/GND pins (consumption pins only).
   for (const n of doc.nodes) {
     for (const port of getPart(n.kind).ports) {
-      if ((port.id === 'vcc' || port.id === 'gnd') && !wiredPorts.has(`${n.id}|${port.id}`)) {
+      if ((port.bus === 'power' || port.bus === 'gnd')
+        && (port.id === 'vcc' || port.id === 'gnd' || port.id.startsWith('vin'))
+        && !wiredPorts.has(`${n.id}|${port.id}`)) {
         findings.push({
           level: 'warning',
           rule: 'unconnected-power',

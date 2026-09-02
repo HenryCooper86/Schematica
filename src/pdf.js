@@ -31,7 +31,7 @@ export function buildPDF({ jpeg, width, height }) {
   push(jpeg);
   push('\nendstream\nendobj\n');
   const content = `q ${width} 0 0 ${height} 0 0 cm /Im0 Do Q`;
-  obj(5, `<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
+  obj(5, `<< /Length ${te.encode(content).length} >>\nstream\n${content}\nendstream`);
 
   const xrefStart = offset;
   let xref = 'xref\n0 6\n0000000000 65535 f \n';

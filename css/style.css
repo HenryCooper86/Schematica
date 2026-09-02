@@ -591,6 +591,7 @@ html, body {
 #bom-table tr:last-child td { border-bottom: none; }
 
 #toolbar .ico svg { width: 13px; height: 13px; margin-right: 5px; }
+#btn-remove svg { width: 16px; height: 16px; margin-right: 0; }
 
 #drc-list { max-height: 320px; overflow: auto; margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
 .drc-row {
