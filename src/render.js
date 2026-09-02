@@ -76,6 +76,7 @@ function tagChipsMarkup(node) {
   let cx = node.x + node.w;
   for (const tag of tags.reverse()) {
     const w = tag.label.length * 5.5 + 10;
+    if (cx - w < node.x + 6) break; // clamp: drop chips that would overhang narrow nodes
     cx -= w;
     s += `<rect x="${cx}" y="${node.y - 8}" width="${w}" height="15" rx="7.5"`
       + ` fill="${CHIP_BG}" stroke="${tag.color}" stroke-opacity="0.7"/>`
@@ -92,10 +93,6 @@ function nodeMarkup(node, selected, hoverPort) {
   const color = node.color || CATEGORY_COLORS[part.category] || ACCENT;
   const badge = 26;
   let s = `<g class="node" data-id="${esc(node.id)}" data-type="node">`;
-  if (selected) {
-    s += `<rect x="${node.x - 3}" y="${node.y - 3}" width="${node.w + 6}" height="${node.h + 6}" rx="15"`
-      + ` fill="none" stroke="${ACCENT}" stroke-opacity="0.35" stroke-width="5"/>`;
-  }
   s += `<rect x="${node.x}" y="${node.y}" width="${node.w}" height="${node.h}" rx="12"`
     + ` fill="${CARD_BG}" stroke="${selected ? ACCENT : CARD_LINE}" stroke-width="1.5"/>`;
   if (node.h >= 78) {
@@ -121,6 +118,11 @@ function nodeMarkup(node, selected, hoverPort) {
     }
   }
   s += tagChipsMarkup(node);
+  if (selected) {
+    // Drawn above the chips so the translucent glow tints rather than clips them.
+    s += `<rect x="${node.x - 3}" y="${node.y - 3}" width="${node.w + 6}" height="${node.h + 6}" rx="15"`
+      + ` fill="none" stroke="${ACCENT}" stroke-opacity="0.35" stroke-width="5" pointer-events="none"/>`;
+  }
   s += portsMarkup(node, part, hoverPort);
   s += '</g>';
   return s;

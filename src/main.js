@@ -147,6 +147,21 @@ function propField(label, inner) {
   return `<label>${label}</label>${inner}`;
 }
 
+const STATUS_LABELS = {
+  planned: 'Planned', prototype: 'Prototype', tested: 'Tested',
+  production: 'Production', deprecated: 'Deprecated',
+};
+
+const FLAG_LABELS = {
+  bug: 'Bug', thermal: 'Thermal', power: 'Power hungry',
+  lead: 'Long lead', safety: 'Safety critical', eol: 'EOL part',
+};
+
+const ACCENT_SWATCHES = [
+  '#38bdf8', '#60a5fa', '#818cf8', '#a78bfa', '#e879f9',
+  '#f87171', '#fb923c', '#fbbf24', '#34d399', '#2dd4bf', '#94a3b8',
+];
+
 function renderProps() {
   if (!document.getElementById('journey-panel').hidden) {
     props.hidden = true;
@@ -236,20 +251,6 @@ function renderProps() {
   }
 }
 
-const STATUS_LABELS = {
-  planned: 'Planned', prototype: 'Prototype', tested: 'Tested',
-  production: 'Production', deprecated: 'Deprecated',
-};
-
-const FLAG_LABELS = {
-  bug: 'Bug', thermal: 'Thermal', power: 'Power hungry',
-  lead: 'Long lead', safety: 'Safety critical', eol: 'EOL part',
-};
-
-const ACCENT_SWATCHES = [
-  '#38bdf8', '#60a5fa', '#818cf8', '#a78bfa', '#e879f9',
-  '#f87171', '#fb923c', '#fbbf24', '#34d399', '#2dd4bf', '#94a3b8',
-];
 
 function safeName(ext) {
   return `${(store.doc.title || 'schematica').replace(/[^\w-]+/g, '_')}${ext}`;
