@@ -481,7 +481,9 @@ html, body {
 @keyframes rec-blink { 50% { opacity: 0.25; } }
 @media (prefers-reduced-motion: reduce) { #btn-rec.recording .rec-dot { animation: none; } }
 
-#rec-dialog {
+#rec-dialog,
+#export-dialog,
+#bom-dialog {
   position: fixed;
   inset: 0;
   z-index: 50;
@@ -490,7 +492,9 @@ html, body {
   align-items: center;
   justify-content: center;
 }
-#rec-dialog[hidden] { display: none; }
+#rec-dialog[hidden],
+#export-dialog[hidden],
+#bom-dialog[hidden] { display: none; }
 .rec-card {
   width: 380px;
   background: var(--bg1);
@@ -533,6 +537,54 @@ html, body {
   font-family: inherit;
 }
 #rec-cancel:hover { color: var(--text); border-color: var(--line2); }
+
+/* ---- Export + BOM dialogs ---- */
+.dialog-row { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-size: 12.5px; color: var(--muted); }
+.dialog-row input[type="number"] {
+  width: 88px;
+  background: var(--bg0);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.dialog-row input[type="number"]:focus { outline: none; border-color: var(--accent); }
+.dialog-x, .dialog-unit { color: var(--faint); }
+.dialog-check { display: flex; align-items: center; gap: 7px; color: var(--text); font-size: 13px; cursor: pointer; }
+.dialog-check input { accent-color: var(--accent); }
+
+#export-dialog .rec-buttons button,
+#bom-dialog .rec-buttons button {
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+}
+#export-dialog .rec-buttons button:hover,
+#bom-dialog .rec-buttons button:hover { border-color: var(--accent); }
+#export-cancel, #bom-close { color: var(--muted); }
+
+.bom-card { width: 680px; max-width: 92vw; }
+#bom-table { max-height: 320px; overflow: auto; margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; }
+#bom-table table { border-collapse: collapse; width: 100%; font-size: 11.5px; }
+#bom-table th, #bom-table td { text-align: left; padding: 6px 9px; border-bottom: 1px solid var(--line); color: var(--text); white-space: nowrap; }
+#bom-table td.wrap { white-space: normal; }
+#bom-table th {
+  color: var(--faint);
+  text-transform: uppercase;
+  font-size: 9.5px;
+  letter-spacing: 1px;
+  position: sticky;
+  top: 0;
+  background: var(--bg1);
+}
+#bom-table tr:last-child td { border-bottom: none; }
 
 /* ---- Scrollbars ---- */
 html {

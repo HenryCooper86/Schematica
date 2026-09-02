@@ -44,6 +44,9 @@ then Settings → Pages → deploy from branch `main`, root folder.
 | Animate | Animate toggle — signal-flow dots on wires (speed varies by bus), pulsing Bug/Thermal alerts; captured in recordings; off by default when your OS asks for reduced motion |
 | Pan | `H` or hold Space — dedicated hand tool |
 | Fullscreen | ⛶ button in the zoom group |
+| Export dialog | PNG opens a size dialog — pixel dimensions, aspect lock, transparent background; SVG honors it too |
+| BOM | BOM button — bill of materials grouped by part number (qty, refs, addresses, rails, status, flags); CSV download or Markdown copy |
+| Share | Share button — the whole board compressed into a copyable URL; opening the link loads it, no backend |
 
 Work is autosaved to the browser's localStorage and restored on reload.
 

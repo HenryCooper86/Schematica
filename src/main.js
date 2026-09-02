@@ -7,7 +7,10 @@ import { CATEGORIES, CATEGORY_COLORS, PARTS, getPart } from './palette.js';
 import { snap } from './geometry.js';
 import { BUSES, BUS_ORDER } from './buses.js';
 import { serialize, deserialize } from './serialize.js';
-import { buildExportSVG, exportPNG, download } from './export.js';
+import { buildExportSVG, exportBounds, exportPNG, download } from './export.js';
+import { buildBOM, bomCSV, bomMarkdown } from './bom.js';
+import { encodeShare, decodeShare } from './share.js';
+import { esc } from './render.js';
 import { addStep, updateStep, removeStep, moveStep, tweenView } from './journey.js';
 import { createRecorder } from './recorder.js';
 import { EXAMPLES } from './examples.js';
@@ -316,11 +319,101 @@ document.getElementById('btn-export-svg').addEventListener('click', () => {
   download(safeName('.svg'), buildExportSVG(store.doc), 'image/svg+xml');
 });
 
+// ---- Export dialog ----
+const exportDialog = document.getElementById('export-dialog');
+const exportW = document.getElementById('export-w');
+const exportH = document.getElementById('export-h');
+let exportAspect = 1;
+
 document.getElementById('btn-export-png').addEventListener('click', () => {
-  exportPNG(buildExportSVG(store.doc), (blob) => {
+  const b = exportBounds(store.doc);
+  exportAspect = b.w / b.h;
+  exportW.value = Math.round(b.w * 2);
+  exportH.value = Math.round(b.h * 2);
+  exportDialog.hidden = false;
+});
+
+exportW.addEventListener('input', () => {
+  if (document.getElementById('export-lock').checked) {
+    exportH.value = Math.max(16, Math.round(Number(exportW.value) / exportAspect) || 16);
+  }
+});
+exportH.addEventListener('input', () => {
+  if (document.getElementById('export-lock').checked) {
+    exportW.value = Math.max(16, Math.round(Number(exportH.value) * exportAspect) || 16);
+  }
+});
+
+function exportOpts() {
+  return { transparent: document.getElementById('export-transparent').checked };
+}
+
+document.getElementById('export-png-go').addEventListener('click', () => {
+  const width = Math.min(16384, Math.max(16, Math.round(Number(exportW.value)) || 0));
+  exportDialog.hidden = true;
+  exportPNG(buildExportSVG(store.doc, exportOpts()), (blob) => {
     if (blob) download(safeName('.png'), blob);
     else alert('PNG export failed in this browser. The SVG export still works.');
-  });
+  }, { width });
+});
+
+document.getElementById('export-svg-go').addEventListener('click', () => {
+  exportDialog.hidden = true;
+  download(safeName('.svg'), buildExportSVG(store.doc, exportOpts()), 'image/svg+xml');
+});
+
+document.getElementById('export-cancel').addEventListener('click', () => {
+  exportDialog.hidden = true;
+});
+exportDialog.addEventListener('pointerdown', (e) => {
+  if (e.target === exportDialog) exportDialog.hidden = true;
+});
+
+// ---- BOM dialog ----
+const bomDialog = document.getElementById('bom-dialog');
+let bomRows = [];
+
+document.getElementById('btn-bom').addEventListener('click', () => {
+  bomRows = buildBOM(store.doc);
+  const body = bomRows.map((r) => (
+    `<tr><td>${esc(r.part)}</td><td>${esc(r.sublabel)}</td><td>${r.qty}</td>`
+    + `<td class="wrap">${esc(r.refs.join(', '))}</td><td>${esc(r.addrs.join(', '))}</td>`
+    + `<td>${esc(r.rails.join(', '))}</td><td>${esc(r.statuses.join(', '))}</td>`
+    + `<td>${esc(r.flags.join(', '))}</td></tr>`
+  )).join('');
+  document.getElementById('bom-table').innerHTML = bomRows.length
+    ? '<table><thead><tr><th>Part</th><th>Part number</th><th>Qty</th><th>Refs</th>'
+      + '<th>Addresses</th><th>Rails</th><th>Status</th><th>Flags</th></tr></thead>'
+      + `<tbody>${body}</tbody></table>`
+    : '<p style="padding:12px">The board is empty - add some parts first.</p>';
+  bomDialog.hidden = false;
+});
+
+document.getElementById('bom-csv').addEventListener('click', () => {
+  download(safeName('.bom.csv'), bomCSV(bomRows), 'text/csv');
+});
+document.getElementById('bom-md').addEventListener('click', () => {
+  navigator.clipboard.writeText(bomMarkdown(bomRows))
+    .then(() => alert('Markdown table copied to clipboard.'))
+    .catch(() => alert('Could not access the clipboard - use Download CSV instead.'));
+});
+document.getElementById('bom-close').addEventListener('click', () => {
+  bomDialog.hidden = true;
+});
+bomDialog.addEventListener('pointerdown', (e) => {
+  if (e.target === bomDialog) bomDialog.hidden = true;
+});
+
+// ---- Share link ----
+document.getElementById('btn-share').addEventListener('click', async () => {
+  try {
+    const fragment = await encodeShare(store.doc);
+    const url = `${location.origin}${location.pathname}#${fragment}`;
+    await navigator.clipboard.writeText(url);
+    alert(`Share link copied to clipboard (${url.length.toLocaleString()} characters).`);
+  } catch (err) {
+    alert('Could not copy the share link - your browser blocked clipboard access.');
+  }
 });
 
 const fileInput = document.getElementById('file-input');
@@ -614,6 +707,15 @@ recDialog.addEventListener('pointerdown', (e) => {
   if (e.target === recDialog) recDialog.hidden = true;
 });
 
+document.getElementById('btn-export-gif').addEventListener('click', () => {
+  if (recorder.state().recording || recorder.state().encoding) return;
+  recRenderFormats();
+  recDialog.hidden = false;
+  const gifRadio = document.querySelector('input[name="rec-format"][value="gif"]');
+  gifRadio.checked = true;
+  document.getElementById('rec-audio').classList.add('disabled');
+});
+
 document.getElementById('rec-start').addEventListener('click', async () => {
   const format = document.querySelector('input[name="rec-format"]:checked')?.value;
   if (!format) return;
@@ -635,3 +737,17 @@ document.getElementById('rec-start').addEventListener('click', async () => {
 
 render();
 syncAnimation();
+
+// A share link in the URL wins over the autosave: it is an explicit intent.
+(async () => {
+  if (!location.hash || location.hash.length < 4) return;
+  try {
+    const text = await decodeShare(location.hash);
+    const { doc, warnings } = deserialize(text);
+    history.replaceState(null, '', location.pathname + location.search);
+    store.replaceDoc(doc);
+    if (warnings.length) alert(`Shared board loaded with warnings:\n\n${warnings.join('\n')}`);
+  } catch {
+    // Not a share link (or a corrupted one) - leave the current board alone.
+  }
+})();

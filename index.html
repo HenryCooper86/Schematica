@@ -54,9 +54,12 @@
         <button id="btn-rec" title="Record the canvas"><span class="rec-dot"></span>Rec</button>
         <button id="btn-export-png" title="Export PNG">PNG</button>
         <button id="btn-export-svg" title="Export SVG">SVG</button>
+        <button id="btn-export-gif" title="Record an animated GIF">GIF</button>
         <button id="btn-save" title="Download .schematica.json">Save</button>
         <button id="btn-open" title="Open .schematica.json">Open</button>
         <button id="btn-examples" title="Load an example board">Examples &#9662;</button>
+        <button id="btn-bom" title="Bill of materials">BOM</button>
+        <button id="btn-share" title="Copy a share link">Share</button>
         <button id="btn-new" title="Clear board">New</button>
       </div>
     </header>
@@ -108,6 +111,43 @@
       <div class="rec-buttons">
         <button id="rec-start"><span class="rec-dot"></span>Start recording</button>
         <button id="rec-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+  <div id="export-dialog" hidden>
+    <div class="rec-card">
+      <h3>Export image</h3>
+      <p>Cropped to the diagram plus a margin. PNG renders at the pixel size below.</p>
+      <div class="dialog-row">
+        <label for="export-w">Width</label>
+        <input id="export-w" type="number" min="16" max="16384" step="1">
+        <span class="dialog-x">&times;</span>
+        <label for="export-h">Height</label>
+        <input id="export-h" type="number" min="16" max="16384" step="1">
+        <span class="dialog-unit">px</span>
+      </div>
+      <div class="dialog-row">
+        <label class="dialog-check"><input id="export-lock" type="checkbox" checked> Lock aspect ratio</label>
+      </div>
+      <div class="dialog-row">
+        <label class="dialog-check"><input id="export-transparent" type="checkbox"> Transparent background</label>
+      </div>
+      <div class="rec-buttons">
+        <button id="export-png-go">Export PNG</button>
+        <button id="export-svg-go">Export SVG</button>
+        <button id="export-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+  <div id="bom-dialog" hidden>
+    <div class="rec-card bom-card">
+      <h3>Bill of materials</h3>
+      <p>Grouped by part number. Quantities, references, addresses, rails, status, and flags come straight from the board.</p>
+      <div id="bom-table"></div>
+      <div class="rec-buttons">
+        <button id="bom-csv">Download CSV</button>
+        <button id="bom-md">Copy Markdown</button>
+        <button id="bom-close">Close</button>
       </div>
     </div>
   </div>
