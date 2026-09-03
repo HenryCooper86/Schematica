@@ -291,6 +291,8 @@ g.node:hover .ports,
 #props.collapsed > :not(h3), #journey-panel.collapsed > :not(h3) { display: none; }
 #props.collapsed, #journey-panel.collapsed { width: auto; min-width: 168px; padding: 10px 14px; overflow: hidden; }
 #props.collapsed h3, #journey-panel.collapsed h3 { margin: 0; }
+/* P (or the panels button) hides both right-hand panels entirely. */
+#app.panels-hidden #props, #app.panels-hidden #journey-panel { display: none !important; }
 #props label { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--faint); margin: 12px 0 4px; }
 #props input[type="text"], #props textarea, #props select {
   width: 100%;

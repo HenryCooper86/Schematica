@@ -34,6 +34,7 @@ then Settings → Pages → deploy from branch `main`, root folder.
 | Find a part | Type in the palette search — names, categories, buses, or vendors (RDK, Journey) |
 | Nudge | Arrow keys move the selection 1px; `Shift` + arrow moves a grid step |
 | Fold a panel | The ▾ in the properties or journey panel header folds it to a bar; remembered across reloads |
+| Hide the panels | `P` or the panels button hides the properties and journey panels entirely; press again (or open Journey) to bring them back; remembered across reloads |
 | Sticky note | `N`, click |
 | Rename anything | Double-click its text, or use the properties panel |
 | Pan / zoom | Space-drag or middle-drag; scroll wheel |

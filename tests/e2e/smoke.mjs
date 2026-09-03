@@ -311,6 +311,16 @@ try {
   const reopened = await js(`(() => { const p = document.getElementById('props'); return { collapsed: p.classList.contains('collapsed'), stored: localStorage.getItem('schematica.panel.props.collapsed') }; })()`);
   check('clicking it again unfolds the panel', !reopened.collapsed && reopened.stored === '0', JSON.stringify(reopened));
 
+  // Hide the panels entirely with P, bring them back with the toolbar button.
+  await key('p', 'KeyP', 80);
+  await sleep(150);
+  const gone = await js(`(() => { const p = document.getElementById('props'); return { display: getComputedStyle(p).display, cls: document.getElementById('app').classList.contains('panels-hidden'), stored: localStorage.getItem('schematica.panels.hidden'), btnActive: document.getElementById('btn-panels').classList.contains('active') }; })()`);
+  check('P hides the right-hand panels and remembers it', gone.display === 'none' && gone.cls && gone.stored === '1' && !gone.btnActive, JSON.stringify(gone));
+  await js(`document.getElementById('btn-panels').click(); true`);
+  await sleep(150);
+  const back = await js(`(() => { const p = document.getElementById('props'); return { display: getComputedStyle(p).display, cls: document.getElementById('app').classList.contains('panels-hidden'), stored: localStorage.getItem('schematica.panels.hidden') }; })()`);
+  check('the panels button shows them again', back.display !== 'none' && !back.cls && back.stored === '0', JSON.stringify(back));
+
   // Palette search.
   await js(`(() => { const s = document.getElementById('palette-search'); s.value = 'rdk'; s.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
   await sleep(100);
