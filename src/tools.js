@@ -40,13 +40,15 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
     };
   }
 
+  // Nothing in the diagram depends on the tool (ports reveal via the
+  // tool-wire class), so a tool switch only clears transient overlay state.
   function setTool(t) {
     tool = t;
     ui.wireDraft = null;
     svg.classList.toggle('tool-wire', t === 'wire');
     svg.classList.toggle('tool-pan', t === 'pan');
     onToolChange?.(t);
-    requestRender();
+    requestRender('overlay');
   }
 
   function doSnap(v) {

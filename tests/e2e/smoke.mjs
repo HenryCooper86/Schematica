@@ -86,9 +86,13 @@ ws.onmessage = (ev) => {
     problems.push(`console.${m.params.type}: ` + m.params.args.map((a) => a.value ?? a.description).join(' '));
   }
 };
-const send = (method, params = {}) => new Promise((r) => {
+const send = (method, params = {}) => new Promise((resolve, reject) => {
   const id = ++seq;
-  pending.set(id, r);
+  const timer = setTimeout(() => {
+    pending.delete(id);
+    reject(new Error(`${method} did not answer within 15s`));
+  }, 15000);
+  pending.set(id, (m) => { clearTimeout(timer); resolve(m); });
   ws.send(JSON.stringify({ id, method, params }));
 });
 const js = async (expr) => {
@@ -123,6 +127,14 @@ const center = (sel) => js(`(() => { const r = document.querySelector(${JSON.str
 await send('Runtime.enable');
 await sleep(1500);
 
+// Watchdog: a hung browser must fail the run, not stall CI.
+const watchdog = setTimeout(() => {
+  console.log('FAIL watchdog — the smoke test did not finish within 120s');
+  chrome.kill();
+  server.close();
+  process.exit(1);
+}, 120000);
+
 const results = [];
 let failed = 0;
 function check(name, ok, detail = '') {
@@ -150,17 +162,19 @@ try {
   const wired = await js(`(() => ({ wires: document.querySelectorAll('#canvas g.wire').length, popover: !document.getElementById('bus-popover').hidden, sel: document.querySelector('#canvas g.wire.sel .vis')?.getAttribute('stroke') }))()`);
   check('dragging port to port adds a selected wire without a bus popover', wired.wires === before + 1 && !wired.popover && wired.sel === '#7dd3fc', JSON.stringify({ before, ...wired }));
 
-  // Panning only moves the camera transform.
+  // Panning only moves the camera transform. Pan with the hand tool (H) and
+  // a left drag; middle-drag and Space-drag also pan in the app, but headless
+  // Linux Chrome delivers neither reliably.
+  await key('h', 'KeyH', 72);
+  await sleep(50);
   await js(`window.__diag = document.querySelector('#canvas .layer-diagram').firstElementChild; true`);
   const t0 = await js(`document.querySelector('#canvas > g').getAttribute('transform')`);
-  // Space + left drag is the advertised pan gesture. Middle-drag also pans in
-  // the app, but headless Linux Chrome does not deliver middle-button drags.
-  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: ' ', code: 'Space', windowsVirtualKeyCode: 32 });
   await drag(700, 800, 760, 840);
-  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: ' ', code: 'Space', windowsVirtualKeyCode: 32 });
   await sleep(100);
   const pan = await js(`({ t: document.querySelector('#canvas > g').getAttribute('transform'), same: window.__diag === document.querySelector('#canvas .layer-diagram').firstElementChild })`);
   check('panning moves the camera without rebuilding the diagram', pan.t !== t0 && pan.same, JSON.stringify({ t0, ...pan }));
+  await key('v', 'KeyV', 86);
+  await sleep(50);
 
   // Double-click renames.
   const label = await center('#canvas g.node[data-id="n5"] text[data-edit="label"]');
@@ -254,6 +268,7 @@ try {
   spawnSync('rm', ['-rf', profile]);
 }
 
+clearTimeout(watchdog);
 console.log(results.join('\n'));
 if (problems.length) {
   failed += 1;
