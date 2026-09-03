@@ -194,7 +194,8 @@ test('nodeSize sizes process-flow shapes like net_draw', () => {
   assert.deepEqual(nodeSize({ kind: 'connector', label: 'A' }), { w: 46, h: 46 });
   assert.equal(nodeSize({ kind: 'process', label: 'x'.repeat(80) }).w, 290, 'capped');
   assert.deepEqual(nodeSize({ kind: 'process', label: 'Process', sublabel: 'ignored', addr: 'too' }), { w: 96, h: 54 }, 'shapes carry no meta lines');
-  assert.deepEqual(nodeSize({ kind: 'router', label: 'Core Router', addr: '10.0.0.1' }), { w: 104, h: 86.5 }, 'network devices are ordinary cards');
+  assert.deepEqual(nodeSize({ kind: 'router', label: 'Core Router', fields: { ip: '10.0.0.1' } }), { w: 104, h: 86.5 }, 'network devices are ordinary cards sized by their fields');
+  assert.deepEqual(nodeSize({ kind: 'router', label: 'Core Router', addr: '10.0.0.1' }), { w: 104, h: 74 }, 'the hardware address is not one of their lines');
 });
 
 test('nodeMeta shows a schema part\'s filled fields (never severity) and sizes the card by them', () => {
@@ -205,4 +206,13 @@ test('nodeMeta shows a schema part\'s filled fields (never severity) and sizes t
   assert.deepEqual(nodeMeta({ kind: 'threatactor', label: 'APT', sublabel: 'ignored' }), [], 'the hardware trio does not apply');
   assert.equal(nodeSize({ kind: 'vulnerability', label: 'V', fields: { cve: 'x'.repeat(30) } }).w, 30 * 5.9 + 26);
   assert.deepEqual(nodeMeta({ kind: 'mcu', label: 'M', sublabel: 'STM32', fields: { severity: 'high' } }), [{ field: 'sublabel', text: 'STM32' }]);
+});
+
+test('a network device lists its model, IP, and DNS name and drops the hardware address and rail', () => {
+  assert.deepEqual(
+    nodeMeta({ kind: 'router', label: 'Core', sublabel: 'CRS326', addr: 'ignored', rail: '48V', fields: { ip: '10.0.0.1', dns: 'core.lan' } }),
+    [{ field: 'sublabel', text: 'CRS326' }, { field: 'fields.ip', text: '10.0.0.1' }, { field: 'fields.dns', text: 'core.lan' }],
+  );
+  assert.deepEqual(nodeMeta({ kind: 'firewall', label: 'FW', sublabel: '', fields: { dns: 'fw.lan' } }), [{ field: 'fields.dns', text: 'fw.lan' }]);
+  assert.deepEqual(nodeMeta({ kind: 'malware', label: 'M', sublabel: 'stale', fields: { family: 'Mirai' } }), [{ field: 'fields.family', text: 'Mirai' }], 'threats never show a part number');
 });

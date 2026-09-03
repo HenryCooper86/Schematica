@@ -48,25 +48,28 @@ function schemaFields(part, item) {
   }).join('');
 }
 
-function hardwareFields(item) {
+function partNumberField(item) {
   // Vendor presets appear as suggestions under the part number; picking one
   // also fills a blank rail and notes (see presets.js).
   const presets = presetsFor(item.kind);
-  let html = propField('Part number', `<input type="text" data-prop="sublabel"`
+  return propField('Part number', `<input type="text" data-prop="sublabel"`
     + ` placeholder="${presets.length ? 'pick a preset or type' : 'e.g. STM32F405'}"`
     + ` value="${escAttr(item.sublabel)}"${presets.length ? ' list="preset-list"' : ''}>`
     + (presets.length ? `<datalist id="preset-list">${presets.map((p) => (
       `<option value="${escAttr(p.sublabel)}">${escAttr(p.name)}</option>`
     )).join('')}</datalist>` : ''));
-  html += propField('Interface address', `<input type="text" data-prop="addr" placeholder="e.g. 0x76, CAN ID 0x120" value="${escAttr(item.addr)}">`);
-  html += propField('Voltage rail', `<input type="text" data-prop="rail" placeholder="e.g. 3.3V" value="${escAttr(item.rail)}">`);
-  return html;
+}
+
+function addrRailFields(item) {
+  return propField('Interface address', `<input type="text" data-prop="addr" placeholder="e.g. 0x76, CAN ID 0x120" value="${escAttr(item.addr)}">`)
+    + propField('Voltage rail', `<input type="text" data-prop="rail" placeholder="e.g. 3.3V" value="${escAttr(item.rail)}">`);
 }
 
 function nodeFields(item) {
   const part = getPart(item.kind);
   let html = propField('Label', `<input type="text" data-prop="label" value="${escAttr(item.label)}">`);
-  html += part.fields ? schemaFields(part, item) : hardwareFields(item);
+  if (!part.threat) html += partNumberField(item);
+  html += part.fields ? schemaFields(part, item) : addrRailFields(item);
   html += propField('Notes', `<textarea data-prop="notes" placeholder="Free-form notes...">${escAttr(item.notes)}</textarea>`);
   html += `<label>Lifecycle</label><div class="chips">${NODE_STATUSES.map((st) => (
     `<button class="chip${item.status === st ? ' active' : ''}" data-status="${st}">${STATUS_LABELS[st]}</button>`

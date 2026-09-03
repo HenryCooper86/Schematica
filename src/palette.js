@@ -55,6 +55,8 @@ const INSIDER_TYPES = ['insider-accidental', 'insider-disgruntled', 'insider-mal
 // A schema field: `options` renders a select, otherwise free text with a placeholder.
 const f = (id, label, extra = {}) => ({ id, label, ...extra });
 const SEVERITY = f('severity', 'Severity', { options: SEVERITIES });
+// Network and security devices: a model stays in the part number, these join it.
+const NET_FIELDS = [f('ip', 'IP address', { placeholder: 'e.g. 10.0.20.11' }), f('dns', 'DNS name', { placeholder: 'e.g. web01.corp.local' })];
 
 const p = (id, name, side, offset, bus) => ({ id, name, side, offset, bus });
 const pwr = (side = 'left') => [p('vcc', 'VCC', side, 0.3, 'power'), p('gnd', 'GND', side, 0.7, 'gnd')];
@@ -239,30 +241,30 @@ export const PARTS = {
   // shapes over the untyped "flow" bus, threats over "link".
   // Network
   internet: nd('internet', 'network', 'Internet', '#38bdf8', '<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/>',
-    sides('eth', 'ETH')),
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
   accesspoint: nd('accesspoint', 'network', 'Access point', '#c084fc', '<path d="M4.5 9.8a11 11 0 0 1 15 0M7.5 13a7 7 0 0 1 9 0M10.4 16.1a3 3 0 0 1 3.2 0"/><circle cx="12" cy="19" r="1.3" fill="currentColor" stroke="none"/>',
-    [p('rf', 'WLAN', 'top', 0.5, 'rf'), p('e', 'ETH', 'right', 0.5, 'eth'), p('s', 'ETH', 'bottom', 0.5, 'eth'), p('w', 'ETH', 'left', 0.5, 'eth')]),
+    [p('rf', 'WLAN', 'top', 0.5, 'rf'), p('e', 'ETH', 'right', 0.5, 'eth'), p('s', 'ETH', 'bottom', 0.5, 'eth'), p('w', 'ETH', 'left', 0.5, 'eth')], { fields: NET_FIELDS }),
   router: nd('router', 'network', 'Router', '#a78bfa', '<circle cx="12" cy="12" r="9"/><path d="M7 9.5h7.5M12.5 7 15 9.5l-2.5 2.5M17 14.5H9.5M11.5 12 9 14.5l2.5 2.5"/>',
-    sides('eth', 'ETH')),
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
   switch: nd('switch', 'network', 'Switch', '#60a5fa', '<rect x="3" y="7.5" width="18" height="9" rx="2"/><path d="M7 10.5h4.2M9.6 8.7l1.8 1.8-1.8 1.8M17 13.5h-4.2M14.4 11.7l-1.8 1.8 1.8 1.8"/>',
-    sides('eth', 'ETH')),
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
   asn: nd('asn', 'network', 'ASN', '#818cf8', '<path d="M12 2.8 19.6 7.2v8.8L12 20.4 4.4 16V7.2z"/><text x="12" y="14.6" text-anchor="middle" font-size="7" font-weight="700" fill="currentColor" stroke="none">AS</text>',
-    sides('eth', 'ETH')),
+    sides('eth', 'ETH'), { fields: [f('asn', 'AS number', { placeholder: 'e.g. AS64500' }), f('prefix', 'Prefix', { placeholder: 'e.g. 203.0.113.0/24' })] }),
   ipaddress: nd('ipaddress', 'network', 'IP Address', '#67e8f9', '<rect x="3" y="7" width="18" height="10" rx="2.5"/><text x="12" y="14.8" text-anchor="middle" font-size="7" font-weight="700" fill="currentColor" stroke="none">IP</text>',
-    sides('eth', 'ETH')),
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
   // Security & Edge
   firewall: nd('firewall', 'security', 'Firewall', '#f87171', '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9.7h18M3 14.3h18M9 5v4.7M15 9.7v4.6M9 14.3V19"/>',
-    sides('eth', 'ETH')),
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
   waf: nd('waf', 'security', 'WAF', '#f43f5e', '<path d="M12 2.8 20 6v6c0 4.6-3.4 7.8-8 9.2C7.4 19.8 4 16.6 4 12V6z"/><path d="M4.6 9.5h14.8M5.2 14h13.6M8.5 5.5v4M15.5 5.5v4M12 9.5V14M8.5 14v4.6M15.5 14v4.6"/>',
-    sides('eth', 'ETH')),
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
   proxy: nd('proxy', 'security', 'Proxy Server', '#e879f9', '<rect x="9" y="9" width="6" height="6" rx="1.5"/><path d="M3 6.5h11.5M12 4l2.5 2.5L12 9M21 17.5H9.5M12 15l-2.5 2.5L12 20"/>',
-    sides('eth', 'ETH')),
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
   cdn: nd('cdn', 'security', 'CDN', '#38bdf8', '<circle cx="12" cy="12" r="4"/><circle cx="4.5" cy="6.5" r="2"/><circle cx="19.5" cy="6.5" r="2"/><circle cx="12" cy="20" r="1.9"/><path d="M8.8 9.7 6 7.9M15.2 9.7 18 7.9M12 16v2.1"/>',
-    sides('eth', 'ETH')),
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
   loadbalancer: nd('loadbalancer', 'security', 'Load Balancer', '#2dd4bf', '<rect x="9.5" y="3" width="5" height="5" rx="1.5"/><path d="M12 8v2.5M12 10.5 5.5 14.8M12 10.5v5.8M12 10.5l6.5 4.3"/><circle cx="5.5" cy="17" r="2.2"/><circle cx="12" cy="18.6" r="2.2"/><circle cx="18.5" cy="17" r="2.2"/>',
-    sides('eth', 'ETH')),
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
   apigateway: nd('apigateway', 'security', 'API Gateway', '#22d3ee', '<path d="M5 4v16M19 4v16"/><path d="M8 9.2h8M13.5 6.7 16 9.2l-2.5 2.5M16 15h-8M10.5 12.5 8 15l2.5 2.5"/>',
-    sides('eth', 'ETH')),
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
   // Process Flow (shapes; the label sits inside, no badge or meta lines)
   startend: nd('startend', 'flow', 'Start / End', '#34d399', '<rect x="3" y="8" width="18" height="8" rx="4"/>',
     sides('flow', 'FLOW'), { shape: 'terminator', defaultLabel: 'Start' }),
