@@ -224,17 +224,17 @@ export const PARTS = {
       p('can', 'CAN', 'right', 0.6, 'can'), p('t1', 'T1', 'right', 0.8, 't1'), p('obd', 'OBD', 'bottom', 0.5, 'can')]),
   // System & Cloud
   cloud: part('cloud', 'system', 'Cloud / MQTT', 'M5 12a3 3 0 0 1-.4-6A4.5 4.5 0 0 1 13.3 7 2.5 2.5 0 0 1 12.5 12z',
-    [p('net', 'NET', 'left', 0.5, 'eth'), p('rf', 'RF', 'bottom', 0.5, 'rf')]),
+    [p('net', 'NET', 'left', 0.5, 'eth'), p('rf', 'RF', 'bottom', 0.5, 'rf')], { fields: NET_FIELDS }),
   server: part('server', 'system', 'Server', 'M3 2h10v5H3z M3 9h10v5H3z M5 4.5h.01 M5 11.5h.01 M8 4.5h3 M8 11.5h3',
-    [p('net', 'NET', 'left', 0.5, 'eth'), p('db', 'DB', 'right', 0.5, 'eth')]),
+    [p('net', 'NET', 'left', 0.5, 'eth'), p('db', 'DB', 'right', 0.5, 'eth')], { fields: NET_FIELDS }),
   database: part('database', 'system', 'Database', 'M8 2c3 0 5 .9 5 2s-2 2-5 2-5-.9-5-2 2-2 5-2z M3 4v8c0 1.1 2 2 5 2s5-.9 5-2V4 M3 8c0 1.1 2 2 5 2s5-.9 5-2',
-    [p('net', 'NET', 'left', 0.5, 'eth')]),
+    [p('net', 'NET', 'left', 0.5, 'eth')], { fields: NET_FIELDS }),
   gateway: part('gateway', 'system', 'Edge gateway', 'M2 9h12v4H2z M4.5 11h.01 M7 11h.01 M8 9V3 M5 6l3-3 3 3',
     [p('lan', 'LAN', 'left', 0.5, 'eth'), p('wan', 'WAN', 'right', 0.5, 'eth'), p('rf', 'RF', 'top', 0.5, 'rf')]),
   mobile: part('mobile', 'system', 'Mobile app', 'M5 1.5h6a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1z M7 12.5h2',
     [p('ble', 'BLE', 'left', 0.5, 'rf'), p('net', 'NET', 'bottom', 0.5, 'eth')]),
   hostpc: part('hostpc', 'system', 'Host PC', 'M3 3h10v7H3z M1.5 12.5h13L13 10H3z',
-    [p('usb', 'USB', 'left', 0.5, 'usb'), p('eth', 'ETH', 'bottom', 0.5, 'eth')]),
+    [p('usb', 'USB', 'left', 0.5, 'usb'), p('eth', 'ETH', 'bottom', 0.5, 'eth')], { fields: NET_FIELDS }),
   // ---- net_draw's Network, Security & Edge, Process Flow, and Threats ----
   // Ported one-to-one: 24-box glyphs, per-type accents, real flowchart shapes,
   // and the dashed red border on threats. Devices link over Ethernet, flow

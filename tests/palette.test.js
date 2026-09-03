@@ -133,9 +133,10 @@ test('every threat part has a field schema with a severity; the new threats use 
   assert.equal(PARTS.mcu.fields, undefined, 'hardware parts keep the part-number trio');
 });
 
-test('network and security parts carry IP address and DNS name fields; the ASN carries its number and prefix', () => {
+test('network, security, and host parts carry IP address and DNS name fields; the ASN carries its number and prefix', () => {
   const byCat = (c) => Object.values(PARTS).filter((p) => p.category === c);
-  for (const p of [...byCat('network'), ...byCat('security')]) {
+  const hosts = ['cloud', 'server', 'database', 'hostpc'].map((k) => PARTS[k]);
+  for (const p of [...byCat('network'), ...byCat('security'), ...hosts]) {
     const ids = p.fields.map((fd) => fd.id);
     if (p.kind === 'asn') assert.deepEqual(ids, ['asn', 'prefix']);
     else assert.deepEqual(ids, ['ip', 'dns'], p.kind);
