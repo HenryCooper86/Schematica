@@ -83,7 +83,7 @@ test('the vehicle OTA security board mixes cloud delivery, threats, a verificati
   assert.ok(ota, 'board exists');
   assert.equal(EXAMPLES.some((e) => e.id === 'corporate-network'), false, 'the ported net_draw sample is gone');
   const kinds = new Set(ota.doc.nodes.map((n) => n.kind));
-  for (const k of ['apigateway', 'waf', 'cdn', 'internet', 'insider', 'threatactor', 'malware', 'startend', 'process', 'decision', 'dataio', 'gateway', 'vgateway', 'mcu', 'eeprom']) assert.ok(kinds.has(k), k);
+  for (const k of ['apigateway', 'waf', 'cdn', 'internet', 'insider', 'mitm', 'malware', 'startend', 'process', 'decision', 'dataio', 'gateway', 'vgateway', 'mcu', 'eeprom']) assert.ok(kinds.has(k), k);
   const buses = new Set(ota.doc.wires.map((w) => w.bus));
   for (const b of ['eth', 'flow', 'link', 't1', 'canfd', 'spi']) assert.ok(buses.has(b), b);
   assert.ok(ota.doc.zones.some((z) => z.label === 'Update verification'));
@@ -93,9 +93,26 @@ test('the ADAS security board covers perception spoofing, CAN injection, an impl
   const b = EXAMPLES.find((e) => e.id === 'adas-security');
   assert.ok(b, 'board exists');
   const kinds = new Set(b.doc.nodes.map((n) => n.kind));
-  for (const k of ['adas', 'frontcam', 'radar', 'gps', 'vgateway', 't1switch', 'obd', 'autosoc', 'mcu', 'firewall', 'threatactor', 'malware', 'c2', 'decision', 'dataio']) assert.ok(kinds.has(k), k);
+  for (const k of ['adas', 'frontcam', 'radar', 'gps', 'vgateway', 't1switch', 'obd', 'autosoc', 'mcu', 'firewall', 'spoofing', 'physical', 'vulnerability', 'malware', 'c2', 'decision', 'dataio']) assert.ok(kinds.has(k), k);
   const buses = new Set(b.doc.wires.map((w) => w.bus));
   for (const bus of ['gmsl', 'canfd', 't1', 'can', 'link', 'flow']) assert.ok(buses.has(bus), bus);
   assert.ok(b.doc.zones.some((z) => z.label === 'Intrusion response'));
   assert.ok(b.doc.journey.length >= 4);
+});
+
+test('the security boards rate every threat and mark adversaries and victims', () => {
+  for (const id of ['ota-security', 'adas-security']) {
+    const b = EXAMPLES.find((e) => e.id === id);
+    const threats = b.doc.nodes.filter((n) => getPart(n.kind).threat);
+    assert.ok(threats.length >= 3, `${id} threats`);
+    for (const n of threats) {
+      assert.ok(n.fields?.severity, `${id}/${n.id} severity`);
+      assert.equal(n.sublabel, '', `${id}/${n.id} uses fields, not a part number`);
+    }
+    assert.ok(threats.some((n) => n.disposition === 'adversary'), `${id} adversary`);
+    assert.ok(b.doc.nodes.some((n) => n.disposition === 'victim'), `${id} victim`);
+    const { doc, warnings } = deserialize(serialize(b.doc));
+    assert.deepEqual(warnings, [], `${id} fields all known`);
+    assert.deepEqual(doc, b.doc);
+  }
 });

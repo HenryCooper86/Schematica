@@ -357,3 +357,19 @@ test('flow and link wires show a pill only when labeled; typed buses always name
   assert.ok(wireGroup(m, 'f2').includes('>yes</text>'), 'a typed label still shows');
   assert.ok(wireGroup(diagramMarkup(sampleDoc()), 'w1').includes('>I2C</text>'), 'hardware buses keep their code');
 });
+
+test('disposition and severity render as tags in a row after the lifecycle status', () => {
+  const doc = sampleDoc();
+  doc.nodes = [node('t', 'threatactor', 0, 0, { label: 'APT-29', status: 'tested', disposition: 'adversary', fields: { type: 'nation-state', severity: 'critical' } })];
+  doc.wires = [];
+  const g = nodeGroup(diagramMarkup(doc), 't');
+  assert.ok(g.includes('>TESTED</text>'));
+  assert.ok(g.includes('stroke="#ef4444" stroke-opacity="0.8" stroke-width="1.2"') && g.includes('>ADVERSARY</text>'), 'disposition tag in its color');
+  assert.ok(g.includes('>CRITICAL</text>'), 'severity tag');
+  assert.ok(g.includes('data-edit="fields.type">nation-state</text>'), 'field value as an editable meta line');
+  const tags = [...g.matchAll(/<rect x="([\d.]+)" y="-8" width="([\d.]+)" height="16" rx="8"/g)].map((m) => [Number(m[1]), Number(m[2])]);
+  assert.equal(tags.length, 3);
+  assert.ok(tags[1][0] >= tags[0][0] + tags[0][1] + 4 && tags[2][0] >= tags[1][0] + tags[1][1] + 4, `tags sit in a row: ${JSON.stringify(tags)}`);
+  const plain = nodeGroup(diagramMarkup(sampleDoc()), 'b');
+  assert.equal((plain.match(/y="-8" width=/g) || []).length, 1, 'a card without disposition or severity shows only its status');
+});

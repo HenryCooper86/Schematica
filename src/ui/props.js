@@ -2,6 +2,7 @@
 import { updateItem, findItem, deleteItems, NODE_STATUSES, NODE_FLAGS } from '../state.js';
 import { BUSES, BUS_ORDER } from '../buses.js';
 import { presetsFor, presetPatch } from '../presets.js';
+import { getPart, DISPOSITIONS } from '../palette.js';
 import { onPress, escAttr, toast } from './press.js';
 import { panelHeader, bindCollapsible } from './collapsible.js';
 
@@ -32,12 +33,26 @@ function colorSwatchRow(current) {
   )).join('')}</div>`;
 }
 
-function nodeFields(item) {
-  let html = propField('Label', `<input type="text" data-prop="label" value="${escAttr(item.label)}">`);
+// Schema fields (threat parts): a select for vocabularies, free text otherwise.
+// A stored value outside the vocabulary stays selectable so old boards read back.
+function schemaFields(part, item) {
+  return part.fields.map((fd) => {
+    const v = item.fields?.[fd.id] ?? '';
+    if (fd.options) {
+      const opts = fd.options.includes(v) || !v ? fd.options : [v, ...fd.options];
+      return propField(fd.label, `<select data-field="${fd.id}"><option value="">&mdash;</option>${opts.map((o) => (
+        `<option value="${escAttr(o)}"${o === v ? ' selected' : ''}>${escAttr(o)}</option>`
+      )).join('')}</select>`);
+    }
+    return propField(fd.label, `<input type="text" data-field="${fd.id}" placeholder="${escAttr(fd.placeholder || '')}" value="${escAttr(v)}">`);
+  }).join('');
+}
+
+function hardwareFields(item) {
   // Vendor presets appear as suggestions under the part number; picking one
   // also fills a blank rail and notes (see presets.js).
   const presets = presetsFor(item.kind);
-  html += propField('Part number', `<input type="text" data-prop="sublabel"`
+  let html = propField('Part number', `<input type="text" data-prop="sublabel"`
     + ` placeholder="${presets.length ? 'pick a preset or type' : 'e.g. STM32F405'}"`
     + ` value="${escAttr(item.sublabel)}"${presets.length ? ' list="preset-list"' : ''}>`
     + (presets.length ? `<datalist id="preset-list">${presets.map((p) => (
@@ -45,6 +60,13 @@ function nodeFields(item) {
     )).join('')}</datalist>` : ''));
   html += propField('Interface address', `<input type="text" data-prop="addr" placeholder="e.g. 0x76, CAN ID 0x120" value="${escAttr(item.addr)}">`);
   html += propField('Voltage rail', `<input type="text" data-prop="rail" placeholder="e.g. 3.3V" value="${escAttr(item.rail)}">`);
+  return html;
+}
+
+function nodeFields(item) {
+  const part = getPart(item.kind);
+  let html = propField('Label', `<input type="text" data-prop="label" value="${escAttr(item.label)}">`);
+  html += part.fields ? schemaFields(part, item) : hardwareFields(item);
   html += propField('Notes', `<textarea data-prop="notes" placeholder="Free-form notes...">${escAttr(item.notes)}</textarea>`);
   html += `<label>Lifecycle</label><div class="chips">${NODE_STATUSES.map((st) => (
     `<button class="chip${item.status === st ? ' active' : ''}" data-status="${st}">${STATUS_LABELS[st]}</button>`
@@ -52,6 +74,11 @@ function nodeFields(item) {
   html += `<label>Flags</label><div class="chips">${NODE_FLAGS.map((f) => (
     `<button class="chip${(item.flags || []).includes(f) ? ' active' : ''}" data-flag="${f}">${FLAG_LABELS[f]}</button>`
   )).join('')}</div>`;
+  // Disposition: how this object relates to you (net_draw's vocabulary).
+  html += `<label>Disposition</label><div class="chips">${Object.entries(DISPOSITIONS).map(([k, d]) => {
+    const on = item.disposition === k;
+    return `<button class="chip${on ? ' active' : ''}" data-disp="${k}"${on ? ` style="border-color:${d.color};color:${d.color};background:${d.color}1c"` : ''}>${d.name}</button>`;
+  }).join('')}</div>`;
   html += `<label>Accent color</label><div class="swatches">${ACCENT_SWATCHES.map((c) => (
     `<button class="swatch${item.color === c ? ' active' : ''}" data-swatch="${c}" style="background:${c}" title="${c}"></button>`
   )).join('')}<button class="swatch swatch-auto${item.color === null ? ' active' : ''}" data-swatch="" title="Category color">Auto</button></div>`;
@@ -111,9 +138,23 @@ export function createPropsPanel({ store }) {
         updateItem(store, item.id, patch);
       });
     });
+    props.querySelectorAll('[data-field]').forEach((input) => {
+      input.addEventListener('change', () => {
+        const cur = findItem(store.doc, item.id)?.item;
+        if (!cur) return;
+        const fields = { ...(cur.fields || {}) };
+        if (input.value.trim()) fields[input.dataset.field] = input.value.trim();
+        else delete fields[input.dataset.field];
+        updateItem(store, item.id, { fields });
+      });
+    });
     const toggleIn = (selector, apply) => {
       props.querySelectorAll(selector).forEach((btn) => onPress(btn, () => apply(btn)));
     };
+    toggleIn('[data-disp]', (btn) => {
+      const cur = findItem(store.doc, item.id)?.item;
+      updateItem(store, item.id, { disposition: cur?.disposition === btn.dataset.disp ? null : btn.dataset.disp });
+    });
     toggleIn('[data-status]', (btn) => {
       const st = btn.dataset.status;
       const cur = findItem(store.doc, item.id)?.item;

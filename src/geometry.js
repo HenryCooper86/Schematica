@@ -16,6 +16,16 @@ const NODE_MAX_W = 240;
 const META_LINE_H = 12.5;
 
 export function nodeMeta(node) {
+  const part = getPart(node.kind);
+  // Parts with a field schema (threats) show their filled fields instead of
+  // the hardware trio; severity has its own tag, so it stays off the lines.
+  if (part.fields) {
+    return part.fields
+      .filter((fd) => fd.id !== 'severity')
+      .map((fd) => ({ field: `fields.${fd.id}`, text: String(node.fields?.[fd.id] ?? '').trim() }))
+      .filter((m) => m.text)
+      .slice(0, 3);
+  }
   return [['sublabel', node.sublabel], ['addr', node.addr], ['rail', node.rail]]
     .map(([field, v]) => ({ field, text: String(v ?? '').trim() }))
     .filter((m) => m.text)

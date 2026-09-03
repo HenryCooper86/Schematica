@@ -196,3 +196,13 @@ test('nodeSize sizes process-flow shapes like net_draw', () => {
   assert.deepEqual(nodeSize({ kind: 'process', label: 'Process', sublabel: 'ignored', addr: 'too' }), { w: 96, h: 54 }, 'shapes carry no meta lines');
   assert.deepEqual(nodeSize({ kind: 'router', label: 'Core Router', addr: '10.0.0.1' }), { w: 104, h: 86.5 }, 'network devices are ordinary cards');
 });
+
+test('nodeMeta shows a schema part\'s filled fields (never severity) and sizes the card by them', () => {
+  assert.deepEqual(
+    nodeMeta({ kind: 'threatactor', label: 'APT', fields: { type: 'nation-state', severity: 'high', motivation: 'ideology' } }),
+    [{ field: 'fields.type', text: 'nation-state' }, { field: 'fields.motivation', text: 'ideology' }],
+  );
+  assert.deepEqual(nodeMeta({ kind: 'threatactor', label: 'APT', sublabel: 'ignored' }), [], 'the hardware trio does not apply');
+  assert.equal(nodeSize({ kind: 'vulnerability', label: 'V', fields: { cve: 'x'.repeat(30) } }).w, 30 * 5.9 + 26);
+  assert.deepEqual(nodeMeta({ kind: 'mcu', label: 'M', sublabel: 'STM32', fields: { severity: 'high' } }), [{ field: 'sublabel', text: 'STM32' }]);
+});

@@ -298,6 +298,42 @@ try {
   const applied = await js(`(() => ({ sub: document.querySelector('#props input[data-prop="sublabel"]')?.value, meta: document.querySelector('#canvas g.node[data-id="n3"] text[data-edit="sublabel"]')?.textContent }))()`);
   check('typing a preset in any case sets the canonical part number on the card', applied.sub === 'RDK X3' && applied.meta === 'RDK X3', JSON.stringify(applied));
 
+  // Threat metadata lives on the ADAS security board: schema fields, a
+  // severity tag, and a disposition tag on the card.
+  const adas = EXAMPLES.find((e) => e.id === 'adas-security').doc;
+  const adasUrl = `${origin}/#${await encodeShare(adas)}`;
+  await js('localStorage.clear(); true');
+  await send('Page.navigate', { url: 'about:blank' });
+  await sleep(200);
+  await send('Page.navigate', { url: adasUrl });
+  for (let i = 0; i < 40; i++) {
+    const n = await js(`document.querySelectorAll('#canvas g.node').length`).catch(() => 0);
+    if (n === adas.nodes.length) break;
+    await sleep(150);
+  }
+  await sleep(300);
+  const spoofer = await center('#canvas g.node[data-id="t1"] .card');
+  await click(spoofer.x, spoofer.y);
+  await sleep(200);
+  const threatProps = await js(`(() => {
+    const sev = document.querySelector('#props select[data-field="severity"]');
+    const target = document.querySelector('#props select[data-field="target"]');
+    const card = document.querySelector('#canvas g.node[data-id="t1"]');
+    const texts = [...card.querySelectorAll('text')].map((t) => t.textContent);
+    return { sev: sev?.value, target: target?.value, partNumber: !!document.querySelector('#props input[data-prop="sublabel"]'), texts };
+  })()`);
+  check('a threat card edits STIX-style fields instead of a part number and wears severity and disposition tags',
+    threatProps.sev === 'high' && threatProps.target === 'GNSS' && !threatProps.partNumber
+      && threatProps.texts.includes('HIGH') && threatProps.texts.includes('ADVERSARY') && threatProps.texts.includes('GNSS'),
+    JSON.stringify(threatProps));
+  await js(`(() => { const s = document.querySelector('#props select[data-field="severity"]'); s.value = 'critical'; s.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+  await sleep(150);
+  const victim = await center('#props [data-disp="victim"]');
+  await click(victim.x, victim.y);
+  await sleep(200);
+  const retagged = await js(`(() => [...document.querySelectorAll('#canvas g.node[data-id="t1"] text')].map((t) => t.textContent))()`);
+  check('changing severity and disposition retags the card', retagged.includes('CRITICAL') && retagged.includes('VICTIM') && !retagged.includes('HIGH') && !retagged.includes('ADVERSARY'), JSON.stringify(retagged));
+
   // Collapsible panel: the RDK card is selected, so the properties panel is up.
   const panelBefore = await js(`(() => { const p = document.getElementById('props'); const visible = (el) => getComputedStyle(el).display !== 'none'; return { hidden: p.hidden, collapsed: p.classList.contains('collapsed'), fields: [...p.querySelectorAll('label')].filter(visible).length, toggle: !!p.querySelector('.panel-toggle') }; })()`);
   const tog = await center('#props .panel-toggle');

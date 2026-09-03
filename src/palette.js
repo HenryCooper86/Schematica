@@ -30,9 +30,35 @@ export const CATEGORY_COLORS = {
   misc: '#34d399',
 };
 
+// ---- Threat metadata (STIX 2.1 open vocabularies where they exist) ----
+export const SEVERITIES = ['info', 'low', 'medium', 'high', 'critical'];
+export const SEVERITY_COLORS = { info: '#94a3b8', low: '#34d399', medium: '#fbbf24', high: '#fb923c', critical: '#ef4444' };
+// How an object relates to you; any node may carry one, shown as a tag.
+export const DISPOSITIONS = {
+  friendly: { name: 'Friendly', color: '#34d399' },
+  partner: { name: 'Partner', color: '#2dd4bf' },
+  neutral: { name: 'Neutral', color: '#94a3b8' },
+  unknown: { name: 'Unknown', color: '#64748b' },
+  suspicious: { name: 'Suspicious', color: '#fb923c' },
+  adversary: { name: 'Adversary', color: '#ef4444' },
+  victim: { name: 'Victim', color: '#fbbf24' },
+};
+const STIX_ACTOR_TYPES = ['activist', 'competitor', 'crime-syndicate', 'criminal', 'hacker', 'insider-accidental',
+  'insider-disgruntled', 'nation-state', 'sensationalist', 'spy', 'terrorist', 'unknown'];
+const STIX_SOPHISTICATION = ['none', 'minimal', 'intermediate', 'advanced', 'expert', 'innovator', 'strategic'];
+const STIX_MOTIVATION = ['accidental', 'coercion', 'dominance', 'ideology', 'notoriety', 'organizational-gain',
+  'personal-gain', 'personal-satisfaction', 'revenge', 'unpredictable'];
+const STIX_MALWARE_TYPES = ['adware', 'backdoor', 'bot', 'bootkit', 'ddos', 'downloader', 'dropper', 'exploit-kit',
+  'keylogger', 'ransomware', 'remote-access-trojan', 'rootkit', 'screen-capture', 'spyware', 'trojan', 'virus',
+  'webshell', 'wiper', 'worm', 'unknown'];
+const INSIDER_TYPES = ['insider-accidental', 'insider-disgruntled', 'insider-malicious', 'insider-compromised'];
+// A schema field: `options` renders a select, otherwise free text with a placeholder.
+const f = (id, label, extra = {}) => ({ id, label, ...extra });
+const SEVERITY = f('severity', 'Severity', { options: SEVERITIES });
+
 const p = (id, name, side, offset, bus) => ({ id, name, side, offset, bus });
 const pwr = (side = 'left') => [p('vcc', 'VCC', side, 0.3, 'power'), p('gnd', 'GND', side, 0.7, 'gnd')];
-const part = (kind, category, name, icon, ports) => ({ kind, category, name, icon, ports });
+const part = (kind, category, name, icon, ports, extra = {}) => ({ kind, category, name, icon, ports, ...extra });
 // Four side ports of one bus, for devices that connect on any side.
 const sides = (bus, name) => [
   p('n', name, 'top', 0.5, bus), p('e', name, 'right', 0.5, bus), p('s', name, 'bottom', 0.5, bus), p('w', name, 'left', 0.5, bus),
@@ -260,19 +286,40 @@ export const PARTS = {
     sides('flow', 'FLOW'), { shape: 'connector', defaultLabel: 'A' }),
   // Threats
   threatactor: nd('threatactor', 'threats', 'Threat Actor', '#ef4444', '<path d="M12 3C7.5 3 5 6.6 5 11v6.8c2-1.2 3-1.2 4.5-.3 1.6 1 3.4 1 5 0 1.5-.9 2.5-.9 4.5.3V11c0-4.4-2.5-8-7-8z"/><circle cx="9.4" cy="11.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="14.6" cy="11.5" r="1.1" fill="currentColor" stroke="none"/>',
-    sides('link', 'LINK'), { threat: true }),
+    sides('link', 'LINK'), { threat: true, fields: [f('type', 'Type (STIX)', { options: STIX_ACTOR_TYPES }), f('sophistication', 'Sophistication (STIX)', { options: STIX_SOPHISTICATION }), f('motivation', 'Motivation (STIX)', { options: STIX_MOTIVATION }), f('org', 'Attribution', { placeholder: 'e.g. group / country' }), SEVERITY] }),
   insider: nd('insider', 'threats', 'Insider Threat', '#f97316', '<circle cx="9.5" cy="7.5" r="3.2"/><path d="M3.5 20a6.3 6.3 0 0 1 11.4-2.4"/><path d="M17.5 12.8 21.3 19.5h-7.6z"/><path d="M17.5 15.2v1.7M17.5 18.1h.01"/>',
-    sides('link', 'LINK'), { threat: true }),
+    sides('link', 'LINK'), { threat: true, fields: [f('type', 'Type (STIX)', { options: INSIDER_TYPES }), f('motivation', 'Motivation (STIX)', { options: STIX_MOTIVATION }), f('owner', 'Account used', { placeholder: 'e.g. svc-build' }), SEVERITY] }),
   malware: nd('malware', 'threats', 'Malware', '#fb7185', '<path d="M12 7.5a4 4 0 0 1 4 4v3a4 4 0 0 1-8 0v-3a4 4 0 0 1 4-4z"/><path d="M12 7.5V5M9 5.5 10.3 7M15 5.5 13.7 7M8 12.5H5.5M18.5 12.5H16M8.6 16 6.5 18M15.4 16l2.1 2M12 10.5v8"/>',
-    sides('link', 'LINK'), { threat: true }),
+    sides('link', 'LINK'), { threat: true, fields: [f('family', 'Family / variant', { placeholder: 'e.g. LockBit 3.0' }), f('type', 'Type (STIX)', { options: STIX_MALWARE_TYPES }), SEVERITY] }),
   ransomware: nd('ransomware', 'threats', 'Ransomware', '#f43f5e', '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><text x="12" y="17.6" text-anchor="middle" font-size="7.5" font-weight="700" fill="currentColor" stroke="none">$</text>',
-    sides('link', 'LINK'), { threat: true }),
+    sides('link', 'LINK'), { threat: true, fields: [f('family', 'Family / variant', { placeholder: 'e.g. LockBit 3.0' }), SEVERITY] }),
   botnet: nd('botnet', 'threats', 'Botnet', '#a855f7', '<rect x="7.5" y="8.5" width="9" height="7" rx="2"/><path d="M10.5 12h.01M13.5 12h.01M12 8.5V6M5.5 19 8.5 15.5M18.5 19 15.5 15.5"/><circle cx="12" cy="4.6" r="1.4"/><circle cx="4.5" cy="20.2" r="1.4"/><circle cx="19.5" cy="20.2" r="1.4"/>',
-    sides('link', 'LINK'), { threat: true }),
+    sides('link', 'LINK'), { threat: true, fields: [f('family', 'Family / variant', { placeholder: 'e.g. Mirai' }), f('size', 'Size', { placeholder: 'e.g. 40k bots' }), SEVERITY] }),
   phishing: nd('phishing', 'threats', 'Phishing', '#eab308', '<path d="M12 4.5v8.5a4.5 4.5 0 0 0 8.8 1.4"/><path d="M21.5 11.6 20.8 14.6 18 13.4"/><circle cx="12" cy="3.6" r="1.5"/><path d="M6.5 8.5 3 12l3.5 3.5M9.5 8.5 6 12l3.5 3.5" stroke-width="1.4"/>',
-    sides('link', 'LINK'), { threat: true }),
+    sides('link', 'LINK'), { threat: true, fields: [f('campaign', 'Campaign', { placeholder: 'e.g. Q3 invoice lure' }), f('email', 'Sender / lure address', { placeholder: 'e.g. billing@example.net' }), SEVERITY] }),
   c2: nd('c2', 'threats', 'C2 Server', '#f87171', '<rect x="3.5" y="12" width="13" height="6" rx="1.5"/><path d="M6.5 15h.01M10 15h4"/><path d="M17.8 6.8a5.5 5.5 0 0 1 1.7 4M20.5 4.5a9 9 0 0 1 2.6 6.3" stroke-width="1.6"/><path d="M15.5 9a2.5 2.5 0 0 1 .8 1.8"/>',
-    sides('link', 'LINK'), { threat: true }),
+    sides('link', 'LINK'), { threat: true, fields: [f('ip', 'IP address', { placeholder: 'e.g. 198.51.100.7' }), f('dns', 'DNS name', { placeholder: 'e.g. cdn-update.example.net' }), SEVERITY] }),
+  // More threats and weaknesses, drawn in Schematica's own 16-box icon style.
+  vulnerability: part('vulnerability', 'threats', 'Vulnerability', 'M8 1.5 13.5 3.5v4c0 3.5-2.5 6-5.5 7-3-1-5.5-3.5-5.5-7v-4z M8 5v3.5 M8 10.5h.01',
+    sides('link', 'LINK'), { threat: true, accent: '#f97316', fields: [f('cve', 'CVE / reference', { placeholder: 'e.g. CVE-2025-1234' }), f('cvss', 'CVSS score', { placeholder: 'e.g. 8.1' }), f('affected', 'Affected component', { placeholder: 'e.g. bootloader' }), SEVERITY] }),
+  misconfig: part('misconfig', 'threats', 'Misconfiguration', 'M3 4h10 M3 8h10 M3 12h10 M6 2.5v3 M10 6.5v3 M5 10.5v3',
+    sides('link', 'LINK'), { threat: true, accent: '#fbbf24', fields: [f('control', 'Control / CWE', { placeholder: 'e.g. CWE-284, open debug port' }), f('affected', 'Affected component'), SEVERITY] }),
+  exploit: part('exploit', 'threats', 'Exploit', 'M9 1.5 4 9h4l-1 5.5L12 7H8z',
+    sides('link', 'LINK'), { threat: true, accent: '#f43f5e', fields: [f('cve', 'CVE / reference', { placeholder: 'e.g. CVE-2025-1234' }), f('technique', 'ATT&CK technique', { placeholder: 'e.g. T1190' }), SEVERITY] }),
+  supplychain: part('supplychain', 'threats', 'Supply-chain compromise', 'M2 9h5v5H2z M9 2h5v5H9z M7 11.5h2 M11.5 7v2 M4.5 9V6.5h4.5',
+    sides('link', 'LINK'), { threat: true, accent: '#e879f9', fields: [f('vector', 'Vector', { options: ['dependency', 'build system', 'firmware image', 'vendor access', 'hardware implant'] }), f('affected', 'Affected component'), SEVERITY] }),
+  ddos: part('ddos', 'threats', 'DDoS flood', 'M8 8m-1.5 0a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0 M8 1.5v3 M8 11.5v3 M1.5 8h3 M11.5 8h3 M3.5 3.5l2 2 M12.5 3.5l-2 2 M3.5 12.5l2-2 M12.5 12.5l-2-2',
+    sides('link', 'LINK'), { threat: true, accent: '#f97316', fields: [f('volume', 'Volume', { placeholder: 'e.g. 40 Gbps' }), f('vector', 'Vector', { options: ['volumetric', 'protocol', 'application', 'amplification'] }), SEVERITY] }),
+  mitm: part('mitm', 'threats', 'On-path attacker', 'M1.5 8h4 M10.5 8h4 M8 8m-2.5 0a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0 M8 5.5V3 M6.5 3h3',
+    sides('link', 'LINK'), { threat: true, accent: '#ef4444', fields: [f('position', 'Position', { options: ['LAN', 'Wi-Fi', 'cellular', 'CAN bus', 'GNSS', 'OTA path'] }), SEVERITY] }),
+  spoofing: part('spoofing', 'threats', 'Sensor spoofing', 'M2 10a6 6 0 0 1 12 0 M4.5 10a3.5 3.5 0 0 1 7 0 M8 10h.01 M3 13 13 3',
+    sides('link', 'LINK'), { threat: true, accent: '#fb923c', fields: [f('target', 'Spoofed input', { options: ['GNSS', 'camera', 'radar', 'lidar', 'CAN', 'RF key', 'ultrasonic'] }), SEVERITY] }),
+  credential: part('credential', 'threats', 'Stolen credentials', 'M9.5 6.5m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0 M7.5 8.5 2 14 M4 12l1.5 1.5 M5.5 10.5 7 12',
+    sides('link', 'LINK'), { threat: true, accent: '#eab308', fields: [f('type', 'Credential', { options: ['password', 'API key', 'signing key', 'certificate', 'session token', 'SIM / eSIM'] }), SEVERITY] }),
+  dataleak: part('dataleak', 'threats', 'Data exfiltration', 'M3 9v4h10V9 M8 10V2.5 M5.5 5 8 2.5 10.5 5',
+    sides('link', 'LINK'), { threat: true, accent: '#e879f9', fields: [f('channel', 'Channel', { options: ['HTTPS', 'DNS', 'cellular', 'USB', 'removable media', 'Bluetooth'] }), f('data', 'Data at risk', { placeholder: 'e.g. telemetry, keys' }), SEVERITY] }),
+  physical: part('physical', 'threats', 'Physical tampering', 'M10.5 2.5 13.5 5.5 6 13 3 14 4 11z M9 4l3 3',
+    sides('link', 'LINK'), { threat: true, accent: '#f87171', fields: [f('access', 'Access point', { options: ['debug port', 'OBD-II', 'ECU housing', 'harness', 'key fob', 'charging port'] }), SEVERITY] }),
   // Storage / Misc
   eeprom: part('eeprom', 'misc', 'EEPROM / Flash', 'M4 3h8v10H4z M4 6h8 M4 9h8 M2 5h2 M2 8h2 M2 11h2 M12 5h2 M12 8h2 M12 11h2',
     [...pwr(), p('spi', 'SPI', 'right', 0.35, 'spi'), p('i2c', 'I2C', 'right', 0.7, 'i2c')]),

@@ -8,7 +8,7 @@ typed ports and buses, design-rule checks, a bill of materials, vendor
 presets, and example boards from a weather station to an ADAS security
 review.
 
-The UI is a dark, high-contrast canvas: shaded cards with tinted icon badges, slate wires that leave each card toward the other, and a label pill on every wire naming its bus. Cards size themselves to their content: the part number, interface address, and voltage rail appear as mono lines under the name. Beyond hardware, the palette carries Network, Security & Edge, Process Flow (real flowchart shapes), and Threats parts, so a board can put a firewall, a decision diamond, and a threat actor next to an MCU.
+The UI is a dark, high-contrast canvas: shaded cards with tinted icon badges, slate wires that leave each card toward the other, and a label pill on every wire naming its bus. Cards size themselves to their content: the part number, interface address, and voltage rail appear as mono lines under the name. Beyond hardware, the palette carries Network, Security & Edge, Process Flow (real flowchart shapes), and Threats parts, from threat actors, malware, and C2 servers to vulnerabilities, misconfigurations, exploits, supply-chain compromise, DDoS, on-path attackers, sensor spoofing, stolen credentials, data exfiltration, and physical tampering, so a board can put a firewall, a decision diamond, and a threat actor next to an MCU.
 
 No build step, no dependencies, no server: static HTML + ES modules + SVG.
 
@@ -49,6 +49,7 @@ then Settings → Pages → deploy from branch `main`, root folder.
 | Journey | Journey button — save camera steps with captions; Present plays the tour (arrow keys, Esc) |
 | Examples | Examples menu — thirteen built-in boards from sensor nodes to edge-to-cloud, including a D-Robotics RDK X5 rover, a Horizon Journey 6 ADAS stack, a sensor node that passes every design rule, and vehicle OTA and ADAS security boards that mix threat actors, controls, and response flowcharts with the hardware, journeys included |
 | Presets | Part number field — on AI SBCs, automotive SoCs, ADAS controllers, cameras, depth cameras, LiDARs, and serial servos, pick a vendor part (D-Robotics RDK boards and camera modules, Horizon Journey chips and Mono / SuperDrive tiers, and more) to fill the rail and a spec note |
+| Threat details | Threat parts carry their own fields instead of the part-number trio: STIX vocabularies (actor type, sophistication, motivation, malware type), references (CVE, CVSS, ATT&CK technique), and a severity from info to critical that shows as a colored tag. Every part can also carry a disposition (friendly, partner, neutral, unknown, suspicious, adversary, victim), shown as a tag beside the lifecycle status |
 | Animate | Animate toggle — traffic dashes flow along wires and Bug/Thermal alerts pulse; off by default, and a wire's own "Always" flow setting keeps just that wire moving; captured in recordings |
 | Pan | `H` or hold Space — dedicated hand tool |
 | Fullscreen | ⛶ button in the zoom group |

@@ -566,7 +566,7 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
     const found = findItem(store.doc, id);
     if (!found) return;
     editing = { id, field };
-    editor.value = found.item[field] ?? '';
+    editor.value = readField(found.item, field) ?? '';
     editor.style.left = `${Math.min(cx - 100, window.innerWidth - 210)}px`;
     editor.style.top = `${cy - 14}px`;
     editor.hidden = false;
@@ -580,9 +580,23 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
     }, 0);
   }
 
+  // Meta lines of schema parts edit into node.fields ("fields.<id>").
+  function readField(item, field) {
+    return field.startsWith('fields.') ? item.fields?.[field.slice(7)] : item[field];
+  }
+
+  function fieldPatch(item, field, value) {
+    if (!field.startsWith('fields.')) return { [field]: value };
+    const fields = { ...(item.fields || {}) };
+    if (value.trim()) fields[field.slice(7)] = value.trim();
+    else delete fields[field.slice(7)];
+    return { fields };
+  }
+
   function commitInlineEditor() {
     if (!editing) return;
-    updateItem(store, editing.id, { [editing.field]: editor.value });
+    const cur = findItem(store.doc, editing.id)?.item;
+    if (cur) updateItem(store, editing.id, fieldPatch(cur, editing.field, editor.value));
     editing = null;
     editor.hidden = true;
   }

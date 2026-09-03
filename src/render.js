@@ -1,5 +1,5 @@
 import { BUSES } from './buses.js';
-import { getPart, CATEGORY_COLORS } from './palette.js';
+import { getPart, CATEGORY_COLORS, DISPOSITIONS, SEVERITY_COLORS } from './palette.js';
 import {
   portPosition, wireGeom, wireGeomToPoint, wireLanes, curvePoint, wrapText, noteHeight,
   nodeRect, nodeSize, nodeMeta, NOTE_W, LANE_TITLE_H, WIRE_FAN,
@@ -207,19 +207,30 @@ const FLAG_META = {
   },
 };
 
-// Lifecycle status is net_draw's disposition tag: a small pill on the card's
-// top-left corner. A deprecated part blinks while animating.
-function statusTagMarkup(node, animating, now) {
-  const meta = node.status && STATUS_META[node.status];
-  if (!meta) return '';
-  const pw = meta.label.length * 5.4 + 14;
-  const blink = animating && node.status === 'deprecated'
-    ? ` class="blink"${now != null ? ` opacity="${blinkOpacity(now)}"` : ''}`
-    : '';
-  return `<g${blink}><rect x="10" y="-8" width="${pw}" height="16" rx="8"`
-    + ` fill="${CHIP_BG}" stroke="${meta.color}" stroke-opacity="0.8" stroke-width="1.2"/>`
-    + `<text x="${10 + pw / 2}" y="3.2" text-anchor="middle" font-size="8" font-weight="700"`
-    + ` letter-spacing="0.5" fill="${meta.color}" pointer-events="none">${meta.label}</text></g>`;
+// Tags along the top-left edge, in a row: lifecycle status, disposition,
+// and severity. A deprecated part blinks while animating.
+function tagsMarkup(node, animating, now) {
+  const tags = [];
+  const st = node.status && STATUS_META[node.status];
+  if (st) tags.push({ label: st.label, color: st.color, blink: node.status === 'deprecated' });
+  const disp = node.disposition && DISPOSITIONS[node.disposition];
+  if (disp) tags.push({ label: disp.name.toUpperCase(), color: disp.color });
+  const sev = node.fields?.severity;
+  if (sev && SEVERITY_COLORS[sev]) tags.push({ label: sev.toUpperCase(), color: SEVERITY_COLORS[sev] });
+  let s = '';
+  let x = 10;
+  for (const t of tags) {
+    const pw = Math.round((t.label.length * 5.4 + 14) * 100) / 100;
+    const blink = animating && t.blink
+      ? ` class="blink"${now != null ? ` opacity="${blinkOpacity(now)}"` : ''}`
+      : '';
+    s += `<g${blink}><rect x="${x}" y="-8" width="${pw}" height="16" rx="8"`
+      + ` fill="${CHIP_BG}" stroke="${t.color}" stroke-opacity="0.8" stroke-width="1.2"/>`
+      + `<text x="${Math.round((x + pw / 2) * 100) / 100}" y="3.2" text-anchor="middle" font-size="8" font-weight="700"`
+      + ` letter-spacing="0.5" fill="${t.color}" pointer-events="none">${esc(t.label)}</text></g>`;
+    x = Math.round((x + pw + 4) * 100) / 100;
+  }
+  return s;
 }
 
 // Flag badges along the top-right edge; when they would run into the card,
@@ -281,7 +292,7 @@ function nodeMarkup(node, selected, ui, animating, now) {
         + ` font-family="${MONO}" data-edit="${m.field}">${esc(m.text)}</text>`;
     });
   }
-  s += statusTagMarkup(node, animating, now);
+  s += tagsMarkup(node, animating, now);
   s += flagBadgesMarkup(flags, W);
   if (ui.ports !== false) s += portsMarkup(node, part, acc, W, H);
   s += '</g>';

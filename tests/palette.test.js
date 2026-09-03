@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CATEGORIES, CATEGORY_COLORS, PARTS, getPart } from '../src/palette.js';
+import { CATEGORIES, CATEGORY_COLORS, PARTS, getPart, SEVERITIES, DISPOSITIONS } from '../src/palette.js';
 import { BUSES } from '../src/buses.js';
 
 const SIDES = ['left', 'right', 'top', 'bottom'];
@@ -86,10 +86,10 @@ test('network, security, process-flow, and threat parts port net_draw types', ()
   assert.equal(byCat('network').length, 6);
   assert.equal(byCat('security').length, 6);
   assert.equal(byCat('flow').length, 10);
-  assert.equal(byCat('threats').length, 7);
+  assert.equal(byCat('threats').length, 17);
   for (const part of [...byCat('network'), ...byCat('security'), ...byCat('flow'), ...byCat('threats')]) {
     assert.match(part.accent, /^#[0-9a-f]{6}$/i, `${part.kind} accent`);
-    assert.ok(part.glyph.startsWith('<'), `${part.kind} glyph`);
+    assert.ok((part.glyph && part.glyph.startsWith('<')) || (part.icon && part.icon.startsWith('M')), `${part.kind} glyph or icon`);
   }
   const SHAPES = new Set(['terminator', 'process', 'decision', 'data', 'document', 'predefined', 'prep', 'manual', 'delay', 'connector']);
   for (const part of byCat('flow')) assert.ok(SHAPES.has(part.shape), `${part.kind} shape`);
@@ -103,4 +103,32 @@ test('network, security, process-flow, and threat parts port net_draw types', ()
   assert.ok(PARTS.accesspoint.ports.some((q) => q.bus === 'rf'), 'an access point has a radio side');
   assert.ok(PARTS.process.ports.every((q) => q.bus === 'flow'), 'flow shapes connect with flow');
   assert.ok(PARTS.threatactor.ports.every((q) => q.bus === 'link'), 'threats connect with links');
+});
+
+test('every threat part has a field schema with a severity; the new threats use original icons', () => {
+  for (const kind of ['vulnerability', 'misconfig', 'exploit', 'supplychain', 'ddos', 'mitm', 'spoofing', 'credential', 'dataleak', 'physical']) {
+    const p = PARTS[kind];
+    assert.ok(p, kind);
+    assert.equal(p.category, 'threats', kind);
+    assert.equal(p.threat, true, kind);
+    assert.ok(p.icon.startsWith('M') && !p.glyph, `${kind} draws its own 16-box icon`);
+  }
+  for (const p of Object.values(PARTS).filter((q) => q.category === 'threats')) {
+    assert.ok(Array.isArray(p.fields) && p.fields.length, `${p.kind} fields`);
+    const ids = p.fields.map((fd) => fd.id);
+    assert.equal(new Set(ids).size, ids.length, `${p.kind} unique field ids`);
+    assert.ok(ids.includes('severity'), `${p.kind} severity`);
+    for (const fd of p.fields) {
+      assert.ok(fd.label, `${p.kind}.${fd.id} label`);
+      if (fd.options) assert.ok(fd.options.length > 1, `${p.kind}.${fd.id} options`);
+    }
+  }
+  assert.deepEqual(SEVERITIES, ['info', 'low', 'medium', 'high', 'critical']);
+  const by = (kind, id) => PARTS[kind].fields.find((fd) => fd.id === id);
+  assert.ok(by('threatactor', 'sophistication').options.includes('advanced'));
+  assert.ok(by('threatactor', 'motivation').options.includes('ideology'));
+  assert.ok(by('malware', 'type').options.includes('remote-access-trojan'));
+  assert.ok(by('spoofing', 'target').options.includes('GNSS'));
+  assert.ok(DISPOSITIONS.adversary && DISPOSITIONS.victim.color, 'disposition vocabulary');
+  assert.equal(PARTS.mcu.fields, undefined, 'hardware parts keep the part-number trio');
 });

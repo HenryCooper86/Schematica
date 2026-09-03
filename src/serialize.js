@@ -1,5 +1,5 @@
 import { BUSES, DEFAULT_BUS } from './buses.js';
-import { PARTS, getPart } from './palette.js';
+import { PARTS, getPart, DISPOSITIONS } from './palette.js';
 import { newDoc, NODE_STATUSES, NODE_FLAGS } from './state.js';
 import { nodeSize } from './geometry.js';
 
@@ -79,6 +79,30 @@ export function deserialize(text) {
       status,
       flags,
     };
+    // Schema fields (threat parts) travel as a string map; only ids the part
+    // knows survive, blanks are dropped, and the key is absent when empty.
+    if (n.fields && typeof n.fields === 'object' && !Array.isArray(n.fields)) {
+      if (!part.fields) {
+        if (Object.values(n.fields).some((x) => typeof x === 'string' && x.trim())) {
+          warnings.push(`Dropped fields on node "${n.id}": ${part.name} has none.`);
+        }
+      } else {
+        const known = new Set(part.fields.map((fd) => fd.id));
+        const fields = {};
+        for (const [k, v] of Object.entries(n.fields)) {
+          if (!known.has(k)) {
+            warnings.push(`Dropped unknown field "${k}" on node "${n.id}".`);
+            continue;
+          }
+          if (typeof v === 'string' && v.trim()) fields[k] = v;
+        }
+        if (Object.keys(fields).length) node.fields = fields;
+      }
+    }
+    if (n.disposition != null) {
+      if (typeof n.disposition === 'string' && DISPOSITIONS[n.disposition]) node.disposition = n.disposition;
+      else warnings.push(`Ignored unknown disposition "${n.disposition}" on node "${n.id}".`);
+    }
     // Older files stored a fixed card size. Cards now size to their content,
     // so shift the top-left corner to keep the card centered where it was.
     if (Number.isFinite(n.w) && n.w > 0 && Number.isFinite(n.h) && n.h > 0) {

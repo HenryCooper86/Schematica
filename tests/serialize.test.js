@@ -323,3 +323,25 @@ test('wires to a node with a missing kind survive on generic side ports too', ()
   assert.deepEqual(doc.wires[0].to, { node: 'n2', port: 'left' });
   assert.ok(warnings.some((w) => w.includes('generic ports')));
 });
+
+test('threat fields and disposition round-trip; unknown fields, blanks, and bad dispositions are cleaned', () => {
+  const { doc, warnings } = deserialize(JSON.stringify({ nodes: [
+    { id: 'n1', kind: 'threatactor', x: 0, y: 0, fields: { type: 'nation-state', severity: 'high', bogus: 'x', org: '  ' }, disposition: 'adversary' },
+    { id: 'n2', kind: 'mcu', x: 0, y: 0, disposition: 'hero', fields: { severity: 'low' } },
+    { id: 'n3', kind: 'mcu', x: 0, y: 0, disposition: null, fields: {} },
+  ] }));
+  assert.deepEqual(doc.nodes[0].fields, { type: 'nation-state', severity: 'high' });
+  assert.equal(doc.nodes[0].disposition, 'adversary');
+  assert.equal('fields' in doc.nodes[1], false, 'a part without a schema keeps no fields');
+  assert.equal('disposition' in doc.nodes[1], false);
+  assert.equal('fields' in doc.nodes[2], false, 'an empty map leaves no key');
+  assert.equal('disposition' in doc.nodes[2], false, 'null disposition leaves no key and no warning');
+  assert.deepEqual(warnings.sort(), [
+    'Dropped fields on node "n2": MCU has none.',
+    'Dropped unknown field "bogus" on node "n1".',
+    'Ignored unknown disposition "hero" on node "n2".',
+  ]);
+  const again = deserialize(serialize(doc));
+  assert.deepEqual(again.doc, doc);
+  assert.deepEqual(again.warnings, []);
+});
