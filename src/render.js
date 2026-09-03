@@ -1,19 +1,31 @@
 import { BUSES } from './buses.js';
 import { getPart, CATEGORY_COLORS } from './palette.js';
 import {
-  portPosition, portNormal, wirePath, wireMidpoint, wirePoint, wrapText, noteHeight,
+  portPosition, wireGeom, wireGeomToPoint, wireLanes, curvePoint, wrapText, noteHeight,
   NOTE_W, LANE_TITLE_H,
 } from './geometry.js';
+
+// The canvas mirrors net_draw's look one to one: gradient cards with a drop
+// shadow and hairline border, a single slate stroke for every wire, neutral
+// label pills, marker arrowheads, and CSS-driven hover and flow animation.
 
 export const CANVAS_BG = '#0a0e17';
 
 const ACCENT = '#38bdf8';
-const CARD_BG = '#131a2b';
-const CARD_LINE = '#2c3a5c';
-const CHIP_BG = '#0d1220';
-const TEXT = '#e6ebf4';
-const MUTED = '#8b96ab';
-const MONO = "ui-monospace, 'SF Mono', Menlo, monospace";
+const TEXT = '#cbd5e1';
+const META = '#7d8fae';
+const CHIP_BG = '#0d1526';
+const CARD_LINE = 'rgba(148,163,184,0.2)';
+const MONO = 'ui-monospace, Consolas, monospace';
+
+const WIRE = '#526180';
+const WIRE_SEL = '#7dd3fc';
+const WIRE_SNEAK = '#6b6242';
+const LABEL_BG = '#0c1424';
+const LABEL_LINE = '#24304d';
+const LABEL_TEXT = '#8fa3c0';
+
+const DASH = { dashed: '8 6', dotted: '2 5', sneakernet: '1 9', flow: '6 8' };
 
 export function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => (
@@ -21,52 +33,105 @@ export function esc(s) {
   ));
 }
 
+// Shared <defs>: the live canvas and every export embed the same set, so
+// arrowheads, card shading, and the grid look identical in both.
+export function defsMarkup() {
+  return '<pattern id="gridpat" width="26" height="26" patternUnits="userSpaceOnUse">'
+    + '<circle cx="1.2" cy="1.2" r="1.2" fill="#1b2742"/></pattern>'
+    + '<linearGradient id="cardGrad" x1="0" y1="0" x2="0" y2="1">'
+    + '<stop offset="0" stop-color="#1c2537"/><stop offset="1" stop-color="#141b2b"/></linearGradient>'
+    + '<filter id="nodeShadow" x="-40%" y="-40%" width="180%" height="180%">'
+    + '<feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#000000" flood-opacity="0.42"/></filter>'
+    + '<marker id="arrow" viewBox="0 0 10 10" refX="7.5" refY="5" markerWidth="6.5" markerHeight="6.5"'
+    + ' orient="auto-start-reverse"><path d="M0.5 1.2 L8.5 5 L0.5 8.8 z" fill="context-stroke"/></marker>';
+}
+
+// ---- Animation timing ----
+// Live motion is CSS (see style.css); these functions bake the same state
+// into attributes for export frames and recorded video. Every period divides
+// LOOP_MS, so a LOOP_MS cycle returns each attribute to its exact start —
+// that is what makes the seamless-loop GIF seamless.
+export const LOOP_MS = 6000;
+const FLOW_PERIOD_MS = 750;
+const FLOW_CYCLE = 28;
+const PULSE_MS = 1500;
+const FOOTSTEP_MS = 2000;
+
+export function flowOffset(nowMs) {
+  return -Math.round(((nowMs / FLOW_PERIOD_MS) % 1) * FLOW_CYCLE * 100) / 100 + 0;
+}
+
+function pulseOpacity(nowMs) {
+  return (0.22 + 0.63 * (0.5 - 0.5 * Math.cos((2 * Math.PI * nowMs) / PULSE_MS))).toFixed(3);
+}
+
+function blinkOpacity(nowMs) {
+  return (0.45 + 0.55 * (0.5 + 0.5 * Math.sin((2 * Math.PI * nowMs) / PULSE_MS))).toFixed(3);
+}
+
+function footstepPoint(geo, nowMs, j) {
+  const walk = (nowMs % FOOTSTEP_MS) / FOOTSTEP_MS;
+  const p = curvePoint(geo, (walk + j / 3) % 1);
+  return { x: p.x, y: Math.round((p.y + 3.5) * 100) / 100 };
+}
+
+function parseGeo(s) {
+  const n = s.split(',').map(Number);
+  return {
+    p1: { x: n[0], y: n[1] }, c1: { x: n[2], y: n[3] }, c2: { x: n[4], y: n[5] }, p2: { x: n[6], y: n[7] },
+  };
+}
+
+// Move the air-gap footprints along their wires (the one animation CSS
+// cannot express); the live ticker calls this while a sneakernet wire flows.
+export function stepFootsteps(root, nowMs) {
+  for (const g of root.querySelectorAll('.wire[data-g]')) {
+    const geo = parseGeo(g.getAttribute('data-g'));
+    g.querySelectorAll('.footstep').forEach((el, j) => {
+      const p = footstepPoint(geo, nowMs, j);
+      el.setAttribute('x', p.x);
+      el.setAttribute('y', p.y);
+    });
+  }
+}
+
+// Freeze a cloned canvas at time `nowMs` for rasterizing: editor-only port
+// dots go, and every CSS-animated value becomes a plain attribute.
+export function bakeFrame(root, nowMs) {
+  root.querySelectorAll('.ports').forEach((el) => el.remove());
+  const off = flowOffset(nowMs);
+  root.querySelectorAll('.vis.anim').forEach((el) => el.setAttribute('stroke-dashoffset', off));
+  const halo = pulseOpacity(nowMs);
+  root.querySelectorAll('.fxhalo').forEach((el) => el.setAttribute('stroke-opacity', halo));
+  const blink = blinkOpacity(nowMs);
+  root.querySelectorAll('.blink').forEach((el) => el.setAttribute('opacity', blink));
+  stepFootsteps(root, nowMs);
+}
+
+// ---- Nodes ----
+
 function badgeMarkup(x, y, size, color, icon) {
   const c = esc(color);
   const pad = size * 0.2;
   const k = (size - pad * 2) / 16;
-  return `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="7" fill="${c}" fill-opacity="0.13"/>`
-    + `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="7" fill="none" stroke="${c}" stroke-opacity="0.3"/>`
+  return `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="${Math.round(size * 0.3)}" fill="${c}" opacity="0.13"/>`
     + `<g transform="translate(${x + pad} ${y + pad}) scale(${k})" fill="none" stroke="${c}"`
     + ` stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="${icon}"/></g>`;
 }
 
-function portsMarkup(node, part, hoverPort) {
-  let s = '';
+function portsMarkup(node, part, acc) {
+  const local = { x: 0, y: 0, w: node.w, h: node.h };
+  let s = '<g class="ports">';
   for (const port of part.ports) {
-    const pos = portPosition(node, port);
-    const hot = hoverPort && hoverPort.node === node.id && hoverPort.port === port.id;
-    s += `<circle class="port" data-node="${esc(node.id)}" data-port="${esc(port.id)}"`
-      + ` cx="${pos.x}" cy="${pos.y}" r="${hot ? 6 : 4}"`
-      + ` fill="${hot ? '#16324a' : CHIP_BG}" stroke="${hot ? ACCENT : '#46587a'}" stroke-width="1.5"/>`;
-    if (hot) {
-      const bus = BUSES[port.bus];
-      s += `<text x="${pos.x}" y="${pos.y - 11}" text-anchor="middle" font-size="9.5" font-weight="600"`
-        + ` font-family="${MONO}" fill="#7dd3fc" paint-order="stroke" stroke="${CANVAS_BG}" stroke-width="3"`
-        + ` pointer-events="none">${esc(port.name)} · ${esc(bus ? bus.short : '')}</text>`;
-    }
+    const pos = portPosition(local, port);
+    const bus = BUSES[port.bus];
+    s += `<g class="portg" data-node="${esc(node.id)}" data-port="${esc(port.id)}">`
+      + `<circle class="port" cx="${pos.x}" cy="${pos.y}" r="5" fill="${CHIP_BG}" stroke="${esc(acc)}" stroke-width="1.6"/>`
+      + `<text class="port-name" x="${pos.x}" y="${pos.y - 11}" text-anchor="middle" font-size="9.5" font-weight="600"`
+      + ` font-family="${MONO}" fill="#7dd3fc" paint-order="stroke" stroke="${CANVAS_BG}" stroke-width="3"`
+      + ` pointer-events="none">${esc(port.name)} · ${esc(bus ? bus.short : '')}</text></g>`;
   }
-  return s;
-}
-
-// Signal-flow speeds in px/s per bus; 0 = no flow animation (ground doesn't "flow").
-const FLOW_SPEED = {
-  power: 20, gnd: 0, i2c: 40, spi: 56, uart: 40, can: 44,
-  usb: 56, eth: 64, gpio: 28, pwm: 48, adc: 32, rf: 64,
-};
-
-const FLOW_PERIOD = 24;
-
-// Every animation period divides LOOP_MS, and every FLOW_SPEED is a multiple
-// of 4 (so speed * LOOP_MS is a multiple of FLOW_PERIOD * 1000) — one LOOP_MS
-// cycle therefore returns every animated attribute to its exact start, which
-// is what makes the seamless-loop GIF export seamless.
-export const LOOP_MS = 6000;
-const PULSE_MS = 1500;
-const FOOTSTEP_MS = 2000;
-
-function pulsePhase(now, periodMs) {
-  return 0.5 + 0.5 * Math.sin(((now % periodMs) / periodMs) * Math.PI * 2);
+  return s + '</g>';
 }
 
 const STATUS_META = {
@@ -86,179 +151,135 @@ const FLAG_META = {
   eol: { label: 'EOL', color: '#e879f9' },
 };
 
-function tagChipsMarkup(node, anim) {
+// Status and flag tags sit on the card's top edge like net_draw's disposition
+// tag, right-aligned. On narrow cards trailing flags drop before the status.
+function tagChipsMarkup(node, animating, now) {
   const tags = [];
   if (node.status && STATUS_META[node.status]) tags.push({ ...STATUS_META[node.status], status: node.status });
   for (const f of node.flags || []) {
     if (FLAG_META[f]) tags.push(FLAG_META[f]);
   }
   if (!tags.length) return '';
-  // On narrow nodes, drop trailing flags before the status chip: keep the
-  // longest prefix that fits, then lay it out right-aligned as before.
   const keep = [];
   let used = 0;
   for (const tag of tags) {
-    const w = tag.label.length * 5.5 + 10;
+    const w = tag.label.length * 5.4 + 14;
     if (used + (keep.length ? 4 : 0) + w > node.w - 6) break;
     used += (keep.length ? 4 : 0) + w;
     keep.push({ ...tag, w });
   }
   let s = '';
-  let cx = node.x + node.w;
+  let cx = node.w;
   for (const tag of keep.reverse()) {
     const { w } = tag;
     cx -= w;
-    const blink = anim != null && tag.status === 'deprecated'
-      ? ` class="blink" opacity="${(0.45 + 0.55 * pulsePhase(anim, PULSE_MS)).toFixed(3)}"`
+    const blink = animating && tag.status === 'deprecated'
+      ? ` class="blink"${now != null ? ` opacity="${blinkOpacity(now)}"` : ''}`
       : '';
-    s += `<g${blink}><rect x="${cx}" y="${node.y - 8}" width="${w}" height="15" rx="7.5"`
-      + ` fill="${CHIP_BG}" stroke="${tag.color}" stroke-opacity="0.7"/>`
-      + `<text x="${cx + w / 2}" y="${node.y - 0.5}" text-anchor="middle" dominant-baseline="central"`
-      + ` font-size="8" font-weight="700" font-family="${MONO}" fill="${tag.color}"`
-      + ` pointer-events="none">${tag.label}</text></g>`;
+    s += `<g${blink}><rect x="${cx}" y="-8" width="${w}" height="16" rx="8"`
+      + ` fill="${CHIP_BG}" stroke="${tag.color}" stroke-opacity="0.8" stroke-width="1.2"/>`
+      + `<text x="${cx + w / 2}" y="3.2" text-anchor="middle" font-size="8" font-weight="700"`
+      + ` letter-spacing="0.5" fill="${tag.color}" pointer-events="none">${tag.label}</text></g>`;
     cx -= 4;
   }
   return s;
 }
 
-function nodeMarkup(node, selected, hoverPort, anim, showPorts) {
+function nodeMarkup(node, selected, ui, animating, now) {
   const part = getPart(node.kind);
-  const color = node.color || CATEGORY_COLORS[part.category] || ACCENT;
-  const badge = 26;
-  let s = `<g class="node" data-id="${esc(node.id)}" data-type="node">`;
-  s += `<rect x="${node.x}" y="${node.y}" width="${node.w}" height="${node.h}" rx="12"`
-    + ` fill="${CARD_BG}" stroke="${selected ? ACCENT : CARD_LINE}" stroke-width="1.5"/>`;
-  if (node.h >= 78) {
-    s += badgeMarkup(node.x + node.w / 2 - badge / 2, node.y + 10, badge, color, part.icon);
-    const ty = node.y + 10 + badge + 16;
-    s += `<text x="${node.x + node.w / 2}" y="${ty}" text-anchor="middle" font-size="12.5"`
-      + ` font-weight="700" fill="${TEXT}" data-edit="label">${esc(node.label)}</text>`;
+  const acc = node.color || CATEGORY_COLORS[part.category] || ACCENT;
+  const W = node.w;
+  const H = node.h;
+  let s = `<g class="node" data-id="${esc(node.id)}" data-type="node" transform="translate(${node.x} ${node.y})">`;
+  const flags = node.flags || [];
+  const haloColor = flags.includes('bug') ? '#f87171' : (flags.includes('thermal') ? '#fb923c' : null);
+  if (animating && haloColor) {
+    s += `<rect class="fxhalo" x="-4" y="-4" width="${W + 8}" height="${H + 8}" rx="17" fill="none"`
+      + ` stroke="${haloColor}" stroke-width="2.2"${now != null ? ` stroke-opacity="${pulseOpacity(now)}"` : ''}/>`;
+  }
+  if (selected) {
+    s += `<rect x="-5" y="-5" width="${W + 10}" height="${H + 10}" rx="18" fill="none"`
+      + ` stroke="${esc(acc)}" stroke-opacity="0.4" stroke-width="1.6"/>`;
+  }
+  s += `<rect class="card" width="${W}" height="${H}" rx="14" fill="url(#cardGrad)"`
+    + ` stroke="${selected ? esc(acc) : CARD_LINE}" stroke-width="${selected ? 1.6 : 1}" filter="url(#nodeShadow)"/>`;
+  if (H >= 78) {
+    const badge = 34;
+    s += badgeMarkup(W / 2 - badge / 2, 9, badge, acc, part.icon);
+    const ty = 9 + badge + 15;
+    s += `<text x="${W / 2}" y="${ty}" text-anchor="middle" font-size="11.5" font-weight="600"`
+      + ` fill="${TEXT}" data-edit="label">${esc(node.label)}</text>`;
     if (node.sublabel) {
-      s += `<text x="${node.x + node.w / 2}" y="${ty + 15}" text-anchor="middle" font-size="10"`
-        + ` font-family="${MONO}" fill="${MUTED}" data-edit="sublabel">${esc(node.sublabel)}</text>`;
+      s += `<text x="${W / 2}" y="${ty + 13.5}" text-anchor="middle" font-size="9.5"`
+        + ` font-family="${MONO}" fill="${META}" data-edit="sublabel">${esc(node.sublabel)}</text>`;
     }
   } else {
-    const bx = node.x + 10;
-    const by = node.y + node.h / 2 - badge / 2;
-    s += badgeMarkup(bx, by, badge, color, part.icon);
-    const tx = bx + badge + 9;
-    const ty = node.y + node.h / 2 + (node.sublabel ? -3 : 4);
-    s += `<text x="${tx}" y="${ty}" font-size="12" font-weight="700" fill="${TEXT}"`
+    const badge = 30;
+    const bx = 10;
+    const by = H / 2 - badge / 2;
+    s += badgeMarkup(bx, by, badge, acc, part.icon);
+    const tx = bx + badge + 10;
+    const ty = H / 2 + (node.sublabel ? -3 : 4);
+    s += `<text x="${tx}" y="${ty}" font-size="11.5" font-weight="600" fill="${TEXT}"`
       + ` data-edit="label">${esc(node.label)}</text>`;
     if (node.sublabel) {
-      s += `<text x="${tx}" y="${ty + 14}" font-size="9.5" font-family="${MONO}" fill="${MUTED}"`
+      s += `<text x="${tx}" y="${ty + 13.5}" font-size="9.5" font-family="${MONO}" fill="${META}"`
         + ` data-edit="sublabel">${esc(node.sublabel)}</text>`;
     }
   }
-  const flags = node.flags || [];
-  const pulseColor = flags.includes('bug') ? '#f87171' : (flags.includes('thermal') ? '#fb923c' : null);
-  if (anim != null && pulseColor) {
-    const phase = pulsePhase(anim, PULSE_MS);
-    const grow = 3 + 3 * phase;
-    s += `<rect class="pulse" x="${node.x - grow}" y="${node.y - grow}"`
-      + ` width="${node.w + grow * 2}" height="${node.h + grow * 2}" rx="${12 + grow}"`
-      + ` fill="none" stroke="${pulseColor}" stroke-opacity="${(0.12 + 0.3 * (1 - phase)).toFixed(3)}"`
-      + ` stroke-width="4" pointer-events="none"/>`;
-  }
-  s += tagChipsMarkup(node, anim);
-  if (selected) {
-    // Drawn above the chips so the translucent glow tints rather than clips them.
-    s += `<rect x="${node.x - 3}" y="${node.y - 3}" width="${node.w + 6}" height="${node.h + 6}" rx="15"`
-      + ` fill="none" stroke="${ACCENT}" stroke-opacity="0.35" stroke-width="5" pointer-events="none"/>`;
-  }
-  if (showPorts) s += portsMarkup(node, part, hoverPort);
+  s += tagChipsMarkup(node, animating, now);
+  if (ui.ports !== false) s += portsMarkup(node, part, acc);
   s += '</g>';
   return s;
 }
 
-function chipMarkup(cx, cy, label, color, editField) {
-  const w = label.length * 6 + 16;
-  return `<rect x="${cx - w / 2}" y="${cy - 9}" width="${w}" height="18" rx="9"`
-    + ` fill="${CHIP_BG}" stroke="${color}" stroke-opacity="0.55"/>`
-    + `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="9.5"`
-    + ` font-weight="600" font-family="${MONO}" fill="${color}"`
-    + `${editField ? ` data-edit="${editField}"` : ''}>${esc(label)}</text>`;
-}
+// ---- Wires ----
 
-function wireMarkup(doc, wire, selected, anim, now) {
-  const from = doc.nodes.find((n) => n.id === wire.from.node);
-  const to = doc.nodes.find((n) => n.id === wire.to.node);
-  if (!from || !to) return '';
-  const pf = getPart(from.kind).ports.find((q) => q.id === wire.from.port);
-  const pt = getPart(to.kind).ports.find((q) => q.id === wire.to.port);
-  if (!pf || !pt) return '';
-  const a = portPosition(from, pf);
-  const b = portPosition(to, pt);
+const geoData = (geo) => [geo.p1, geo.c1, geo.c2, geo.p2].map((p) => `${p.x},${p.y}`).join(',');
+
+function wireMarkup(byId, wire, lane, selected, ui, animating, now) {
+  const a = byId.get(wire.from.node);
+  const b = byId.get(wire.to.node);
+  if (!a || !b) return '';
   const bus = BUSES[wire.bus] || BUSES.gpio;
-  const d = wirePath(a, pf.side, b, pt.side);
-  let s = `<g class="wire" data-id="${esc(wire.id)}" data-type="wire">`;
-  s += `<path d="${d}" fill="none" stroke="transparent" stroke-width="12" pointer-events="stroke"/>`;
-  if (selected) {
-    s += `<path d="${d}" fill="none" stroke="${ACCENT}" stroke-opacity="0.3"`
-      + ` stroke-width="${bus.width + 5}" stroke-linecap="round" pointer-events="none"/>`;
-  }
-  const dash = wire.style === 'solid' ? null
-    : wire.style === 'dashed' ? '6 4'
-      : wire.style === 'dotted' ? '1.5 5'
-        : wire.style === 'sneakernet' ? '2 9'
-          : bus.dash;
-  s += `<path d="${d}" fill="none" stroke="${bus.color}" stroke-width="${bus.width}"`
-    + `${dash ? ` stroke-dasharray="${dash}"` : ''} stroke-linecap="round" pointer-events="none"/>`;
-  const arrowAt = (p, side) => {
-    const n = portNormal(side);
-    const px = -n.y;
-    const py = n.x;
-    const bx = p.x + n.x * 9;
-    const by = p.y + n.y * 9;
-    return `<path class="arrow" d="M ${p.x} ${p.y} L ${bx + px * 4.5} ${by + py * 4.5}`
-      + ` L ${bx - px * 4.5} ${by - py * 4.5} Z" fill="${bus.color}" pointer-events="none"/>`;
-  };
-  if (wire.arrow === 'fwd' || wire.arrow === 'both') s += arrowAt(b, pt.side);
-  if (wire.arrow === 'both') s += arrowAt(a, pf.side);
-  // Per-wire flow override: 'on' animates even with the global toggle off,
-  // 'off' never animates, null follows the toggle. An air gap never flows —
-  // its "traffic" is a pair of footprints walking the path instead.
-  const speed = FLOW_SPEED[wire.bus] ?? 32;
-  const flowNow = wire.flow === 'on' ? now : (wire.flow === 'off' ? null : anim);
-  if (flowNow != null && speed > 0 && wire.style !== 'sneakernet') {
-    const offset = -(((flowNow / 1000) * speed) % FLOW_PERIOD);
-    s += `<path d="${d}" fill="none" stroke="#ffffff" stroke-opacity="0.55"`
-      + ` stroke-width="${Math.max(1.5, bus.width - 0.5)}" stroke-linecap="round"`
-      + ` stroke-dasharray="2.5 ${FLOW_PERIOD - 2.5}" stroke-dashoffset="${offset.toFixed(2)}"`
-      + ` pointer-events="none"/>`;
-  }
-  if (flowNow != null && wire.style === 'sneakernet') {
-    const walk = (flowNow % FOOTSTEP_MS) / FOOTSTEP_MS;
+  const geo = wireGeom(a, b, lane);
+  const sneak = wire.style === 'sneakernet';
+  // Per-wire override: 'on' animates even with the global toggle off, 'off'
+  // never animates, null follows the toggle. Traffic on an air gap is a pair
+  // of footprints walking the path instead of a moving dash.
+  const wants = wire.flow === 'on' || (wire.flow !== 'off' && animating);
+  const flowing = wants && !sneak && bus.flows;
+  const dash = DASH[wire.style] || (flowing ? DASH.flow : null);
+  const stroke = selected ? WIRE_SEL : (sneak ? WIRE_SNEAK : WIRE);
+  const width = selected ? 2.4 : (sneak ? 1.5 : 2);
+  let s = `<g class="wire${selected ? ' sel' : ''}" data-id="${esc(wire.id)}" data-type="wire"`
+    + `${sneak ? ` data-g="${geoData(geo)}"` : ''}>`;
+  s += `<path d="${geo.d}" fill="none" stroke="transparent" stroke-width="14" pointer-events="stroke"/>`;
+  s += `<path class="vis${flowing ? ' anim' : ''}" d="${geo.d}" fill="none" stroke="${stroke}"`
+    + ` stroke-width="${width}" stroke-linecap="round"`
+    + (dash ? ` stroke-dasharray="${dash}"` : '')
+    + (flowing && now != null ? ` stroke-dashoffset="${flowOffset(now)}"` : '')
+    + (wire.arrow === 'fwd' || wire.arrow === 'both' ? ' marker-end="url(#arrow)"' : '')
+    + (wire.arrow === 'both' ? ' marker-start="url(#arrow)"' : '')
+    + ' pointer-events="none"/>';
+  if (wants && sneak) {
     for (let j = 0; j < 3; j++) {
-      const t = (walk + j / 3) % 1;
-      const p = wirePoint(a, pf.side, b, pt.side, t);
-      s += `<text class="footstep" x="${p.x.toFixed(1)}" y="${(p.y + 3.5).toFixed(1)}"`
-        + ` text-anchor="middle" font-size="10" pointer-events="none">\u{1F463}</text>`;
+      const p = footstepPoint(geo, now ?? 0, j);
+      s += `<text class="footstep" x="${p.x}" y="${p.y}" text-anchor="middle" font-size="10"`
+        + ' pointer-events="none">\u{1F463}</text>';
     }
   }
+  const label = wire.label || (sneak ? '\u{1F45F} air gap' : bus.short);
+  const w = Math.round((label.length * 6.4 + 18) * 100) / 100;
+  s += `<rect x="${Math.round((geo.mid.x - w / 2) * 100) / 100}" y="${geo.mid.y - 10}" width="${w}" height="20" rx="9"`
+    + ` fill="${LABEL_BG}" stroke="${LABEL_LINE}" stroke-width="1"/>`;
+  s += `<text x="${geo.mid.x}" y="${geo.mid.y + 3.6}" text-anchor="middle" font-size="10.5" fill="${LABEL_TEXT}"`
+    + ` data-edit="label">${esc(label)}</text>`;
   s += '</g>';
   return s;
 }
 
-// Wire label chips render in their own layer above the node cards, so a short
-// wire's label never hides under an endpoint. The wrapper keeps the wire's
-// data-id so clicking or double-clicking a chip still targets the wire.
-function wireChipMarkup(doc, wire) {
-  const from = doc.nodes.find((n) => n.id === wire.from.node);
-  const to = doc.nodes.find((n) => n.id === wire.to.node);
-  if (!from || !to) return '';
-  const pf = getPart(from.kind).ports.find((q) => q.id === wire.from.port);
-  const pt = getPart(to.kind).ports.find((q) => q.id === wire.to.port);
-  if (!pf || !pt) return '';
-  const a = portPosition(from, pf);
-  const b = portPosition(to, pt);
-  const bus = BUSES[wire.bus] || BUSES.gpio;
-  const mid = wireMidpoint(a, pf.side, b, pt.side);
-  const fallback = wire.style === 'sneakernet' ? '\u{1F45F} air gap' : bus.short;
-  return `<g class="wire" data-id="${esc(wire.id)}" data-type="wire">`
-    + chipMarkup(mid.x, mid.y, wire.label || fallback, bus.color, 'label')
-    + '</g>';
-}
+// ---- Zones ----
 
 // Styled after net_draw's swimlanes: a slim title band, a narrow label gutter
 // with rotated lane names (horizontal orientation), subtle alternating lane
@@ -358,66 +379,81 @@ function noteMarkup(note, selected) {
   return s;
 }
 
+// ui: { selection, animate, now, ports }. With `animate`, flowing wires and
+// flagged cards carry their animation classes; with a finite `now` the frame
+// is also baked into attributes (exports). Live rendering passes no `now`.
 export function diagramMarkup(doc, ui = {}) {
   const sel = ui.selection || new Set();
-  const anim = ui.animate && Number.isFinite(ui.now) ? ui.now : null;
-  const zones = doc.zones.map((z) => zoneMarkup(z, sel.has(z.id))).join('');
+  const animating = !!ui.animate;
   const now = Number.isFinite(ui.now) ? ui.now : null;
-  const wires = doc.wires.map((w) => wireMarkup(doc, w, sel.has(w.id), anim, now)).join('');
-  // Ports stay hidden until their node is hovered (net_draw-style); the wire
-  // tool and an in-flight wire draft reveal every port as a drop target.
-  const allPorts = !!ui.wireDraft || ui.tool === 'wire';
-  const nodes = doc.nodes.map((n) => nodeMarkup(
-    n, sel.has(n.id), ui.hoverPort, anim, allPorts || ui.hoverNode === n.id,
-  )).join('');
-  const wireChips = doc.wires.map((w) => wireChipMarkup(doc, w)).join('');
+  const byId = new Map(doc.nodes.map((n) => [n.id, n]));
+  const lanes = wireLanes(doc.wires);
+  const zones = doc.zones.map((z) => zoneMarkup(z, sel.has(z.id))).join('');
+  const wires = doc.wires.map((w) => wireMarkup(byId, w, lanes.get(w.id) || 0, sel.has(w.id), ui, animating, now)).join('');
+  const nodes = doc.nodes.map((n) => nodeMarkup(n, sel.has(n.id), ui, animating, now)).join('');
   const notes = doc.notes.map((n) => noteMarkup(n, sel.has(n.id))).join('');
   return `<g class="layer-zones">${zones}</g><g class="layer-wires">${wires}</g>`
-    + `<g class="layer-nodes">${nodes}</g><g class="layer-wire-chips">${wireChips}</g>`
-    + `<g class="layer-notes">${notes}</g>`;
+    + `<g class="layer-nodes">${nodes}</g><g class="layer-notes">${notes}</g>`;
 }
 
-function oppositeSide(side) {
-  return { left: 'right', right: 'left', top: 'bottom', bottom: 'top' }[side];
-}
-
-function overlayMarkup(doc, ui) {
-  let s = '<g class="layer-overlay" pointer-events="none">';
+// Transient editor feedback (marquee, zone preview, wire being dragged) lives
+// in its own layer so pointer moves never rebuild the diagram.
+export function overlayMarkup(doc, ui) {
+  let s = '';
   if (ui.marquee) {
     const m = ui.marquee;
-    s += `<rect x="${m.x}" y="${m.y}" width="${m.w}" height="${m.h}"`
-      + ` fill="${ACCENT}" fill-opacity="0.08" stroke="${ACCENT}" stroke-dasharray="4 3"/>`;
+    s += m.kind === 'zone'
+      ? `<rect x="${m.x}" y="${m.y}" width="${m.w}" height="${m.h}" rx="16" fill="${ACCENT}" fill-opacity="0.05"`
+        + ` stroke="${ACCENT}" stroke-opacity="0.6" stroke-width="1.4" stroke-dasharray="10 7" vector-effect="non-scaling-stroke"/>`
+      : `<rect x="${m.x}" y="${m.y}" width="${m.w}" height="${m.h}" rx="4" fill="${ACCENT}" fill-opacity="0.07"`
+        + ` stroke="${ACCENT}" stroke-opacity="0.5" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
   }
   if (ui.wireDraft) {
     const { from, cursor } = ui.wireDraft;
     const node = doc.nodes.find((n) => n.id === from.node);
-    const pd = node ? getPart(node.kind).ports.find((q) => q.id === from.port) : null;
-    if (node && pd) {
-      const a = portPosition(node, pd);
-      s += `<path d="${wirePath(a, pd.side, cursor, oppositeSide(pd.side))}" fill="none"`
-        + ` stroke="${ACCENT}" stroke-width="2" stroke-dasharray="6 4"/>`;
+    if (node) {
+      const geo = wireGeomToPoint(node, cursor);
+      s += `<path d="${geo.d}" fill="none" stroke="${WIRE_SEL}" stroke-width="2" stroke-dasharray="6 6"`
+        + ' stroke-linecap="round" opacity="0.9"/>'
+        + `<circle cx="${geo.p2.x}" cy="${geo.p2.y}" r="4" fill="${WIRE_SEL}"/>`;
     }
   }
-  s += '</g>';
   return s;
-}
-
-function gridMarkup() {
-  return '<rect x="-10000" y="-10000" width="20000" height="20000" fill="url(#gridpat)" pointer-events="none"/>';
 }
 
 export function createRenderer(svg) {
   const NS = 'http://www.w3.org/2000/svg';
+  svg.insertAdjacentHTML('afterbegin', `<defs>${defsMarkup()}</defs>`);
   const root = document.createElementNS(NS, 'g');
+  const grid = document.createElementNS(NS, 'rect');
+  for (const [k, v] of Object.entries({
+    x: -10000, y: -10000, width: 20000, height: 20000, fill: 'url(#gridpat)', 'pointer-events': 'none',
+  })) grid.setAttribute(k, v);
+  const diagram = document.createElementNS(NS, 'g');
+  diagram.setAttribute('class', 'layer-diagram');
+  const overlay = document.createElementNS(NS, 'g');
+  overlay.setAttribute('class', 'layer-overlay');
+  overlay.setAttribute('pointer-events', 'none');
+  root.append(grid, diagram, overlay);
   svg.appendChild(root);
   return {
-    render(doc, view, ui = {}) {
+    setView(view, showGrid = true) {
       root.setAttribute('transform', `translate(${view.x} ${view.y}) scale(${view.zoom})`);
-      let inner = '';
-      if (ui.grid !== false) inner += gridMarkup();
-      inner += diagramMarkup(doc, ui);
-      inner += overlayMarkup(doc, ui);
-      root.innerHTML = inner;
+      grid.setAttribute('display', showGrid ? 'inline' : 'none');
+    },
+    renderDiagram(doc, ui = {}) {
+      diagram.innerHTML = diagramMarkup(doc, ui);
+    },
+    renderOverlay(doc, ui = {}) {
+      overlay.innerHTML = overlayMarkup(doc, ui);
+    },
+    render(doc, view, ui = {}) {
+      this.setView(view, ui.grid !== false);
+      this.renderDiagram(doc, ui);
+      this.renderOverlay(doc, ui);
+    },
+    step(nowMs) {
+      stepFootsteps(diagram, nowMs);
     },
   };
 }

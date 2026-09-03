@@ -6,14 +6,13 @@ test('BUS_ORDER matches BUSES keys exactly', () => {
   assert.deepEqual([...BUS_ORDER].sort(), Object.keys(BUSES).sort());
 });
 
-test('every bus is fully defined', () => {
+test('every bus is fully defined: a name, a short code, and whether it carries traffic', () => {
   for (const [id, b] of Object.entries(BUSES)) {
-    assert.match(b.color, /^#[0-9a-f]{6}$/i, `${id} color`);
-    assert.ok(b.width > 0, `${id} width`);
     assert.ok(typeof b.name === 'string' && b.name, `${id} name`);
     assert.ok(typeof b.short === 'string' && b.short, `${id} short`);
-    assert.ok(b.dash === null || typeof b.dash === 'string', `${id} dash`);
+    assert.equal(typeof b.flows, 'boolean', `${id} flows`);
   }
+  assert.equal(BUSES.gnd.flows, false, 'ground never flows');
 });
 
 test('default bus exists', () => {

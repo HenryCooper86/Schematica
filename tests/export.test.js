@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildExportSVG } from '../src/export.js';
 import { contentBounds } from '../src/geometry.js';
-import { getPart } from '../src/palette.js';
 import { Store, addNode } from '../src/state.js';
 
 function sampleDoc() {
@@ -22,7 +21,7 @@ test('default export paints the canvas background; transparent omits it', () => 
 
 test('export dimensions are content bounds plus margins', () => {
   const doc = sampleDoc();
-  const b = contentBounds(doc, getPart);
+  const b = contentBounds(doc);
   const svg = buildExportSVG(doc);
   const w = Number(svg.match(/width="([0-9.]+)"/)[1]);
   const h = Number(svg.match(/height="([0-9.]+)"/)[1]);
@@ -30,8 +29,14 @@ test('export dimensions are content bounds plus margins', () => {
   assert.equal(h, b.h + 48);
 });
 
-test('buildExportSVG renders an animation frame when given a timestamp', async () => {
-  const { buildExportSVG } = await import('../src/export.js');
+test('export embeds the defs and leaves the editor-only ports out', () => {
+  const svg = buildExportSVG(sampleDoc());
+  assert.ok(svg.includes('<marker id="arrow"'), 'arrow marker travels with the file');
+  assert.ok(svg.includes('id="cardGrad"') && svg.includes('id="nodeShadow"'));
+  assert.ok(!svg.includes('class="ports"'), 'hover-only port dots are not exported');
+});
+
+test('buildExportSVG renders an animation frame when given a timestamp', () => {
   const doc = {
     schema: 1,
     title: 'T',

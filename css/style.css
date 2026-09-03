@@ -22,6 +22,9 @@ html, body {
   font-size: 14px;
   color: var(--text);
   background: var(--bg0);
+  /* Dragging on the canvas must never start a text selection (net_draw does the same). */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 #app {
@@ -140,7 +143,6 @@ html, body {
   height: 34px;
   border-radius: 9px;
   background: color-mix(in srgb, var(--c) 13%, transparent);
-  border: 1px solid color-mix(in srgb, var(--c) 30%, transparent);
 }
 .palette-item .badge svg { width: 18px; height: 18px; }
 
@@ -153,9 +155,52 @@ html, body {
   background: var(--bg0);
   touch-action: none;
 }
-#canvas.panning { cursor: grab; }
-#canvas.tool-wire .port { cursor: crosshair; }
+#canvas.panning { cursor: grabbing !important; }
 #canvas.tool-pan { cursor: grab; }
+#canvas.tool-wire g.node { cursor: crosshair; }
+
+/* Canvas objects, net_draw style: hover and flow effects are pure CSS, so
+   moving the pointer or animating never rebuilds the SVG. */
+g.node { cursor: move; }
+g.zone { cursor: move; }
+.ports { opacity: 0; transition: opacity 0.13s; }
+g.node:hover .ports,
+#canvas.tool-wire .ports,
+#canvas.drafting .ports { opacity: 1; }
+.port { cursor: crosshair; }
+.portg:hover .port,
+.portg[data-hot] .port { stroke-width: 2.5; }
+.portg[data-hot] .port { stroke: #7dd3fc; }
+.port-name { opacity: 0; transition: opacity 0.13s; }
+.portg:hover .port-name,
+.portg[data-hot] .port-name { opacity: 1; }
+.wire { cursor: pointer; }
+.wire:hover .vis { stroke: #9db2d0; }
+.wire.sel .vis { stroke: #7dd3fc; }
+.vis.anim { animation: dashflow 0.75s linear infinite; }
+@keyframes dashflow { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -28; } }
+.fxhalo { animation: fxpulse 1.5s ease-in-out infinite; }
+@keyframes fxpulse { 0%, 100% { stroke-opacity: 0.22; } 50% { stroke-opacity: 0.85; } }
+.blink { animation: blink 1.5s ease-in-out infinite; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) {
+  .vis.anim, .fxhalo, .blink { animation: none; }
+}
+
+/* Bus code pill, as drawn on the wires; reused by the legend and bus picker. */
+.bus-chip {
+  display: inline-block;
+  flex: none;
+  min-width: 38px;
+  text-align: center;
+  background: #0c1424;
+  border: 1px solid #24304d;
+  color: #8fa3c0;
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 10.5px;
+  line-height: 1.5;
+}
 
 #hintbar {
   position: absolute;
@@ -361,7 +406,6 @@ html, body {
   text-align: left;
 }
 #bus-popover button:hover { background: var(--bg3); }
-#bus-popover .swatch { width: 20px; height: 4px; border-radius: 2px; flex: none; }
 
 /* ---- Examples menu ---- */
 #examples-menu {
@@ -641,7 +685,7 @@ html, body {
 #export-cancel, #bom-close { color: var(--muted); }
 
 .bom-card { width: 680px; max-width: 92vw; }
-#bom-table { max-height: 320px; overflow: auto; margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; }
+#bom-table { max-height: 320px; overflow: auto; margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; user-select: text; -webkit-user-select: text; }
 #bom-table table { border-collapse: collapse; width: 100%; font-size: 11.5px; }
 #bom-table th, #bom-table td { text-align: left; padding: 6px 9px; border-bottom: 1px solid var(--line); color: var(--text); white-space: nowrap; }
 #bom-table td.wrap { white-space: normal; }

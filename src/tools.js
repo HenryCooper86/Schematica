@@ -8,15 +8,20 @@ import { BUSES, BUS_ORDER } from './buses.js';
 import { getPart } from './palette.js';
 import { esc } from './render.js';
 
+// requestRender(kind): 'all' (default) rebuilds the diagram, 'view' only moves
+// the camera, 'overlay' only redraws drag feedback. Hover effects (ports,
+// wire highlight) are pure CSS, so moving the pointer never re-renders.
 export function createTools({ svg, store, requestRender, onToolChange, onSave }) {
   const view = { x: 40, y: 40, zoom: 1 };
+  // Animate starts off, as in net_draw: wires are solid until the toggle (or a
+  // wire's own "Always" flow setting) turns their traffic on.
   const ui = {
-    marquee: null, wireDraft: null, hoverPort: null, hoverNode: null,
-    grid: true, snapOn: true, animate: true,
+    marquee: null, wireDraft: null, grid: true, snapOn: true, animate: false,
   };
   let tool = 'select';
   let spaceDown = false;
   let drag = null;
+  let hotPort = null; // the port under a wire being dragged, marked via data-hot
 
   function capturePointer(e) {
     try {
@@ -53,7 +58,7 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
     view.x = cx - (cx - view.x) * k;
     view.y = cy - (cy - view.y) * k;
     view.zoom = z;
-    requestRender();
+    requestRender('view');
   }
 
   function zoomBy(factor) {
@@ -65,11 +70,11 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
     view.x = 40;
     view.y = 40;
     view.zoom = 1;
-    requestRender();
+    requestRender('view');
   }
 
   function zoomFit() {
-    const b = contentBounds(store.doc, getPart);
+    const b = contentBounds(store.doc);
     if (!b) { zoomReset(); return; }
     const r = svg.getBoundingClientRect();
     const M = 40;
@@ -81,7 +86,7 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
     view.zoom = z;
     view.x = r.width / 2 - (b.x + b.w / 2) * z;
     view.y = r.height / 2 - (b.y + b.h / 2) * z;
-    requestRender();
+    requestRender('view');
   }
 
   function movableSelection() {
@@ -106,6 +111,35 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
     return ids;
   }
 
+  function portUnder(e) {
+    return document.elementFromPoint(e.clientX, e.clientY)?.closest?.('.portg') || null;
+  }
+
+  function portRef(el) {
+    return { node: el.dataset.node, port: el.dataset.port };
+  }
+
+  function setHotPort(el) {
+    if (hotPort === el) return;
+    hotPort?.removeAttribute('data-hot');
+    hotPort = el;
+    el?.setAttribute('data-hot', '');
+  }
+
+  // Own double-click detection, as in net_draw: pointer capture retargets the
+  // native dblclick to the svg itself, so the rename gesture is a second press
+  // on the same item within 420ms and 8px.
+  let lastPress = { key: null, t: 0, x: 0, y: 0 };
+  function isDoubleClick(key, e) {
+    const now = performance.now();
+    const dbl = lastPress.key === key && now - lastPress.t < 420
+      && Math.hypot(e.clientX - lastPress.x, e.clientY - lastPress.y) < 8;
+    lastPress = dbl ? { key: null, t: 0, x: 0, y: 0 } : { key, t: now, x: e.clientX, y: e.clientY };
+    return dbl;
+  }
+
+  const EDIT_FIELDS = { node: 'label', wire: 'label', zone: 'label', note: 'text' };
+
   svg.addEventListener('pointerdown', (e) => {
     if (e.button === 1 || (e.button === 0 && (spaceDown || tool === 'pan'))) {
       drag = { mode: 'pan', sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y };
@@ -116,23 +150,21 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
     if (e.button !== 0) return;
     const pt = toWorld(e);
 
-    const portEl = e.target.closest('.port');
+    const portEl = e.target.closest('.portg');
     if (portEl) {
-      ui.wireDraft = {
-        from: { node: portEl.dataset.node, port: portEl.dataset.port },
-        cursor: pt,
-      };
+      ui.wireDraft = { from: portRef(portEl), cursor: pt };
       drag = { mode: 'wire' };
+      svg.classList.add('drafting');
       capturePointer(e);
-      requestRender();
+      requestRender('overlay');
       return;
     }
 
     if (tool === 'zone' || tool === 'lane') {
       drag = { mode: 'zone', start: pt, lane: tool === 'lane' };
-      ui.marquee = { x: pt.x, y: pt.y, w: 0, h: 0 };
+      ui.marquee = { x: pt.x, y: pt.y, w: 0, h: 0, kind: 'zone' };
       capturePointer(e);
-      requestRender();
+      requestRender('overlay');
       return;
     }
     if (tool === 'note') {
@@ -145,6 +177,11 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
     const itemEl = e.target.closest('[data-type]');
     if (itemEl) {
       const id = itemEl.dataset.id;
+      if (isDoubleClick(id, e)) {
+        const editEl = e.target.closest('[data-edit]');
+        openInlineEditor(id, editEl?.dataset.edit || EDIT_FIELDS[itemEl.dataset.type], e.clientX, e.clientY);
+        return;
+      }
       if (e.shiftKey) {
         store.toggleSelection(id);
       } else if (!store.selection.has(id)) {
@@ -156,53 +193,34 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
         store.beginDrag();
         capturePointer(e);
       }
-      requestRender();
       return;
     }
 
     if (!e.shiftKey) store.clearSelection();
     drag = { mode: 'marquee', start: pt, additive: e.shiftKey };
     capturePointer(e);
-    requestRender();
   });
 
   svg.addEventListener('pointermove', (e) => {
+    if (!drag) return;
     const pt = toWorld(e);
-    if (!drag) {
-      const portEl = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('.port');
-      const hp = portEl ? { node: portEl.dataset.node, port: portEl.dataset.port } : null;
-      // Ports render only on the hovered node (like net_draw). Hover is
-      // detected geometrically with a margin because the port circles straddle
-      // the card edge and must be reachable from just outside it.
-      const PAD = 12;
-      let hn = null;
-      for (const n of store.doc.nodes) {
-        if (pt.x >= n.x - PAD && pt.x <= n.x + n.w + PAD
-          && pt.y >= n.y - PAD && pt.y <= n.y + n.h + PAD) hn = n.id;
-      }
-      if (JSON.stringify(hp) !== JSON.stringify(ui.hoverPort) || hn !== ui.hoverNode) {
-        ui.hoverPort = hp;
-        ui.hoverNode = hn;
-        requestRender();
-      }
-      return;
-    }
     if (drag.mode === 'pan') {
       view.x = drag.vx + (e.clientX - drag.sx);
       view.y = drag.vy + (e.clientY - drag.sy);
-      requestRender();
+      requestRender('view');
       return;
     }
     if (drag.mode === 'wire') {
       ui.wireDraft.cursor = pt;
-      const el = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('.port');
-      ui.hoverPort = el ? { node: el.dataset.node, port: el.dataset.port } : null;
-      requestRender();
+      const el = portUnder(e);
+      const from = ui.wireDraft.from;
+      setHotPort(el && !(el.dataset.node === from.node && el.dataset.port === from.port) ? el : null);
+      requestRender('overlay');
       return;
     }
     if (drag.mode === 'marquee' || drag.mode === 'zone') {
-      ui.marquee = normRect(drag.start.x, drag.start.y, pt.x, pt.y);
-      requestRender();
+      ui.marquee = { ...normRect(drag.start.x, drag.start.y, pt.x, pt.y), kind: drag.mode === 'zone' ? 'zone' : 'select' };
+      requestRender('overlay');
       return;
     }
     if (drag.mode === 'move') {
@@ -230,16 +248,17 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
   svg.addEventListener('pointerup', (e) => {
     if (!drag) return;
     if (drag.mode === 'wire') {
-      const el = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('.port');
+      const el = portUnder(e);
       const draft = ui.wireDraft;
       ui.wireDraft = null;
-      ui.hoverPort = null;
+      setHotPort(null);
+      svg.classList.remove('drafting');
       if (el && draft
         && !(el.dataset.node === draft.from.node && el.dataset.port === draft.from.port)) {
-        finishWire(draft.from, { node: el.dataset.node, port: el.dataset.port }, e);
+        finishWire(draft.from, portRef(el), e);
       }
       drag = null;
-      requestRender();
+      requestRender('overlay');
       return;
     }
     if (drag.mode === 'zone') {
@@ -252,7 +271,7 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
       }
       setTool('select');
       drag = null;
-      requestRender();
+      requestRender('overlay');
       return;
     }
     if (drag.mode === 'marquee') {
@@ -267,19 +286,14 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
           store.setSelection(hits);
         }
       }
-    } else if (drag.mode === 'move') {
+      drag = null;
+      requestRender('overlay');
+      return;
+    }
+    if (drag.mode === 'move') {
       store.endDrag();
     }
     drag = null;
-    requestRender();
-  });
-
-  svg.addEventListener('pointerleave', () => {
-    if ((ui.hoverNode || ui.hoverPort) && !drag) {
-      ui.hoverNode = null;
-      ui.hoverPort = null;
-      requestRender();
-    }
   });
 
   svg.addEventListener('wheel', (e) => {
@@ -334,6 +348,8 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
       drag = null;
       ui.wireDraft = null;
       ui.marquee = null;
+      setHotPort(null);
+      svg.classList.remove('drafting');
       closeBusPopover();
       store.clearSelection();
       requestRender();
@@ -394,7 +410,7 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
     const order = [...suggested, ...BUS_ORDER.filter((b) => !suggested.includes(b))];
     popover.innerHTML = order.map((id) => {
       const b = BUSES[id];
-      return `<button data-bus="${esc(id)}"><span class="swatch" style="background:${esc(b.color)}"></span>`
+      return `<button data-bus="${esc(id)}"><span class="bus-chip">${esc(b.short)}</span>`
         + `${esc(b.name)}${suggested.includes(id) ? ' ★' : ''}</button>`;
     }).join('');
     popover.style.left = `${Math.min(cx, window.innerWidth - 190)}px`;
@@ -426,8 +442,14 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
     editor.style.left = `${Math.min(cx - 100, window.innerWidth - 210)}px`;
     editor.style.top = `${cy - 14}px`;
     editor.hidden = false;
-    editor.focus();
-    editor.select();
+    // Defer focus: the pointerdown that opened the editor moves focus as its
+    // default action, which would blur (and commit) the editor at once.
+    setTimeout(() => {
+      if (editing) {
+        editor.focus();
+        editor.select();
+      }
+    }, 0);
   }
 
   function commitInlineEditor() {
@@ -448,15 +470,6 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
     e.stopPropagation();
   });
   editor.addEventListener('blur', commitInlineEditor);
-
-  svg.addEventListener('dblclick', (e) => {
-    const itemEl = e.target.closest('[data-type]');
-    if (!itemEl) return;
-    const editEl = e.target.closest('[data-edit]');
-    const defaults = { node: 'label', wire: 'label', zone: 'label', note: 'text' };
-    const field = editEl?.dataset.edit || defaults[itemEl.dataset.type];
-    openInlineEditor(itemEl.dataset.id, field, e.clientX, e.clientY);
-  });
 
   return { view, ui, setTool, getTool: () => tool, zoomBy, zoomReset, zoomFit, toWorld };
 }

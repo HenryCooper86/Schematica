@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  snap, nodeRect, portPosition, portNormal, wirePath, wireMidpoint,
+  snap, nodeRect, portPosition, wireGeom, wireGeomToPoint, curvePoint, wireLanes, WIRE_FAN,
   rectContains, rectsIntersect, normRect, wrapText, noteHeight, NOTE_W, contentBounds,
 } from '../src/geometry.js';
 
@@ -21,23 +21,66 @@ test('portPosition on each side', () => {
   assert.deepEqual(portPosition(node, { side: 'bottom', offset: 1 }), { x: 260, y: 300 });
 });
 
-test('portNormal points outward', () => {
-  assert.deepEqual(portNormal('left'), { x: -1, y: 0 });
-  assert.deepEqual(portNormal('right'), { x: 1, y: 0 });
-  assert.deepEqual(portNormal('top'), { x: 0, y: -1 });
-  assert.deepEqual(portNormal('bottom'), { x: 0, y: 1 });
+// net_draw edge geometry: each end sits on the card boundary (5px out) along
+// the ray toward the other card's center; the cubic bends along the dominant
+// axis only, so a wire always leaves and enters straight.
+test('wireGeom anchors on the facing card edges and runs straight between aligned cards', () => {
+  const a = { x: 0, y: 0, w: 160, h: 100 };
+  const b = { x: 400, y: 0, w: 160, h: 100 };
+  const g = wireGeom(a, b);
+  assert.deepEqual(g.p1, { x: 165, y: 50 });
+  assert.deepEqual(g.p2, { x: 395, y: 50 });
+  assert.equal(g.d, 'M 165 50 C 257 50, 303 50, 395 50');
+  assert.deepEqual(g.mid, { x: 280, y: 50 });
 });
 
-test('wirePath is a cubic from a to b', () => {
-  const d = wirePath({ x: 0, y: 0 }, 'right', { x: 100, y: 0 }, 'left');
-  assert.match(d, /^M 0 0 C /);
-  assert.match(d, / 100 0$/);
+test('wireGeom bends along the dominant axis', () => {
+  const a = { x: 0, y: 0, w: 100, h: 50 };
+  const below = { x: 0, y: 300, w: 100, h: 50 };
+  const g = wireGeom(a, below);
+  assert.deepEqual(g.p1, { x: 50, y: 55 }, 'leaves the bottom edge');
+  assert.deepEqual(g.p2, { x: 50, y: 295 }, 'enters the top edge');
+  assert.equal(g.c1.x, g.p1.x, 'vertical run: control points keep x');
+  assert.equal(g.c2.x, g.p2.x);
+  const diag = wireGeom(a, { x: 300, y: 60, w: 100, h: 50 });
+  assert.equal(diag.c1.y, diag.p1.y, 'horizontal-dominant run: control points keep y');
+  assert.ok(diag.p1.x > 100 && diag.p1.x <= 105, 'exits through the right edge');
 });
 
-test('wireMidpoint of a horizontal symmetric wire sits between endpoints', () => {
-  const m = wireMidpoint({ x: 0, y: 0 }, 'right', { x: 100, y: 0 }, 'left');
-  assert.equal(m.x, 50);
-  assert.equal(m.y, 0);
+test('wireGeom offset displaces the whole curve sideways for parallel wires', () => {
+  const a = { x: 0, y: 0, w: 160, h: 100 };
+  const b = { x: 400, y: 0, w: 160, h: 100 };
+  const up = wireGeom(a, b, -11);
+  const down = wireGeom(a, b, 11);
+  assert.deepEqual(up.p1, { x: 165, y: 39 });
+  assert.deepEqual(down.p1, { x: 165, y: 61 });
+  assert.notEqual(up.d, down.d);
+});
+
+test('wireGeomToPoint ends exactly at the cursor', () => {
+  const a = { x: 0, y: 0, w: 160, h: 100 };
+  const g = wireGeomToPoint(a, { x: 500, y: 50 });
+  assert.deepEqual(g.p1, { x: 165, y: 50 });
+  assert.deepEqual(g.p2, { x: 500, y: 50 });
+});
+
+test('curvePoint walks the cubic from p1 to p2 through mid', () => {
+  const g = wireGeom({ x: 0, y: 0, w: 100, h: 50 }, { x: 300, y: 200, w: 100, h: 50 });
+  assert.deepEqual(curvePoint(g, 0), g.p1);
+  assert.deepEqual(curvePoint(g, 1), g.p2);
+  assert.deepEqual(curvePoint(g, 0.5), g.mid);
+});
+
+test('wireLanes fans wires that share a node pair and centers the fan', () => {
+  const wires = [
+    { id: 'w1', from: { node: 'a' }, to: { node: 'b' } },
+    { id: 'w2', from: { node: 'b' }, to: { node: 'a' } },
+    { id: 'w3', from: { node: 'a' }, to: { node: 'c' } },
+    { id: 'w4', from: { node: 'a' }, to: { node: 'b' } },
+  ];
+  const lanes = wireLanes(wires);
+  assert.equal(lanes.get('w3'), 0, 'a lone wire runs down the middle');
+  assert.deepEqual([lanes.get('w1'), lanes.get('w2'), lanes.get('w4')], [-WIRE_FAN, 0, WIRE_FAN]);
 });
 
 test('rect helpers', () => {
@@ -46,6 +89,7 @@ test('rect helpers', () => {
   assert.ok(rectsIntersect({ x: 0, y: 0, w: 10, h: 10 }, { x: 5, y: 5, w: 10, h: 10 }));
   assert.ok(!rectsIntersect({ x: 0, y: 0, w: 10, h: 10 }, { x: 20, y: 0, w: 5, h: 5 }));
   assert.deepEqual(normRect(10, 10, 0, 5), { x: 0, y: 5, w: 10, h: 5 });
+  assert.deepEqual(nodeRect({ x: 1, y: 2, w: 3, h: 4, label: 'x' }), { x: 1, y: 2, w: 3, h: 4 });
 });
 
 test('wrapText wraps at maxChars and never returns empty', () => {
@@ -76,24 +120,6 @@ test('contentBounds covers nodes, zones, notes; null when empty', () => {
   assert.equal(contentBounds({ nodes: [], zones: [], notes: [], wires: [] }), null);
 });
 
-test('contentBounds includes wire curve extents when given a part resolver', () => {
-  const fakePart = { ports: [{ id: 'p', name: 'P', side: 'bottom', offset: 0.5, bus: 'gpio' }] };
-  const getPartFn = () => fakePart;
-  const doc = {
-    nodes: [
-      { id: 'a', kind: 'x', x: 0, y: 0, w: 100, h: 50 },
-      { id: 'b', kind: 'x', x: 200, y: 0, w: 100, h: 50 },
-    ],
-    wires: [{ id: 'w', bus: 'gpio', from: { node: 'a', port: 'p' }, to: { node: 'b', port: 'p' } }],
-    zones: [],
-    notes: [],
-  };
-  const plain = contentBounds(doc);
-  const withWires = contentBounds(doc, getPartFn);
-  assert.equal(plain.y + plain.h, 50);
-  assert.ok(withWires.y + withWires.h > 50, 'bottom-side wire control points must extend the bounds');
-});
-
 test('laneSnapPoint pulls the cross-axis onto lane centerlines inside a swimlane', async () => {
   const { laneSnapPoint, LANE_TITLE_H } = await import('../src/geometry.js');
   const doc = {
@@ -112,13 +138,4 @@ test('laneSnapPoint pulls the cross-axis onto lane centerlines inside a swimlane
   assert.deepEqual(laneSnapPoint(doc, 58, 200), { x: 50, y: 200 }, 'vertical lanes snap x');
   const plain = { zones: [{ id: 'z2', x: 0, y: 0, w: 300, h: 300, label: 'Z', color: '#4a90d9' }] };
   assert.deepEqual(laneSnapPoint(plain, 100, 100), { x: 100, y: 100 }, 'plain zones never snap');
-});
-
-test('wirePoint generalizes wireMidpoint', async () => {
-  const { wirePoint, wireMidpoint } = await import('../src/geometry.js');
-  const a = { x: 0, y: 0 };
-  const b = { x: 100, y: 100 };
-  assert.deepEqual(wirePoint(a, 'right', b, 'left', 0.5), wireMidpoint(a, 'right', b, 'left'));
-  assert.deepEqual(wirePoint(a, 'right', b, 'left', 0), a);
-  assert.deepEqual(wirePoint(a, 'right', b, 'left', 1), b);
 });

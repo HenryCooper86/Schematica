@@ -1,4 +1,4 @@
-import { CANVAS_BG } from './render.js';
+import { CANVAS_BG, bakeFrame } from './render.js';
 import { wrapText } from './geometry.js';
 import { encodeGIF } from './gif.js';
 import { download } from './export.js';
@@ -116,6 +116,9 @@ export function createRecorder(svg, { notify: notifyUser = (m) => alert(m) } = {
     let drew = false;
     try {
       const clone = svg.cloneNode(true);
+      // The page's CSS (hover-only ports, flow and pulse keyframes) does not
+      // travel into the rasterized copy, so freeze this instant into attributes.
+      bakeFrame(clone, performance.now());
       clone.setAttribute('width', rect.width);
       clone.setAttribute('height', rect.height);
       clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');

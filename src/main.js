@@ -48,40 +48,52 @@ function toast(message) {
   toastTimer = setTimeout(() => { t.hidden = true; }, 3600);
 }
 
-function renderCanvas(now = performance.now()) {
-  renderer.render(store.doc, tools.view, {
+function uiState() {
+  return {
     selection: store.selection,
     marquee: tools.ui.marquee,
     wireDraft: tools.ui.wireDraft,
-    hoverPort: tools.ui.hoverPort,
-    hoverNode: tools.ui.hoverNode,
-    tool: tools.getTool(),
     grid: tools.ui.grid,
     animate: tools.ui.animate,
-    now,
-  });
+  };
 }
 
-function render() {
-  renderCanvas();
+function updateZoomLabel() {
   document.getElementById('zoom-label').textContent = `${Math.round(tools.view.zoom * 100)}%`;
+}
+
+// kind: 'all' rebuilds the diagram; 'view' only moves the camera (pan, zoom,
+// journey tweens); 'overlay' only redraws transient drag feedback. Hover is
+// pure CSS and flow animation runs in CSS, so neither ever rebuilds the SVG.
+function render(kind = 'all') {
+  if (kind === 'view') {
+    renderer.setView(tools.view, tools.ui.grid);
+    updateZoomLabel();
+    return;
+  }
+  if (kind === 'overlay') {
+    renderer.renderOverlay(store.doc, uiState());
+    return;
+  }
+  renderer.render(store.doc, tools.view, uiState());
+  updateZoomLabel();
   document.getElementById('undo').disabled = !store.canUndo();
   document.getElementById('redo').disabled = !store.canRedo();
   document.getElementById('btn-remove').disabled = store.selection.size === 0;
   renderProps();
 }
 
-store.subscribe(render);
+store.subscribe(() => render());
 
 // ---- Animation ticker ----
-// Attribute-driven so recordings capture the motion; ~30fps, runs only while enabled.
+// Flow dashes and pulses animate in CSS; only the air-gap footprints need a
+// JS step, so the ticker (~30fps) runs just while a sneakernet wire flows.
 let animRaf = null;
 let lastAnimFrame = 0;
 
-// The ticker runs while the global toggle is on, or while any wire opts into
-// "Always" traffic flow — that per-wire override animates on its own.
 function needsTicker() {
-  return tools.ui.animate || store.doc.wires.some((w) => w.flow === 'on');
+  return store.doc.wires.some((w) => w.style === 'sneakernet'
+    && (w.flow === 'on' || (w.flow !== 'off' && tools.ui.animate)));
 }
 
 function animTick(now) {
@@ -91,7 +103,7 @@ function animTick(now) {
   }
   if (now - lastAnimFrame >= 33) {
     lastAnimFrame = now;
-    renderCanvas(now);
+    renderer.step(now);
   }
   animRaf = requestAnimationFrame(animTick);
 }
@@ -327,9 +339,11 @@ function renderProps() {
     html += `<label>Arrowheads</label><div class="chips">${ARROWS.map(([v, lab]) => (
       `<button class="chip${(item.arrow ?? null) === v ? ' active' : ''}" data-warrow="${v ?? ''}">${lab}</button>`
     )).join('')}</div>`;
-    const STYLES = [[null, 'Bus default'], ['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted'], ['sneakernet', 'Sneakernet &middot; air gap &#x1F45F;']];
+    // Older boards may carry an explicit 'solid'; it is the same as the default.
+    const STYLES = [[null, 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted'], ['sneakernet', 'Sneakernet &middot; air gap &#x1F45F;']];
+    const curStyle = item.style === 'solid' ? null : (item.style ?? null);
     html += `<label>Line style</label><div class="chips">${STYLES.map(([v, lab]) => (
-      `<button class="chip${(item.style ?? null) === v ? ' active' : ''}" data-wstyle="${v ?? ''}">${lab}</button>`
+      `<button class="chip${curStyle === v ? ' active' : ''}" data-wstyle="${v ?? ''}">${lab}</button>`
     )).join('')}</div>`;
     const FLOWS = [[null, 'With Animate'], ['on', 'Always'], ['off', 'Never']];
     html += `<label>Traffic flow</label><div class="chips">${FLOWS.map(([v, lab]) => (
@@ -672,14 +686,13 @@ fileInput.addEventListener('change', async () => {
 });
 
 // ---- Legend ----
+// Every wire draws in the same slate stroke (net_draw style); the pill on the
+// wire names the bus, so the legend maps those codes to full names.
 function buildLegend() {
   const legend = document.getElementById('legend');
   legend.innerHTML = '<h3>Buses</h3>' + BUS_ORDER.map((id) => {
     const b = BUSES[id];
-    const dash = b.dash ? ` stroke-dasharray="${esc(b.dash)}"` : '';
-    return `<div class="legend-row"><svg width="36" height="10">`
-      + `<line x1="2" y1="5" x2="34" y2="5" stroke="${esc(b.color)}" stroke-width="${Math.min(b.width, 4)}"${dash} stroke-linecap="round"/>`
-      + `</svg><span>${esc(b.name)}</span></div>`;
+    return `<div class="legend-row"><span class="bus-chip">${esc(b.short)}</span><span>${esc(b.name)}</span></div>`;
   }).join('');
 }
 
@@ -734,7 +747,7 @@ function flyTo(target, instant = false) {
     tools.view.x = target.x;
     tools.view.y = target.y;
     tools.view.zoom = target.zoom;
-    render();
+    render('view');
     return;
   }
   const from = { x: tools.view.x, y: tools.view.y, zoom: tools.view.zoom };
@@ -745,7 +758,7 @@ function flyTo(target, instant = false) {
     tools.view.x = v.x;
     tools.view.y = v.y;
     tools.view.zoom = v.zoom;
-    render();
+    render('view');
     if (now - t0 < dur) tweenRaf = requestAnimationFrame(tick);
     else tweenRaf = null;
   };

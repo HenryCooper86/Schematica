@@ -16,42 +16,110 @@ export function portPosition(node, portDef) {
   return { x: node.x + node.w * offset, y: node.y + node.h };
 }
 
-export function portNormal(side) {
+// ---- Wires (net_draw edge geometry) ----
+// A wire leaves each card through the point where the ray toward the other
+// card's center crosses the card's edge (padded 5px), and the cubic bends
+// along the dominant axis only, so every wire enters and exits straight.
+
+const r2 = (v) => Math.round(v * 100) / 100 + 0;
+
+const ANCHOR_PAD = 5;
+
+function rectCenter(r) {
+  return { x: r.x + r.w / 2, y: r.y + r.h / 2 };
+}
+
+// Where the ray from origin toward `toward` exits `rect` grown by `pad`.
+function anchor(rect, origin, toward, pad) {
+  const dx = toward.x - origin.x;
+  const dy = toward.y - origin.y;
+  if (dx === 0 && dy === 0) return { x: origin.x, y: origin.y };
+  const tx = dx > 0 ? (rect.x + rect.w + pad - origin.x) / dx
+    : dx < 0 ? (rect.x - pad - origin.x) / dx : Infinity;
+  const ty = dy > 0 ? (rect.y + rect.h + pad - origin.y) / dy
+    : dy < 0 ? (rect.y - pad - origin.y) / dy : Infinity;
+  const t = Math.max(0, Math.min(tx, ty));
+  return { x: origin.x + dx * t, y: origin.y + dy * t };
+}
+
+function cubic(p1, p2) {
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
+  let c1;
+  let c2;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    c1 = { x: r2(p1.x + dx * 0.4), y: p1.y };
+    c2 = { x: r2(p2.x - dx * 0.4), y: p2.y };
+  } else {
+    c1 = { x: p1.x, y: r2(p1.y + dy * 0.4) };
+    c2 = { x: p2.x, y: r2(p2.y - dy * 0.4) };
+  }
   return {
-    left: { x: -1, y: 0 },
-    right: { x: 1, y: 0 },
-    top: { x: 0, y: -1 },
-    bottom: { x: 0, y: 1 },
-  }[side];
-}
-
-function controls(a, sideA, b, sideB) {
-  const dist = Math.hypot(b.x - a.x, b.y - a.y);
-  const ext = Math.min(120, Math.max(30, dist * 0.4));
-  const na = portNormal(sideA);
-  const nb = portNormal(sideB);
-  return [
-    { x: a.x + na.x * ext, y: a.y + na.y * ext },
-    { x: b.x + nb.x * ext, y: b.y + nb.y * ext },
-  ];
-}
-
-export function wirePath(a, sideA, b, sideB) {
-  const [c1, c2] = controls(a, sideA, b, sideB);
-  return `M ${a.x} ${a.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${b.x} ${b.y}`;
-}
-
-export function wirePoint(a, sideA, b, sideB, t) {
-  const [c1, c2] = controls(a, sideA, b, sideB);
-  const u = 1 - t;
-  return {
-    x: u * u * u * a.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * b.x,
-    y: u * u * u * a.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * b.y,
+    d: `M ${p1.x} ${p1.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${p2.x} ${p2.y}`,
+    mid: {
+      x: r2((p1.x + 3 * c1.x + 3 * c2.x + p2.x) / 8),
+      y: r2((p1.y + 3 * c1.y + 3 * c2.y + p2.y) / 8),
+    },
+    p1, c1, c2, p2,
   };
 }
 
-export function wireMidpoint(a, sideA, b, sideB) {
-  return wirePoint(a, sideA, b, sideB, 0.5);
+// `offset` shifts the whole curve sideways (perpendicular to the center line)
+// so several wires between the same two cards run side by side.
+export function wireGeom(a, b, offset = 0) {
+  const ca = rectCenter(a);
+  const cb = rectCenter(b);
+  let oa = ca;
+  let ob = cb;
+  if (offset) {
+    const len = Math.hypot(cb.x - ca.x, cb.y - ca.y) || 1;
+    const px = (-(cb.y - ca.y) / len) * offset;
+    const py = ((cb.x - ca.x) / len) * offset;
+    oa = { x: ca.x + px, y: ca.y + py };
+    ob = { x: cb.x + px, y: cb.y + py };
+  }
+  const p1 = anchor(a, oa, ob, ANCHOR_PAD);
+  const p2 = anchor(b, ob, oa, ANCHOR_PAD);
+  return cubic({ x: r2(p1.x), y: r2(p1.y) }, { x: r2(p2.x), y: r2(p2.y) });
+}
+
+// A wire being dragged out: leaves the card toward the cursor, ends on it.
+export function wireGeomToPoint(node, pt) {
+  const p1 = anchor(node, rectCenter(node), pt, ANCHOR_PAD);
+  return cubic({ x: r2(p1.x), y: r2(p1.y) }, { x: r2(pt.x), y: r2(pt.y) });
+}
+
+export function curvePoint(geo, t) {
+  const u = 1 - t;
+  const { p1, c1, c2, p2 } = geo;
+  return {
+    x: r2(u * u * u * p1.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * p2.x),
+    y: r2(u * u * u * p1.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * p2.y),
+  };
+}
+
+// Spacing between wires that share a node pair — wider than a 20px label pill
+// so neighbouring pills never touch.
+export const WIRE_FAN = 22;
+
+// Sideways offset per wire id. Wires between the same two nodes are fanned
+// evenly around the center line; the sign is normalized to the pair's
+// canonical direction so a→b and b→a wires never collapse onto one lane.
+export function wireLanes(wires) {
+  const groups = new Map();
+  for (const w of wires) {
+    const key = [w.from.node, w.to.node].sort().join(' ');
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(w);
+  }
+  const lanes = new Map();
+  for (const group of groups.values()) {
+    group.forEach((w, i) => {
+      const sign = w.from.node <= w.to.node ? 1 : -1;
+      lanes.set(w.id, sign * (i - (group.length - 1) / 2) * WIRE_FAN + 0);
+    });
+  }
+  return lanes;
 }
 
 export function rectContains(r, p) {
@@ -115,27 +183,15 @@ export function noteHeight(text) {
   return 16 + wrapText(text).length * 16;
 }
 
-export function contentBounds(doc, getPartFn = null) {
+// Wires never leave the box spanned by their endpoint cards (each end sits on
+// a card edge and the control points stay between them), so only nodes,
+// zones, and notes decide the extent.
+export function contentBounds(doc) {
   const rects = [
     ...doc.nodes.map(nodeRect),
     ...doc.zones.map((z) => ({ x: z.x, y: z.y, w: z.w, h: z.h })),
     ...doc.notes.map((n) => ({ x: n.x, y: n.y, w: NOTE_W, h: noteHeight(n.text) })),
   ];
-  if (getPartFn) {
-    const nodeById = new Map(doc.nodes.map((n) => [n.id, n]));
-    for (const w of doc.wires) {
-      const from = nodeById.get(w.from.node);
-      const to = nodeById.get(w.to.node);
-      if (!from || !to) continue;
-      const pf = getPartFn(from.kind).ports.find((p) => p.id === w.from.port);
-      const pt = getPartFn(to.kind).ports.find((p) => p.id === w.to.port);
-      if (!pf || !pt) continue;
-      const a = portPosition(from, pf);
-      const b = portPosition(to, pt);
-      const [c1, c2] = controls(a, pf.side, b, pt.side);
-      for (const q of [a, b, c1, c2]) rects.push({ x: q.x, y: q.y, w: 0, h: 0 });
-    }
-  }
   if (!rects.length) return null;
   const x1 = Math.min(...rects.map((r) => r.x));
   const y1 = Math.min(...rects.map((r) => r.y));

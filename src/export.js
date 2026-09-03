@@ -1,12 +1,11 @@
-import { diagramMarkup, CANVAS_BG } from './render.js';
+import { diagramMarkup, defsMarkup, CANVAS_BG } from './render.js';
 import { contentBounds } from './geometry.js';
-import { getPart } from './palette.js';
 import { buildPDF } from './pdf.js';
 
 const MARGIN = 24;
 
 export function exportBounds(doc) {
-  const b = contentBounds(doc, getPart) || { x: 0, y: 0, w: 400, h: 300 };
+  const b = contentBounds(doc) || { x: 0, y: 0, w: 400, h: 300 };
   return {
     x: b.x - MARGIN,
     y: b.y - MARGIN,
@@ -18,9 +17,10 @@ export function exportBounds(doc) {
 export function buildExportSVG(doc, { transparent = false, now = null } = {}) {
   const { x, y, w, h } = exportBounds(doc);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${x} ${y} ${w} ${h}"`
-    + ` font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">`
+    + ` font-family="ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif">`
+    + `<defs>${defsMarkup()}</defs>`
     + (transparent ? '' : `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${CANVAS_BG}"/>`)
-    + diagramMarkup(doc, now != null ? { animate: true, now } : {})
+    + diagramMarkup(doc, { ports: false, ...(now != null ? { animate: true, now } : {}) })
     + '</svg>';
 }
 

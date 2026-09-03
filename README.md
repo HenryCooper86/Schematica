@@ -7,7 +7,7 @@ UART, CAN, USB, power rails, ...). Inspired by
 [net_draw](https://mr-r3b00t.github.io/net_draw/), specialized for embedded
 hardware.
 
-The UI is a dark, netdraw-inspired design: tinted icon badges, typed bus colors, and label chips on wires and zones.
+The UI mirrors net_draw's dark design: shaded cards with tinted icon badges, slate wires that leave each card toward the other, and a label pill on every wire naming its bus.
 
 No build step, no dependencies, no server: static HTML + ES modules + SVG.
 
@@ -41,7 +41,7 @@ then Settings → Pages → deploy from branch `main`, root folder.
 | Record | Rec button — WebM/MP4 video (optional mic or music audio) or animated GIF |
 | Journey | Journey button — save camera steps with captions; Present plays the tour (arrow keys, Esc) |
 | Examples | Examples menu — five built-in boards from sensor nodes to edge-to-cloud, journeys included |
-| Animate | Animate toggle — signal-flow dots on wires (speed varies by bus), pulsing Bug/Thermal alerts; captured in recordings; off by default when your OS asks for reduced motion |
+| Animate | Animate toggle — traffic dashes flow along wires and Bug/Thermal alerts pulse (net_draw style); off by default, and a wire's own "Always" flow setting keeps just that wire moving; captured in recordings |
 | Pan | `H` or hold Space — dedicated hand tool |
 | Fullscreen | ⛶ button in the zoom group |
 | Export dialog | PNG opens a size dialog — pixel dimensions, aspect lock, transparent background; the dialog's SVG button honors the transparency option (the toolbar SVG button is an instant opaque export) |
@@ -49,7 +49,7 @@ then Settings → Pages → deploy from branch `main`, root folder.
 | Share | Share button — the whole board compressed into a copyable URL; opening the link loads it, no backend |
 | Check | Check button — design rule checks: I2C address conflicts, unconnected power pins, floating parts, bus mismatches, lifecycle risks |
 | PDF | Export dialog — single-page PDF of the board (alongside PNG/SVG) |
-| Wire options | Select a wire — bus, label, arrowheads (→ or ↔), line style override, delete |
+| Wire options | Select a wire — bus, label, arrowheads (→ or ↔), line style (solid, dashed, dotted, air gap), traffic flow, delete |
 
 Work is autosaved to the browser's localStorage and restored on reload.
 
