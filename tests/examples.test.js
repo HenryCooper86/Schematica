@@ -59,6 +59,10 @@ test('the D-Robotics and Horizon boards use the vendor presets and the new buses
   const adas = EXAMPLES.find((e) => e.id === 'journey-adas');
   assert.ok(rover && adas, 'both boards exist');
   assert.ok(rover.doc.nodes.some((n) => n.kind === 'aisbc' && n.sublabel === 'RDK X5'), 'rover computes on an RDK X5');
+  const stereo = rover.doc.nodes.find((n) => n.kind === 'depthcam' && n.sublabel === 'RDK Stereo Camera');
+  assert.ok(stereo, 'rover carries the D-Robotics stereo camera module');
+  assert.ok(rover.doc.wires.some((w) => w.bus === 'mipi' && w.to.node === stereo.id && w.to.port === 'csi'), 'the stereo module rides a MIPI CSI lane');
+  assert.ok(rover.doc.nodes.some((n) => n.kind === 'mipicam' && n.sublabel === 'RS800W'), 'front camera is the D-Robotics RS800W');
   assert.ok(rover.doc.wires.some((w) => w.bus === 'mipi') && rover.doc.wires.some((w) => w.bus === 'canfd'), 'rover wires MIPI cameras and CAN FD');
   assert.ok(adas.doc.nodes.some((n) => n.kind === 'adas' && /Journey 6/.test(n.sublabel)), 'ADAS controller runs a Journey 6');
   assert.ok(adas.doc.nodes.some((n) => /Horizon/.test(n.notes)), 'a Horizon stack is named in the notes');

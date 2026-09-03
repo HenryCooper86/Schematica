@@ -418,10 +418,9 @@ export const EXAMPLES = [
         { id: 'n1', kind: 'battery', x: 40, y: 300, label: 'Battery', sublabel: '4S Li-ion', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
         { id: 'n2', kind: 'regulator', x: 40, y: 140, label: 'Regulator', sublabel: '5V 5A buck', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
         { id: 'n3', kind: 'aisbc', x: 330, y: 250, label: 'Robot brain', sublabel: 'RDK X5', color: null, addr: '', rail: '5V', notes: 'D-Robotics RDK X5: Sunrise 5, 10 TOPS BPU; 2x MIPI CSI, GbE, USB 3, CAN FD, 40-pin header; TogetheROS.Bot.', status: 'tested', flags: [] },
-        { id: 'n4', kind: 'mipicam', x: 620, y: 100, label: 'Front camera', sublabel: 'IMX219', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
-        { id: 'n5', kind: 'mipicam', x: 620, y: 230, label: 'Rear camera', sublabel: 'IMX219', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
-        { id: 'n6', kind: 'depthcam', x: 620, y: 360, label: 'Depth camera', sublabel: 'RealSense D435i', color: null, addr: '', rail: '', notes: 'Stereo depth, RGB, and IMU over USB 3.', status: null, flags: [] },
-        { id: 'n7', kind: 'lidar', x: 620, y: 490, label: 'LiDAR', sublabel: 'RPLIDAR A1', color: null, addr: '', rail: '5V', notes: '', status: 'production', flags: [] },
+        { id: 'n4', kind: 'mipicam', x: 620, y: 100, label: 'Front camera', sublabel: 'RS800W', color: null, addr: '', rail: '', notes: 'D-Robotics RDK Camera RS800W: 8MP rolling-shutter MIPI CSI module for RDK X5 / X3.', status: null, flags: [] },
+        { id: 'n5', kind: 'depthcam', x: 620, y: 230, label: 'Stereo camera', sublabel: 'RDK Stereo Camera', color: null, addr: '', rail: '', notes: 'D-Robotics RDK Stereo Camera Module: 2MP stereo pair over MIPI CSI for depth on RDK boards.', status: 'tested', flags: [] },
+        { id: 'n7', kind: 'lidar', x: 620, y: 360, label: 'LiDAR', sublabel: 'RPLIDAR A1', color: null, addr: '', rail: '5V', notes: '', status: 'production', flags: [] },
         { id: 'n8', kind: 'motorctl', x: 200, y: 480, label: 'Motor controller', sublabel: 'CAN FD ESC', color: null, addr: '', rail: '', notes: '', status: 'prototype', flags: ['thermal'] },
         { id: 'n9', kind: 'motor', x: 200, y: 630, label: 'Left motor', sublabel: 'BLDC', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
         { id: 'n10', kind: 'motor', x: 340, y: 630, label: 'Right motor', sublabel: 'BLDC', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
@@ -436,7 +435,6 @@ export const EXAMPLES = [
         { id: 'w5', bus: 'gnd', from: { node: 'n1', port: 'gnd' }, to: { node: 'n8', port: 'gnd' }, label: '', arrow: null, style: null, flow: null },
         { id: 'w6', bus: 'mipi', from: { node: 'n3', port: 'csi1' }, to: { node: 'n4', port: 'csi' }, label: 'CSI-2', arrow: null, style: null, flow: null },
         { id: 'w7', bus: 'mipi', from: { node: 'n3', port: 'csi2' }, to: { node: 'n5', port: 'csi' }, label: 'CSI-2', arrow: null, style: null, flow: null },
-        { id: 'w8', bus: 'usb', from: { node: 'n3', port: 'usb' }, to: { node: 'n6', port: 'usb' }, label: 'USB 3', arrow: null, style: null, flow: null },
         { id: 'w9', bus: 'uart', from: { node: 'n3', port: 'uart' }, to: { node: 'n7', port: 'uart' }, label: '115200', arrow: null, style: null, flow: null },
         { id: 'w10', bus: 'rs485', from: { node: 'n3', port: 'uart2' }, to: { node: 'n12', port: 'bus' }, label: 'servo bus', arrow: null, style: null, flow: null },
         { id: 'w11', bus: 'canfd', from: { node: 'n3', port: 'canfd' }, to: { node: 'n8', port: 'canfd' }, label: '5 Mbit/s', arrow: null, style: null, flow: null },
@@ -448,7 +446,7 @@ export const EXAMPLES = [
       ],
       zones: [
         { id: 'z1', x: 24, y: 120, w: 190, h: 290, label: 'Power', color: '#f87171' },
-        { id: 'z2', x: 596, y: 80, w: 190, h: 530, label: 'Perception', color: '#22d3ee' },
+        { id: 'z2', x: 596, y: 80, w: 190, h: 400, label: 'Perception', color: '#22d3ee' },
         { id: 'z3', x: 180, y: 460, w: 300, h: 280, label: 'Actuators', color: '#f472b6' },
       ],
       notes: [
@@ -460,8 +458,8 @@ export const EXAMPLES = [
           caption: 'An RDK X5 (Sunrise 5, 10 TOPS) is the robot brain; the IMU hangs off its I2C header.',
         },
         {
-          id: 'j2', label: 'Perception', view: { cx: 690, cy: 345, zoom: 1 },
-          caption: 'Two IMX219 modules on the MIPI CSI lanes, a RealSense over USB 3, and an RPLIDAR over UART.',
+          id: 'j2', label: 'Perception', view: { cx: 690, cy: 280, zoom: 1 },
+          caption: 'The RS800W front camera and the RDK stereo module ride the two MIPI CSI lanes; an RPLIDAR streams scans over UART.',
         },
         {
           id: 'j3', label: 'Actuators', view: { cx: 330, cy: 600, zoom: 1.05 },
