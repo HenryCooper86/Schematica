@@ -1,6 +1,7 @@
 // The journey panel (authored camera steps with captions) and present mode.
 import { addStep, updateStep, removeStep, moveStep, tweenView } from '../journey.js';
 import { onPress, escAttr } from './press.js';
+import { panelHeader, bindCollapsible } from './collapsible.js';
 
 export function initJourney({ svg, store, tools, render, recorder, propsPanel }) {
   const journeyPanel = document.getElementById('journey-panel');
@@ -62,7 +63,7 @@ export function initJourney({ svg, store, tools, render, recorder, propsPanel })
     const ae = document.activeElement;
     if (journeyPanel.contains(ae) && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) return;
     const steps = store.doc.journey || [];
-    let html = '<h3>Journey</h3>';
+    let html = panelHeader('Journey', 'journey');
     steps.forEach((s, i) => {
       html += `<div class="journey-step" data-step="${escAttr(s.id)}">`
         + `<div class="step-head"><span class="step-num">${i + 1}</span>`
@@ -81,6 +82,7 @@ export function initJourney({ svg, store, tools, render, recorder, propsPanel })
       + `<button id="journey-present"${steps.length ? '' : ' disabled'}>&#9654; Present</button>`
       + '</div>';
     journeyPanel.innerHTML = html;
+    bindCollapsible(journeyPanel, 'journey');
     onPress(document.getElementById('journey-add'), () => {
       addStep(store, currentCenter());
     });

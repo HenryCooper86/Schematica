@@ -298,6 +298,19 @@ try {
   const applied = await js(`(() => ({ sub: document.querySelector('#props input[data-prop="sublabel"]')?.value, meta: document.querySelector('#canvas g.node[data-id="n3"] text[data-edit="sublabel"]')?.textContent }))()`);
   check('typing a preset in any case sets the canonical part number on the card', applied.sub === 'RDK X3' && applied.meta === 'RDK X3', JSON.stringify(applied));
 
+  // Collapsible panel: the RDK card is selected, so the properties panel is up.
+  const panelBefore = await js(`(() => { const p = document.getElementById('props'); const visible = (el) => getComputedStyle(el).display !== 'none'; return { hidden: p.hidden, collapsed: p.classList.contains('collapsed'), fields: [...p.querySelectorAll('label')].filter(visible).length, toggle: !!p.querySelector('.panel-toggle') }; })()`);
+  const tog = await center('#props .panel-toggle');
+  await click(tog.x, tog.y);
+  await sleep(150);
+  const folded = await js(`(() => { const p = document.getElementById('props'); const visible = (el) => getComputedStyle(el).display !== 'none'; return { collapsed: p.classList.contains('collapsed'), fields: [...p.querySelectorAll('label')].filter(visible).length, header: visible(p.querySelector('h3')), stored: localStorage.getItem('schematica.panel.props.collapsed'), height: p.getBoundingClientRect().height }; })()`);
+  check('the ▾ folds the properties panel to its header and remembers it', panelBefore.toggle && !panelBefore.collapsed && panelBefore.fields > 3 && folded.collapsed && folded.fields === 0 && folded.header && folded.stored === '1' && folded.height < 60, JSON.stringify({ panelBefore, folded }));
+  const tog2 = await center('#props .panel-toggle');
+  await click(tog2.x, tog2.y);
+  await sleep(150);
+  const reopened = await js(`(() => { const p = document.getElementById('props'); return { collapsed: p.classList.contains('collapsed'), stored: localStorage.getItem('schematica.panel.props.collapsed') }; })()`);
+  check('clicking it again unfolds the panel', !reopened.collapsed && reopened.stored === '0', JSON.stringify(reopened));
+
   // Palette search.
   await js(`(() => { const s = document.getElementById('palette-search'); s.value = 'rdk'; s.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
   await sleep(100);

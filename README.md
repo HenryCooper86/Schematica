@@ -33,6 +33,7 @@ then Settings → Pages → deploy from branch `main`, root folder.
 | Zone | `Z`, drag a rectangle (select it by its border or title); drag a corner handle to resize; dragging a zone carries the cards inside it |
 | Find a part | Type in the palette search — names, categories, buses, or vendors (RDK, Journey) |
 | Nudge | Arrow keys move the selection 1px; `Shift` + arrow moves a grid step |
+| Fold a panel | The ▾ in the properties or journey panel header folds it to a bar; remembered across reloads |
 | Sticky note | `N`, click |
 | Rename anything | Double-click its text, or use the properties panel |
 | Pan / zoom | Space-drag or middle-drag; scroll wheel |

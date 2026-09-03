@@ -265,6 +265,32 @@ g.node:hover .ports,
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
 }
 #props h3 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: #7dd3fc; }
+
+/* ---- Collapsible panels ----
+   The header stays; the ▾ folds everything under it away and the panel hugs
+   the header (remembered per panel across reloads). */
+#props h3, #journey-panel h3 { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.panel-toggle {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg0);
+  border: 1px solid var(--line2);
+  color: var(--muted);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0;
+  font-family: inherit;
+}
+.panel-toggle:hover { color: var(--text); border-color: var(--accent); }
+#props.collapsed > :not(h3), #journey-panel.collapsed > :not(h3) { display: none; }
+#props.collapsed, #journey-panel.collapsed { width: auto; min-width: 168px; padding: 10px 14px; overflow: hidden; }
+#props.collapsed h3, #journey-panel.collapsed h3 { margin: 0; }
 #props label { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--faint); margin: 12px 0 4px; }
 #props input[type="text"], #props textarea, #props select {
   width: 100%;

@@ -3,6 +3,7 @@ import { updateItem, findItem, deleteItems, NODE_STATUSES, NODE_FLAGS } from '..
 import { BUSES, BUS_ORDER } from '../buses.js';
 import { presetsFor, presetPatch } from '../presets.js';
 import { onPress, escAttr, toast } from './press.js';
+import { panelHeader, bindCollapsible } from './collapsible.js';
 
 const STATUS_LABELS = {
   planned: 'Planned', prototype: 'Prototype', tested: 'Tested',
@@ -174,10 +175,12 @@ export function createPropsPanel({ store }) {
     }
     props.hidden = false;
     if (ids.length > 1) {
-      props.innerHTML = `<h3>${ids.length} items selected</h3><button id="props-delete" class="danger">Delete selection</button>`;
+      props.innerHTML = panelHeader(`${ids.length} items selected`, 'props')
+        + '<button id="props-delete" class="danger">Delete selection</button>';
       onPress(document.getElementById('props-delete'), () => {
         deleteItems(store, [...store.selection]);
       });
+      bindCollapsible(props, 'props');
       return;
     }
     const found = findItem(store.doc, ids[0]);
@@ -187,17 +190,18 @@ export function createPropsPanel({ store }) {
     }
     const { type, item } = found;
     let html;
-    if (type === 'node') html = '<h3>Node</h3>' + nodeFields(item);
-    else if (type === 'wire') html = '<h3>Wire</h3>' + wireFields(item);
-    else if (type === 'zone' && item.kind === 'swimlane') html = '<h3>Swimlane</h3>' + swimlaneFields(item);
+    if (type === 'node') html = panelHeader('Node', 'props') + nodeFields(item);
+    else if (type === 'wire') html = panelHeader('Wire', 'props') + wireFields(item);
+    else if (type === 'zone' && item.kind === 'swimlane') html = panelHeader('Swimlane', 'props') + swimlaneFields(item);
     else if (type === 'zone') {
-      html = '<h3>Zone</h3>' + propField('Label', `<input type="text" data-prop="label" value="${escAttr(item.label)}">`)
+      html = panelHeader('Zone', 'props') + propField('Label', `<input type="text" data-prop="label" value="${escAttr(item.label)}">`)
         + colorSwatchRow(item.color);
     } else {
-      html = '<h3>Note</h3>' + propField('Text', `<textarea data-prop="text">${escAttr(item.text)}</textarea>`);
+      html = panelHeader('Note', 'props') + propField('Text', `<textarea data-prop="text">${escAttr(item.text)}</textarea>`);
     }
     props.innerHTML = html;
     bind(item);
+    bindCollapsible(props, 'props');
   }
 
   return { render };
