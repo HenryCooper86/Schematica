@@ -14,8 +14,17 @@ export const BUSES = {
   pwm:   { name: 'PWM', short: 'PWM', flows: true },
   adc:   { name: 'ADC / analog', short: 'ADC', flows: true },
   rf:    { name: 'RF', short: 'RF', flows: true },
+  // Camera links, vehicle networks, and serial servo buses.
+  mipi:  { name: 'MIPI CSI-2', short: 'CSI', flows: true },
+  gmsl:  { name: 'GMSL / FPD-Link', short: 'GMSL', flows: true },
+  canfd: { name: 'CAN FD', short: 'CAN FD', flows: true },
+  t1:    { name: 'Automotive Ethernet (T1)', short: 'T1', flows: true },
+  rs485: { name: 'RS-485 / serial servo', short: 'RS485', flows: true },
 };
 
-export const BUS_ORDER = ['power', 'gnd', 'i2c', 'spi', 'uart', 'can', 'usb', 'eth', 'gpio', 'pwm', 'adc', 'rf'];
+export const BUS_ORDER = [
+  'power', 'gnd', 'i2c', 'spi', 'uart', 'can', 'canfd', 'usb', 'eth', 't1', 'gpio', 'pwm', 'adc', 'rf',
+  'mipi', 'gmsl', 'rs485',
+];
 
 export const DEFAULT_BUS = 'gpio';

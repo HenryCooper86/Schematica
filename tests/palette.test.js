@@ -42,3 +42,33 @@ test('every part has an icon path and every category a color', () => {
     assert.match(CATEGORY_COLORS[c.id] ?? '', /^#[0-9a-f]{6}$/i, `${c.id} color`);
   }
 });
+
+// Generic robotics and automotive parts that vendor presets attach to.
+test('robot-compute and ADAS parts expose the camera, CAN FD, and T1 buses they need', () => {
+  const ports = (kind) => Object.fromEntries(PARTS[kind].ports.map((p) => [p.id, p.bus]));
+  const aisbc = ports('aisbc');
+  assert.equal(PARTS.aisbc.category, 'robotics');
+  assert.equal(aisbc.csi1, 'mipi');
+  assert.equal(aisbc.csi2, 'mipi');
+  assert.equal(aisbc.canfd, 'canfd');
+  assert.equal(aisbc.eth, 'eth');
+  assert.equal(aisbc.gpio, 'gpio');
+  assert.equal(ports('mipicam').csi, 'mipi');
+  assert.equal(ports('depthcam').usb, 'usb');
+  assert.equal(ports('servobus').bus, 'rs485');
+  assert.equal(ports('motorctl').canfd, 'canfd');
+  assert.equal(ports('motorctl').m1, 'pwm');
+  for (const kind of ['autosoc', 'adas', 'frontcam', 'radar', 't1switch', 'vgateway']) {
+    assert.equal(PARTS[kind].category, 'automotive', kind);
+  }
+  assert.equal(ports('autosoc').cam1, 'gmsl');
+  assert.equal(ports('autosoc').t1, 't1');
+  assert.equal(ports('adas').cam4, 'gmsl');
+  assert.equal(ports('adas').canfd, 'canfd');
+  assert.equal(ports('frontcam').out, 'gmsl');
+  assert.equal(ports('radar').canfd, 'canfd');
+  assert.equal(ports('radar').t1, 't1');
+  assert.equal(ports('t1switch').p3, 't1');
+  assert.equal(ports('vgateway').obd, 'can');
+  assert.equal(ports('vgateway').canfd2, 'canfd');
+});

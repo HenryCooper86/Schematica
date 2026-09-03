@@ -53,3 +53,14 @@ test('every zone fully contains at least one node', () => {
     }
   }
 });
+
+test('the D-Robotics and Horizon boards use the vendor presets and the new buses', () => {
+  const rover = EXAMPLES.find((e) => e.id === 'rdk-rover');
+  const adas = EXAMPLES.find((e) => e.id === 'journey-adas');
+  assert.ok(rover && adas, 'both boards exist');
+  assert.ok(rover.doc.nodes.some((n) => n.kind === 'aisbc' && n.sublabel === 'RDK X5'), 'rover computes on an RDK X5');
+  assert.ok(rover.doc.wires.some((w) => w.bus === 'mipi') && rover.doc.wires.some((w) => w.bus === 'canfd'), 'rover wires MIPI cameras and CAN FD');
+  assert.ok(adas.doc.nodes.some((n) => n.kind === 'adas' && /Journey 6/.test(n.sublabel)), 'ADAS controller runs a Journey 6');
+  assert.ok(adas.doc.nodes.some((n) => /Horizon/.test(n.notes)), 'a Horizon stack is named in the notes');
+  assert.ok(adas.doc.wires.some((w) => w.bus === 'gmsl') && adas.doc.wires.some((w) => w.bus === 't1'), 'ADAS board wires GMSL cameras and T1 Ethernet');
+});

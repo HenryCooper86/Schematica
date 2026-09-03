@@ -17,6 +17,7 @@ import { esc } from './render.js';
 import { addStep, updateStep, removeStep, moveStep, tweenView } from './journey.js';
 import { createRecorder } from './recorder.js';
 import { EXAMPLES } from './examples.js';
+import { presetsFor, presetPatch } from './presets.js';
 
 const svg = document.getElementById('canvas');
 
@@ -318,7 +319,15 @@ function renderProps() {
   let html = `<h3>${type[0].toUpperCase()}${type.slice(1)}</h3>`;
   if (type === 'node') {
     html += propField('Label', `<input type="text" data-prop="label" value="${escAttr(item.label)}">`);
-    html += propField('Part number', `<input type="text" data-prop="sublabel" placeholder="e.g. STM32F405" value="${escAttr(item.sublabel)}">`);
+    // Vendor presets appear as suggestions under the part number; picking one
+    // also fills a blank rail and notes (see presets.js).
+    const presets = presetsFor(item.kind);
+    html += propField('Part number', `<input type="text" data-prop="sublabel"`
+      + ` placeholder="${presets.length ? 'pick a preset or type' : 'e.g. STM32F405'}"`
+      + ` value="${escAttr(item.sublabel)}"${presets.length ? ' list="preset-list"' : ''}>`
+      + (presets.length ? `<datalist id="preset-list">${presets.map((p) => (
+        `<option value="${escAttr(p.sublabel)}">${escAttr(p.name)}</option>`
+      )).join('')}</datalist>` : ''));
     html += propField('Interface address', `<input type="text" data-prop="addr" placeholder="e.g. 0x76, CAN ID 0x120" value="${escAttr(item.addr)}">`);
     html += propField('Voltage rail', `<input type="text" data-prop="rail" placeholder="e.g. 3.3V" value="${escAttr(item.rail)}">`);
     html += propField('Notes', `<textarea data-prop="notes" placeholder="Free-form notes...">${escAttr(item.notes)}</textarea>`);
@@ -375,7 +384,11 @@ function renderProps() {
   props.innerHTML = html;
   props.querySelectorAll('[data-prop]').forEach((input) => {
     input.addEventListener('change', () => {
-      updateItem(store, item.id, { [input.dataset.prop]: input.value });
+      const cur = findItem(store.doc, item.id)?.item;
+      const patch = input.dataset.prop === 'sublabel' && cur
+        ? presetPatch(cur, input.value)
+        : { [input.dataset.prop]: input.value };
+      updateItem(store, item.id, patch);
     });
   });
   props.querySelectorAll('[data-status]').forEach((btn) => {

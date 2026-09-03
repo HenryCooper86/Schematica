@@ -86,6 +86,14 @@ test('parallel wires between the same pair fan out instead of overlapping', () =
   assert.notEqual(d1, d2);
   assert.ok(d1.startsWith('M 109 26 '), 'first wire runs half a fan above center');
   assert.ok(d2.startsWith('M 109 48 '), 'second wire runs half a fan below center');
+  // Pills stagger along the curve so they cannot sit side by side on parallel runs.
+  const pillX = (g) => Number(g.match(/<text x="([\d.]+)" y="[\d.]+" text-anchor="middle" font-size="10.5"/)[1]);
+  const x1 = pillX(wireGroup(m, 'w1'));
+  const x2 = pillX(wireGroup(m, 'w2'));
+  assert.ok(x1 < 252 && x2 > 252, `pills sit either side of the midpoint (${x1}, ${x2})`);
+  const lone = sampleDoc();
+  lone.wires.pop();
+  assert.equal(pillX(wireGroup(diagramMarkup(lone), 'w1')), 252, 'a lone wire keeps its pill at the midpoint');
 });
 
 test('wire label is a neutral pill inside the wire group; blank label shows the bus code', () => {

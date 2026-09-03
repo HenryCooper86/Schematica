@@ -18,3 +18,12 @@ test('every bus is fully defined: a name, a short code, and whether it carries t
 test('default bus exists', () => {
   assert.ok(BUSES[DEFAULT_BUS]);
 });
+
+test('camera links, CAN FD, automotive Ethernet, and serial-servo buses exist', () => {
+  assert.equal(BUSES.mipi.short, 'CSI');
+  assert.equal(BUSES.gmsl.short, 'GMSL');
+  assert.equal(BUSES.canfd.short, 'CAN FD');
+  assert.equal(BUSES.t1.short, 'T1');
+  assert.equal(BUSES.rs485.short, 'RS485');
+  for (const id of ['mipi', 'gmsl', 'canfd', 't1', 'rs485']) assert.ok(BUS_ORDER.includes(id), id);
+});

@@ -119,6 +119,26 @@ export const PARTS = {
     [...pwr(), p('i2c', 'I2C', 'right', 0.5, 'i2c')]),
   limitswitch: part('limitswitch', 'robotics', 'Limit switch', 'M2 11h12 M4 11 10 5 M10.5 4.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0-2 0 M4 11m-1 0a1 1 0 1 0 2 0a1 1 0 1 0-2 0',
     [p('out', 'OUT', 'right', 0.5, 'gpio')]),
+  // Robot compute and perception (vendor kits such as D-Robotics RDK boards
+  // are presets on these generic parts; see presets.js).
+  aisbc: part('aisbc', 'robotics', 'AI SBC / robot kit', 'M2 3h12v10H2z M5.5 6h5v4h-5z M1 6h1 M1 10h1 M14 6h1 M14 10h1 M4 3V1.5 M8 3V1.5 M12 3V1.5', [
+    ...pwr(),
+    p('eth', 'ETH', 'right', 0.2, 'eth'), p('usb', 'USB', 'right', 0.4, 'usb'),
+    p('uart', 'UART', 'right', 0.6, 'uart'), p('canfd', 'CAN FD', 'right', 0.8, 'canfd'),
+    p('csi1', 'CSI1', 'bottom', 0.2, 'mipi'), p('csi2', 'CSI2', 'bottom', 0.4, 'mipi'),
+    p('i2c', 'I2C', 'bottom', 0.6, 'i2c'), p('gpio', 'GPIO', 'bottom', 0.8, 'gpio'),
+    p('spi', 'SPI', 'top', 0.35, 'spi'), p('uart2', 'UART2', 'top', 0.7, 'uart'),
+  ]),
+  // Powered over the ribbon / cable, so no supply pins.
+  mipicam: part('mipicam', 'robotics', 'MIPI camera', 'M2 5h3l1.5-2h3L11 5h3v7H2z M8 8.5m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M6 12v2.5 M10 12v2.5',
+    [p('csi', 'CSI', 'right', 0.35, 'mipi'), p('i2c', 'CTRL', 'right', 0.7, 'i2c')]),
+  depthcam: part('depthcam', 'robotics', 'Depth camera', 'M1.5 4h13v8h-13z M5 8m-1.8 0a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0-3.6 0 M11 8m-1.8 0a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0-3.6 0 M8 6v4',
+    [p('usb', 'USB', 'right', 0.5, 'usb')]),
+  servobus: part('servobus', 'robotics', 'Serial servo', 'M2 6h8v5H2z M6 6V4a1.5 1.5 0 0 1 3 0v2 M10 8.5h4 M12 7v3',
+    [...pwr('top'), p('bus', 'BUS', 'left', 0.5, 'rs485')]),
+  motorctl: part('motorctl', 'robotics', 'Motor controller', 'M2 4h9v8H2z M4 6.5h5 M4 9.5h3 M11 6h3 M11 10h3 M6.5 12v2',
+    [...pwr(), p('canfd', 'CAN FD', 'top', 0.5, 'canfd'),
+      p('m1', 'M1', 'right', 0.35, 'pwm'), p('m2', 'M2', 'right', 0.7, 'pwm'), p('enc', 'ENC', 'bottom', 0.5, 'gpio')]),
   // Automotive
   vbat: part('vbat', 'automotive', 'Vehicle battery', 'M2 5h12v8H2z M4 5V3.5h2.5V5 M9.5 5V3.5H12V5 M4 8.5h3 M5.5 7v3 M9 8.5h3',
     [p('out', 'OUT', 'right', 0.35, 'power'), p('gnd', 'GND', 'right', 0.7, 'gnd')]),
@@ -133,6 +153,32 @@ export const PARTS = {
     [...pwr('top'), p('in1', 'IN1', 'left', 0.35, 'pwm'), p('in2', 'IN2', 'left', 0.7, 'pwm'), p('out', 'OUT', 'right', 0.5, 'power')]),
   wheelspeed: part('wheelspeed', 'automotive', 'Wheel speed', 'M6 8m-4 0a4 4 0 1 0 8 0a4 4 0 1 0-8 0 M6 8m-1.2 0a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0-2.4 0 M11 8h1l1-2 1 4 1-2',
     [...pwr(), p('out', 'OUT', 'right', 0.5, 'adc')]),
+  // ADAS / vehicle compute and networks (Horizon Journey SoCs and Mono /
+  // Pilot / SuperDrive stacks are presets on these; see presets.js).
+  autosoc: part('autosoc', 'automotive', 'Automotive SoC', 'M3 3h10v10H3z M5.5 5.5h5v5h-5z M8 1v2 M8 13v2 M1 8h2 M13 8h2 M3.5 3.5l-2-2 M12.5 3.5l2-2 M3.5 12.5l-2 2 M12.5 12.5l2 2', [
+    ...pwr(),
+    p('cam1', 'CAM1', 'top', 0.3, 'gmsl'), p('cam2', 'CAM2', 'top', 0.7, 'gmsl'),
+    p('canfd', 'CAN FD', 'right', 0.25, 'canfd'), p('t1', 'T1', 'right', 0.5, 't1'), p('eth', 'ETH', 'right', 0.75, 'eth'),
+    p('csi', 'CSI', 'bottom', 0.33, 'mipi'), p('uart', 'UART', 'bottom', 0.66, 'uart'),
+  ]),
+  adas: part('adas', 'automotive', 'ADAS controller', 'M2 10.5h12v2H2z M3.5 10.5 5 7h6l1.5 3.5 M5 12.5v1 M11 12.5v1 M8 2.5v2 M5.5 3.5 6.5 5 M10.5 3.5 9.5 5', [
+    ...pwr(),
+    p('cam1', 'CAM1', 'top', 0.2, 'gmsl'), p('cam2', 'CAM2', 'top', 0.4, 'gmsl'),
+    p('cam3', 'CAM3', 'top', 0.6, 'gmsl'), p('cam4', 'CAM4', 'top', 0.8, 'gmsl'),
+    p('canfd', 'CAN FD', 'right', 0.25, 'canfd'), p('canfd2', 'CAN FD2', 'right', 0.5, 'canfd'), p('t1', 'T1', 'right', 0.75, 't1'),
+    p('usb', 'USB', 'bottom', 0.5, 'usb'),
+  ]),
+  // Camera modules take power over the coax link, so no supply pins.
+  frontcam: part('frontcam', 'automotive', 'Front camera', 'M3 5.5h10v6H3z M8 8.5m-1.8 0a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0-3.6 0 M6 5.5V4h4v1.5 M13 8.5h2',
+    [p('out', 'VIDEO', 'right', 0.35, 'gmsl'), p('i2c', 'CTRL', 'right', 0.7, 'i2c')]),
+  radar: part('radar', 'automotive', 'mmWave radar', 'M8 13V8 M8 8m-1.2 0a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0-2.4 0 M4.5 5.5a5 5 0 0 1 7 0 M2.5 3.5a8 8 0 0 1 11 0 M5 13h6',
+    [...pwr(), p('canfd', 'CAN FD', 'right', 0.35, 'canfd'), p('t1', 'T1', 'right', 0.7, 't1')]),
+  t1switch: part('t1switch', 'automotive', 'T1 Ethernet switch', 'M2 5h12v6H2z M4 8h2 M7 8h2 M10 8h2 M4 11v2.5 M8 11v2.5 M12 11v2.5',
+    [...pwr(), p('p1', 'P1', 'right', 0.25, 't1'), p('p2', 'P2', 'right', 0.5, 't1'), p('p3', 'P3', 'right', 0.75, 't1'),
+      p('eth', 'ETH', 'bottom', 0.5, 'eth')]),
+  vgateway: part('vgateway', 'automotive', 'Vehicle gateway', 'M2 6h12v4H2z M4 8h.01 M6 8h.01 M1 3.5 3 6 M15 3.5 13 6 M1 12.5 3 10 M15 12.5 13 10 M8 2v4 M8 10v4',
+    [...pwr(), p('canfd1', 'CAN FD1', 'right', 0.2, 'canfd'), p('canfd2', 'CAN FD2', 'right', 0.4, 'canfd'),
+      p('can', 'CAN', 'right', 0.6, 'can'), p('t1', 'T1', 'right', 0.8, 't1'), p('obd', 'OBD', 'bottom', 0.5, 'can')]),
   // System & Cloud
   cloud: part('cloud', 'system', 'Cloud / MQTT', 'M5 12a3 3 0 0 1-.4-6A4.5 4.5 0 0 1 13.3 7 2.5 2.5 0 0 1 12.5 12z',
     [p('net', 'NET', 'left', 0.5, 'eth'), p('rf', 'RF', 'bottom', 0.5, 'rf')]),

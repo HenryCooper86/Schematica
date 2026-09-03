@@ -2,7 +2,7 @@ import { BUSES } from './buses.js';
 import { getPart, CATEGORY_COLORS } from './palette.js';
 import {
   portPosition, wireGeom, wireGeomToPoint, wireLanes, curvePoint, wrapText, noteHeight,
-  nodeRect, nodeSize, nodeMeta, NOTE_W, LANE_TITLE_H,
+  nodeRect, nodeSize, nodeMeta, NOTE_W, LANE_TITLE_H, WIRE_FAN,
 } from './geometry.js';
 
 // The canvas mirrors net_draw's look one to one: gradient cards with a drop
@@ -288,9 +288,13 @@ function wireMarkup(byId, wire, lane, selected, ui, animating, now) {
   }
   const label = wire.label || (sneak ? '\u{1F45F} air gap' : bus.short);
   const w = Math.round((label.length * 6.4 + 18) * 100) / 100;
-  s += `<rect x="${Math.round((geo.mid.x - w / 2) * 100) / 100}" y="${geo.mid.y - 10}" width="${w}" height="20" rx="9"`
+  // Fanned wires stagger their pills along the curve: side by side the 22px
+  // fan is narrower than a pill, so parallel vertical runs would collide.
+  const t = Math.min(0.8, Math.max(0.2, 0.5 + (lane / WIRE_FAN) * 0.15));
+  const at = lane ? curvePoint(geo, t) : geo.mid;
+  s += `<rect x="${Math.round((at.x - w / 2) * 100) / 100}" y="${Math.round((at.y - 10) * 100) / 100}" width="${w}" height="20" rx="9"`
     + ` fill="${LABEL_BG}" stroke="${LABEL_LINE}" stroke-width="1"/>`;
-  s += `<text x="${geo.mid.x}" y="${geo.mid.y + 3.6}" text-anchor="middle" font-size="10.5" fill="${LABEL_TEXT}"`
+  s += `<text x="${at.x}" y="${Math.round((at.y + 3.6) * 100) / 100}" text-anchor="middle" font-size="10.5" fill="${LABEL_TEXT}"`
     + ` data-edit="label">${esc(label)}</text>`;
   s += '</g>';
   return s;

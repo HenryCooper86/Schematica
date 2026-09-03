@@ -40,7 +40,8 @@ then Settings → Pages → deploy from branch `main`, root folder.
 | Export | Toolbar — SVG or 2x PNG, cropped to content |
 | Record | Rec button — WebM/MP4 video (optional mic or music audio) or animated GIF |
 | Journey | Journey button — save camera steps with captions; Present plays the tour (arrow keys, Esc) |
-| Examples | Examples menu — five built-in boards from sensor nodes to edge-to-cloud, journeys included |
+| Examples | Examples menu — ten built-in boards from sensor nodes to edge-to-cloud, including a D-Robotics RDK X5 rover and a Horizon Journey 6 ADAS stack, journeys included |
+| Presets | Part number field — on AI SBCs, automotive SoCs, ADAS controllers, cameras, depth cameras, LiDARs, and serial servos, pick a vendor part (D-Robotics RDK, Horizon Journey, and more) to fill the rail and a spec note |
 | Animate | Animate toggle — traffic dashes flow along wires and Bug/Thermal alerts pulse (net_draw style); off by default, and a wire's own "Always" flow setting keeps just that wire moving; captured in recordings |
 | Pan | `H` or hold Space — dedicated hand tool |
 | Fullscreen | ⛶ button in the zoom group |
