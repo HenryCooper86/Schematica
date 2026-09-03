@@ -96,6 +96,11 @@ const problems = [];
 ws.onmessage = (ev) => {
   const m = JSON.parse(ev.data);
   if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); }
+  // A confirm() would block every later command; accept it and report it.
+  if (m.method === 'Page.javascriptDialogOpening') {
+    problems.push(`dialog: ${m.params.message}`);
+    send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {});
+  }
   if (m.method === 'Runtime.exceptionThrown') {
     problems.push('exception: ' + (m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text));
   }
@@ -142,6 +147,7 @@ const key = async (k, code, vk, mods = 0) => {
 const center = (sel) => js(`(() => { const r = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
 
 await send('Runtime.enable');
+await send('Page.enable');
 await sleep(1500);
 
 // Watchdog: a hung browser must fail the run, not stall CI.
@@ -274,20 +280,28 @@ try {
   const undone = await js(`document.querySelector('#canvas g.wire[data-id="w6"]').dataset.to`);
   check('re-attaching is a single undo step', undone === 'n6:i2c', undone);
 
+  // Switch to another example through its share link. A hash-only
+  // navigation would not reload the app, and a non-empty autosave raises a
+  // confirm dialog, so wait for the debounced autosave to settle, clear
+  // storage, blank the page, then load the link and wait for its cards.
+  async function loadBoard(doc) {
+    await sleep(700);
+    await js('localStorage.clear(); true');
+    await send('Page.navigate', { url: 'about:blank' });
+    await sleep(200);
+    await send('Page.navigate', { url: `${origin}/#${await encodeShare(doc)}` });
+    for (let i = 0; i < 40; i++) {
+      const n = await js(`document.querySelectorAll('#canvas g.node').length`).catch(() => 0);
+      if (n === doc.nodes.length) break;
+      await sleep(150);
+    }
+    await sleep(300);
+  }
+
   // Presets live on the rover board. A hash-only navigation would not reload
   // the app, and a non-empty autosave would raise a confirm dialog, so clear
   // storage, blank the page, then load the rover share link.
-  const roverUrl = `${origin}/#${await encodeShare(EXAMPLES.find((e) => e.id === 'rdk-rover').doc)}`;
-  await js('localStorage.clear(); true');
-  await send('Page.navigate', { url: 'about:blank' });
-  await sleep(200);
-  await send('Page.navigate', { url: roverUrl });
-  for (let i = 0; i < 40; i++) {
-    const n = await js(`document.querySelectorAll('#canvas g.node').length`).catch(() => 0);
-    if (n === 11) break;
-    await sleep(150);
-  }
-  await sleep(300);
+  await loadBoard(EXAMPLES.find((e) => e.id === 'rdk-rover').doc);
   const brain = await center('#canvas g.node[data-id="n3"] .card');
   await click(brain.x, brain.y);
   await sleep(200);
@@ -300,18 +314,7 @@ try {
 
   // Threat metadata lives on the ADAS security board: schema fields, a
   // severity tag, and a disposition tag on the card.
-  const adas = EXAMPLES.find((e) => e.id === 'adas-security').doc;
-  const adasUrl = `${origin}/#${await encodeShare(adas)}`;
-  await js('localStorage.clear(); true');
-  await send('Page.navigate', { url: 'about:blank' });
-  await sleep(200);
-  await send('Page.navigate', { url: adasUrl });
-  for (let i = 0; i < 40; i++) {
-    const n = await js(`document.querySelectorAll('#canvas g.node').length`).catch(() => 0);
-    if (n === adas.nodes.length) break;
-    await sleep(150);
-  }
-  await sleep(300);
+  await loadBoard(EXAMPLES.find((e) => e.id === 'adas-security').doc);
   const spoofer = await center('#canvas g.node[data-id="t1"] .card');
   await click(spoofer.x, spoofer.y);
   await sleep(200);
