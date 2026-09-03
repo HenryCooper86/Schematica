@@ -4,6 +4,7 @@ import { EXAMPLES } from '../src/examples.js';
 import { serialize, deserialize } from '../src/serialize.js';
 import { getPart } from '../src/palette.js';
 import { nodeRect } from '../src/geometry.js';
+import { checkDoc } from '../src/drc.js';
 
 test('there are at least three examples with unique ids and names', () => {
   assert.ok(EXAMPLES.length >= 3);
@@ -67,4 +68,12 @@ test('the D-Robotics and Horizon boards use the vendor presets and the new buses
   assert.ok(adas.doc.nodes.some((n) => n.kind === 'adas' && /Journey 6/.test(n.sublabel)), 'ADAS controller runs a Journey 6');
   assert.ok(adas.doc.nodes.some((n) => /Horizon/.test(n.notes)), 'a Horizon stack is named in the notes');
   assert.ok(adas.doc.wires.some((w) => w.bus === 'gmsl') && adas.doc.wires.some((w) => w.bus === 't1'), 'ADAS board wires GMSL cameras and T1 Ethernet');
+});
+
+test('the sensor node board passes every design rule, so users can see what clean looks like', () => {
+  const clean = EXAMPLES.find((e) => e.id === 'sensor-node-clean');
+  assert.ok(clean, 'board exists');
+  assert.deepEqual(checkDoc(clean.doc), [], 'no findings at all');
+  // Every other board should still show the checker doing something.
+  assert.ok(EXAMPLES.some((e) => e.id !== 'sensor-node-clean' && checkDoc(e.doc).length > 0));
 });

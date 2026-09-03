@@ -533,4 +533,56 @@ export const EXAMPLES = [
       ],
     },
   },
+  {
+    id: 'sensor-node-clean',
+    name: 'Sensor Node (DRC clean)',
+    doc: {
+      schema: 1,
+      title: 'Sensor Node',
+      nodes: [
+        { id: 'n1', kind: 'battery', x: 40, y: 300, label: 'Battery', sublabel: '1S LiPo', color: null, addr: '', rail: '', notes: '', status: 'production', flags: [] },
+        { id: 'n2', kind: 'regulator', x: 220, y: 300, label: 'Regulator', sublabel: '3.3V LDO', color: null, addr: '', rail: '', notes: 'Low-quiescent LDO; every peripheral hangs off its 3.3V rail.', status: 'production', flags: [] },
+        { id: 'n3', kind: 'mcu', x: 460, y: 80, label: 'MCU', sublabel: 'ESP32-C3', color: null, addr: '', rail: '3.3V', notes: 'Wakes every minute, samples the BME280, updates the OLED, blinks once.', status: 'production', flags: [] },
+        { id: 'n4', kind: 'temp', x: 720, y: 60, label: 'Temp sensor', sublabel: 'BME280', color: null, addr: '0x76', rail: '3.3V', notes: '', status: 'production', flags: [] },
+        { id: 'n5', kind: 'display', x: 720, y: 220, label: 'OLED', sublabel: 'SSD1306', color: null, addr: '0x3C', rail: '3.3V', notes: '', status: 'production', flags: [] },
+        { id: 'n6', kind: 'led', x: 720, y: 400, label: 'Status LED', sublabel: 'green', color: null, addr: '', rail: '', notes: '', status: 'production', flags: [] },
+      ],
+      wires: [
+        { id: 'w1', bus: 'power', from: { node: 'n1', port: 'out' }, to: { node: 'n2', port: 'in' }, label: 'VBAT', arrow: null, style: null, flow: null },
+        { id: 'w2', bus: 'gnd', from: { node: 'n1', port: 'gnd' }, to: { node: 'n2', port: 'gnd' }, label: '', arrow: null, style: null, flow: null },
+        { id: 'w3', bus: 'power', from: { node: 'n2', port: 'out' }, to: { node: 'n3', port: 'vcc' }, label: '3V3', arrow: null, style: null, flow: null },
+        { id: 'w4', bus: 'gnd', from: { node: 'n2', port: 'gnd' }, to: { node: 'n3', port: 'gnd' }, label: '', arrow: null, style: null, flow: null },
+        { id: 'w5', bus: 'power', from: { node: 'n2', port: 'out' }, to: { node: 'n4', port: 'vcc' }, label: '3V3', arrow: null, style: null, flow: null },
+        { id: 'w6', bus: 'gnd', from: { node: 'n2', port: 'gnd' }, to: { node: 'n4', port: 'gnd' }, label: '', arrow: null, style: null, flow: null },
+        { id: 'w7', bus: 'power', from: { node: 'n2', port: 'out' }, to: { node: 'n5', port: 'vcc' }, label: '3V3', arrow: null, style: null, flow: null },
+        { id: 'w8', bus: 'gnd', from: { node: 'n2', port: 'gnd' }, to: { node: 'n5', port: 'gnd' }, label: '', arrow: null, style: null, flow: null },
+        { id: 'w9', bus: 'power', from: { node: 'n2', port: 'out' }, to: { node: 'n6', port: 'vcc' }, label: '3V3', arrow: null, style: null, flow: null },
+        { id: 'w10', bus: 'gnd', from: { node: 'n2', port: 'gnd' }, to: { node: 'n6', port: 'gnd' }, label: '', arrow: null, style: null, flow: null },
+        { id: 'w11', bus: 'i2c', from: { node: 'n3', port: 'i2c' }, to: { node: 'n4', port: 'i2c' }, label: '400 kHz', arrow: null, style: null, flow: null },
+        { id: 'w12', bus: 'i2c', from: { node: 'n3', port: 'i2c' }, to: { node: 'n5', port: 'i2c' }, label: '400 kHz', arrow: null, style: null, flow: null },
+        { id: 'w13', bus: 'gpio', from: { node: 'n3', port: 'gpio1' }, to: { node: 'n6', port: 'in' }, label: 'GPIO 8', arrow: 'fwd', style: null, flow: null },
+      ],
+      zones: [
+        { id: 'z1', x: 24, y: 280, w: 316, h: 130, label: 'Power', color: '#f87171' },
+        { id: 'z2', x: 700, y: 40, w: 150, h: 320, label: 'I2C peripherals', color: '#22d3ee' },
+      ],
+      notes: [
+        { id: 't1', x: 420, y: 470, text: 'Every supply pin is wired and both I2C addresses differ: Check reports nothing.' },
+      ],
+      journey: [
+        {
+          id: 'j1', label: 'Power tree', view: { cx: 300, cy: 340, zoom: 1.1 },
+          caption: 'A 1S LiPo feeds a 3.3V LDO; the LDO powers every other part, VCC and GND alike.',
+        },
+        {
+          id: 'j2', label: 'Controller', view: { cx: 520, cy: 180, zoom: 1.1 },
+          caption: 'An ESP32-C3 drives one I2C bus and a status LED on GPIO 8.',
+        },
+        {
+          id: 'j3', label: 'Peripherals', view: { cx: 770, cy: 270, zoom: 1.05 },
+          caption: 'The BME280 at 0x76 and the SSD1306 at 0x3C share the bus without an address clash.',
+        },
+      ],
+    },
+  },
 ];
