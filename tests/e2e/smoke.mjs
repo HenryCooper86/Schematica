@@ -323,12 +323,17 @@ try {
     const target = document.querySelector('#props select[data-field="target"]');
     const card = document.querySelector('#canvas g.node[data-id="t1"]');
     const texts = [...card.querySelectorAll('text')].map((t) => t.textContent);
-    return { sev: sev?.value, target: target?.value, partNumber: !!document.querySelector('#props input[data-prop="sublabel"]'), texts };
+    const glowEl = card.querySelector('.fxhalo.anim');
+    return { sev: sev?.value, target: target?.value, partNumber: !!document.querySelector('#props input[data-prop="sublabel"]'), texts,
+      header: document.querySelector('#props h3')?.textContent.replace(/[▸▾]/g, '').trim(),
+      glow: glowEl ? getComputedStyle(glowEl).animationName : null, animating: document.getElementById('btn-animate')?.classList.contains('active') === true };
   })()`);
   check('a threat card edits STIX-style fields instead of a part number and wears severity and disposition tags',
     threatProps.sev === 'high' && threatProps.target === 'GNSS' && !threatProps.partNumber
       && threatProps.texts.includes('HIGH') && threatProps.texts.includes('ADVERSARY') && threatProps.texts.includes('GNSS'),
     JSON.stringify(threatProps));
+  check('the panel header names the part and an adversary glows with the Animate toggle off',
+    threatProps.header === 'Sensor spoofing' && threatProps.glow === 'fxpulse' && !threatProps.animating, JSON.stringify(threatProps));
   await js(`(() => { const s = document.querySelector('#props select[data-field="severity"]'); s.value = 'critical'; s.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
   await sleep(150);
   const victim = await center('#props [data-disp="victim"]');
@@ -336,6 +341,8 @@ try {
   await sleep(200);
   const retagged = await js(`(() => [...document.querySelectorAll('#canvas g.node[data-id="t1"] text')].map((t) => t.textContent))()`);
   check('changing severity and disposition retags the card', retagged.includes('CRITICAL') && retagged.includes('VICTIM') && !retagged.includes('HIGH') && !retagged.includes('ADVERSARY'), JSON.stringify(retagged));
+  const ring = await js(`(() => { const h = document.querySelector('#canvas g.node[data-id="t1"] .fxhalo'); return { anim: h?.classList.contains('anim'), stroke: h?.getAttribute('stroke') }; })()`);
+  check('a victim wears a steady amber ring instead of the pulse', ring.anim === false && ring.stroke === '#fbbf24', JSON.stringify(ring));
 
   // Collapsible panel: the RDK card is selected, so the properties panel is up.
   const panelBefore = await js(`(() => { const p = document.getElementById('props'); const visible = (el) => getComputedStyle(el).display !== 'none'; return { hidden: p.hidden, collapsed: p.classList.contains('collapsed'), fields: [...p.querySelectorAll('label')].filter(visible).length, toggle: !!p.querySelector('.panel-toggle') }; })()`);

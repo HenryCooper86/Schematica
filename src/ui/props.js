@@ -231,7 +231,7 @@ export function createPropsPanel({ store }) {
     }
     const { type, item } = found;
     let html;
-    if (type === 'node') html = panelHeader('Node', 'props') + nodeFields(item);
+    if (type === 'node') html = panelHeader(escAttr(getPart(item.kind).name), 'props') + nodeFields(item);
     else if (type === 'wire') html = panelHeader('Wire', 'props') + wireFields(item);
     else if (type === 'zone' && item.kind === 'swimlane') html = panelHeader('Swimlane', 'props') + swimlaneFields(item);
     else if (type === 'zone') {

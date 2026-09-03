@@ -102,7 +102,7 @@ export function bakeFrame(root, nowMs) {
   const off = flowOffset(nowMs);
   root.querySelectorAll('.vis.anim').forEach((el) => el.setAttribute('stroke-dashoffset', off));
   const halo = pulseOpacity(nowMs);
-  root.querySelectorAll('.fxhalo').forEach((el) => el.setAttribute('stroke-opacity', halo));
+  root.querySelectorAll('.fxhalo.anim').forEach((el) => el.setAttribute('stroke-opacity', halo));
   const blink = blinkOpacity(nowMs);
   root.querySelectorAll('.blink').forEach((el) => el.setAttribute('opacity', blink));
   stepFootsteps(root, nowMs);
@@ -258,18 +258,42 @@ function flagBadgesMarkup(flags, W) {
   return s;
 }
 
+// Disposition glow, like net_draw's effect halos: adversaries and suspicious
+// objects pulse all the time, a victim wears a steady amber ring. Flags keep
+// their halo (pulsing only while animating) when no glow outranks it.
+const GLOW = {
+  adversary: { color: '#ef4444', pulse: true },
+  suspicious: { color: '#fb923c', pulse: true },
+  victim: { color: '#fbbf24', pulse: false },
+};
+
+function haloMarkup(node, W, H, animating, now) {
+  const flags = (node.flags || []).filter((f) => FLAG_META[f]);
+  const glow = node.disposition && GLOW[node.disposition];
+  let color;
+  let pulse;
+  if (glow && (glow.pulse || !flags.length)) {
+    color = glow.color;
+    pulse = glow.pulse;
+  } else if (flags.length) {
+    const worst = flags.reduce((a, k) => (FLAG_META[k].sev > FLAG_META[a].sev ? k : a), flags[0]);
+    color = FLAG_META[worst].color;
+    pulse = animating;
+  } else {
+    return '';
+  }
+  const opacity = pulse && now != null ? pulseOpacity(now) : '0.6';
+  return `<rect class="fxhalo${pulse ? ' anim' : ''}" x="-4" y="-4" width="${W + 8}" height="${H + 8}" rx="17"`
+    + ` fill="none" stroke="${color}" stroke-width="2.2" stroke-opacity="${opacity}"/>`;
+}
+
 function nodeMarkup(node, selected, ui, animating, now) {
   const part = getPart(node.kind);
   const acc = node.color || part.accent || CATEGORY_COLORS[part.category] || ACCENT;
   const { w: W, h: H } = nodeSize(node);
   let s = `<g class="node" data-id="${esc(node.id)}" data-type="node" transform="translate(${node.x} ${node.y})">`;
   const flags = (node.flags || []).filter((f) => FLAG_META[f]);
-  if (flags.length) {
-    const worst = flags.reduce((a, k) => (FLAG_META[k].sev > FLAG_META[a].sev ? k : a), flags[0]);
-    const opacity = animating && now != null ? pulseOpacity(now) : '0.6';
-    s += `<rect class="fxhalo${animating ? ' anim' : ''}" x="-4" y="-4" width="${W + 8}" height="${H + 8}" rx="17"`
-      + ` fill="none" stroke="${FLAG_META[worst].color}" stroke-width="2.2" stroke-opacity="${opacity}"/>`;
-  }
+  s += haloMarkup(node, W, H, animating, now);
   if (selected) {
     s += `<rect x="-5" y="-5" width="${W + 10}" height="${H + 10}" rx="18" fill="none"`
       + ` stroke="${esc(acc)}" stroke-opacity="0.4" stroke-width="1.6"/>`;
