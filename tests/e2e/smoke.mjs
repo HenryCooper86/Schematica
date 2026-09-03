@@ -153,7 +153,11 @@ try {
   // Panning only moves the camera transform.
   await js(`window.__diag = document.querySelector('#canvas .layer-diagram').firstElementChild; true`);
   const t0 = await js(`document.querySelector('#canvas > g').getAttribute('transform')`);
-  await drag(700, 800, 760, 840, 'middle');
+  // Space + left drag is the advertised pan gesture. Middle-drag also pans in
+  // the app, but headless Linux Chrome does not deliver middle-button drags.
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: ' ', code: 'Space', windowsVirtualKeyCode: 32 });
+  await drag(700, 800, 760, 840);
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: ' ', code: 'Space', windowsVirtualKeyCode: 32 });
   await sleep(100);
   const pan = await js(`({ t: document.querySelector('#canvas > g').getAttribute('transform'), same: window.__diag === document.querySelector('#canvas .layer-diagram').firstElementChild })`);
   check('panning moves the camera without rebuilding the diagram', pan.t !== t0 && pan.same, JSON.stringify({ t0, ...pan }));
