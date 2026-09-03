@@ -7,7 +7,7 @@ UART, CAN, USB, power rails, ...). Inspired by
 [net_draw](https://mr-r3b00t.github.io/net_draw/), specialized for embedded
 hardware.
 
-The UI mirrors net_draw's dark design: shaded cards with tinted icon badges, slate wires that leave each card toward the other, and a label pill on every wire naming its bus. Cards size themselves to their content: the part number, interface address, and voltage rail appear as mono lines under the name.
+The UI mirrors net_draw's dark design: shaded cards with tinted icon badges, slate wires that leave each card toward the other, and a label pill on every wire naming its bus. Cards size themselves to their content: the part number, interface address, and voltage rail appear as mono lines under the name. Beyond hardware, the palette carries net_draw's own Network, Security & Edge, Process Flow (real flowchart shapes), and Threats parts with their glyphs and accents, so a board can put a firewall, a decision diamond, and a threat actor next to an MCU.
 
 No build step, no dependencies, no server: static HTML + ES modules + SVG.
 
@@ -43,7 +43,7 @@ then Settings → Pages → deploy from branch `main`, root folder.
 | Export | Toolbar — SVG or 2x PNG, cropped to content |
 | Record | Rec button — WebM/MP4 video (optional mic or music audio) or animated GIF |
 | Journey | Journey button — save camera steps with captions; Present plays the tour (arrow keys, Esc) |
-| Examples | Examples menu — eleven built-in boards from sensor nodes to edge-to-cloud, including a D-Robotics RDK X5 rover, a Horizon Journey 6 ADAS stack, and a sensor node that passes every design rule, journeys included |
+| Examples | Examples menu — twelve built-in boards from sensor nodes to edge-to-cloud, including a D-Robotics RDK X5 rover, a Horizon Journey 6 ADAS stack, a sensor node that passes every design rule, and net_draw's sample corporate network with its threat actors, journeys included |
 | Presets | Part number field — on AI SBCs, automotive SoCs, ADAS controllers, cameras, depth cameras, LiDARs, and serial servos, pick a vendor part (D-Robotics RDK boards and camera modules, Horizon Journey chips and Mono / SuperDrive tiers, and more) to fill the rail and a spec note |
 | Animate | Animate toggle — traffic dashes flow along wires and Bug/Thermal alerts pulse (net_draw style); off by default, and a wire's own "Always" flow setting keeps just that wire moving; captured in recordings |
 | Pan | `H` or hold Space — dedicated hand tool |

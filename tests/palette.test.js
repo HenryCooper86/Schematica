@@ -34,9 +34,11 @@ test('getPart falls back to generic for unknown kinds', () => {
   assert.equal(getPart('mcu'), PARTS.mcu);
 });
 
-test('every part has an icon path and every category a color', () => {
+test('every part has a 16-box icon path or a 24-box glyph, and every category a color', () => {
   for (const [key, part] of Object.entries(PARTS)) {
-    assert.ok(typeof part.icon === 'string' && part.icon.startsWith('M'), `${key} icon`);
+    const icon = typeof part.icon === 'string' && part.icon.startsWith('M');
+    const glyph = typeof part.glyph === 'string' && part.glyph.startsWith('<');
+    assert.ok(icon || glyph, `${key} icon or glyph`);
   }
   for (const c of CATEGORIES) {
     assert.match(CATEGORY_COLORS[c.id] ?? '', /^#[0-9a-f]{6}$/i, `${c.id} color`);
@@ -72,4 +74,33 @@ test('robot-compute and ADAS parts expose the camera, CAN FD, and T1 buses they 
   assert.equal(ports('t1switch').p3, 't1');
   assert.equal(ports('vgateway').obd, 'can');
   assert.equal(ports('vgateway').canfd2, 'canfd');
+});
+
+// net_draw's Network, Security & Edge, Process Flow, and Threats types, ported
+// one-to-one: their glyphs, per-type accents, flow shapes, and threat border.
+test('network, security, process-flow, and threat parts port net_draw types', () => {
+  const byCat = (id) => Object.values(PARTS).filter((p) => p.category === id);
+  for (const id of ['network', 'security', 'flow', 'threats']) {
+    assert.ok(CATEGORIES.some((c) => c.id === id), `${id} category`);
+  }
+  assert.equal(byCat('network').length, 6);
+  assert.equal(byCat('security').length, 6);
+  assert.equal(byCat('flow').length, 10);
+  assert.equal(byCat('threats').length, 7);
+  for (const part of [...byCat('network'), ...byCat('security'), ...byCat('flow'), ...byCat('threats')]) {
+    assert.match(part.accent, /^#[0-9a-f]{6}$/i, `${part.kind} accent`);
+    assert.ok(part.glyph.startsWith('<'), `${part.kind} glyph`);
+  }
+  const SHAPES = new Set(['terminator', 'process', 'decision', 'data', 'document', 'predefined', 'prep', 'manual', 'delay', 'connector']);
+  for (const part of byCat('flow')) assert.ok(SHAPES.has(part.shape), `${part.kind} shape`);
+  for (const part of byCat('threats')) assert.equal(part.threat, true, `${part.kind} threat`);
+  assert.equal(PARTS.startend.defaultLabel, 'Start');
+  assert.equal(PARTS.decision.defaultLabel, 'Decision?');
+  assert.equal(PARTS.connector.defaultLabel, 'A');
+  assert.equal(PARTS.router.accent, '#a78bfa');
+  assert.equal(PARTS.threatactor.accent, '#ef4444');
+  assert.ok(PARTS.router.ports.every((q) => q.bus === 'eth'), 'network devices link over Ethernet');
+  assert.ok(PARTS.accesspoint.ports.some((q) => q.bus === 'rf'), 'an access point has a radio side');
+  assert.ok(PARTS.process.ports.every((q) => q.bus === 'flow'), 'flow shapes connect with flow');
+  assert.ok(PARTS.threatactor.ports.every((q) => q.bus === 'link'), 'threats connect with links');
 });

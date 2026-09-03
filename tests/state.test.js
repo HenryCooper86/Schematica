@@ -253,3 +253,11 @@ test('resolveBus adopts an agreed bus, keeps a still-matching one, and asks othe
   assert.equal(resolveBus('uart', 'i2c', 'adc'), null, 'nothing matches: ask the user');
   assert.equal(resolveBus('i2c', null, 'i2c'), 'i2c', 'an endpoint without a bus does not block');
 });
+
+test('addNode uses a part default label when it has one', () => {
+  const store = new Store();
+  addNode(store, 'startend', 0, 0);
+  addNode(store, 'connector', 0, 0);
+  addNode(store, 'router', 0, 0);
+  assert.deepEqual(store.doc.nodes.map((n) => n.label), ['Start', 'A', 'Router']);
+});

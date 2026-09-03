@@ -27,3 +27,9 @@ test('camera links, CAN FD, automotive Ethernet, and serial-servo buses exist', 
   assert.equal(BUSES.rs485.short, 'RS485');
   for (const id of ['mipi', 'gmsl', 'canfd', 't1', 'rs485']) assert.ok(BUS_ORDER.includes(id), id);
 });
+
+test('untyped buses for process flow and relationships exist', () => {
+  assert.equal(BUSES.flow.short, 'FLOW');
+  assert.equal(BUSES.link.short, 'LINK');
+  assert.ok(BUS_ORDER.includes('flow') && BUS_ORDER.includes('link'));
+});

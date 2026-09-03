@@ -137,7 +137,7 @@ export function addNode(store, kind, x, y) {
   store.apply((doc) => {
     doc.nodes.push({
       id, kind: part.kind, x, y,
-      label: part.name, sublabel: '', color: null,
+      label: part.defaultLabel || part.name, sublabel: '', color: null,
       addr: '', rail: '', notes: '', status: null, flags: [],
     });
   });

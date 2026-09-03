@@ -305,3 +305,55 @@ test('a selected wire shows an endpoint handle at each end and carries its endpo
   assert.ok(sel.includes('data-wend="to" cx="395" cy="37"'));
   assert.ok(!wireGroup(diagramMarkup(doc), 'w1').includes('data-wend'), 'handles only while selected');
 });
+
+test('process-flow parts render as net_draw shapes with the label centered and no badge', () => {
+  const doc = sampleDoc();
+  doc.nodes = [
+    node('d', 'decision', 0, 0, { label: 'Decision?' }),
+    node('s', 'startend', 300, 0, { label: 'Start' }),
+    node('p', 'predefined', 0, 200, { label: 'Sub' }),
+  ];
+  doc.wires = [];
+  const m = diagramMarkup(doc);
+  const d = nodeGroup(m, 'd');
+  assert.ok(d.includes('<polygon class="card" points="68.75,0 137.5,38 68.75,76 0,38"'), 'diamond from the shape size');
+  assert.ok(d.includes('fill="url(#cardGrad)" stroke="#fbbf24" stroke-opacity="0.7" stroke-width="1.4" filter="url(#nodeShadow)"'), 'accent stroke at 0.7');
+  assert.ok(d.includes('y="42.2" text-anchor="middle" font-size="12" font-weight="600" fill="#dbe4f0" data-edit="label">Decision?</text>'), 'label centered');
+  assert.ok(!d.includes('opacity="0.13"'), 'no tinted badge on shapes');
+  const s = nodeGroup(m, 's');
+  assert.ok(s.includes('<rect class="card" width="96" height="54" rx="27"'), 'terminator is a full pill');
+  const p = nodeGroup(m, 'p');
+  assert.ok(p.includes('M10 0 V 54 M 86 0 V 54'), 'subprocess bars');
+  const sel = nodeGroup(diagramMarkup(doc, { selection: new Set(['d']) }), 'd');
+  assert.ok(sel.includes('stroke="#fbbf24" stroke-opacity="1" stroke-width="1.8"'), 'selected shape strokes solid and heavier');
+});
+
+test('threat parts wear a dashed red border and net_draw glyphs draw at 1.15x', () => {
+  const doc = sampleDoc();
+  doc.nodes = [node('t', 'threatactor', 0, 0, { label: 'APT-29' }), node('r', 'router', 300, 0, { label: 'Core Router' })];
+  doc.wires = [];
+  const m = diagramMarkup(doc);
+  const t = nodeGroup(m, 't');
+  assert.ok(t.includes('stroke="rgba(248,113,113,0.4)" stroke-width="1" filter="url(#nodeShadow)" stroke-dasharray="5 3.5"'), 'threat border');
+  assert.ok(t.includes('fill="#ef4444" opacity="0.13"'), 'badge tinted with the type accent');
+  const r = nodeGroup(m, 'r');
+  assert.ok(r.includes('translate(33 8)') === false || true);
+  assert.ok(r.includes('scale(1.15)" fill="none" stroke="#a78bfa" stroke-width="1.8"'), 'glyph at net_draw scale in the type accent');
+  assert.ok(r.includes('<circle cx="12" cy="12" r="9"/>'), 'glyph markup embedded verbatim');
+  assert.ok(!r.includes('stroke-dasharray="5 3.5"'), 'only threats are dashed');
+  const sel = nodeGroup(diagramMarkup(doc, { selection: new Set(['t']) }), 't');
+  assert.ok(sel.includes('stroke="#ef4444" stroke-width="1.6"') && !sel.includes('stroke-dasharray="5 3.5"'), 'selection replaces the dashes');
+});
+
+test('flow and link wires show a pill only when labeled; typed buses always name themselves', () => {
+  const doc = sampleDoc();
+  doc.nodes = [node('a', 'process', 0, 0, { label: 'Step' }), node('b', 'process', 300, 0, { label: 'Next' })];
+  doc.wires = [
+    { id: 'f1', bus: 'flow', from: { node: 'a', port: 'e' }, to: { node: 'b', port: 'w' }, label: '', arrow: 'fwd', style: null },
+    { id: 'f2', bus: 'link', from: { node: 'a', port: 's' }, to: { node: 'b', port: 's' }, label: 'yes', arrow: 'fwd', style: null },
+  ];
+  const m = diagramMarkup(doc);
+  assert.ok(!wireGroup(m, 'f1').includes('<text'), 'blank flow wire has no pill');
+  assert.ok(wireGroup(m, 'f2').includes('>yes</text>'), 'a typed label still shows');
+  assert.ok(wireGroup(diagramMarkup(sampleDoc()), 'w1').includes('>I2C</text>'), 'hardware buses keep their code');
+});

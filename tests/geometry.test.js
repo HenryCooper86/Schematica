@@ -183,3 +183,16 @@ test('zoneMembers lists the cards whose center sits inside the zone, plus notes 
   const zone = { x: 100, y: 100, w: 200, h: 200 };
   assert.deepEqual(zoneMembers(doc, zone).sort(), ['in', 't-in'], 'a card whose center (312, 157) lies outside is not carried');
 });
+
+// Process-flow shapes size like net_draw's: label-driven widths within 96–290,
+// fixed heights per shape, and a square connector.
+test('nodeSize sizes process-flow shapes like net_draw', () => {
+  assert.deepEqual(nodeSize({ kind: 'process', label: 'Process' }), { w: 96, h: 54 });
+  assert.deepEqual(nodeSize({ kind: 'decision', label: 'Decision?' }), { w: 137.5, h: 76 });
+  assert.deepEqual(nodeSize({ kind: 'dataio', label: 'Data / I-O' }), { w: 140, h: 54 });
+  assert.deepEqual(nodeSize({ kind: 'document', label: 'Document' }), { w: 100, h: 62 });
+  assert.deepEqual(nodeSize({ kind: 'connector', label: 'A' }), { w: 46, h: 46 });
+  assert.equal(nodeSize({ kind: 'process', label: 'x'.repeat(80) }).w, 290, 'capped');
+  assert.deepEqual(nodeSize({ kind: 'process', label: 'Process', sublabel: 'ignored', addr: 'too' }), { w: 96, h: 54 }, 'shapes carry no meta lines');
+  assert.deepEqual(nodeSize({ kind: 'router', label: 'Core Router', addr: '10.0.0.1' }), { w: 104, h: 86.5 }, 'network devices are ordinary cards');
+});

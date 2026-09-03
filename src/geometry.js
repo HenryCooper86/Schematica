@@ -1,3 +1,5 @@
+import { getPart } from './palette.js';
+
 export function snap(v, grid = 8) {
   // "+ 0" folds the -0 that rounding small negatives produces into +0, so
   // snapped coordinates never serialize as "-0".
@@ -20,7 +22,26 @@ export function nodeMeta(node) {
     .slice(0, 3);
 }
 
+// Process-flow shapes size like net_draw's: the label sets the width within
+// 96–290 (decisions and slanted shapes get extra room), heights are fixed per
+// shape, and a connector is a circle just big enough for its letter.
+function shapeSize(shape, label) {
+  const L = label.length;
+  if (shape === 'connector') {
+    const r = Math.min(60, Math.max(23, L * 3.6 + 16));
+    return { w: r * 2, h: r * 2 };
+  }
+  let w = L * 7 + 44;
+  if (shape === 'decision') w = L * 7.5 + 70;
+  if (shape === 'data' || shape === 'manual') w += 26;
+  w = Math.min(290, Math.max(96, w));
+  const h = shape === 'decision' ? 76 : (shape === 'document' ? 62 : 54);
+  return { w, h };
+}
+
 export function nodeSize(node) {
+  const part = getPart(node.kind);
+  if (part.shape) return shapeSize(part.shape, String(node.label ?? ''));
   const meta = nodeMeta(node);
   const need = Math.max(
     NODE_W,

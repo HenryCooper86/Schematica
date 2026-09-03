@@ -20,11 +20,15 @@ export const BUSES = {
   canfd: { name: 'CAN FD', short: 'CAN FD', flows: true },
   t1:    { name: 'Automotive Ethernet (T1)', short: 'T1', flows: true },
   rs485: { name: 'RS-485 / serial servo', short: 'RS485', flows: true },
+  // Untyped connections for process-flow steps and threat / network relationships.
+  // `silent`: an unlabeled wire shows no pill (the code would say nothing).
+  flow:  { name: 'Flow', short: 'FLOW', flows: true, silent: true },
+  link:  { name: 'Link / relationship', short: 'LINK', flows: true, silent: true },
 };
 
 export const BUS_ORDER = [
   'power', 'gnd', 'i2c', 'spi', 'uart', 'can', 'canfd', 'usb', 'eth', 't1', 'gpio', 'pwm', 'adc', 'rf',
-  'mipi', 'gmsl', 'rs485',
+  'mipi', 'gmsl', 'rs485', 'flow', 'link',
 ];
 
 export const DEFAULT_BUS = 'gpio';

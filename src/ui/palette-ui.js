@@ -24,10 +24,13 @@ export function initPalette({ svg, store, tools }) {
     for (const part of Object.values(PARTS).filter((p) => p.category === cat.id)) {
       const item = document.createElement('button');
       item.className = 'palette-item';
-      const color = CATEGORY_COLORS[cat.id];
-      item.innerHTML = `<span class="badge" style="--c:${color}">`
-        + `<svg viewBox="0 0 16 16" fill="none" stroke="${color}" stroke-width="1.5"`
-        + ` stroke-linecap="round" stroke-linejoin="round"><path d="${part.icon}"/></svg></span>`
+      const color = part.accent || CATEGORY_COLORS[cat.id];
+      const glyph = part.glyph
+        ? `<svg viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round"`
+          + ` stroke-linejoin="round" style="color:${color}">${part.glyph}</svg>`
+        : `<svg viewBox="0 0 16 16" fill="none" stroke="${color}" stroke-width="1.5"`
+          + ` stroke-linecap="round" stroke-linejoin="round"><path d="${part.icon}"/></svg>`;
+      item.innerHTML = `<span class="badge" style="--c:${color}">${glyph}</span>`
         + `<span class="pi-name">${part.name}</span>`;
       item.draggable = true;
       item.addEventListener('dragstart', (e) => {
@@ -37,7 +40,7 @@ export function initPalette({ svg, store, tools }) {
         const r = svg.getBoundingClientRect();
         const cx = (r.width / 2 - tools.view.x) / tools.view.zoom;
         const cy = (r.height / 2 - tools.view.y) / tools.view.zoom;
-        const { w, h } = nodeSize({ label: part.name });
+        const { w, h } = nodeSize({ kind: part.kind, label: part.defaultLabel || part.name });
         const id = addNode(store, part.kind, snap(cx - w / 2), snap(cy - h / 2));
         store.setSelection([id]);
       });
@@ -72,7 +75,7 @@ export function initPalette({ svg, store, tools }) {
     if (!kind) return;
     const part = getPart(kind);
     const pt = tools.toWorld(e);
-    const { w, h } = nodeSize({ label: part.name });
+    const { w, h } = nodeSize({ kind: part.kind, label: part.defaultLabel || part.name });
     const id = addNode(store, kind, snap(pt.x - w / 2), snap(pt.y - h / 2));
     store.setSelection([id]);
   });

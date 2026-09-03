@@ -7,6 +7,10 @@ export const CATEGORIES = [
   { id: 'robotics', name: 'Robotics' },
   { id: 'automotive', name: 'Automotive' },
   { id: 'system', name: 'System & Cloud' },
+  { id: 'network', name: 'Network' },
+  { id: 'security', name: 'Security & Edge' },
+  { id: 'flow', name: 'Process Flow' },
+  { id: 'threats', name: 'Threats' },
   { id: 'misc', name: 'Storage / Misc' },
 ];
 
@@ -19,12 +23,23 @@ export const CATEGORY_COLORS = {
   robotics: '#f472b6',
   automotive: '#facc15',
   system: '#e879f9',
+  network: '#38bdf8',
+  security: '#f43f5e',
+  flow: '#60a5fa',
+  threats: '#ef4444',
   misc: '#34d399',
 };
 
 const p = (id, name, side, offset, bus) => ({ id, name, side, offset, bus });
 const pwr = (side = 'left') => [p('vcc', 'VCC', side, 0.3, 'power'), p('gnd', 'GND', side, 0.7, 'gnd')];
 const part = (kind, category, name, icon, ports) => ({ kind, category, name, icon, ports });
+// Four side ports of one bus, for devices that connect on any side.
+const sides = (bus, name) => [
+  p('n', name, 'top', 0.5, bus), p('e', name, 'right', 0.5, bus), p('s', name, 'bottom', 0.5, bus), p('w', name, 'left', 0.5, bus),
+];
+// A net_draw type: a 24-box glyph (inner SVG markup) and a per-type accent
+// instead of a 16-box path; `extra` carries shape, threat, or defaultLabel.
+const nd = (kind, category, name, accent, glyph, ports, extra = {}) => ({ kind, category, name, icon: null, glyph, accent, ports, ...extra });
 
 export const PARTS = {
   // Compute
@@ -192,6 +207,72 @@ export const PARTS = {
     [p('ble', 'BLE', 'left', 0.5, 'rf'), p('net', 'NET', 'bottom', 0.5, 'eth')]),
   hostpc: part('hostpc', 'system', 'Host PC', 'M3 3h10v7H3z M1.5 12.5h13L13 10H3z',
     [p('usb', 'USB', 'left', 0.5, 'usb'), p('eth', 'ETH', 'bottom', 0.5, 'eth')]),
+  // ---- net_draw's Network, Security & Edge, Process Flow, and Threats ----
+  // Ported one-to-one: 24-box glyphs, per-type accents, real flowchart shapes,
+  // and the dashed red border on threats. Devices link over Ethernet, flow
+  // shapes over the untyped "flow" bus, threats over "link".
+  // Network
+  internet: nd('internet', 'network', 'Internet', '#38bdf8', '<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/>',
+    sides('eth', 'ETH')),
+  accesspoint: nd('accesspoint', 'network', 'Access point', '#c084fc', '<path d="M4.5 9.8a11 11 0 0 1 15 0M7.5 13a7 7 0 0 1 9 0M10.4 16.1a3 3 0 0 1 3.2 0"/><circle cx="12" cy="19" r="1.3" fill="currentColor" stroke="none"/>',
+    [p('rf', 'WLAN', 'top', 0.5, 'rf'), p('e', 'ETH', 'right', 0.5, 'eth'), p('s', 'ETH', 'bottom', 0.5, 'eth'), p('w', 'ETH', 'left', 0.5, 'eth')]),
+  router: nd('router', 'network', 'Router', '#a78bfa', '<circle cx="12" cy="12" r="9"/><path d="M7 9.5h7.5M12.5 7 15 9.5l-2.5 2.5M17 14.5H9.5M11.5 12 9 14.5l2.5 2.5"/>',
+    sides('eth', 'ETH')),
+  switch: nd('switch', 'network', 'Switch', '#60a5fa', '<rect x="3" y="7.5" width="18" height="9" rx="2"/><path d="M7 10.5h4.2M9.6 8.7l1.8 1.8-1.8 1.8M17 13.5h-4.2M14.4 11.7l-1.8 1.8 1.8 1.8"/>',
+    sides('eth', 'ETH')),
+  asn: nd('asn', 'network', 'ASN', '#818cf8', '<path d="M12 2.8 19.6 7.2v8.8L12 20.4 4.4 16V7.2z"/><text x="12" y="14.6" text-anchor="middle" font-size="7" font-weight="700" fill="currentColor" stroke="none">AS</text>',
+    sides('eth', 'ETH')),
+  ipaddress: nd('ipaddress', 'network', 'IP Address', '#67e8f9', '<rect x="3" y="7" width="18" height="10" rx="2.5"/><text x="12" y="14.8" text-anchor="middle" font-size="7" font-weight="700" fill="currentColor" stroke="none">IP</text>',
+    sides('eth', 'ETH')),
+  // Security & Edge
+  firewall: nd('firewall', 'security', 'Firewall', '#f87171', '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9.7h18M3 14.3h18M9 5v4.7M15 9.7v4.6M9 14.3V19"/>',
+    sides('eth', 'ETH')),
+  waf: nd('waf', 'security', 'WAF', '#f43f5e', '<path d="M12 2.8 20 6v6c0 4.6-3.4 7.8-8 9.2C7.4 19.8 4 16.6 4 12V6z"/><path d="M4.6 9.5h14.8M5.2 14h13.6M8.5 5.5v4M15.5 5.5v4M12 9.5V14M8.5 14v4.6M15.5 14v4.6"/>',
+    sides('eth', 'ETH')),
+  proxy: nd('proxy', 'security', 'Proxy Server', '#e879f9', '<rect x="9" y="9" width="6" height="6" rx="1.5"/><path d="M3 6.5h11.5M12 4l2.5 2.5L12 9M21 17.5H9.5M12 15l-2.5 2.5L12 20"/>',
+    sides('eth', 'ETH')),
+  cdn: nd('cdn', 'security', 'CDN', '#38bdf8', '<circle cx="12" cy="12" r="4"/><circle cx="4.5" cy="6.5" r="2"/><circle cx="19.5" cy="6.5" r="2"/><circle cx="12" cy="20" r="1.9"/><path d="M8.8 9.7 6 7.9M15.2 9.7 18 7.9M12 16v2.1"/>',
+    sides('eth', 'ETH')),
+  loadbalancer: nd('loadbalancer', 'security', 'Load Balancer', '#2dd4bf', '<rect x="9.5" y="3" width="5" height="5" rx="1.5"/><path d="M12 8v2.5M12 10.5 5.5 14.8M12 10.5v5.8M12 10.5l6.5 4.3"/><circle cx="5.5" cy="17" r="2.2"/><circle cx="12" cy="18.6" r="2.2"/><circle cx="18.5" cy="17" r="2.2"/>',
+    sides('eth', 'ETH')),
+  apigateway: nd('apigateway', 'security', 'API Gateway', '#22d3ee', '<path d="M5 4v16M19 4v16"/><path d="M8 9.2h8M13.5 6.7 16 9.2l-2.5 2.5M16 15h-8M10.5 12.5 8 15l2.5 2.5"/>',
+    sides('eth', 'ETH')),
+  // Process Flow (shapes; the label sits inside, no badge or meta lines)
+  startend: nd('startend', 'flow', 'Start / End', '#34d399', '<rect x="3" y="8" width="18" height="8" rx="4"/>',
+    sides('flow', 'FLOW'), { shape: 'terminator', defaultLabel: 'Start' }),
+  process: nd('process', 'flow', 'Process', '#60a5fa', '<rect x="3.5" y="7.5" width="17" height="9" rx="1.5"/>',
+    sides('flow', 'FLOW'), { shape: 'process' }),
+  decision: nd('decision', 'flow', 'Decision', '#fbbf24', '<path d="M12 4.5 20.5 12 12 19.5 3.5 12z"/>',
+    sides('flow', 'FLOW'), { shape: 'decision', defaultLabel: 'Decision?' }),
+  dataio: nd('dataio', 'flow', 'Data / I-O', '#22d3ee', '<path d="M7.5 7.5H21l-4.5 9H3z"/>',
+    sides('flow', 'FLOW'), { shape: 'data' }),
+  document: nd('document', 'flow', 'Document', '#94a3b8', '<path d="M4 5.5h16v9.8c-2.7-2.3-5.3 2.6-8 .9s-5.3 1.9-8-.4z"/>',
+    sides('flow', 'FLOW'), { shape: 'document' }),
+  predefined: nd('predefined', 'flow', 'Subprocess', '#818cf8', '<rect x="3" y="7" width="18" height="10" rx="1.5"/><path d="M6.3 7v10M17.7 7v10"/>',
+    sides('flow', 'FLOW'), { shape: 'predefined' }),
+  preparation: nd('preparation', 'flow', 'Preparation', '#a78bfa', '<path d="M7 6.5h10l4 5.5-4 5.5H7L3 12z"/>',
+    sides('flow', 'FLOW'), { shape: 'prep' }),
+  manualinput: nd('manualinput', 'flow', 'Manual Input', '#f472b6', '<path d="M3 9.5 21 6v11.5H3z"/>',
+    sides('flow', 'FLOW'), { shape: 'manual' }),
+  delay: nd('delay', 'flow', 'Delay', '#fb923c', '<path d="M3.5 7h12a5 5 0 0 1 0 10h-12z"/>',
+    sides('flow', 'FLOW'), { shape: 'delay' }),
+  connector: nd('connector', 'flow', 'Connector', '#64748b', '<circle cx="12" cy="12" r="6.5"/>',
+    sides('flow', 'FLOW'), { shape: 'connector', defaultLabel: 'A' }),
+  // Threats
+  threatactor: nd('threatactor', 'threats', 'Threat Actor', '#ef4444', '<path d="M12 3C7.5 3 5 6.6 5 11v6.8c2-1.2 3-1.2 4.5-.3 1.6 1 3.4 1 5 0 1.5-.9 2.5-.9 4.5.3V11c0-4.4-2.5-8-7-8z"/><circle cx="9.4" cy="11.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="14.6" cy="11.5" r="1.1" fill="currentColor" stroke="none"/>',
+    sides('link', 'LINK'), { threat: true }),
+  insider: nd('insider', 'threats', 'Insider Threat', '#f97316', '<circle cx="9.5" cy="7.5" r="3.2"/><path d="M3.5 20a6.3 6.3 0 0 1 11.4-2.4"/><path d="M17.5 12.8 21.3 19.5h-7.6z"/><path d="M17.5 15.2v1.7M17.5 18.1h.01"/>',
+    sides('link', 'LINK'), { threat: true }),
+  malware: nd('malware', 'threats', 'Malware', '#fb7185', '<path d="M12 7.5a4 4 0 0 1 4 4v3a4 4 0 0 1-8 0v-3a4 4 0 0 1 4-4z"/><path d="M12 7.5V5M9 5.5 10.3 7M15 5.5 13.7 7M8 12.5H5.5M18.5 12.5H16M8.6 16 6.5 18M15.4 16l2.1 2M12 10.5v8"/>',
+    sides('link', 'LINK'), { threat: true }),
+  ransomware: nd('ransomware', 'threats', 'Ransomware', '#f43f5e', '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><text x="12" y="17.6" text-anchor="middle" font-size="7.5" font-weight="700" fill="currentColor" stroke="none">$</text>',
+    sides('link', 'LINK'), { threat: true }),
+  botnet: nd('botnet', 'threats', 'Botnet', '#a855f7', '<rect x="7.5" y="8.5" width="9" height="7" rx="2"/><path d="M10.5 12h.01M13.5 12h.01M12 8.5V6M5.5 19 8.5 15.5M18.5 19 15.5 15.5"/><circle cx="12" cy="4.6" r="1.4"/><circle cx="4.5" cy="20.2" r="1.4"/><circle cx="19.5" cy="20.2" r="1.4"/>',
+    sides('link', 'LINK'), { threat: true }),
+  phishing: nd('phishing', 'threats', 'Phishing', '#eab308', '<path d="M12 4.5v8.5a4.5 4.5 0 0 0 8.8 1.4"/><path d="M21.5 11.6 20.8 14.6 18 13.4"/><circle cx="12" cy="3.6" r="1.5"/><path d="M6.5 8.5 3 12l3.5 3.5M9.5 8.5 6 12l3.5 3.5" stroke-width="1.4"/>',
+    sides('link', 'LINK'), { threat: true }),
+  c2: nd('c2', 'threats', 'C2 Server', '#f87171', '<rect x="3.5" y="12" width="13" height="6" rx="1.5"/><path d="M6.5 15h.01M10 15h4"/><path d="M17.8 6.8a5.5 5.5 0 0 1 1.7 4M20.5 4.5a9 9 0 0 1 2.6 6.3" stroke-width="1.6"/><path d="M15.5 9a2.5 2.5 0 0 1 .8 1.8"/>',
+    sides('link', 'LINK'), { threat: true }),
   // Storage / Misc
   eeprom: part('eeprom', 'misc', 'EEPROM / Flash', 'M4 3h8v10H4z M4 6h8 M4 9h8 M2 5h2 M2 8h2 M2 11h2 M12 5h2 M12 8h2 M12 11h2',
     [...pwr(), p('spi', 'SPI', 'right', 0.35, 'spi'), p('i2c', 'I2C', 'right', 0.7, 'i2c')]),

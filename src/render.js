@@ -117,11 +117,40 @@ export function bakeFrame(root, nowMs) {
 // with a 1.8px stroke, so scale ours to the same 27.6px glyph and stroke.
 const ICON_SCALE = 27.6 / 16;
 
-function badgeMarkup(W, color, icon) {
+// net_draw types carry their original 24-box glyph markup, drawn at net_draw's
+// own 1.15 scale; Schematica parts carry a 16-box path scaled to match.
+function badgeMarkup(W, color, part) {
   const c = esc(color);
-  return `<rect x="${W / 2 - 19}" y="8" width="38" height="38" rx="11" fill="${c}" opacity="0.13"/>`
-    + `<g transform="translate(${W / 2 - 13.8} 13.2) scale(${ICON_SCALE})" fill="none" stroke="${c}"`
-    + ` stroke-width="${(1.8 / ICON_SCALE).toFixed(3)}" stroke-linecap="round" stroke-linejoin="round"><path d="${icon}"/></g>`;
+  let s = `<rect x="${W / 2 - 19}" y="8" width="38" height="38" rx="11" fill="${c}" opacity="0.13"/>`;
+  if (part.glyph) {
+    s += `<g transform="translate(${W / 2 - 13.8} 13.2) scale(1.15)" fill="none" stroke="${c}" stroke-width="1.8"`
+      + ` stroke-linecap="round" stroke-linejoin="round" color="${c}">${part.glyph}</g>`;
+  } else {
+    s += `<g transform="translate(${W / 2 - 13.8} 13.2) scale(${ICON_SCALE})" fill="none" stroke="${c}"`
+      + ` stroke-width="${(1.8 / ICON_SCALE).toFixed(3)}" stroke-linecap="round" stroke-linejoin="round"><path d="${part.icon}"/></g>`;
+  }
+  return s;
+}
+
+// Process-flow shapes (net_draw): the shape is the card, label centered inside.
+function shapeMarkup(part, W, H, acc, selected) {
+  const style = `fill="url(#cardGrad)" stroke="${esc(acc)}" stroke-opacity="${selected ? 1 : 0.7}"`
+    + ` stroke-width="${selected ? 1.8 : 1.4}" filter="url(#nodeShadow)"`;
+  let s;
+  switch (part.shape) {
+    case 'terminator': s = `<rect class="card" width="${W}" height="${H}" rx="${H / 2}" ${style}/>`; break;
+    case 'predefined': s = `<rect class="card" width="${W}" height="${H}" rx="6" ${style}/>`
+      + `<path d="M10 0 V ${H} M ${W - 10} 0 V ${H}" stroke="${esc(acc)}" stroke-opacity="0.5" stroke-width="1.2" fill="none"/>`; break;
+    case 'decision': s = `<polygon class="card" points="${W / 2},0 ${W},${H / 2} ${W / 2},${H} 0,${H / 2}" ${style}/>`; break;
+    case 'data': s = `<polygon class="card" points="20,0 ${W},0 ${W - 20},${H} 0,${H}" ${style}/>`; break;
+    case 'prep': s = `<polygon class="card" points="14,0 ${W - 14},0 ${W},${H / 2} ${W - 14},${H} 14,${H} 0,${H / 2}" ${style}/>`; break;
+    case 'manual': s = `<polygon class="card" points="0,12 ${W},0 ${W},${H} 0,${H}" ${style}/>`; break;
+    case 'delay': s = `<path class="card" d="M0 0 H ${W - H / 2} A ${H / 2} ${H / 2} 0 0 1 ${W - H / 2} ${H} H 0 Z" ${style}/>`; break;
+    case 'document': s = `<path class="card" d="M0 0 H ${W} V ${H - 10} C ${W * 0.7} ${H - 22}, ${W * 0.3} ${H + 10}, 0 ${H - 8} Z" ${style}/>`; break;
+    case 'connector': s = `<circle class="card" cx="${W / 2}" cy="${H / 2}" r="${W / 2}" ${style}/>`; break;
+    default: s = `<rect class="card" width="${W}" height="${H}" rx="9" ${style}/>`;
+  }
+  return s;
 }
 
 function portsMarkup(node, part, acc, W, H) {
@@ -220,7 +249,7 @@ function flagBadgesMarkup(flags, W) {
 
 function nodeMarkup(node, selected, ui, animating, now) {
   const part = getPart(node.kind);
-  const acc = node.color || CATEGORY_COLORS[part.category] || ACCENT;
+  const acc = node.color || part.accent || CATEGORY_COLORS[part.category] || ACCENT;
   const { w: W, h: H } = nodeSize(node);
   let s = `<g class="node" data-id="${esc(node.id)}" data-type="node" transform="translate(${node.x} ${node.y})">`;
   const flags = (node.flags || []).filter((f) => FLAG_META[f]);
@@ -234,15 +263,24 @@ function nodeMarkup(node, selected, ui, animating, now) {
     s += `<rect x="-5" y="-5" width="${W + 10}" height="${H + 10}" rx="18" fill="none"`
       + ` stroke="${esc(acc)}" stroke-opacity="0.4" stroke-width="1.6"/>`;
   }
-  s += `<rect class="card" width="${W}" height="${H}" rx="14" fill="url(#cardGrad)"`
-    + ` stroke="${selected ? esc(acc) : CARD_LINE}" stroke-width="${selected ? 1.6 : 1}" filter="url(#nodeShadow)"/>`;
-  s += badgeMarkup(W, acc, part.icon);
-  s += `<text x="${W / 2}" y="62" text-anchor="middle" font-size="11.5" font-weight="600"`
-    + ` fill="${TEXT}" data-edit="label">${esc(node.label)}</text>`;
-  nodeMeta(node).forEach((m, i) => {
-    s += `<text x="${W / 2}" y="${75 + i * 12.5}" text-anchor="middle" font-size="9.5" fill="${META}"`
-      + ` font-family="${MONO}" data-edit="${m.field}">${esc(m.text)}</text>`;
-  });
+  if (part.shape) {
+    s += shapeMarkup(part, W, H, acc, selected);
+    s += `<text x="${W / 2}" y="${H / 2 + 4.2}" text-anchor="middle" font-size="12" font-weight="600"`
+      + ` fill="#dbe4f0" data-edit="label">${esc(node.label)}</text>`;
+  } else {
+    // Threat types wear net_draw's dashed red border until selected.
+    const threat = !!part.threat && !selected;
+    s += `<rect class="card" width="${W}" height="${H}" rx="14" fill="url(#cardGrad)"`
+      + ` stroke="${selected ? esc(acc) : (threat ? 'rgba(248,113,113,0.4)' : CARD_LINE)}"`
+      + ` stroke-width="${selected ? 1.6 : 1}" filter="url(#nodeShadow)"${threat ? ' stroke-dasharray="5 3.5"' : ''}/>`;
+    s += badgeMarkup(W, acc, part);
+    s += `<text x="${W / 2}" y="62" text-anchor="middle" font-size="11.5" font-weight="600"`
+      + ` fill="${TEXT}" data-edit="label">${esc(node.label)}</text>`;
+    nodeMeta(node).forEach((m, i) => {
+      s += `<text x="${W / 2}" y="${75 + i * 12.5}" text-anchor="middle" font-size="9.5" fill="${META}"`
+        + ` font-family="${MONO}" data-edit="${m.field}">${esc(m.text)}</text>`;
+    });
+  }
   s += statusTagMarkup(node, animating, now);
   s += flagBadgesMarkup(flags, W);
   if (ui.ports !== false) s += portsMarkup(node, part, acc, W, H);
@@ -287,16 +325,18 @@ function wireMarkup(byId, wire, lane, selected, ui, animating, now) {
         + ' pointer-events="none">\u{1F463}</text>';
     }
   }
-  const label = wire.label || (sneak ? '\u{1F45F} air gap' : bus.short);
+  const label = wire.label || (sneak ? '\u{1F45F} air gap' : (bus.silent ? '' : bus.short));
   const w = Math.round((label.length * 6.4 + 18) * 100) / 100;
   // Fanned wires stagger their pills along the curve: side by side the 22px
   // fan is narrower than a pill, so parallel vertical runs would collide.
   const t = Math.min(0.8, Math.max(0.2, 0.5 + (lane / WIRE_FAN) * 0.15));
   const at = lane ? curvePoint(geo, t) : geo.mid;
-  s += `<rect x="${Math.round((at.x - w / 2) * 100) / 100}" y="${Math.round((at.y - 10) * 100) / 100}" width="${w}" height="20" rx="9"`
-    + ` fill="${LABEL_BG}" stroke="${LABEL_LINE}" stroke-width="1"/>`;
-  s += `<text x="${at.x}" y="${Math.round((at.y + 3.6) * 100) / 100}" text-anchor="middle" font-size="10.5" fill="${LABEL_TEXT}"`
-    + ` data-edit="label">${esc(label)}</text>`;
+  if (label) {
+    s += `<rect x="${Math.round((at.x - w / 2) * 100) / 100}" y="${Math.round((at.y - 10) * 100) / 100}" width="${w}" height="20" rx="9"`
+      + ` fill="${LABEL_BG}" stroke="${LABEL_LINE}" stroke-width="1"/>`;
+    s += `<text x="${at.x}" y="${Math.round((at.y + 3.6) * 100) / 100}" text-anchor="middle" font-size="10.5" fill="${LABEL_TEXT}"`
+      + ` data-edit="label">${esc(label)}</text>`;
+  }
   // A selected wire grows a handle at each end; dragging one onto another
   // port re-attaches that end (tools.js).
   if (selected) {
