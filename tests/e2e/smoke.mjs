@@ -6,7 +6,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EXAMPLES } from '../../src/examples.js';
@@ -49,16 +49,33 @@ const origin = `http://127.0.0.1:${server.address().port}`;
 const url = `${origin}/#${await encodeShare(EXAMPLES.find((e) => e.id === 'weather-station').doc)}`;
 
 // ---- browser ----
-const port = 9300 + Math.floor(Math.random() * 500);
+// Chrome picks its own debugging port and writes it to DevToolsActivePort in
+// the profile; a fresh profile means no stale file. Cold runners can take a
+// while to start, so wait up to a minute and surface Chrome's stderr on failure.
 const profile = join(ROOT, '.e2e-profile');
+rmSync(profile, { recursive: true, force: true });
 const chrome = spawn(findChrome(), [
   '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
-  ...(process.env.CI ? ['--no-sandbox'] : []),
-  `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--window-size=1500,950', url,
-], { stdio: 'ignore' });
+  ...(process.env.CI ? ['--no-sandbox', '--disable-dev-shm-usage'] : []),
+  '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--window-size=1500,950', url,
+], { stdio: ['ignore', 'ignore', 'pipe'] });
+let chromeErr = '';
+chrome.stderr.on('data', (d) => { chromeErr = (chromeErr + d).slice(-2000); });
 
+let port = 0;
+for (let i = 0; i < 240 && !port && chrome.exitCode === null; i++) {
+  try {
+    const first = readFileSync(join(profile, 'DevToolsActivePort'), 'utf8').split('\n')[0];
+    if (Number(first) > 0) port = Number(first);
+  } catch { /* not written yet */ }
+  if (!port) await sleep(250);
+}
+if (!port) {
+  server.close();
+  throw new Error(`Chrome did not start (exit code ${chrome.exitCode}). stderr: ${chromeErr}`);
+}
 let target;
-for (let i = 0; i < 60 && !target; i++) {
+for (let i = 0; i < 120 && !target; i++) {
   try {
     const list = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
     target = list.find((t) => t.type === 'page' && t.url.startsWith(origin));
@@ -68,7 +85,7 @@ for (let i = 0; i < 60 && !target; i++) {
 if (!target) {
   chrome.kill();
   server.close();
-  throw new Error('Chrome did not expose the page');
+  throw new Error(`Chrome did not expose the page. stderr: ${chromeErr}`);
 }
 
 const ws = new WebSocket(target.webSocketDebuggerUrl);
@@ -297,9 +314,17 @@ try {
   results.push(`FAIL script error — ${err.message}`);
 } finally {
   ws.close();
-  chrome.kill();
+  // Let Chrome exit before removing its profile, or the delete races its
+  // shutdown writes.
+  if (chrome.exitCode === null) {
+    chrome.kill();
+    await Promise.race([
+      new Promise((r) => chrome.once('exit', r)),
+      sleep(3000).then(() => chrome.kill('SIGKILL')),
+    ]);
+  }
+  try { rmSync(profile, { recursive: true, force: true }); } catch { /* best effort */ }
   server.close();
-  spawnSync('rm', ['-rf', profile]);
 }
 
 clearTimeout(watchdog);
