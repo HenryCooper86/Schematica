@@ -293,6 +293,9 @@ g.node:hover .ports,
 #props.collapsed h3, #journey-panel.collapsed h3 { margin: 0; }
 /* P (or the panels button) hides both right-hand panels entirely. */
 #app.panels-hidden #props, #app.panels-hidden #journey-panel { display: none !important; }
+/* B (or the palette button) hides the parts palette; the canvas takes the width. */
+#app.palette-hidden { grid-template-columns: 0 1fr; }
+#app.palette-hidden #palette { display: none; }
 #props label { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--faint); margin: 12px 0 4px; }
 #props input[type="text"], #props textarea, #props select {
   width: 100%;

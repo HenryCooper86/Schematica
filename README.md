@@ -35,6 +35,7 @@ then Settings → Pages → deploy from branch `main`, root folder.
 | Nudge | Arrow keys move the selection 1px; `Shift` + arrow moves a grid step |
 | Fold a panel | The ▾ in the properties or journey panel header folds it to a bar; remembered across reloads |
 | Hide the panels | `P` or the panels button hides the properties and journey panels entirely; press again (or open Journey) to bring them back; remembered across reloads |
+| Hide the palette | `B` or the palette button hides the parts palette so the canvas takes the full width; press again to bring it back; remembered across reloads |
 | Sticky note | `N`, click |
 | Rename anything | Double-click its text, or use the properties panel |
 | Pan / zoom | Space-drag or middle-drag; scroll wheel |

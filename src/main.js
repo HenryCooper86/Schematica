@@ -13,7 +13,7 @@ import { initDialogs } from './ui/dialogs.js';
 import { initJourney } from './ui/journey-ui.js';
 import { initExamplesMenu } from './ui/examples-menu.js';
 import { initRecording } from './ui/recording-ui.js';
-import { initPanelsToggle } from './ui/panels.js';
+import { initLayoutToggles } from './ui/panels.js';
 
 const svg = document.getElementById('canvas');
 
@@ -181,7 +181,7 @@ dialogs = initDialogs({ store });
 const recorder = initRecording({ svg, store });
 initJourney({ svg, store, tools, render, recorder, propsPanel });
 initExamplesMenu({ store });
-initPanelsToggle();
+initLayoutToggles();
 
 render();
 syncAnimation();

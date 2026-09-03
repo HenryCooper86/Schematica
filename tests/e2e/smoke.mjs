@@ -321,6 +321,17 @@ try {
   const back = await js(`(() => { const p = document.getElementById('props'); return { display: getComputedStyle(p).display, cls: document.getElementById('app').classList.contains('panels-hidden'), stored: localStorage.getItem('schematica.panels.hidden') }; })()`);
   check('the panels button shows them again', back.display !== 'none' && !back.cls && back.stored === '0', JSON.stringify(back));
 
+  // Hide the palette with B: the canvas takes the width; the button restores it.
+  const canvasLeft0 = await js(`document.getElementById('canvas').getBoundingClientRect().left`);
+  await key('b', 'KeyB', 66);
+  await sleep(150);
+  const noPalette = await js(`(() => ({ display: getComputedStyle(document.getElementById('palette')).display, cls: document.getElementById('app').classList.contains('palette-hidden'), stored: localStorage.getItem('schematica.palette.hidden'), canvasLeft: document.getElementById('canvas').getBoundingClientRect().left }))()`);
+  check('B hides the palette and the canvas widens', noPalette.display === 'none' && noPalette.cls && noPalette.stored === '1' && noPalette.canvasLeft < canvasLeft0, JSON.stringify({ canvasLeft0, ...noPalette }));
+  await js(`document.getElementById('btn-palette').click(); true`);
+  await sleep(150);
+  const paletteBack = await js(`(() => ({ display: getComputedStyle(document.getElementById('palette')).display, cls: document.getElementById('app').classList.contains('palette-hidden'), canvasLeft: document.getElementById('canvas').getBoundingClientRect().left }))()`);
+  check('the palette button brings it back', paletteBack.display !== 'none' && !paletteBack.cls && paletteBack.canvasLeft === canvasLeft0, JSON.stringify(paletteBack));
+
   // Palette search.
   await js(`(() => { const s = document.getElementById('palette-search'); s.value = 'rdk'; s.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
   await sleep(100);
