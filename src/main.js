@@ -18,6 +18,7 @@ import { addStep, updateStep, removeStep, moveStep, tweenView } from './journey.
 import { createRecorder } from './recorder.js';
 import { EXAMPLES } from './examples.js';
 import { presetsFor, presetPatch } from './presets.js';
+import { filterParts } from './search.js';
 
 const svg = document.getElementById('canvas');
 
@@ -188,6 +189,7 @@ store.subscribe(() => {
 // ---- Palette ----
 function buildPalette() {
   const palette = document.getElementById('palette');
+  const groups = [];
   for (const cat of CATEGORIES) {
     const h = document.createElement('h3');
     h.textContent = cat.name;
@@ -195,9 +197,12 @@ function buildPalette() {
     const box = document.createElement('div');
     box.className = 'cat-grid';
     palette.appendChild(box);
+    const group = { h, box, collapsed: false, items: [] };
+    groups.push(group);
     h.addEventListener('click', () => {
-      box.hidden = !box.hidden;
-      h.classList.toggle('collapsed', box.hidden);
+      group.collapsed = !group.collapsed;
+      box.hidden = group.collapsed;
+      h.classList.toggle('collapsed', group.collapsed);
     });
     for (const part of Object.values(PARTS).filter((p) => p.category === cat.id)) {
       const item = document.createElement('button');
@@ -220,8 +225,27 @@ function buildPalette() {
         store.setSelection([id]);
       });
       box.appendChild(item);
+      group.items.push({ el: item, kind: part.kind });
     }
   }
+  // Search filters parts by name, category, bus, and vendor preset names;
+  // categories with no match fold away, and clearing restores the manual
+  // collapsed state.
+  const search = document.getElementById('palette-search');
+  search.addEventListener('input', () => {
+    const q = search.value.trim();
+    const hits = q ? filterParts(q) : null;
+    for (const g of groups) {
+      let shown = 0;
+      for (const { el, kind } of g.items) {
+        const on = !hits || hits.has(kind);
+        el.hidden = !on;
+        if (on) shown += 1;
+      }
+      g.h.hidden = hits ? shown === 0 : false;
+      g.box.hidden = hits ? shown === 0 : g.collapsed;
+    }
+  });
 }
 
 svg.addEventListener('dragover', (e) => e.preventDefault());

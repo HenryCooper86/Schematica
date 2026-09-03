@@ -302,6 +302,20 @@ function wireMarkup(byId, wire, lane, selected, ui, animating, now) {
 
 // ---- Zones ----
 
+// net_draw's corner handles: a selected zone or swimlane can be resized by
+// dragging any corner (tools.js handles the drag).
+function zoneHandlesMarkup(zone) {
+  const corners = [
+    ['nw', zone.x, zone.y], ['ne', zone.x + zone.w, zone.y],
+    ['sw', zone.x, zone.y + zone.h], ['se', zone.x + zone.w, zone.y + zone.h],
+  ];
+  return corners.map(([c, cx, cy]) => (
+    `<rect class="zhandle" data-zhandle="${c}" x="${cx - 5}" y="${cy - 5}" width="10" height="10" rx="3"`
+    + ` fill="${CHIP_BG}" stroke="${WIRE_SEL}" stroke-width="1.5"`
+    + ` cursor="${c === 'nw' || c === 'se' ? 'nwse-resize' : 'nesw-resize'}"/>`
+  )).join('');
+}
+
 // Styled after net_draw's swimlanes: a slim title band, a narrow label gutter
 // with rotated lane names (horizontal orientation), subtle alternating lane
 // tints, and solid hairline dividers.
@@ -361,6 +375,7 @@ function swimlaneMarkup(zone, selected) {
     + ' fill="none" stroke="transparent" stroke-width="12" pointer-events="stroke"/>';
   s += `<rect x="${zone.x}" y="${zone.y}" width="${zone.w}" height="${LANE_TITLE_H}"`
     + ' fill="transparent" stroke="none"/>';
+  if (selected) s += zoneHandlesMarkup(zone);
   s += '</g>';
   return s;
 }
@@ -382,6 +397,7 @@ function zoneMarkup(zone, selected) {
     + ` fill="${CHIP_BG}" stroke="${esc(color)}" stroke-opacity="0.8"/>`;
   s += `<text x="${zone.x + 12 + w / 2}" y="${zone.y}" text-anchor="middle" dominant-baseline="central"`
     + ` font-size="10" font-weight="700" fill="${esc(color)}" data-edit="label">${esc(label)}</text>`;
+  if (selected) s += zoneHandlesMarkup(zone);
   s += '</g>';
   return s;
 }

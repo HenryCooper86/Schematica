@@ -151,3 +151,35 @@ test('laneSnapPoint pulls the cross-axis onto lane centerlines inside a swimlane
   const plain = { zones: [{ id: 'z2', x: 0, y: 0, w: 300, h: 300, label: 'Z', color: '#4a90d9' }] };
   assert.deepEqual(laneSnapPoint(plain, 100, 100), { x: 100, y: 100 }, 'plain zones never snap');
 });
+
+// Zone resize handles (net_draw's corner handles): the corner opposite the
+// dragged one stays fixed, sizes never drop below the minimum, and dragging
+// past the fixed corner flips the rectangle instead of inverting it.
+test('resizeZone keeps the opposite corner fixed and enforces minimum sizes', async () => {
+  const { resizeZone } = await import('../src/geometry.js');
+  const z = { x: 100, y: 100, w: 200, h: 150 };
+  assert.deepEqual(resizeZone(z, 'se', 400, 300), { x: 100, y: 100, w: 300, h: 200 });
+  assert.deepEqual(resizeZone(z, 'nw', 50, 60), { x: 50, y: 60, w: 250, h: 190 });
+  assert.deepEqual(resizeZone(z, 'ne', 350, 120), { x: 100, y: 120, w: 250, h: 130 });
+  assert.deepEqual(resizeZone(z, 'sw', 150, 320), { x: 150, y: 100, w: 150, h: 220 });
+  assert.deepEqual(resizeZone(z, 'se', 120, 110), { x: 100, y: 100, w: 90, h: 70 }, 'clamped to the 90x70 minimum');
+  assert.deepEqual(resizeZone(z, 'se', 120, 110, { w: 320, h: 220 }), { x: 100, y: 100, w: 320, h: 220 }, 'swimlanes keep their larger minimum');
+  const flipped = resizeZone(z, 'se', 20, 30);
+  assert.equal(flipped.x + flipped.w, 100, 'dragging past the fixed corner flips around it');
+});
+
+test('zoneMembers lists the cards whose center sits inside the zone, plus notes inside it', async () => {
+  const { zoneMembers } = await import('../src/geometry.js');
+  const doc = {
+    nodes: [
+      { id: 'in', x: 120, y: 120, label: 'a' },
+      { id: 'edge', x: 260, y: 120, label: 'b' },
+      { id: 'out', x: 900, y: 900, label: 'c' },
+    ],
+    notes: [{ id: 't-in', x: 130, y: 200, text: 'x' }, { id: 't-out', x: 700, y: 700, text: 'y' }],
+    zones: [],
+    wires: [],
+  };
+  const zone = { x: 100, y: 100, w: 200, h: 200 };
+  assert.deepEqual(zoneMembers(doc, zone).sort(), ['in', 't-in'], 'a card whose center (312, 157) lies outside is not carried');
+});

@@ -204,6 +204,36 @@ export function laneSnapPoint(doc, x, y) {
   return { x, y };
 }
 
+// ---- Zone editing (net_draw's corner handles and zone moves) ----
+export const ZONE_MIN = { w: 90, h: 70 };
+export const LANE_MIN = { w: 320, h: 220 };
+
+// Drag the `corner` handle (nw/ne/sw/se) of `zone` to (px, py): the opposite
+// corner stays fixed, sizes never drop below `min`, and dragging past the
+// fixed corner flips the rectangle around it instead of inverting it.
+export function resizeZone(zone, corner, px, py, min = ZONE_MIN) {
+  const fx = corner.includes('w') ? zone.x + zone.w : zone.x;
+  const fy = corner.includes('n') ? zone.y + zone.h : zone.y;
+  const w = Math.max(min.w, Math.abs(px - fx));
+  const h = Math.max(min.h, Math.abs(py - fy));
+  return { x: px >= fx ? fx : fx - w, y: py >= fy ? fy : fy - h, w, h };
+}
+
+// The cards whose center lies inside the zone, and the notes anchored inside
+// it: moving the zone carries them along.
+export function zoneMembers(doc, zone) {
+  const inside = (x, y) => x > zone.x && x < zone.x + zone.w && y > zone.y && y < zone.y + zone.h;
+  const ids = [];
+  for (const n of doc.nodes) {
+    const r = nodeRect(n);
+    if (inside(r.x + r.w / 2, r.y + r.h / 2)) ids.push(n.id);
+  }
+  for (const t of doc.notes || []) {
+    if (inside(t.x, t.y)) ids.push(t.id);
+  }
+  return ids;
+}
+
 export const NOTE_W = 160;
 
 export function noteHeight(text) {

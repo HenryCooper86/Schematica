@@ -283,3 +283,15 @@ test('swimlanes render a title band, lane dividers, and lane names', () => {
   assert.ok(body.includes('pointer-events="none"'),
     'the tinted body must not swallow clicks — marquee selection happens through it');
 });
+
+test('a selected zone grows four corner resize handles; an unselected one has none', () => {
+  const doc = sampleDoc();
+  doc.zones.push({ id: 'z1', x: 0, y: 200, w: 300, h: 200, label: 'Z', color: '#4a90d9' });
+  assert.equal((diagramMarkup(doc).match(/data-zhandle=/g) || []).length, 0);
+  const sel = diagramMarkup(doc, { selection: new Set(['z1']) });
+  assert.equal((sel.match(/data-zhandle=/g) || []).length, 4);
+  assert.ok(sel.includes('data-zhandle="se" x="295" y="395" width="10" height="10" rx="3" fill="#0d1526" stroke="#7dd3fc" stroke-width="1.5" cursor="nwse-resize"'));
+  assert.ok(sel.includes('data-zhandle="ne"') && sel.includes('cursor="nesw-resize"'));
+  doc.zones[0] = { id: 'z1', x: 0, y: 200, w: 400, h: 300, label: 'P', color: '#a78bfa', kind: 'swimlane', orient: 'h', lanes: ['A'] };
+  assert.equal((diagramMarkup(doc, { selection: new Set(['z1']) }).match(/data-zhandle=/g) || []).length, 4, 'swimlanes too');
+});

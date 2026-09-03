@@ -29,7 +29,9 @@ then Settings → Pages → deploy from branch `main`, root folder.
 | Wire two parts | Drag from a port to another port (any tool) |
 | Pick the bus type | Automatic when both ports agree; popover otherwise |
 | Select / move | `V`, click or drag; marquee on empty canvas; shift-click adds |
-| Zone | `Z`, drag a rectangle (select it by its border or title) |
+| Zone | `Z`, drag a rectangle (select it by its border or title); drag a corner handle to resize; dragging a zone carries the cards inside it |
+| Find a part | Type in the palette search — names, categories, buses, or vendors (RDK, Journey) |
+| Nudge | Arrow keys move the selection 1px; `Shift` + arrow moves a grid step |
 | Sticky note | `N`, click |
 | Rename anything | Double-click its text, or use the properties panel |
 | Pan / zoom | Space-drag or middle-drag; scroll wheel |
@@ -63,8 +65,11 @@ Pure logic (state, geometry, palette data, serialization) is dependency-free
 and tested with Node's built-in runner:
 
 ```bash
-npm test   # node --test
+npm test      # node --test: unit tests, no dependencies
+npm run e2e   # headless Chrome smoke test over the DevTools Protocol (set CHROME_PATH if needed)
 ```
+
+Both run in GitHub Actions on every push and pull request (`.github/workflows/ci.yml`).
 
 Layout: `src/state.js` owns the document model + undo; `src/render.js` draws
 it into layered SVG; `src/tools.js` is the pointer/keyboard state machine;

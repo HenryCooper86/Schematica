@@ -1,5 +1,6 @@
 import {
   snap, normRect, rectsIntersect, nodeRect, NOTE_W, noteHeight, laneSnapPoint, contentBounds,
+  resizeZone, zoneMembers, ZONE_MIN, LANE_MIN,
 } from './geometry.js';
 import {
   addWire, addZone, addSwimlane, addNote, updateItem, deleteItems, duplicateItems, findItem,
@@ -89,15 +90,45 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
     requestRender('view');
   }
 
+  // Everything the selection drags: its own nodes, zones, and notes, plus the
+  // cards and notes inside any selected zone (net_draw moves a zone with its
+  // contents). `carried` marks those passengers so lane snapping leaves them
+  // to follow the zone rather than jitter onto lane centerlines.
   function movableSelection() {
     const orig = new Map();
+    const carried = new Set();
     for (const id of store.selection) {
       const found = findItem(store.doc, id);
       if (found && found.type !== 'wire') {
         orig.set(id, { x: found.item.x, y: found.item.y });
       }
     }
-    return orig;
+    for (const id of [...orig.keys()]) {
+      const found = findItem(store.doc, id);
+      if (found?.type !== 'zone') continue;
+      for (const mid of zoneMembers(store.doc, found.item)) {
+        if (orig.has(mid)) continue;
+        const m = findItem(store.doc, mid);
+        if (!m) continue;
+        orig.set(mid, { x: m.item.x, y: m.item.y });
+        carried.add(mid);
+      }
+    }
+    return { orig, carried };
+  }
+
+  // Arrow keys move the selection by a pixel, or a grid step with Shift.
+  function nudgeSelection(dx, dy) {
+    const { orig } = movableSelection();
+    if (!orig.size) return;
+    store.apply((doc) => {
+      for (const [id, o] of orig) {
+        const found = findItem(doc, id);
+        if (!found) continue;
+        found.item.x = o.x + dx;
+        found.item.y = o.y + dy;
+      }
+    });
   }
 
   function hitMarquee(doc, m) {
@@ -174,6 +205,20 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
       return;
     }
 
+    // A corner handle on a selected zone starts a resize; the opposite corner
+    // stays put (net_draw's zhandle drag).
+    const handleEl = e.target.closest('[data-zhandle]');
+    if (handleEl) {
+      const zoneEl = handleEl.closest('[data-type="zone"]');
+      const found = zoneEl && findItem(store.doc, zoneEl.dataset.id);
+      if (found) {
+        drag = { mode: 'zresize', id: found.item.id, corner: handleEl.dataset.zhandle, from: { ...found.item } };
+        store.beginDrag();
+        capturePointer(e);
+        return;
+      }
+    }
+
     const itemEl = e.target.closest('[data-type]');
     if (itemEl) {
       const id = itemEl.dataset.id;
@@ -189,7 +234,7 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
       }
       const found = findItem(store.doc, id);
       if (found && found.type !== 'wire') {
-        drag = { mode: 'move', start: pt, orig: movableSelection() };
+        drag = { mode: 'move', start: pt, anchor: id, ...movableSelection() };
         store.beginDrag();
         capturePointer(e);
       }
@@ -223,18 +268,31 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
       requestRender('overlay');
       return;
     }
+    if (drag.mode === 'zresize') {
+      store.mutate((doc) => {
+        const found = findItem(doc, drag.id);
+        if (!found) return;
+        const min = found.item.kind === 'swimlane' ? LANE_MIN : ZONE_MIN;
+        Object.assign(found.item, resizeZone(drag.from, drag.corner, doSnap(pt.x), doSnap(pt.y), min));
+      });
+      return;
+    }
     if (drag.mode === 'move') {
-      const dx = pt.x - drag.start.x;
-      const dy = pt.y - drag.start.y;
+      // One snapped delta for the whole selection, anchored on the item that
+      // was pressed, so a group (or a zone and its passengers) keeps its
+      // relative layout instead of every item snapping on its own.
+      const anchor = drag.orig.get(drag.anchor) || drag.orig.values().next().value;
+      const dx = doSnap(anchor.x + pt.x - drag.start.x) - anchor.x;
+      const dy = doSnap(anchor.y + pt.y - drag.start.y) - anchor.y;
       store.mutate((doc) => {
         for (const [id, o] of drag.orig) {
           const found = findItem(doc, id);
           if (!found) continue;
-          found.item.x = doSnap(o.x + dx);
-          found.item.y = doSnap(o.y + dy);
+          found.item.x = o.x + dx;
+          found.item.y = o.y + dy;
           // Inside a swimlane, a node's center is pulled onto the nearest
-          // lane centerline while snap is on.
-          if (ui.snapOn && found.type === 'node') {
+          // lane centerline while snap is on — unless it is riding a zone.
+          if (ui.snapOn && found.type === 'node' && !drag.carried.has(id)) {
             const n = found.item;
             const r = nodeRect(n);
             const c = laneSnapPoint(doc, r.x + r.w / 2, r.y + r.h / 2);
@@ -291,7 +349,7 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
       requestRender('overlay');
       return;
     }
-    if (drag.mode === 'move') {
+    if (drag.mode === 'move' || drag.mode === 'zresize') {
       store.endDrag();
     }
     drag = null;
@@ -344,8 +402,18 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
       deleteItems(store, [...store.selection]);
       return;
     }
+    if (e.key.startsWith('Arrow') && !mod) {
+      if (!store.selection.size) return;
+      e.preventDefault();
+      const step = e.shiftKey ? 8 : 1;
+      nudgeSelection(
+        e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0,
+        e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0,
+      );
+      return;
+    }
     if (e.key === 'Escape') {
-      if (drag && drag.mode === 'move') store.cancelDrag();
+      if (drag && (drag.mode === 'move' || drag.mode === 'zresize')) store.cancelDrag();
       drag = null;
       ui.wireDraft = null;
       ui.marquee = null;
