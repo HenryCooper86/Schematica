@@ -3,11 +3,12 @@
 A canvas board for drawing embedded-system and hardware architecture
 diagrams in the browser. Drag MCUs, sensors, actuators, power and radio
 modules onto the canvas and wire them together with typed buses (I2C, SPI,
-UART, CAN, USB, power rails, ...). Inspired by
-[net_draw](https://mr-r3b00t.github.io/net_draw/), specialized for embedded
-hardware.
+UART, CAN, USB, power rails, ...). Built for embedded and vehicle systems:
+typed ports and buses, design-rule checks, a bill of materials, vendor
+presets, and example boards from a weather station to an ADAS security
+review.
 
-The UI mirrors net_draw's dark design: shaded cards with tinted icon badges, slate wires that leave each card toward the other, and a label pill on every wire naming its bus. Cards size themselves to their content: the part number, interface address, and voltage rail appear as mono lines under the name. Beyond hardware, the palette carries net_draw's own Network, Security & Edge, Process Flow (real flowchart shapes), and Threats parts with their glyphs and accents, so a board can put a firewall, a decision diamond, and a threat actor next to an MCU.
+The UI is a dark, high-contrast canvas: shaded cards with tinted icon badges, slate wires that leave each card toward the other, and a label pill on every wire naming its bus. Cards size themselves to their content: the part number, interface address, and voltage rail appear as mono lines under the name. Beyond hardware, the palette carries Network, Security & Edge, Process Flow (real flowchart shapes), and Threats parts, so a board can put a firewall, a decision diamond, and a threat actor next to an MCU.
 
 No build step, no dependencies, no server: static HTML + ES modules + SVG.
 
@@ -48,7 +49,7 @@ then Settings → Pages → deploy from branch `main`, root folder.
 | Journey | Journey button — save camera steps with captions; Present plays the tour (arrow keys, Esc) |
 | Examples | Examples menu — thirteen built-in boards from sensor nodes to edge-to-cloud, including a D-Robotics RDK X5 rover, a Horizon Journey 6 ADAS stack, a sensor node that passes every design rule, and vehicle OTA and ADAS security boards that mix threat actors, controls, and response flowcharts with the hardware, journeys included |
 | Presets | Part number field — on AI SBCs, automotive SoCs, ADAS controllers, cameras, depth cameras, LiDARs, and serial servos, pick a vendor part (D-Robotics RDK boards and camera modules, Horizon Journey chips and Mono / SuperDrive tiers, and more) to fill the rail and a spec note |
-| Animate | Animate toggle — traffic dashes flow along wires and Bug/Thermal alerts pulse (net_draw style); off by default, and a wire's own "Always" flow setting keeps just that wire moving; captured in recordings |
+| Animate | Animate toggle — traffic dashes flow along wires and Bug/Thermal alerts pulse; off by default, and a wire's own "Always" flow setting keeps just that wire moving; captured in recordings |
 | Pan | `H` or hold Space — dedicated hand tool |
 | Fullscreen | ⛶ button in the zoom group |
 | Export dialog | PNG opens a size dialog — pixel dimensions, aspect lock, transparent background; the dialog's SVG button honors the transparency option (the toolbar SVG button is an instant opaque export) |
@@ -84,3 +85,11 @@ capture and MediaRecorder. `src/main.js` only boots the app; the panels,
 dialogs, and menus live in `src/ui/` (properties panel, palette, legend,
 export/BOM/DRC dialogs, journey and present mode, examples menu, recording).
 See `docs/superpowers/specs/` for the design spec.
+
+## Acknowledgements
+
+Schematica started as a hardware-focused take on the ideas in
+[net_draw](https://mr-r3b00t.github.io/net_draw/) and has since grown its own
+model: typed ports and buses, design rules, the bill of materials, vendor
+presets, and content-sized cards. The icon glyphs of the Network, Security &
+Edge, Process Flow, and Threats parts are adapted from net_draw's icon set.
