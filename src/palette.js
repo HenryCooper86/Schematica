@@ -133,7 +133,7 @@ export const PARTS = {
   mipicam: part('mipicam', 'robotics', 'MIPI camera', 'M2 5h3l1.5-2h3L11 5h3v7H2z M8 8.5m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M6 12v2.5 M10 12v2.5',
     [p('csi', 'CSI', 'right', 0.35, 'mipi'), p('i2c', 'CTRL', 'right', 0.7, 'i2c')]),
   depthcam: part('depthcam', 'robotics', 'Depth camera', 'M1.5 4h13v8h-13z M5 8m-1.8 0a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0-3.6 0 M11 8m-1.8 0a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0-3.6 0 M8 6v4',
-    [p('usb', 'USB', 'right', 0.5, 'usb')]),
+    [p('usb', 'USB', 'right', 0.35, 'usb'), p('csi', 'CSI', 'right', 0.7, 'mipi')]),
   servobus: part('servobus', 'robotics', 'Serial servo', 'M2 6h8v5H2z M6 6V4a1.5 1.5 0 0 1 3 0v2 M10 8.5h4 M12 7v3',
     [...pwr('top'), p('bus', 'BUS', 'left', 0.5, 'rs485')]),
   motorctl: part('motorctl', 'robotics', 'Motor controller', 'M2 4h9v8H2z M4 6.5h5 M4 9.5h3 M11 6h3 M11 10h3 M6.5 12v2',
@@ -154,7 +154,7 @@ export const PARTS = {
   wheelspeed: part('wheelspeed', 'automotive', 'Wheel speed', 'M6 8m-4 0a4 4 0 1 0 8 0a4 4 0 1 0-8 0 M6 8m-1.2 0a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0-2.4 0 M11 8h1l1-2 1 4 1-2',
     [...pwr(), p('out', 'OUT', 'right', 0.5, 'adc')]),
   // ADAS / vehicle compute and networks (Horizon Journey SoCs and Mono /
-  // Pilot / SuperDrive stacks are presets on these; see presets.js).
+  // SuperDrive stacks are presets on these; see presets.js).
   autosoc: part('autosoc', 'automotive', 'Automotive SoC', 'M3 3h10v10H3z M5.5 5.5h5v5h-5z M8 1v2 M8 13v2 M1 8h2 M13 8h2 M3.5 3.5l-2-2 M12.5 3.5l2-2 M3.5 12.5l-2 2 M12.5 12.5l2 2', [
     ...pwr(),
     p('cam1', 'CAM1', 'top', 0.3, 'gmsl'), p('cam2', 'CAM2', 'top', 0.7, 'gmsl'),

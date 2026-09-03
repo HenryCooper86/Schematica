@@ -55,6 +55,7 @@ test('robot-compute and ADAS parts expose the camera, CAN FD, and T1 buses they 
   assert.equal(aisbc.gpio, 'gpio');
   assert.equal(ports('mipicam').csi, 'mipi');
   assert.equal(ports('depthcam').usb, 'usb');
+  assert.equal(ports('depthcam').csi, 'mipi', 'stereo modules can also hang off a CSI lane');
   assert.equal(ports('servobus').bus, 'rs485');
   assert.equal(ports('motorctl').canfd, 'canfd');
   assert.equal(ports('motorctl').m1, 'pwm');

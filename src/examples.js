@@ -479,7 +479,7 @@ export const EXAMPLES = [
       nodes: [
         { id: 'n1', kind: 'vbat', x: 40, y: 330, label: 'Vehicle battery', sublabel: '12V', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
         { id: 'n2', kind: 'fusebox', x: 210, y: 330, label: 'Fuse box', sublabel: 'ADAS feed', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
-        { id: 'n3', kind: 'adas', x: 440, y: 300, label: 'ADAS controller', sublabel: 'Journey 6M', color: null, addr: '', rail: '12V', notes: 'Horizon Pilot: highway NOA with front and surround cameras plus radar fusion on Journey 6M (128 TOPS).', status: 'tested', flags: ['safety'] },
+        { id: 'n3', kind: 'adas', x: 440, y: 300, label: 'ADAS controller', sublabel: 'Journey 6M', color: null, addr: '', rail: '12V', notes: 'Horizon Journey 6M domain controller (80 TOPS, 100K DMIPS, BPU Nash): highway NOA and urban commute NOA from camera and radar fusion.', status: 'tested', flags: ['safety'] },
         { id: 'n4', kind: 'frontcam', x: 300, y: 80, label: 'Front camera', sublabel: '8MP GMSL2', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
         { id: 'n5', kind: 'frontcam', x: 430, y: 80, label: 'Left camera', sublabel: '3MP GMSL2', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
         { id: 'n6', kind: 'frontcam', x: 560, y: 80, label: 'Right camera', sublabel: '3MP GMSL2', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
@@ -517,7 +517,7 @@ export const EXAMPLES = [
         { id: 'z5', x: 24, y: 310, w: 310, h: 130, label: 'Power', color: '#f87171' },
       ],
       notes: [
-        { id: 't1', x: 40, y: 60, text: 'Horizon Pilot: highway NOA on a Journey 6M. The cabin runs driver monitoring on a Journey 6B.' },
+        { id: 't1', x: 40, y: 60, text: 'Journey 6M runs highway and urban commute NOA. The cabin runs driver monitoring on a Journey 6B.' },
       ],
       journey: [
         {
@@ -526,7 +526,7 @@ export const EXAMPLES = [
         },
         {
           id: 'j2', label: 'Compute', view: { cx: 640, cy: 350, zoom: 1.05 },
-          caption: 'Horizon Pilot runs on a Journey 6M (128 TOPS): highway NOA from camera and radar fusion.',
+          caption: 'A Journey 6M domain controller (80 TOPS, BPU Nash) fuses cameras and radar for highway and urban commute NOA.',
         },
         {
           id: 'j3', label: 'Vehicle network', view: { cx: 560, cy: 550, zoom: 1 },
