@@ -169,10 +169,13 @@ try {
   await sleep(50);
   await js(`window.__diag = document.querySelector('#canvas .layer-diagram').firstElementChild; true`);
   const t0 = await js(`document.querySelector('#canvas > g').getAttribute('transform')`);
-  await drag(700, 800, 760, 840);
+  // Start on empty canvas measured from the canvas itself: hard-coded screen
+  // coordinates fall outside the viewport on some runners.
+  const at = await js(`(() => { const r = document.getElementById('canvas').getBoundingClientRect(); const x = r.left + r.width * 0.45, y = r.top + r.height * 0.88; return { x, y, vw: innerWidth, vh: innerHeight, hit: (document.elementFromPoint(x, y) || {}).id || (document.elementFromPoint(x, y) || {}).tagName }; })()`);
+  await drag(at.x, at.y, at.x + 60, at.y + 40);
   await sleep(100);
   const pan = await js(`({ t: document.querySelector('#canvas > g').getAttribute('transform'), same: window.__diag === document.querySelector('#canvas .layer-diagram').firstElementChild })`);
-  check('panning moves the camera without rebuilding the diagram', pan.t !== t0 && pan.same, JSON.stringify({ t0, ...pan }));
+  check('panning moves the camera without rebuilding the diagram', pan.t !== t0 && pan.same, JSON.stringify({ t0, ...pan, at }));
   await key('v', 'KeyV', 86);
   await sleep(50);
 
