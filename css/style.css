@@ -45,8 +45,9 @@ html, body {
 #toolbar {
   grid-area: toolbar;
   display: flex;
+  flex-wrap: wrap; /* on narrow windows the groups flow onto a second row rather than clipping */
   align-items: center;
-  gap: 10px;
+  gap: 6px 10px;
   padding: 8px 14px;
   background: var(--bg1);
   border-bottom: 1px solid var(--line);
@@ -752,9 +753,13 @@ g.node:hover .ports,
 }
 #bom-table tr:last-child td { border-bottom: none; }
 
-/* Hide the tagline before the toolbar runs out of room on narrow windows. */
-@media (max-width: 1360px) {
+/* Give the toolbar room before it has to wrap: drop the tagline first, then
+   trim the title field. */
+@media (max-width: 1680px) {
   .brand-sub { display: none; }
+}
+@media (max-width: 1500px) {
+  #title { width: 130px; }
 }
 
 #drc-list { max-height: 320px; overflow: auto; margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
