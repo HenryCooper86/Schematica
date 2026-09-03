@@ -101,11 +101,15 @@ const click = async (x, y) => {
   await mouse('mousePressed', x, y, { button: 'left', clickCount: 1 });
   await mouse('mouseReleased', x, y, { button: 'left', clickCount: 1 });
 };
+// `buttons` must carry the held-button bitmask on every move, or Chrome (on
+// Linux at least) treats the move as a release and the drag ends early.
+const BUTTONS = { left: 1, right: 2, middle: 4 };
 const drag = async (x0, y0, x1, y1, button = 'left') => {
+  const buttons = BUTTONS[button];
   await mouse('mouseMoved', x0, y0);
-  await mouse('mousePressed', x0, y0, { button, clickCount: 1 });
+  await mouse('mousePressed', x0, y0, { button, buttons, clickCount: 1 });
   for (let i = 1; i <= 6; i++) {
-    await mouse('mouseMoved', x0 + ((x1 - x0) * i) / 6, y0 + ((y1 - y0) * i) / 6, { button });
+    await mouse('mouseMoved', x0 + ((x1 - x0) * i) / 6, y0 + ((y1 - y0) * i) / 6, { button, buttons });
     await sleep(20);
   }
   await mouse('mouseReleased', x1, y1, { button, clickCount: 1 });
