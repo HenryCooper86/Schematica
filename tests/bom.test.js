@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { buildBOM, bomCSV, bomMarkdown } from '../src/bom.js';
 
 const node = (id, kind, label, sublabel, extra = {}) => ({
-  id, kind, x: 0, y: 0, w: 100, h: 70, label, sublabel, color: null,
+  id, kind, x: 0, y: 0, label, sublabel, color: null,
   addr: '', rail: '', notes: '', status: null, flags: [], ...extra,
 });
 

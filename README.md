@@ -7,7 +7,7 @@ UART, CAN, USB, power rails, ...). Inspired by
 [net_draw](https://mr-r3b00t.github.io/net_draw/), specialized for embedded
 hardware.
 
-The UI mirrors net_draw's dark design: shaded cards with tinted icon badges, slate wires that leave each card toward the other, and a label pill on every wire naming its bus.
+The UI mirrors net_draw's dark design: shaded cards with tinted icon badges, slate wires that leave each card toward the other, and a label pill on every wire naming its bus. Cards size themselves to their content: the part number, interface address, and voltage rail appear as mono lines under the name.
 
 No build step, no dependencies, no server: static HTML + ES modules + SVG.
 

@@ -2,7 +2,7 @@ import { BUSES } from './buses.js';
 import { getPart, CATEGORY_COLORS } from './palette.js';
 import {
   portPosition, wireGeom, wireGeomToPoint, wireLanes, curvePoint, wrapText, noteHeight,
-  NOTE_W, LANE_TITLE_H,
+  nodeRect, nodeSize, nodeMeta, NOTE_W, LANE_TITLE_H,
 } from './geometry.js';
 
 // The canvas mirrors net_draw's look one to one: gradient cards with a drop
@@ -109,18 +109,23 @@ export function bakeFrame(root, nowMs) {
 }
 
 // ---- Nodes ----
+// A net_draw card: 104x74 at minimum, grown by the label and up to three mono
+// meta lines; a 38px tinted badge on top, the label under it, meta below. The
+// status tag sits top-left and flag badges run along the top-right edge.
 
-function badgeMarkup(x, y, size, color, icon) {
+// Part icons live in a 16-unit box; net_draw draws its 24-unit icons at 1.15x
+// with a 1.8px stroke, so scale ours to the same 27.6px glyph and stroke.
+const ICON_SCALE = 27.6 / 16;
+
+function badgeMarkup(W, color, icon) {
   const c = esc(color);
-  const pad = size * 0.2;
-  const k = (size - pad * 2) / 16;
-  return `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="${Math.round(size * 0.3)}" fill="${c}" opacity="0.13"/>`
-    + `<g transform="translate(${x + pad} ${y + pad}) scale(${k})" fill="none" stroke="${c}"`
-    + ` stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="${icon}"/></g>`;
+  return `<rect x="${W / 2 - 19}" y="8" width="38" height="38" rx="11" fill="${c}" opacity="0.13"/>`
+    + `<g transform="translate(${W / 2 - 13.8} 13.2) scale(${ICON_SCALE})" fill="none" stroke="${c}"`
+    + ` stroke-width="${(1.8 / ICON_SCALE).toFixed(3)}" stroke-linecap="round" stroke-linejoin="round"><path d="${icon}"/></g>`;
 }
 
-function portsMarkup(node, part, acc) {
-  const local = { x: 0, y: 0, w: node.w, h: node.h };
+function portsMarkup(node, part, acc, W, H) {
+  const local = { x: 0, y: 0, w: W, h: H };
   let s = '<g class="ports">';
   for (const port of part.ports) {
     const pos = portPosition(local, port);
@@ -142,45 +147,73 @@ const STATUS_META = {
   deprecated: { label: 'DEPRECATED', color: '#f87171' },
 };
 
+// Flags render like net_draw's effect badges: a ringed circle with a small
+// icon on the card's top-right edge, and a halo around the card in the color
+// of the most severe flag.
 const FLAG_META = {
-  bug: { label: 'BUG', color: '#f87171' },
-  thermal: { label: 'HOT', color: '#fb923c' },
-  power: { label: 'PWR!', color: '#facc15' },
-  lead: { label: 'LEAD', color: '#94a3b8' },
-  safety: { label: 'SAFE', color: '#38bdf8' },
-  eol: { label: 'EOL', color: '#e879f9' },
+  bug: {
+    label: 'Bug', color: '#f87171', sev: 3,
+    icon: '<path d="M12 7.5a4 4 0 0 1 4 4v3a4 4 0 0 1-8 0v-3a4 4 0 0 1 4-4z"/>'
+      + '<path d="M12 7.5V5M8 12.5H5.5M18.5 12.5H16M8.6 16 6.5 18M15.4 16l2.1 2"/>',
+  },
+  thermal: {
+    label: 'Thermal', color: '#fb923c', sev: 2,
+    icon: '<path d="M12 3c1 3 4 4.6 4 8.5a4 4 0 0 1-8 0c0-1.5.5-2.6 1.2-3.4.3 1 .9 1.7 1.8 1.9C11 8 11 5.5 12 3z"/>',
+  },
+  power: {
+    label: 'Power hungry', color: '#facc15', sev: 2,
+    icon: '<path d="M13 2 4.5 13.5H11L9.5 22 19 9.5h-6.5z"/>',
+  },
+  lead: {
+    label: 'Long lead time', color: '#94a3b8', sev: 1,
+    icon: '<circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/>',
+  },
+  safety: {
+    label: 'Safety critical', color: '#38bdf8', sev: 1,
+    icon: '<path d="M12 3 20 6v6c0 4.6-3.4 7.7-8 9-4.6-1.3-8-4.4-8-9V6z"/>',
+  },
+  eol: {
+    label: 'EOL part', color: '#e879f9', sev: 1,
+    icon: '<path d="M12 4 21 19H3z"/><path d="M12 10v4M12 16.6h.01"/>',
+  },
 };
 
-// Status and flag tags sit on the card's top edge like net_draw's disposition
-// tag, right-aligned. On narrow cards trailing flags drop before the status.
-function tagChipsMarkup(node, animating, now) {
-  const tags = [];
-  if (node.status && STATUS_META[node.status]) tags.push({ ...STATUS_META[node.status], status: node.status });
-  for (const f of node.flags || []) {
-    if (FLAG_META[f]) tags.push(FLAG_META[f]);
-  }
-  if (!tags.length) return '';
-  const keep = [];
-  let used = 0;
-  for (const tag of tags) {
-    const w = tag.label.length * 5.4 + 14;
-    if (used + (keep.length ? 4 : 0) + w > node.w - 6) break;
-    used += (keep.length ? 4 : 0) + w;
-    keep.push({ ...tag, w });
-  }
+// Lifecycle status is net_draw's disposition tag: a small pill on the card's
+// top-left corner. A deprecated part blinks while animating.
+function statusTagMarkup(node, animating, now) {
+  const meta = node.status && STATUS_META[node.status];
+  if (!meta) return '';
+  const pw = meta.label.length * 5.4 + 14;
+  const blink = animating && node.status === 'deprecated'
+    ? ` class="blink"${now != null ? ` opacity="${blinkOpacity(now)}"` : ''}`
+    : '';
+  return `<g${blink}><rect x="10" y="-8" width="${pw}" height="16" rx="8"`
+    + ` fill="${CHIP_BG}" stroke="${meta.color}" stroke-opacity="0.8" stroke-width="1.2"/>`
+    + `<text x="${10 + pw / 2}" y="3.2" text-anchor="middle" font-size="8" font-weight="700"`
+    + ` letter-spacing="0.5" fill="${meta.color}" pointer-events="none">${meta.label}</text></g>`;
+}
+
+// Flag badges along the top-right edge; when they would run into the card,
+// the overflow collapses into a "+N" badge (net_draw's effect badges).
+function flagBadgesMarkup(flags, W) {
+  const maxBadges = Math.max(1, Math.floor((W - 26) / 23));
+  const shown = flags.length > maxBadges ? flags.slice(0, maxBadges - 1) : flags;
   let s = '';
-  let cx = node.w;
-  for (const tag of keep.reverse()) {
-    const { w } = tag;
-    cx -= w;
-    const blink = animating && tag.status === 'deprecated'
-      ? ` class="blink"${now != null ? ` opacity="${blinkOpacity(now)}"` : ''}`
-      : '';
-    s += `<g${blink}><rect x="${cx}" y="-8" width="${w}" height="16" rx="8"`
-      + ` fill="${CHIP_BG}" stroke="${tag.color}" stroke-opacity="0.8" stroke-width="1.2"/>`
-      + `<text x="${cx + w / 2}" y="3.2" text-anchor="middle" font-size="8" font-weight="700"`
-      + ` letter-spacing="0.5" fill="${tag.color}" pointer-events="none">${tag.label}</text></g>`;
-    cx -= 4;
+  shown.forEach((k, i) => {
+    const f = FLAG_META[k];
+    const bx = W - 13 - i * 23;
+    s += `<g class="fxbadge"><title>${esc(f.label)}</title>`
+      + `<circle cx="${bx}" cy="0" r="10.5" fill="${CHIP_BG}" stroke="${f.color}" stroke-width="1.6"/>`
+      + `<g transform="translate(${bx - 6.6} -6.6) scale(0.55)" fill="none" stroke="${f.color}"`
+      + ` stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">${f.icon}</g></g>`;
+  });
+  if (flags.length > shown.length) {
+    const bx = W - 13 - shown.length * 23;
+    const rest = flags.slice(shown.length).map((k) => FLAG_META[k].label).join(', ');
+    s += `<g class="fxbadge"><title>${esc(rest)}</title>`
+      + `<circle cx="${bx}" cy="0" r="10.5" fill="${CHIP_BG}" stroke="#8b9bb4" stroke-width="1.6"/>`
+      + `<text x="${bx}" y="3.4" text-anchor="middle" font-size="9" font-weight="700" fill="#8b9bb4"`
+      + ` pointer-events="none">+${flags.length - shown.length}</text></g>`;
   }
   return s;
 }
@@ -188,14 +221,14 @@ function tagChipsMarkup(node, animating, now) {
 function nodeMarkup(node, selected, ui, animating, now) {
   const part = getPart(node.kind);
   const acc = node.color || CATEGORY_COLORS[part.category] || ACCENT;
-  const W = node.w;
-  const H = node.h;
+  const { w: W, h: H } = nodeSize(node);
   let s = `<g class="node" data-id="${esc(node.id)}" data-type="node" transform="translate(${node.x} ${node.y})">`;
-  const flags = node.flags || [];
-  const haloColor = flags.includes('bug') ? '#f87171' : (flags.includes('thermal') ? '#fb923c' : null);
-  if (animating && haloColor) {
-    s += `<rect class="fxhalo" x="-4" y="-4" width="${W + 8}" height="${H + 8}" rx="17" fill="none"`
-      + ` stroke="${haloColor}" stroke-width="2.2"${now != null ? ` stroke-opacity="${pulseOpacity(now)}"` : ''}/>`;
+  const flags = (node.flags || []).filter((f) => FLAG_META[f]);
+  if (flags.length) {
+    const worst = flags.reduce((a, k) => (FLAG_META[k].sev > FLAG_META[a].sev ? k : a), flags[0]);
+    const opacity = animating && now != null ? pulseOpacity(now) : '0.6';
+    s += `<rect class="fxhalo${animating ? ' anim' : ''}" x="-4" y="-4" width="${W + 8}" height="${H + 8}" rx="17"`
+      + ` fill="none" stroke="${FLAG_META[worst].color}" stroke-width="2.2" stroke-opacity="${opacity}"/>`;
   }
   if (selected) {
     s += `<rect x="-5" y="-5" width="${W + 10}" height="${H + 10}" rx="18" fill="none"`
@@ -203,32 +236,16 @@ function nodeMarkup(node, selected, ui, animating, now) {
   }
   s += `<rect class="card" width="${W}" height="${H}" rx="14" fill="url(#cardGrad)"`
     + ` stroke="${selected ? esc(acc) : CARD_LINE}" stroke-width="${selected ? 1.6 : 1}" filter="url(#nodeShadow)"/>`;
-  if (H >= 78) {
-    const badge = 34;
-    s += badgeMarkup(W / 2 - badge / 2, 9, badge, acc, part.icon);
-    const ty = 9 + badge + 15;
-    s += `<text x="${W / 2}" y="${ty}" text-anchor="middle" font-size="11.5" font-weight="600"`
-      + ` fill="${TEXT}" data-edit="label">${esc(node.label)}</text>`;
-    if (node.sublabel) {
-      s += `<text x="${W / 2}" y="${ty + 13.5}" text-anchor="middle" font-size="9.5"`
-        + ` font-family="${MONO}" fill="${META}" data-edit="sublabel">${esc(node.sublabel)}</text>`;
-    }
-  } else {
-    const badge = 30;
-    const bx = 10;
-    const by = H / 2 - badge / 2;
-    s += badgeMarkup(bx, by, badge, acc, part.icon);
-    const tx = bx + badge + 10;
-    const ty = H / 2 + (node.sublabel ? -3 : 4);
-    s += `<text x="${tx}" y="${ty}" font-size="11.5" font-weight="600" fill="${TEXT}"`
-      + ` data-edit="label">${esc(node.label)}</text>`;
-    if (node.sublabel) {
-      s += `<text x="${tx}" y="${ty + 13.5}" font-size="9.5" font-family="${MONO}" fill="${META}"`
-        + ` data-edit="sublabel">${esc(node.sublabel)}</text>`;
-    }
-  }
-  s += tagChipsMarkup(node, animating, now);
-  if (ui.ports !== false) s += portsMarkup(node, part, acc);
+  s += badgeMarkup(W, acc, part.icon);
+  s += `<text x="${W / 2}" y="62" text-anchor="middle" font-size="11.5" font-weight="600"`
+    + ` fill="${TEXT}" data-edit="label">${esc(node.label)}</text>`;
+  nodeMeta(node).forEach((m, i) => {
+    s += `<text x="${W / 2}" y="${75 + i * 12.5}" text-anchor="middle" font-size="9.5" fill="${META}"`
+      + ` font-family="${MONO}" data-edit="${m.field}">${esc(m.text)}</text>`;
+  });
+  s += statusTagMarkup(node, animating, now);
+  s += flagBadgesMarkup(flags, W);
+  if (ui.ports !== false) s += portsMarkup(node, part, acc, W, H);
   s += '</g>';
   return s;
 }
@@ -242,7 +259,7 @@ function wireMarkup(byId, wire, lane, selected, ui, animating, now) {
   const b = byId.get(wire.to.node);
   if (!a || !b) return '';
   const bus = BUSES[wire.bus] || BUSES.gpio;
-  const geo = wireGeom(a, b, lane);
+  const geo = wireGeom(nodeRect(a), nodeRect(b), lane);
   const sneak = wire.style === 'sneakernet';
   // Per-wire override: 'on' animates even with the global toggle off, 'off'
   // never animates, null follows the toggle. Traffic on an air gap is a pair
@@ -412,7 +429,7 @@ export function overlayMarkup(doc, ui) {
     const { from, cursor } = ui.wireDraft;
     const node = doc.nodes.find((n) => n.id === from.node);
     if (node) {
-      const geo = wireGeomToPoint(node, cursor);
+      const geo = wireGeomToPoint(nodeRect(node), cursor);
       s += `<path d="${geo.d}" fill="none" stroke="${WIRE_SEL}" stroke-width="2" stroke-dasharray="6 6"`
         + ' stroke-linecap="round" opacity="0.9"/>'
         + `<circle cx="${geo.p2.x}" cy="${geo.p2.y}" r="4" fill="${WIRE_SEL}"/>`;

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { checkDoc } from '../src/drc.js';
 
 const node = (id, kind, extra = {}) => ({
-  id, kind, x: 0, y: 0, w: 100, h: 70, label: id, sublabel: '', color: null,
+  id, kind, x: 0, y: 0, label: id, sublabel: '', color: null,
   addr: '', rail: '', notes: '', status: null, flags: [], ...extra,
 });
 

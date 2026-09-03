@@ -4,8 +4,35 @@ export function snap(v, grid = 8) {
   return Math.round(v / grid) * grid + 0;
 }
 
+// ---- Cards (net_draw sizing) ----
+// A card is 104x74 at minimum and grows with its label and with up to three
+// mono meta lines (part number, address, rail), 12.5px per line. Nothing is
+// stored: the size always follows the content.
+export const NODE_W = 104;
+export const NODE_H = 74;
+const NODE_MAX_W = 240;
+const META_LINE_H = 12.5;
+
+export function nodeMeta(node) {
+  return [['sublabel', node.sublabel], ['addr', node.addr], ['rail', node.rail]]
+    .map(([field, v]) => ({ field, text: String(v ?? '').trim() }))
+    .filter((m) => m.text)
+    .slice(0, 3);
+}
+
+export function nodeSize(node) {
+  const meta = nodeMeta(node);
+  const need = Math.max(
+    NODE_W,
+    String(node.label ?? '').length * 6.8 + 24,
+    ...meta.map((m) => m.text.length * 5.9 + 26),
+  );
+  return { w: Math.min(NODE_MAX_W, need), h: NODE_H + meta.length * META_LINE_H };
+}
+
 export function nodeRect(node) {
-  return { x: node.x, y: node.y, w: node.w, h: node.h };
+  const { w, h } = nodeSize(node);
+  return { x: node.x, y: node.y, w, h };
 }
 
 export function portPosition(node, portDef) {

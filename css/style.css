@@ -179,7 +179,7 @@ g.node:hover .ports,
 .wire.sel .vis { stroke: #7dd3fc; }
 .vis.anim { animation: dashflow 0.75s linear infinite; }
 @keyframes dashflow { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -28; } }
-.fxhalo { animation: fxpulse 1.5s ease-in-out infinite; }
+.fxhalo.anim { animation: fxpulse 1.5s ease-in-out infinite; }
 @keyframes fxpulse { 0%, 100% { stroke-opacity: 0.22; } 50% { stroke-opacity: 0.85; } }
 .blink { animation: blink 1.5s ease-in-out infinite; }
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }

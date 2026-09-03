@@ -136,7 +136,7 @@ export function addNode(store, kind, x, y) {
   const id = uid('n');
   store.apply((doc) => {
     doc.nodes.push({
-      id, kind: part.kind, x, y, w: part.w, h: part.h,
+      id, kind: part.kind, x, y,
       label: part.name, sublabel: '', color: null,
       addr: '', rail: '', notes: '', status: null, flags: [],
     });

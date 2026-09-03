@@ -41,8 +41,8 @@ test('buildExportSVG renders an animation frame when given a timestamp', () => {
     schema: 1,
     title: 'T',
     nodes: [
-      { id: 'a', kind: 'mcu', x: 0, y: 0, w: 160, h: 100, label: 'a', sublabel: '', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
-      { id: 'b', kind: 'temp', x: 400, y: 0, w: 130, h: 70, label: 'b', sublabel: '', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
+      { id: 'a', kind: 'mcu', x: 0, y: 0, label: 'a', sublabel: '', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
+      { id: 'b', kind: 'temp', x: 400, y: 0, label: 'b', sublabel: '', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
     ],
     wires: [{ id: 'w1', bus: 'i2c', from: { node: 'a', port: 'i2c' }, to: { node: 'b', port: 'i2c' }, label: '', arrow: null, style: null, flow: null }],
     zones: [],

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  snap, nodeRect, portPosition, wireGeom, wireGeomToPoint, curvePoint, wireLanes, WIRE_FAN,
+  snap, nodeRect, nodeSize, nodeMeta, portPosition, wireGeom, wireGeomToPoint, curvePoint, wireLanes, WIRE_FAN,
   rectContains, rectsIntersect, normRect, wrapText, noteHeight, NOTE_W, contentBounds,
 } from '../src/geometry.js';
 
@@ -89,7 +89,19 @@ test('rect helpers', () => {
   assert.ok(rectsIntersect({ x: 0, y: 0, w: 10, h: 10 }, { x: 5, y: 5, w: 10, h: 10 }));
   assert.ok(!rectsIntersect({ x: 0, y: 0, w: 10, h: 10 }, { x: 20, y: 0, w: 5, h: 5 }));
   assert.deepEqual(normRect(10, 10, 0, 5), { x: 0, y: 5, w: 10, h: 5 });
-  assert.deepEqual(nodeRect({ x: 1, y: 2, w: 3, h: 4, label: 'x' }), { x: 1, y: 2, w: 3, h: 4 });
+});
+
+// net_draw card sizing: 104x74 at minimum, wider for long labels (capped at
+// 240), 12.5px taller per meta line. Stored sizes are gone; nodeRect derives.
+test('nodeSize follows the content like net_draw', () => {
+  assert.deepEqual(nodeSize({ label: 'MCU' }), { w: 104, h: 74 });
+  assert.deepEqual(nodeSize({ label: 'MCU', sublabel: 'ESP32-S3', addr: '0x76' }), { w: 104, h: 99 });
+  assert.deepEqual(nodeSize({ label: 'MCU', sublabel: 'a', addr: 'b', rail: 'c' }), { w: 104, h: 111.5 });
+  assert.equal(nodeSize({ label: 'Flight controller unit' }).w, 22 * 6.8 + 24, 'label widens the card');
+  assert.equal(nodeSize({ label: 'x', sublabel: 'y'.repeat(20) }).w, 20 * 5.9 + 26, 'meta lines widen it too');
+  assert.equal(nodeSize({ label: 'x'.repeat(80) }).w, 240, 'width is capped');
+  assert.deepEqual(nodeMeta({ label: 'a', sublabel: ' ', addr: '0x1', rail: '' }), [{ field: 'addr', text: '0x1' }], 'blank meta lines are skipped');
+  assert.deepEqual(nodeRect({ x: 10, y: 20, label: 'MCU' }), { x: 10, y: 20, w: 104, h: 74 });
 });
 
 test('wrapText wraps at maxChars and never returns empty', () => {

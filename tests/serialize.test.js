@@ -267,13 +267,20 @@ test('invalid node status and unknown flags are neutralized with warnings', () =
   assert.equal(warnings.length, 2);
 });
 
-test('non-positive node sizes fall back to part defaults with warnings', () => {
+test('legacy fixed card sizes are dropped and the card keeps its old center', () => {
   const { doc, warnings } = deserialize(JSON.stringify({
-    nodes: [{ id: 'n1', kind: 'mcu', x: 0, y: 0, w: -40, h: 0 }],
+    nodes: [{ id: 'n1', kind: 'mcu', x: 100, y: 100, w: 160, h: 100, label: 'MCU' }],
   }));
-  assert.ok(doc.nodes[0].w > 0);
-  assert.ok(doc.nodes[0].h > 0);
-  assert.equal(warnings.length, 2);
+  const n = doc.nodes[0];
+  assert.equal('w' in n, false);
+  assert.equal('h' in n, false);
+  // Old center (180, 150); a 104x74 card centered there starts at (128, 113).
+  assert.equal(n.x, 128);
+  assert.equal(n.y, 113);
+  assert.deepEqual(warnings, []);
+  const junk = deserialize(JSON.stringify({ nodes: [{ id: 'n1', kind: 'mcu', x: 5, y: 6, w: -40, h: 0 }] }));
+  assert.equal(junk.doc.nodes[0].x, 5, 'unusable legacy sizes are simply ignored');
+  assert.deepEqual(junk.warnings, []);
 });
 
 test('zones with non-positive or non-finite size are dropped', () => {

@@ -4,7 +4,6 @@ import {
   uid, newDoc, Store, addNode, addWire, addZone, addNote,
   findItem, updateItem, deleteItems, duplicateItems,
 } from '../src/state.js';
-import { PARTS } from '../src/palette.js';
 
 test('uid is unique and prefixed', () => {
   const a = uid('n');
@@ -24,7 +23,7 @@ test('addNode uses part defaults', () => {
   const node = store.doc.nodes[0];
   assert.equal(node.id, id);
   assert.equal(node.kind, 'mcu');
-  assert.equal(node.w, PARTS.mcu.w);
+  assert.equal('w' in node, false, 'cards size to their content; nothing is stored');
   assert.equal(node.label, 'MCU');
   assert.equal(node.sublabel, '');
   assert.equal(node.addr, '');

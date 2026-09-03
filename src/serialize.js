@@ -1,6 +1,7 @@
 import { BUSES, DEFAULT_BUS } from './buses.js';
 import { PARTS, getPart } from './palette.js';
 import { newDoc, NODE_STATUSES, NODE_FLAGS } from './state.js';
+import { nodeSize } from './geometry.js';
 
 export function serialize(doc) {
   return JSON.stringify(doc, null, 2);
@@ -53,12 +54,6 @@ export function deserialize(text) {
       coerced.add(n.id);
     }
     const part = PARTS[kind];
-    const dim = (v, fallback, what) => {
-      if (v === undefined) return fallback;
-      if (Number.isFinite(v) && v > 0) return v;
-      warnings.push(`Replaced invalid ${what} on node "${n.id}".`);
-      return fallback;
-    };
     let color = typeof n.color === 'string' ? n.color : null;
     if (color !== null && !HEX_COLOR.test(color)) {
       warnings.push(`Ignored invalid color on node "${n.id}".`);
@@ -73,9 +68,8 @@ export function deserialize(text) {
     if (Array.isArray(n.flags) && flags.length !== n.flags.length) {
       warnings.push(`Dropped unknown flags on node "${n.id}".`);
     }
-    doc.nodes.push({
+    const node = {
       id: n.id, kind, x: n.x, y: n.y,
-      w: dim(n.w, part.w, 'width'), h: dim(n.h, part.h, 'height'),
       label: typeof n.label === 'string' ? n.label : part.name,
       sublabel: typeof n.sublabel === 'string' ? n.sublabel : '',
       color,
@@ -84,7 +78,15 @@ export function deserialize(text) {
       notes: typeof n.notes === 'string' ? n.notes : '',
       status,
       flags,
-    });
+    };
+    // Older files stored a fixed card size. Cards now size to their content,
+    // so shift the top-left corner to keep the card centered where it was.
+    if (Number.isFinite(n.w) && n.w > 0 && Number.isFinite(n.h) && n.h > 0) {
+      const { w, h } = nodeSize(node);
+      node.x = n.x + (n.w - w) / 2;
+      node.y = n.y + (n.h - h) / 2;
+    }
+    doc.nodes.push(node);
   }
 
   const nodeById = new Map(doc.nodes.map((n) => [n.id, n]));

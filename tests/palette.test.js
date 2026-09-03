@@ -10,7 +10,6 @@ test('every part is well-formed', () => {
   for (const [key, part] of Object.entries(PARTS)) {
     assert.equal(part.kind, key, `${key} kind mismatch`);
     assert.ok(catIds.has(part.category), `${key} category`);
-    assert.ok(part.w > 0 && part.h > 0, `${key} size`);
     assert.ok(part.name, `${key} name`);
     const ids = new Set();
     for (const port of part.ports) {

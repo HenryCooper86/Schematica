@@ -4,7 +4,7 @@ import {
 import { createRenderer } from './render.js';
 import { createTools } from './tools.js';
 import { CATEGORIES, CATEGORY_COLORS, PARTS, getPart } from './palette.js';
-import { snap } from './geometry.js';
+import { snap, nodeSize } from './geometry.js';
 import { BUSES, BUS_ORDER } from './buses.js';
 import { serialize, deserialize } from './serialize.js';
 import { buildExportSVG, exportBounds, exportPNG, exportPDF, download } from './export.js';
@@ -214,7 +214,8 @@ function buildPalette() {
         const r = svg.getBoundingClientRect();
         const cx = (r.width / 2 - tools.view.x) / tools.view.zoom;
         const cy = (r.height / 2 - tools.view.y) / tools.view.zoom;
-        const id = addNode(store, part.kind, snap(cx - part.w / 2), snap(cy - part.h / 2));
+        const { w, h } = nodeSize({ label: part.name });
+        const id = addNode(store, part.kind, snap(cx - w / 2), snap(cy - h / 2));
         store.setSelection([id]);
       });
       box.appendChild(item);
@@ -229,7 +230,8 @@ svg.addEventListener('drop', (e) => {
   if (!kind) return;
   const part = getPart(kind);
   const pt = tools.toWorld(e);
-  const id = addNode(store, kind, snap(pt.x - part.w / 2), snap(pt.y - part.h / 2));
+  const { w, h } = nodeSize({ label: part.name });
+  const id = addNode(store, kind, snap(pt.x - w / 2), snap(pt.y - h / 2));
   store.setSelection([id]);
 });
 

@@ -236,9 +236,10 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
           // lane centerline while snap is on.
           if (ui.snapOn && found.type === 'node') {
             const n = found.item;
-            const c = laneSnapPoint(doc, n.x + n.w / 2, n.y + n.h / 2);
-            n.x = c.x - n.w / 2;
-            n.y = c.y - n.h / 2;
+            const r = nodeRect(n);
+            const c = laneSnapPoint(doc, r.x + r.w / 2, r.y + r.h / 2);
+            n.x = c.x - r.w / 2;
+            n.y = c.y - r.h / 2;
           }
         }
       });
