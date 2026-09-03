@@ -77,4 +77,7 @@ it into layered SVG; `src/tools.js` is the pointer/keyboard state machine;
 `src/serialize.js` validates files; `src/export.js` builds standalone
 SVG/PNG. `src/gif.js` is a zero-dependency GIF89a encoder; `src/journey.js`
 holds journey steps and camera tween math; `src/recorder.js` drives frame
-capture and MediaRecorder. See `docs/superpowers/specs/` for the design spec.
+capture and MediaRecorder. `src/main.js` only boots the app; the panels,
+dialogs, and menus live in `src/ui/` (properties panel, palette, legend,
+export/BOM/DRC dialogs, journey and present mode, examples menu, recording).
+See `docs/superpowers/specs/` for the design spec.
