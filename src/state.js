@@ -152,6 +152,26 @@ export function addWire(store, bus, from, to) {
   return id;
 }
 
+// Move one end ('from' | 'to') of a wire onto another port; `bus` optionally
+// retypes the wire at the same time (one undo step for both).
+export function rewireEnd(store, id, end, ref, bus = null) {
+  store.apply((doc) => {
+    const wire = doc.wires.find((w) => w.id === id);
+    if (!wire) return;
+    wire[end] = { node: ref.node, port: ref.port };
+    if (bus) wire.bus = bus;
+  });
+}
+
+// Which bus a re-attached wire should carry, given the buses of its two port
+// ends: an agreed bus wins, a current bus that still matches one end is kept,
+// and null means the user has to choose.
+export function resolveBus(current, busA, busB) {
+  if (busA && busA === busB) return busA;
+  if (current && (current === busA || current === busB)) return current;
+  return null;
+}
+
 export function addZone(store, rect, label = 'Zone') {
   const id = uid('z');
   store.apply((doc) => {

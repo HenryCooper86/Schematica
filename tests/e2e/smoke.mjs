@@ -226,6 +226,37 @@ try {
   const solar1 = px(await js(`document.querySelector('#canvas g.node[data-id="n1"]').getAttribute('transform')`));
   check('dragging a zone carries the cards inside it', zone2.x === zone1.x + 40 && solar1[0] === solar0[0] + 40, JSON.stringify({ zone1, zone2, solar0, solar1 }));
 
+  // Re-attach a wire end: select the MCU-to-temp I2C wire, drag its far end
+  // onto the soil probe's ADC port. The bus stays I2C (it still matches the
+  // MCU end), so no picker appears.
+  // Reset the camera first: after the pan, the right-hand cards sit under the
+  // floating properties panel, which would swallow the drop.
+  await js(`document.getElementById('zoom-reset').click(); true`);
+  await sleep(100);
+  const pill = await center('#canvas g.wire[data-id="w6"] text[data-edit="label"]');
+  await click(pill.x, pill.y);
+  await sleep(150);
+  const wireHandles = await js(`document.querySelectorAll('#canvas g.wire[data-id="w6"] [data-wend]').length`);
+  check('selecting a wire shows a handle at each end', wireHandles === 2, String(wireHandles));
+  const wend = await center('#canvas g.wire[data-id="w6"] [data-wend="to"]');
+  const hitAtHandle = await js(`(() => { const el = document.elementFromPoint(${wend.x}, ${wend.y}); return el.tagName + '.' + (el.className.baseVal ?? el.className) + ' in ' + (el.closest('[data-type]')?.dataset.id || '-'); })()`);
+  const adc = await center('#canvas .portg[data-node="n7"][data-port="out"] .port');
+  await mouse('mouseMoved', wend.x, wend.y);
+  await mouse('mousePressed', wend.x, wend.y, { button: 'left', buttons: 1, clickCount: 1 });
+  for (let i = 1; i <= 6; i++) {
+    await mouse('mouseMoved', wend.x + ((adc.x - wend.x) * i) / 6, wend.y + ((adc.y - wend.y) * i) / 6, { button: 'left', buttons: 1 });
+    await sleep(20);
+  }
+  const midDrag = await js(`({ drafting: document.getElementById('canvas').classList.contains('drafting'), rewiring: !!document.querySelector('.wire.rewiring'), hot: document.querySelector('[data-hot]')?.dataset.node || null })`);
+  await mouse('mouseReleased', adc.x, adc.y, { button: 'left', clickCount: 1 });
+  await sleep(200);
+  const rewired = await js(`(() => { const g = document.querySelector('#canvas g.wire[data-id="w6"]'); return { to: g.dataset.to, from: g.dataset.from, label: g.querySelector('text[data-edit="label"]').textContent, popover: !document.getElementById('bus-popover').hidden, wires: document.querySelectorAll('#canvas g.wire').length }; })()`);
+  check('dragging an end handle onto another port re-attaches the wire and keeps its bus', rewired.to === 'n7:out' && rewired.from === 'n5:i2c' && rewired.label === 'I2C' && !rewired.popover && rewired.wires === before + 1, JSON.stringify({ ...rewired, hitAtHandle, midDrag }));
+  await js(`document.getElementById('undo').click(); true`);
+  await sleep(100);
+  const undone = await js(`document.querySelector('#canvas g.wire[data-id="w6"]').dataset.to`);
+  check('re-attaching is a single undo step', undone === 'n6:i2c', undone);
+
   // Presets live on the rover board. A hash-only navigation would not reload
   // the app, and a non-empty autosave would raise a confirm dialog, so clear
   // storage, blank the page, then load the rover share link.

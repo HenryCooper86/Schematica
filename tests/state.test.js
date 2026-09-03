@@ -226,3 +226,30 @@ test('updateItem with unchanged values is not undoable', () => {
   updateItem(store, id, { label: store.doc.nodes[0].label });
   assert.equal(store.undoStack.length, depth);
 });
+
+test('rewireEnd moves one end of a wire (optionally changing its bus) and is undoable', async () => {
+  const { rewireEnd, addWire } = await import('../src/state.js');
+  const store = new Store();
+  const a = addNode(store, 'mcu', 0, 0);
+  const b = addNode(store, 'temp', 400, 0);
+  const c = addNode(store, 'imu', 400, 200);
+  const w = addWire(store, 'i2c', { node: a, port: 'i2c' }, { node: b, port: 'i2c' });
+  rewireEnd(store, w, 'to', { node: c, port: 'spi' }, 'spi');
+  assert.deepEqual(store.doc.wires[0].to, { node: c, port: 'spi' });
+  assert.equal(store.doc.wires[0].bus, 'spi');
+  rewireEnd(store, w, 'from', { node: b, port: 'i2c' });
+  assert.deepEqual(store.doc.wires[0].from, { node: b, port: 'i2c' });
+  assert.equal(store.doc.wires[0].bus, 'spi', 'bus untouched when not given');
+  store.undo();
+  store.undo();
+  assert.deepEqual(store.doc.wires[0].to, { node: b, port: 'i2c' });
+  assert.equal(store.doc.wires[0].bus, 'i2c');
+});
+
+test('resolveBus adopts an agreed bus, keeps a still-matching one, and asks otherwise', async () => {
+  const { resolveBus } = await import('../src/state.js');
+  assert.equal(resolveBus('gpio', 'spi', 'spi'), 'spi', 'both ports agree: adopt');
+  assert.equal(resolveBus('i2c', 'i2c', 'adc'), 'i2c', 'current bus still matches one end: keep');
+  assert.equal(resolveBus('uart', 'i2c', 'adc'), null, 'nothing matches: ask the user');
+  assert.equal(resolveBus('i2c', null, 'i2c'), 'i2c', 'an endpoint without a bus does not block');
+});

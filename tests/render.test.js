@@ -295,3 +295,13 @@ test('a selected zone grows four corner resize handles; an unselected one has no
   doc.zones[0] = { id: 'z1', x: 0, y: 200, w: 400, h: 300, label: 'P', color: '#a78bfa', kind: 'swimlane', orient: 'h', lanes: ['A'] };
   assert.equal((diagramMarkup(doc, { selection: new Set(['z1']) }).match(/data-zhandle=/g) || []).length, 4, 'swimlanes too');
 });
+
+test('a selected wire shows an endpoint handle at each end and carries its endpoints as data', () => {
+  const doc = sampleDoc();
+  doc.wires.pop();
+  const sel = wireGroup(diagramMarkup(doc, { selection: new Set(['w1']) }), 'w1');
+  assert.ok(sel.includes('data-from="a:i2c" data-to="b:i2c"'));
+  assert.ok(sel.includes('<circle class="whandle" data-wend="from" cx="109" cy="37" r="5" fill="#0d1526" stroke="#7dd3fc" stroke-width="1.6"/>'));
+  assert.ok(sel.includes('data-wend="to" cx="395" cy="37"'));
+  assert.ok(!wireGroup(diagramMarkup(doc), 'w1').includes('data-wend'), 'handles only while selected');
+});

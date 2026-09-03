@@ -4,6 +4,7 @@ import {
 } from './geometry.js';
 import {
   addWire, addZone, addSwimlane, addNote, updateItem, deleteItems, duplicateItems, findItem,
+  rewireEnd, resolveBus,
 } from './state.js';
 import { BUSES, BUS_ORDER } from './buses.js';
 import { getPart } from './palette.js';
@@ -207,6 +208,25 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
       return;
     }
 
+    // An endpoint handle on a selected wire starts a re-attach: the other end
+    // stays put and a draft follows the pointer until it lands on a port.
+    const wendEl = e.target.closest('[data-wend]');
+    if (wendEl) {
+      const wireEl = wendEl.closest('[data-type="wire"]');
+      const found = wireEl && findItem(store.doc, wireEl.dataset.id);
+      if (found?.type === 'wire') {
+        const end = wendEl.dataset.wend;
+        const fixed = end === 'to' ? found.item.from : found.item.to;
+        drag = { mode: 'rewire', id: found.item.id, end, fixed, el: wireEl };
+        wireEl.classList.add('rewiring');
+        ui.wireDraft = { from: fixed, cursor: pt };
+        svg.classList.add('drafting');
+        capturePointer(e);
+        requestRender('overlay');
+        return;
+      }
+    }
+
     // A corner handle on a selected zone starts a resize; the opposite corner
     // stays put (net_draw's zhandle drag).
     const handleEl = e.target.closest('[data-zhandle]');
@@ -257,7 +277,7 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
       requestRender('view');
       return;
     }
-    if (drag.mode === 'wire') {
+    if (drag.mode === 'wire' || drag.mode === 'rewire') {
       ui.wireDraft.cursor = pt;
       const el = portUnder(e);
       const from = ui.wireDraft.from;
@@ -308,6 +328,20 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
 
   svg.addEventListener('pointerup', (e) => {
     if (!drag) return;
+    if (drag.mode === 'rewire') {
+      const d = drag;
+      drag = null;
+      const el = portUnder(e);
+      ui.wireDraft = null;
+      setHotPort(null);
+      svg.classList.remove('drafting');
+      d.el.classList.remove('rewiring');
+      if (el && !(el.dataset.node === d.fixed.node && el.dataset.port === d.fixed.port)) {
+        finishRewire(d.id, d.end, portRef(el), e);
+      }
+      requestRender('overlay');
+      return;
+    }
     if (drag.mode === 'wire') {
       const el = portUnder(e);
       const draft = ui.wireDraft;
@@ -416,6 +450,7 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
     }
     if (e.key === 'Escape') {
       if (drag && (drag.mode === 'move' || drag.mode === 'zresize')) store.cancelDrag();
+      if (drag?.mode === 'rewire') drag.el.classList.remove('rewiring');
       drag = null;
       ui.wireDraft = null;
       ui.marquee = null;
@@ -461,6 +496,28 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave })
     const suggested = [...new Set([busFrom, busTo].filter(Boolean))];
     openBusPopover(e.clientX, e.clientY, suggested, (bus) => {
       const id = addWire(store, bus, from, to);
+      store.setSelection([id]);
+    });
+  }
+
+  // Re-attach one end of a wire. The bus follows the new pair of ports: an
+  // agreed bus is adopted, a still-matching current bus is kept, otherwise the
+  // picker asks — and the wire stays put until a bus is chosen.
+  function finishRewire(id, end, ref, e) {
+    const wire = findItem(store.doc, id)?.item;
+    if (!wire) return;
+    const other = end === 'to' ? wire.from : wire.to;
+    const busOther = portBus(other);
+    const busNew = portBus(ref);
+    const bus = resolveBus(wire.bus, busOther, busNew);
+    if (bus) {
+      rewireEnd(store, id, end, ref, bus);
+      store.setSelection([id]);
+      return;
+    }
+    const suggested = [...new Set([busOther, busNew].filter(Boolean))];
+    openBusPopover(e.clientX, e.clientY, suggested, (picked) => {
+      rewireEnd(store, id, end, ref, picked);
       store.setSelection([id]);
     });
   }

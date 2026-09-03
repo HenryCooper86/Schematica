@@ -270,6 +270,7 @@ function wireMarkup(byId, wire, lane, selected, ui, animating, now) {
   const stroke = selected ? WIRE_SEL : (sneak ? WIRE_SNEAK : WIRE);
   const width = selected ? 2.4 : (sneak ? 1.5 : 2);
   let s = `<g class="wire${selected ? ' sel' : ''}" data-id="${esc(wire.id)}" data-type="wire"`
+    + ` data-from="${esc(wire.from.node)}:${esc(wire.from.port)}" data-to="${esc(wire.to.node)}:${esc(wire.to.port)}"`
     + `${sneak ? ` data-g="${geoData(geo)}"` : ''}>`;
   s += `<path d="${geo.d}" fill="none" stroke="transparent" stroke-width="14" pointer-events="stroke"/>`;
   s += `<path class="vis${flowing ? ' anim' : ''}" d="${geo.d}" fill="none" stroke="${stroke}"`
@@ -296,6 +297,14 @@ function wireMarkup(byId, wire, lane, selected, ui, animating, now) {
     + ` fill="${LABEL_BG}" stroke="${LABEL_LINE}" stroke-width="1"/>`;
   s += `<text x="${at.x}" y="${Math.round((at.y + 3.6) * 100) / 100}" text-anchor="middle" font-size="10.5" fill="${LABEL_TEXT}"`
     + ` data-edit="label">${esc(label)}</text>`;
+  // A selected wire grows a handle at each end; dragging one onto another
+  // port re-attaches that end (tools.js).
+  if (selected) {
+    for (const [end, p] of [['from', geo.p1], ['to', geo.p2]]) {
+      s += `<circle class="whandle" data-wend="${end}" cx="${p.x}" cy="${p.y}" r="5" fill="${CHIP_BG}"`
+        + ` stroke="${WIRE_SEL}" stroke-width="1.6"/>`;
+    }
+  }
   s += '</g>';
   return s;
 }

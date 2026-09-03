@@ -28,6 +28,7 @@ then Settings → Pages → deploy from branch `main`, root folder.
 | Add a part | Drag it from the palette, or click it |
 | Wire two parts | Drag from a port to another port (any tool) |
 | Pick the bus type | Automatic when both ports agree; popover otherwise |
+| Re-attach a wire | Select it, then drag either end handle onto another port (the bus follows the new ports, or asks) |
 | Select / move | `V`, click or drag; marquee on empty canvas; shift-click adds |
 | Zone | `Z`, drag a rectangle (select it by its border or title); drag a corner handle to resize; dragging a zone carries the cards inside it |
 | Find a part | Type in the palette search — names, categories, buses, or vendors (RDK, Journey) |
