@@ -78,11 +78,13 @@ test('the sensor node board passes every design rule, so users can see what clea
   assert.ok(EXAMPLES.some((e) => e.id !== 'sensor-node-clean' && checkDoc(e.doc).length > 0));
 });
 
-test('the corporate network board ports net_draw\'s sample: devices, zones, and threat actors', () => {
-  const net = EXAMPLES.find((e) => e.id === 'corporate-network');
-  assert.ok(net, 'board exists');
-  const kinds = new Set(net.doc.nodes.map((n) => n.kind));
-  for (const k of ['internet', 'firewall', 'router', 'switch', 'accesspoint', 'threatactor', 'botnet', 'phishing']) assert.ok(kinds.has(k), k);
-  assert.ok(net.doc.wires.some((w) => w.bus === 'eth') && net.doc.wires.some((w) => w.bus === 'link'));
-  assert.ok(net.doc.zones.some((z) => z.label === 'DMZ'));
+test('the vehicle OTA security board mixes cloud delivery, threats, a verification flow, and the device', () => {
+  const ota = EXAMPLES.find((e) => e.id === 'ota-security');
+  assert.ok(ota, 'board exists');
+  assert.equal(EXAMPLES.some((e) => e.id === 'corporate-network'), false, 'the ported net_draw sample is gone');
+  const kinds = new Set(ota.doc.nodes.map((n) => n.kind));
+  for (const k of ['apigateway', 'waf', 'cdn', 'internet', 'insider', 'threatactor', 'malware', 'startend', 'process', 'decision', 'dataio', 'gateway', 'vgateway', 'mcu', 'eeprom']) assert.ok(kinds.has(k), k);
+  const buses = new Set(ota.doc.wires.map((w) => w.bus));
+  for (const b of ['eth', 'flow', 'link', 't1', 'canfd', 'spi']) assert.ok(buses.has(b), b);
+  assert.ok(ota.doc.zones.some((z) => z.label === 'Update verification'));
 });
