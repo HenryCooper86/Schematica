@@ -1,0 +1,2 @@
+SCHEMATICA_HOSTILE_NAME_CONTENT
+电源 filename fixture

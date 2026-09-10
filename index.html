@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Schematica</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="toolbar">
+      <div id="brand">
+        <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 4h8v8H4z M6 1v3 M10 1v3 M6 12v3 M10 12v3 M1 6h3 M1 10h3 M12 6h3 M12 10h3"/>
+        </svg>
+        <span class="brand-name">Schematica</span>
+      </div>
+      <input id="title" type="text" spellcheck="false" aria-label="Board title">
+      <div class="group" role="group" aria-label="Tools">
+        <button data-tool="select" class="tool active" title="Select / move (V)">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M5 2l9 6.5-4.6 1L7.5 14z"/></svg>
+        </button>
+        <button data-tool="wire" class="tool" title="Draw wire (C)">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4 14c5 0 5-10 10-10"/><circle cx="4" cy="14" r="1.8"/><circle cx="14" cy="4" r="1.8"/></svg>
+        </button>
+        <button data-tool="zone" class="tool" title="Draw zone (Z)">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3 6V3h3 M12 3h3v3 M15 12v3h-3 M6 15H3v-3"/></svg>
+        </button>
+        <button data-tool="lane" class="tool" title="Draw swimlane (L)">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3 3h12v12H3z M3 7h12 M3 11h12"/></svg>
+        </button>
+        <button data-tool="note" class="tool" title="Add note (N)">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4 3h8l3 3v9H4z M12 3v3h3 M7 9h5 M7 12h4"/></svg>
+        </button>
+        <button data-tool="pan" class="tool" title="Pan (H, or hold Space)">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M6 8V3.8a1.1 1.1 0 0 1 2.2 0V8 M8.2 7.5V3a1.1 1.1 0 0 1 2.2 0v4.5 M10.4 7.8V4a1.1 1.1 0 0 1 2.2 0v6.5c0 3-1.8 5-4.6 5-2.3 0-3.5-1.2-4.6-3.2L2.3 9.9c-.5-.9.6-1.8 1.5-1.2L6 10.3"/></svg>
+        </button>
+      </div>
+      <div class="group">
+        <button id="undo" title="Undo (Ctrl/Cmd-Z)" disabled>&#8630;</button>
+        <button id="redo" title="Redo (Ctrl/Cmd-Shift-Z)" disabled>&#8631;</button>
+      </div>
+      <div class="group">
+        <button id="zoom-out" title="Zoom out">&minus;</button>
+        <button id="zoom-reset" title="Reset zoom"><span id="zoom-label">100%</span></button>
+        <button id="zoom-in" title="Zoom in">+</button>
+        <button id="btn-fit" title="Fit diagram (F)">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3 6V3h3 M12 3h3v3 M15 12v3h-3 M6 15H3v-3"/><rect x="6.5" y="6.5" width="5" height="5" rx="1"/></svg>
+        </button>
+        <button id="btn-fullscreen" title="Toggle fullscreen">&#x26F6;</button>
+        <button id="btn-shortcuts" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts (?)" aria-haspopup="dialog">?</button>
+      </div>
+      <div class="group">
+        <button id="btn-grid" class="active" aria-pressed="true" title="Grid dots">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><g fill="currentColor" stroke="none"><circle cx="4" cy="4" r="1.4"/><circle cx="9" cy="4" r="1.4"/><circle cx="14" cy="4" r="1.4"/><circle cx="4" cy="9" r="1.4"/><circle cx="9" cy="9" r="1.4"/><circle cx="14" cy="9" r="1.4"/><circle cx="4" cy="14" r="1.4"/><circle cx="9" cy="14" r="1.4"/><circle cx="14" cy="14" r="1.4"/></g></svg>
+        </button>
+        <button id="btn-snap" class="active" aria-pressed="true" title="Snap to grid + swimlane lanes">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M5 2.5v6a4 4 0 0 0 8 0v-6 M5 2.5h2.6 M10.4 2.5H13 M5 6h2.6 M10.4 6H13"/></svg>
+        </button>
+        <button id="btn-animate" aria-pressed="false" title="Signal-flow animation">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M2 9h3l2.5-5 3 10L13 9h3"/></svg>
+        </button>
+        <button id="btn-explore" title="Explore this board (/)" aria-expanded="false" aria-controls="explore-panel" aria-label="Explore this board (/)"><svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="7.5" cy="7.5" r="4.5"/><path d="M11 11l4 4"/></svg></button>
+        <button id="btn-legend" aria-pressed="false" title="Bus legend">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M7 4.5h8 M7 9h8 M7 13.5h8"/><g fill="currentColor" stroke="none"><circle cx="3.5" cy="4.5" r="1.2"/><circle cx="3.5" cy="9" r="1.2"/><circle cx="3.5" cy="13.5" r="1.2"/></g></svg>
+        </button>
+        <button id="btn-journey" aria-pressed="false" title="Journey steps + presenting">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M5 16V3 M5 3.5h8.5l-2.2 3 2.2 3H5"/></svg>
+        </button>
+        <button id="btn-assistant" aria-pressed="false" title="Assistant (A)">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 2l1.6 4.4L15 8l-4.4 1.6L9 14l-1.6-4.4L3 8l4.4-1.6z M14.5 12.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"/></svg>
+        </button>
+        <button id="btn-palette" class="active" aria-pressed="true" data-i18n-attrs="off" title="Hide the parts palette (B)">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><rect x="2.5" y="3.5" width="13" height="11" rx="2"/><path d="M7 3.5v11 M4.5 7h.01 M4.5 9.5h.01"/></svg>
+        </button>
+        <button id="btn-panels" class="active" aria-pressed="true" data-i18n-attrs="off" title="Hide the right panels (P)">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><rect x="2.5" y="3.5" width="13" height="11" rx="2"/><path d="M11 3.5v11 M13 7h.01 M13 9.5h.01"/></svg>
+        </button>
+      </div>
+      <div class="group push-right">
+        <button id="btn-rec" title="Record the canvas"><span class="rec-dot"></span>Rec</button>
+        <button id="btn-export" title="Export PNG, SVG, PDF, or a seamless loop GIF">Export</button>
+        <button id="btn-save" title="Save — download .schematica.json">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 2.5v8 M5.5 7.5 9 11l3.5-3.5 M3 14.5h12"/></svg></button>
+        <button id="btn-open" title="Open a .schematica.json file">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 11V3 M5.5 6.5 9 3l3.5 3.5 M3 14.5h12"/></svg></button>
+        <button id="btn-examples" title="Load an example board">Examples <span aria-hidden="true">&#9662;</span></button>
+        <button id="btn-check" title="Run design rule checks">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="6.5"/><path d="M6.2 9.3l2 2 3.6-4.2"/></svg></button>
+        <button id="btn-bom" title="Bill of materials">BOM</button>
+        <button id="btn-lang" data-i18n="off" title="Switch language" aria-label="Switch language">中文</button>
+        <button id="btn-share" title="Copy a share link">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M13.5 5m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M4.5 9m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M13.5 13.5m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M6.3 8.1l5.4-2.3 M6.3 9.9l5.4 2.7"/></svg></button>
+        <button id="btn-new" title="New — clear the board">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M5 2.5h5.5L14 6v9.5H5z M10.5 2.5V6H14 M9.5 8.5v4 M7.5 10.5h4"/></svg></button>
+        <button id="btn-remove" title="Delete selection (Del)" disabled>
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4 5h10 M7.2 5V3.5h3.6V5 M5.5 5l.7 9.5h5.6l.7-9.5 M8 7.5v4.5 M10 7.5v4.5"/></svg></button>
+      </div>
+    </header>
+    <aside id="palette">
+      <input id="palette-search" type="search" placeholder="Search parts, buses, vendors" spellcheck="false" aria-label="Search parts">
+    </aside>
+    <main id="canvas-wrap">
+      <svg id="canvas" tabindex="-1" aria-label="Board canvas"></svg>
+      <section id="explore-panel" aria-labelledby="explore-heading" hidden>
+        <header><h3 id="explore-heading">Explore board</h3><button id="explore-close">Close</button></header>
+        <input id="board-search" type="search" placeholder="Name, part number, address, or bus" aria-label="Search this board" spellcheck="false" autocomplete="off">
+        <div class="explore-controls">
+          <label><span>Bus filter</span><select id="explore-bus"></select></label>
+          <label><span>Connections</span><select id="explore-connections">
+            <option value="all">All parts</option>
+            <option value="neighbors">Immediate neighbors</option>
+            <option value="network">Connected network</option>
+          </select></label>
+          <label><span>Reading detail</span><select id="explore-depth">
+            <option value="full">Detailed</option>
+            <option value="normal">Normal</option>
+            <option value="overview">Overview</option>
+            <option value="auto">Automatic with zoom</option>
+          </select></label>
+          <label><span>Appearance</span><select id="appearance"><option value="dark">Dark</option><option value="light">Light</option><option value="system">System</option></select></label>
+        </div>
+        <p id="explore-summary" role="status"></p>
+        <button id="explore-reset">Reset exploration</button>
+        <button id="explore-compare">Compare saved board</button>
+        <p id="explore-status" role="status"></p>
+        <div id="explore-results"></div>
+      </section>
+      <!-- Filled at boot from src/shortcuts.js (the rows marked `hint`), so the
+           strip cannot drift from the keys the app handles. It redraws itself
+           on a language switch, hence data-i18n="off" for the static walker;
+           aria-hidden keeps a screen reader off a decorative copy of the ?
+           overlay, which carries the same keys with fuller wording. -->
+      <div id="hintbar" aria-hidden="true" data-i18n="off"></div>
+      <dialog id="story-link-dialog"><p>Story moment link</p><input id="story-link-value" readonly aria-label="Story moment link"><p>Copy this link to open this chapter and stop.</p><button id="story-link-close">Close</button></dialog>
+      <div id="present-overlay" hidden>
+        <strong id="present-title"></strong>
+        <nav id="present-chapters" aria-label="Story chapters"></nav>
+        <nav id="present-stops" aria-label="Story stops"></nav>
+        <div id="present-relationship"></div>
+        <div id="present-caption" role="status"></div>
+        <div id="present-nav">
+          <button id="present-prev" title="Previous (Left arrow)">&lsaquo;</button>
+          <span id="present-counter"></span>
+          <button id="present-next" title="Next (Right arrow)">&rsaquo;</button>
+          <button id="present-play">Play</button>
+          <label>Speed <select id="present-speed"><option value="8000">0.5×</option><option value="4000" selected>1×</option><option value="2000">2×</option></select></label>
+          <button id="present-restart">Restart</button>
+          <button id="present-copy">Copy moment</button>
+          <button id="present-all">Show all</button>
+          <button id="present-exit" title="Exit (Esc)">&times;</button>
+        </div>
+      </div>
+      <div id="legend" hidden></div>
+      <div id="bus-popover" hidden></div>
+      <div id="examples-menu" hidden></div>
+      <input id="inline-editor" type="text" spellcheck="false" hidden>
+      <div id="toast" role="status" aria-live="polite" hidden></div>
+      <aside id="props" hidden></aside>
+      <aside id="journey-panel" hidden></aside>
+      <aside id="assistant" hidden></aside>
+    </main>
+  </div>
+  <input type="file" id="file-input" accept=".json,application/json" hidden>
+  <input type="file" id="parts-file-input" accept=".json,application/json" hidden>
+  <dialog id="compare-dialog">
+    <div class="review-card">
+      <h3>Compare saved board</h3>
+      <p>Choose an earlier version of this board. Items are matched by their saved IDs.</p>
+      <label>Before <input id="compare-file" type="file" accept=".json,application/json"></label>
+      <p id="compare-status" role="status"></p><p id="compare-warning"></p>
+      <div class="compare-previews"><section><h4>Before</h4><div id="compare-before"></div></section><section><h4>After</h4><div id="compare-after"></div></section></div>
+      <div id="compare-changes"></div>
+      <div class="rec-buttons"><button id="compare-download" disabled>Download comparison</button><button id="compare-close">Close</button></div>
+    </div>
+  </dialog>
+  <dialog id="part-dialog">
+    <div class="rec-card part-card">
+      <h3 id="pe-title">New part</h3>
+      <div class="pe-grid">
+        <div class="pe-main">
+          <div class="pe-row">
+            <label class="pe-field">Name <input id="pe-name" type="text" spellcheck="false" autocomplete="off"></label>
+            <label class="pe-field">Category <select id="pe-category"></select></label>
+          </div>
+          <h4>Accent</h4>
+          <div class="swatches" id="pe-swatches"></div>
+          <h4>Icon</h4>
+          <div class="pe-tabs" id="pe-icon-tabs">
+            <button type="button" data-tab="kind">Built-in</button>
+            <button type="button" data-tab="text">Initials</button>
+            <button type="button" data-tab="path">SVG path</button>
+          </div>
+          <div id="pe-icon-kind" class="pe-icons"></div>
+          <input id="pe-icon-text" type="text" placeholder="e.g. MD" spellcheck="false" hidden>
+          <textarea id="pe-icon-path" rows="2" placeholder="A 16-unit path, e.g. M4 4h8v8H4z" spellcheck="false" hidden></textarea>
+          <h4>Ports</h4>
+          <table class="pe-table"><tbody id="pe-ports"></tbody></table>
+          <button type="button" id="pe-port-add" class="pe-add">+ Add port</button>
+          <h4>Fields</h4>
+          <table class="pe-table"><tbody id="pe-fields"></tbody></table>
+          <button type="button" id="pe-field-add" class="pe-add">+ Add field</button>
+        </div>
+        <div class="pe-side">
+          <h4>Preview</h4>
+          <svg id="pe-preview" viewBox="-30 -30 164 134" aria-label="Card preview"></svg>
+          <ul id="pe-problems" class="pe-problems"></ul>
+        </div>
+      </div>
+      <div class="pe-footer">
+        <label class="dialog-check"><input id="pe-save-lib" type="checkbox"> Save to library</label>
+        <label class="dialog-check" id="pe-apply-all-row" hidden><input id="pe-apply-all" type="checkbox" checked> <span id="pe-apply-all-label"></span></label>
+      </div>
+      <div class="rec-buttons">
+        <button type="button" id="pe-save">Save</button>
+        <button type="button" id="pe-cancel">Cancel</button>
+      </div>
+    </div>
+  </dialog>
+  <dialog id="rec-dialog">
+    <div class="rec-card">
+      <h3>Record diagram</h3>
+      <p>Captures the canvas live while you present — pan, zoom, select, connect. Journey captions are included.</p>
+      <h4>Format</h4>
+      <div id="rec-formats"></div>
+      <h4>Audio</h4>
+      <div id="rec-audio">
+        <label><input type="radio" name="rec-audio" value="none" checked> No audio</label>
+        <label><input type="radio" name="rec-audio" value="mic"> Microphone narration</label>
+        <label><input type="radio" name="rec-audio" value="music"> Music file
+          <input type="file" id="rec-music" accept="audio/*"></label>
+      </div>
+      <div class="rec-buttons">
+        <button id="rec-start"><span class="rec-dot"></span>Start recording</button>
+        <button id="rec-cancel">Cancel</button>
+      </div>
+    </div>
+  </dialog>
+  <dialog id="export-dialog">
+    <div class="rec-card">
+      <h3>Export image</h3>
+      <p>Cropped to the diagram plus a margin. PNG renders at the pixel size below.</p>
+      <div class="dialog-row">
+        <label for="export-w">Width</label>
+        <input id="export-w" type="number" min="16" max="16384" step="1">
+        <span class="dialog-x">&times;</span>
+        <label for="export-h">Height</label>
+        <input id="export-h" type="number" min="16" max="16384" step="1">
+        <span class="dialog-unit">px</span>
+      </div>
+      <div class="dialog-row">
+        <label class="dialog-check"><input id="export-lock" type="checkbox" checked> Lock aspect ratio</label>
+      </div>
+      <div class="dialog-row">
+        <label class="dialog-check"><input id="export-transparent" type="checkbox"> Transparent background <span class="dialog-unit">(PNG/SVG only)</span></label>
+      </div>
+      <div class="dialog-row"><label for="export-theme">Export theme</label><select id="export-theme"><option value="current">Current appearance</option><option value="dark">Dark</option><option value="light">Light</option><option value="auto">Automatic (SVG)</option></select></div>
+      <div class="rec-buttons">
+        <button id="export-png-copy">Copy PNG</button>
+        <button id="export-png-go">PNG</button>
+        <button id="export-svg-go">SVG</button>
+        <button id="export-html-go">Interactive HTML</button>
+        <button id="export-pdf-go">PDF</button>
+        <button id="export-gifloop-go" title="A seamless 6-second loop of the flow animations">Loop GIF</button>
+        <button id="export-cancel">Cancel</button>
+      </div>
+    </div>
+  </dialog>
+  <dialog id="drc-dialog">
+    <div class="rec-card bom-card">
+      <h3>Design rule check</h3>
+      <p>I2C address conflicts, unconnected power pins, floating parts, bus mismatches, and lifecycle risks.</p>
+      <div class="check-tabs"><button data-check-mode="design" aria-pressed="true">Design rules</button><button data-check-mode="layout" aria-pressed="false">Layout quality</button><button data-check-mode="power" aria-pressed="false">Power</button></div>
+      <div id="drc-list"></div>
+      <div class="rec-buttons">
+        <button id="drc-close">Close</button>
+      </div>
+    </div>
+  </dialog>
+  <dialog id="bom-dialog">
+    <div class="rec-card bom-card">
+      <h3>Bill of materials</h3>
+      <p>Grouped by part number. Quantities, references, addresses, rails, status, and flags come straight from the board.</p>
+      <div id="bom-table"></div>
+      <div class="rec-buttons">
+        <button id="bom-csv">Download CSV</button>
+        <button id="bom-md">Copy Markdown</button>
+        <button id="bom-close">Close</button>
+      </div>
+    </div>
+  </dialog>
+  <dialog id="shortcuts-dialog">
+    <div class="rec-card shortcuts-card">
+      <h3>Keyboard shortcuts</h3>
+      <p>Shortcuts act on the canvas; none of them fire while you are typing in a field.</p>
+      <div id="shortcuts-list"></div>
+      <div class="rec-buttons">
+        <button id="shortcuts-close">Close</button>
+      </div>
+    </div>
+  </dialog>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

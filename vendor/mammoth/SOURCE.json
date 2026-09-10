@@ -1,0 +1,16 @@
+{
+  "package": "mammoth",
+  "version": "1.12.2",
+  "source": "https://registry.npmjs.org/mammoth/-/mammoth-1.12.2.tgz",
+  "integrity": "sha512-MH2vkgafD/2MYUaEOtoXLKrHQZ7yLYTHGQgyLNtYZHiUxU1K1QQ+8qMFquDAfhBm06wSGSws3J+Q9QTsKtR44g==",
+  "assets": [
+    {
+      "file": "mammoth.browser.min.js",
+      "sha256": "e660d427ddb9aaf51cf4ca237512d0776141a58f0dfb0fd58b576721e8195e2b"
+    },
+    {
+      "file": "LICENSE",
+      "sha256": "6663bbd049205d38a496ccacb412a151980b444627d38de218b3b809aef330f1"
+    }
+  ]
+}

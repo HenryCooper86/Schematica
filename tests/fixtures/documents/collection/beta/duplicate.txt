@@ -1,0 +1,1 @@
+SCHEMATICA_FOLDER_10 电源 folder fixture

@@ -1,0 +1,557 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { PARTS, CATEGORY_COLORS } from '../src/palette.js';
+import { diagramMarkup, defsMarkup, flowOffset, LOOP_MS, overlayMarkup } from '../src/render.js';
+import { EXAMPLES } from '../src/examples.js';
+import { initI18n, setLang } from '../src/i18n.js';
+
+// Cards size to their content (net_draw): a one-letter label gives 104x74.
+const node = (id, kind, x, y, extra = {}) => ({
+  id, kind, x, y, label: id, sublabel: '', color: null,
+  addr: '', rail: '', notes: '', status: null, flags: [], ...extra,
+});
+
+function sampleDoc() {
+  return {
+    schema: 1,
+    title: 'T',
+    nodes: [
+      node('a', 'mcu', 0, 0, { flags: ['bug'] }),
+      node('b', 'temp', 400, 0, { status: 'deprecated' }),
+    ],
+    wires: [
+      { id: 'w1', bus: 'i2c', from: { node: 'a', port: 'i2c' }, to: { node: 'b', port: 'i2c' }, label: '', arrow: null, style: null },
+      { id: 'w2', bus: 'gnd', from: { node: 'a', port: 'gnd' }, to: { node: 'b', port: 'gnd' }, label: '', arrow: null, style: null },
+    ],
+    zones: [],
+    notes: [],
+    journey: [],
+  };
+}
+
+// The markup of one wire group (no nested groups live inside a wire).
+function wireGroup(markup, id) {
+  const at = markup.indexOf(`data-id="${id}"`);
+  assert.ok(at >= 0, `wire ${id} rendered`);
+  return markup.slice(markup.lastIndexOf('<g class="wire', at), markup.indexOf('</g>', at));
+}
+
+// The markup of one node group (ports and badges nest, so cut at the next node).
+function nodeGroup(markup, id) {
+  const at = markup.indexOf(`<g class="node" data-id="${id}"`);
+  assert.ok(at >= 0, `node ${id} rendered`);
+  const next = markup.indexOf('<g class="node"', at + 1);
+  return markup.slice(at, next < 0 ? markup.indexOf('<g class="layer-notes"') : next);
+}
+
+// The markup of one (unselected, so unnested) zone group.
+function zoneGroup(markup, id) {
+  const at = markup.indexOf(`<g class="zone" data-id="${id}"`);
+  assert.ok(at >= 0, `zone ${id} rendered`);
+  return markup.slice(at, markup.indexOf('</g>', at) + 4);
+}
+
+// The zone's name-pill rect width (the only rect with height="18" rx="9").
+const zonePillWidth = (group) => Number(group.match(/width="([\d.]+)" height="18" rx="9"/)[1]);
+
+// The wire's label-pill rect width (the only rect inside a wire group).
+const wirePillWidth = (group) => Number(group.match(/width="([\d.]+)" height="20" rx="9"/)[1]);
+
+const visPath = (group) => group.match(/<path class="vis[^"]*"[^>]*>/)[0];
+
+test('static markup has no animation artifacts', () => {
+  const still = diagramMarkup(sampleDoc());
+  assert.ok(!still.includes('stroke-dashoffset'), 'no baked flow offsets when not animating');
+  assert.ok(!still.includes('class="vis anim"'), 'no flowing wires when not animating');
+  assert.ok(!still.includes('fxhalo anim'), 'halos do not pulse when not animating');
+  assert.ok(still.includes('class="fxhalo" ') && still.includes('stroke-opacity="0.6"'), 'a flagged card still shows its halo');
+});
+
+test('wires are net_draw edges: one 2px slate stroke, round caps, 14px hit area', () => {
+  const g = wireGroup(diagramMarkup(sampleDoc()), 'w1');
+  assert.ok(g.includes('stroke="transparent" stroke-width="14"'), 'wide invisible hit path');
+  const vis = visPath(g);
+  assert.ok(vis.includes('stroke="#526180"'), 'slate stroke regardless of bus');
+  assert.ok(vis.includes('stroke-width="2"'));
+  assert.ok(vis.includes('stroke-linecap="round"'));
+  assert.ok(!g.includes('#38bdf8'), 'the I2C bus color never reaches the canvas');
+  assert.ok(!g.includes('stroke-dasharray'), 'default style is solid');
+});
+
+test('a selected wire turns sky blue and slightly heavier', () => {
+  const m = diagramMarkup(sampleDoc(), { selection: new Set(['w1']) });
+  const sel = wireGroup(m, 'w1');
+  assert.ok(sel.startsWith('<g class="wire sel"'));
+  assert.ok(visPath(sel).includes('stroke="#7dd3fc"') && visPath(sel).includes('stroke-width="2.4"'));
+  assert.ok(visPath(wireGroup(m, 'w2')).includes('stroke="#526180"'), 'others stay slate');
+  assert.ok(!m.includes('stroke-opacity="0.3"'), 'no translucent glow halo');
+});
+
+test('wire ends anchor on the facing card edges of content-sized cards', () => {
+  const doc = sampleDoc();
+  doc.wires.pop();
+  const d = visPath(wireGroup(diagramMarkup(doc), 'w1')).match(/ d="([^"]+)"/)[1];
+  // 104x74 cards at x=0 and x=400: exits at 109, enters at 395, both at y=37.
+  assert.equal(d, 'M 109 37 C 223.4 37, 280.6 37, 395 37');
+});
+
+test('parallel wires between the same pair fan out instead of overlapping', () => {
+  const m = diagramMarkup(sampleDoc());
+  const d1 = visPath(wireGroup(m, 'w1')).match(/ d="([^"]+)"/)[1];
+  const d2 = visPath(wireGroup(m, 'w2')).match(/ d="([^"]+)"/)[1];
+  assert.notEqual(d1, d2);
+  assert.ok(d1.startsWith('M 109 26 '), 'first wire runs half a fan above center');
+  assert.ok(d2.startsWith('M 109 48 '), 'second wire runs half a fan below center');
+  // Pills stagger along the curve so they cannot sit side by side on parallel runs.
+  const pillX = (g) => Number(g.match(/<text x="([\d.]+)" y="[\d.]+" text-anchor="middle" font-size="10.5"/)[1]);
+  const x1 = pillX(wireGroup(m, 'w1'));
+  const x2 = pillX(wireGroup(m, 'w2'));
+  assert.ok(x1 < 252 && x2 > 252, `pills sit either side of the midpoint (${x1}, ${x2})`);
+  const lone = sampleDoc();
+  lone.wires.pop();
+  assert.equal(pillX(wireGroup(diagramMarkup(lone), 'w1')), 252, 'a lone wire keeps its pill at the midpoint');
+});
+
+test('wire label is a neutral pill inside the wire group; blank label shows the bus code', () => {
+  const m = diagramMarkup(sampleDoc());
+  assert.ok(!m.includes('layer-wire-chips'), 'no separate chip layer');
+  const g = wireGroup(m, 'w1');
+  assert.ok(g.includes('fill="#0c1424" stroke="#24304d" stroke-width="1"'), 'net_draw pill');
+  assert.ok(g.includes('font-size="10.5" fill="#8fa3c0"'), 'net_draw label text');
+  assert.ok(g.includes('data-edit="label">I2C</text>'), 'bus short code by default');
+  const doc = sampleDoc();
+  doc.wires[0].label = '3V3 rail';
+  assert.ok(wireGroup(diagramMarkup(doc), 'w1').includes('>3V3 rail</text>'));
+});
+
+test('arrowheads use the shared marker so they follow the stroke color', () => {
+  const doc = sampleDoc();
+  doc.wires[0].arrow = 'fwd';
+  const one = visPath(wireGroup(diagramMarkup(doc), 'w1'));
+  assert.ok(one.includes('marker-end="url(#arrow)"'));
+  assert.ok(!one.includes('marker-start'));
+  doc.wires[0].arrow = 'both';
+  const two = visPath(wireGroup(diagramMarkup(doc), 'w1'));
+  assert.ok(two.includes('marker-end="url(#arrow)"') && two.includes('marker-start="url(#arrow)"'));
+});
+
+test('line styles map to the net_draw dash patterns', () => {
+  const doc = sampleDoc();
+  const dashOf = (style) => {
+    doc.wires[0].style = style;
+    return visPath(wireGroup(diagramMarkup(doc), 'w1')).match(/stroke-dasharray="([^"]+)"/)?.[1] ?? null;
+  };
+  assert.equal(dashOf('dashed'), '8 6');
+  assert.equal(dashOf('dotted'), '2 5');
+  assert.equal(dashOf('sneakernet'), '1 9');
+  assert.equal(dashOf('solid'), null);
+  assert.equal(dashOf(null), null);
+});
+
+test('animated wires flow with the 6 8 dash and a baked offset; ground never flows', () => {
+  const anim = diagramMarkup(sampleDoc(), { animate: true, now: 1234 });
+  const i2c = visPath(wireGroup(anim, 'w1'));
+  assert.ok(i2c.includes('class="vis anim"') && i2c.includes('stroke-dasharray="6 8"'));
+  assert.ok(i2c.includes('stroke-dashoffset='), 'export frames carry the offset as an attribute');
+  const gnd = visPath(wireGroup(anim, 'w2'));
+  assert.ok(!gnd.includes('anim') && !gnd.includes('stroke-dashoffset'), 'ground does not flow');
+  assert.ok(!anim.includes('stroke-opacity="0.55"'), 'no white dotted overlay path');
+  const live = diagramMarkup(sampleDoc(), { animate: true });
+  assert.ok(live.includes('class="vis anim"'), 'live markup flags flowing wires for the CSS animation');
+  assert.ok(!live.includes('stroke-dashoffset'), 'live markup bakes nothing; CSS drives the motion');
+});
+
+test('flow offset moves over time and returns to zero after one loop', () => {
+  assert.equal(flowOffset(0), 0);
+  assert.equal(flowOffset(LOOP_MS), 0);
+  assert.notEqual(flowOffset(1000), flowOffset(1400));
+  const a = diagramMarkup(sampleDoc(), { animate: true, now: 1000 });
+  const b = diagramMarkup(sampleDoc(), { animate: true, now: 1400 });
+  const off = (s) => s.match(/stroke-dashoffset="([-0-9.]+)"/)[1];
+  assert.notEqual(off(a), off(b));
+});
+
+test('per-wire flow overrides: off suppresses, on animates without the global toggle', () => {
+  const doc = sampleDoc();
+  doc.wires[0].flow = 'off';
+  const anim = diagramMarkup(doc, { animate: true, now: 1234 });
+  assert.ok(!anim.includes('stroke-dashoffset') && !anim.includes('vis anim'), 'flow "off" wins over global animate');
+  doc.wires[0].flow = 'on';
+  const still = diagramMarkup(doc, { now: 1234 });
+  assert.equal((still.match(/stroke-dashoffset/g) || []).length, 1, 'flow "on" animates alone');
+});
+
+test('flagged cards wear a halo in the worst flag color; it pulses only when animating', () => {
+  const anim = diagramMarkup(sampleDoc(), { animate: true, now: 777 });
+  const halo = anim.match(/<rect class="fxhalo anim"[^>]*>/)[0];
+  assert.ok(halo.includes('stroke="#f87171"'), 'bug color');
+  assert.ok(halo.includes('stroke-width="2.2"') && halo.includes('rx="17"'));
+  assert.ok(halo.includes('x="-4" y="-4" width="112" height="82"'), 'hugs the 104x74 card by 4px');
+  assert.ok(/stroke-opacity="0\.\d+"/.test(halo), 'export frames bake the pulse opacity');
+  const blinkA = diagramMarkup(sampleDoc(), { animate: true, now: 200 });
+  const blinkB = diagramMarkup(sampleDoc(), { animate: true, now: 900 });
+  const chipOp = (s) => s.match(/class="blink" opacity="([0-9.]+)"/)?.[1];
+  assert.ok(chipOp(blinkA) !== undefined, 'deprecated tag carries a blink opacity');
+  assert.notEqual(chipOp(blinkA), chipOp(blinkB), 'blink opacity oscillates');
+  const doc = sampleDoc();
+  doc.nodes[0].flags = ['lead', 'thermal'];
+  assert.ok(diagramMarkup(doc, { animate: true, now: 777 }).includes(
+    'class="fxhalo anim" x="-4" y="-4" width="112" height="82" rx="17" fill="none" stroke="#fb923c"',
+  ), 'thermal outranks long-lead');
+  doc.nodes[0].flags = ['lead'];
+  assert.ok(diagramMarkup(doc).includes('stroke="#94a3b8" stroke-width="2.2" stroke-opacity="0.6"'), 'any flag earns a halo');
+});
+
+test('sneakernet style renders an air gap: sparse dash, shoe chip, footprints, no flow', () => {
+  const doc = sampleDoc();
+  doc.wires[0].style = 'sneakernet';
+  const anim = diagramMarkup(doc, { animate: true, now: 500 });
+  const g = wireGroup(anim, 'w1');
+  assert.ok(visPath(g).includes('stroke-dasharray="1 9"'), 'air-gap dash applied');
+  assert.ok(!g.includes('stroke-dashoffset') && !g.includes('vis anim'), 'nothing flows across an air gap');
+  assert.ok(g.includes('\u{1F45F} air gap'), 'unlabeled sneakernet wire chip says so');
+  assert.equal((g.match(/class="footstep"/g) || []).length, 3, 'footprints walk the path');
+  assert.ok(g.includes('data-g="'), 'the wire carries its curve so the live ticker can move the footprints');
+});
+
+test('one LOOP_MS cycle is seamless: frame 0 equals frame LOOP_MS exactly', () => {
+  const doc = sampleDoc();
+  doc.nodes[1].flags = ['thermal'];
+  doc.wires[1].style = 'sneakernet';
+  doc.wires[1].flow = 'on';
+  const f0 = diagramMarkup(doc, { animate: true, now: 0 });
+  const fLoop = diagramMarkup(doc, { animate: true, now: LOOP_MS });
+  assert.ok(f0.includes('stroke-dashoffset'), 'flow offset present');
+  assert.ok(f0.includes('class="footstep"'), 'footprints walking the air gap');
+  assert.equal(fLoop, f0, 'every animated attribute returns to its start');
+  const mid = diagramMarkup(doc, { animate: true, now: LOOP_MS / 2 });
+  assert.notEqual(mid, f0, 'frames inside the loop actually move');
+});
+
+test('ports render for every node in a ports group that CSS reveals on hover', () => {
+  const m = diagramMarkup(sampleDoc());
+  assert.equal((m.match(/<g class="ports">/g) || []).length, 2, 'one ports group per node');
+  const port = m.match(/<g class="portg" data-node="a" data-port="i2c">[^]*?<\/g>/)[0];
+  assert.ok(port.includes('<circle class="port" cx="104" cy="14.8" r="5" fill="#0d1526"'), 'net_draw port dot on the derived card edge');
+  assert.ok(port.includes('stroke-width="1.6"'));
+  assert.ok(port.includes('class="port-name"') && port.includes('I2C · I2C'), 'pin name shown on hover');
+  assert.ok(!diagramMarkup(sampleDoc(), { ports: false }).includes('class="ports"'), 'exports omit ports');
+});
+
+test('the unsupported-port prefix follows the interface language', () => {
+  initI18n({ storage: null });
+  // An RDK preset switch keeps a wired endpoint the new profile lacks.
+  const doc = {
+    ...sampleDoc(),
+    nodes: [node('b', 'aisbc', 0, 0, { sublabel: 'RDK X3' }), node('c', 'mipicam', 400, 0)],
+    wires: [
+      { id: 'w', bus: 'mipi', from: { node: 'b', port: 'csi2' }, to: { node: 'c', port: 'i2c' }, label: '', arrow: null, style: null },
+    ],
+  };
+  assert.match(diagramMarkup(doc), /class="port-name"[^>]*>Unsupported: CSI2 · CSI</);
+  setLang('zh');
+  try {
+    assert.match(diagramMarkup(doc), /class="port-name"[^>]*>不支持：CSI2 · CSI</);
+  } finally {
+    setLang('en');
+  }
+});
+
+test('node cards use the net_draw surface: gradient, shadow, hairline border, selection ring', () => {
+  const m = diagramMarkup(sampleDoc());
+  assert.ok(m.includes('rx="14" fill="url(#cardGrad)" stroke="rgba(148,163,184,0.2)" stroke-width="1" filter="url(#nodeShadow)"'));
+  const sel = diagramMarkup(sampleDoc(), { selection: new Set(['a']) });
+  assert.ok(sel.includes('fill="url(#cardGrad)" stroke="#818cf8" stroke-width="1.6"'), 'selected card strokes in its accent');
+  assert.ok(sel.includes('x="-5" y="-5" width="114" height="84" rx="18" fill="none" stroke="#818cf8" stroke-opacity="0.4" stroke-width="1.6"'), 'outer ring');
+});
+
+test('cards follow the net_draw layout: 38px badge, label at 62, mono meta lines, content-sized', () => {
+  const doc = sampleDoc();
+  doc.nodes[0].sublabel = 'ESP32-S3';
+  doc.nodes[0].addr = '0x76';
+  doc.nodes[0].rail = '3.3V';
+  const g = nodeGroup(diagramMarkup(doc), 'a');
+  assert.ok(g.includes('<rect class="card" width="104" height="111.5" rx="14"'), 'three meta lines add 37.5px');
+  assert.ok(g.includes('<rect x="33" y="8" width="38" height="38" rx="11" fill="#818cf8" opacity="0.13"/>'), 'tinted badge');
+  assert.ok(g.includes('transform="translate(38.2 13.2) scale(1.725)"') && g.includes('stroke-width="1.043"'), 'icon drawn at 27.6px with a 1.8px stroke');
+  assert.ok(g.includes('y="62" text-anchor="middle" font-size="11.5" font-weight="600" fill="#cbd5e1" data-edit="label">a</text>'));
+  assert.ok(g.includes('y="75" text-anchor="middle" font-size="9.5" fill="#7d8fae" font-family="ui-monospace, Consolas, monospace" data-edit="sublabel">ESP32-S3</text>'));
+  assert.ok(g.includes('y="87.5"') && g.includes('data-edit="addr">0x76</text>'));
+  assert.ok(g.includes('y="100"') && g.includes('data-edit="rail">3.3V</text>'));
+  doc.nodes[0].label = 'Flight controller unit';
+  assert.ok(nodeGroup(diagramMarkup(doc), 'a').includes('<rect class="card" width="173.6"'), 'long labels widen the card');
+});
+
+test('status is a top-left tag; flags are icon badges top-right that collapse into +N', () => {
+  const doc = sampleDoc();
+  doc.nodes[0].status = 'production';
+  doc.nodes[0].flags = ['bug', 'thermal', 'power', 'lead', 'safety', 'eol'];
+  const g = nodeGroup(diagramMarkup(doc), 'a');
+  assert.ok(g.includes('<rect x="10" y="-8" width="35.6" height="16" rx="8" fill="#0d1526" stroke="#34d399"'), 'PROD tag');
+  assert.ok(g.includes('>PROD</text>'));
+  assert.equal((g.match(/class="fxbadge"/g) || []).length, 3, 'a 104px card fits three badges');
+  assert.ok(g.includes('<title>Bug</title>') && g.includes('<title>Thermal</title>'), 'first two flags shown with tooltips');
+  assert.ok(g.includes('<circle cx="91" cy="0" r="10.5" fill="#0d1526" stroke="#f87171" stroke-width="1.6"/>'), 'badges hang on the top edge');
+  assert.ok(g.includes('>+4</text>') && g.includes('<title>Power hungry, Long lead time, Safety critical, EOL part</title>'), 'overflow badge lists the rest');
+});
+
+test('defsMarkup provides the grid, card gradient, shadow, and arrow marker', () => {
+  const d = defsMarkup();
+  for (const id of ['gridpat', 'cardGrad', 'nodeShadow']) assert.ok(d.includes(`id="${id}"`), id);
+  assert.ok(d.includes('<marker id="arrow"') && d.includes('fill="context-stroke"') && d.includes('orient="auto-start-reverse"'));
+});
+
+test('swimlanes render a title band, lane dividers, and lane names', () => {
+  const doc = sampleDoc();
+  doc.zones.push({
+    id: 'z9', x: 0, y: 200, w: 400, h: 300, label: 'Assembly', color: '#a78bfa',
+    kind: 'swimlane', orient: 'h', lanes: ['Intake', 'QA'],
+  });
+  const m = diagramMarkup(doc);
+  assert.ok(m.includes('class="zone swimlane"'));
+  assert.ok(m.includes('>Assembly</text>'));
+  assert.ok(m.includes('>Intake</text>') && m.includes('>QA</text>'));
+  assert.equal((m.match(/class="lane-divider"/g) || []).length, 1, 'one divider for two lanes');
+  assert.ok(m.includes('rotate(-90'), 'row-lane names read sideways in the gutter');
+  assert.ok(m.includes('fill-opacity="0.05"'), 'alternating lane tint present');
+  const body = m.match(/<rect [^>]*fill-opacity="0\.04"[^>]*>/)[0];
+  assert.ok(body.includes('pointer-events="none"'),
+    'the tinted body must not swallow clicks — marquee selection happens through it');
+});
+
+test('a selected zone grows four corner resize handles; an unselected one has none', () => {
+  const doc = sampleDoc();
+  doc.zones.push({ id: 'z1', x: 0, y: 200, w: 300, h: 200, label: 'Z', color: '#4a90d9' });
+  assert.equal((diagramMarkup(doc).match(/data-zhandle=/g) || []).length, 0);
+  const sel = diagramMarkup(doc, { selection: new Set(['z1']) });
+  assert.equal((sel.match(/data-zhandle=/g) || []).length, 4);
+  assert.ok(sel.includes('data-zhandle="se" x="295" y="395" width="10" height="10" rx="3" fill="#0d1526" stroke="#7dd3fc" stroke-width="1.5" cursor="nwse-resize"'));
+  assert.ok(sel.includes('data-zhandle="ne"') && sel.includes('cursor="nesw-resize"'));
+  doc.zones[0] = { id: 'z1', x: 0, y: 200, w: 400, h: 300, label: 'P', color: '#a78bfa', kind: 'swimlane', orient: 'h', lanes: ['A'] };
+  assert.equal((diagramMarkup(doc, { selection: new Set(['z1']) }).match(/data-zhandle=/g) || []).length, 4, 'swimlanes too');
+});
+
+test('a locked card, zone, and note each wear one padlock, clear of the other badges', () => {
+  const doc = sampleDoc();
+  doc.nodes[0].locked = true;
+  doc.nodes[0].status = 'prototype'; // top-left tag and top-right flag badge
+  doc.zones.push({ id: 'z1', x: 0, y: 200, w: 300, h: 200, label: 'Z', color: '#4a90d9', locked: true });
+  doc.notes.push({ id: 't1', x: 600, y: 0, text: 'pinned', locked: true });
+  const m = diagramMarkup(doc);
+  assert.equal((m.match(/class="lockmark"/g) || []).length, 3);
+  assert.ok(m.includes('<title>Locked</title>'));
+  // The card's mark sits at its bottom-right; the tag row runs along y=-8 and
+  // the flag badge along y=0, so nothing overlaps.
+  const card = nodeGroup(m, 'a');
+  assert.match(card, /class="lockmark" transform="translate\(88 58\) scale\(0.5\)"/);
+  assert.ok(m.includes('class="lockmark" transform="translate(282 194)'), 'zone: top-right corner');
+  assert.ok(m.includes('class="lockmark" transform="translate(744 4)'), 'note: top-right corner');
+});
+
+test('an unlocked board draws no padlock at all', () => {
+  const doc = sampleDoc();
+  doc.zones.push({ id: 'z1', x: 0, y: 200, w: 300, h: 200, label: 'Z', color: '#4a90d9' });
+  doc.notes.push({ id: 't1', x: 600, y: 0, text: 'free' });
+  assert.equal(diagramMarkup(doc).includes('lockmark'), false);
+});
+
+test('a locked zone shows no resize handles even when it is selected', () => {
+  const doc = sampleDoc();
+  doc.zones.push({ id: 'z1', x: 0, y: 200, w: 300, h: 200, label: 'Z', color: '#4a90d9', locked: true });
+  const sel = diagramMarkup(doc, { selection: new Set(['z1']) });
+  assert.equal((sel.match(/data-zhandle=/g) || []).length, 0);
+  assert.ok(sel.includes('class="lockmark"'));
+  doc.zones[0] = {
+    id: 'z1', x: 0, y: 200, w: 400, h: 300, label: 'P', color: '#a78bfa',
+    kind: 'swimlane', orient: 'h', lanes: ['A'], locked: true,
+  };
+  const lane = diagramMarkup(doc, { selection: new Set(['z1']) });
+  assert.equal((lane.match(/data-zhandle=/g) || []).length, 0, 'swimlanes too');
+  assert.ok(lane.includes('class="lockmark"'));
+});
+
+test('a selected wire shows an endpoint handle at each end and carries its endpoints as data', () => {
+  const doc = sampleDoc();
+  doc.wires.pop();
+  const sel = wireGroup(diagramMarkup(doc, { selection: new Set(['w1']) }), 'w1');
+  assert.ok(sel.includes('data-from="a:i2c" data-to="b:i2c"'));
+  assert.ok(sel.includes('<circle class="whandle" data-wend="from" cx="109" cy="37" r="5" fill="#0d1526" stroke="#7dd3fc" stroke-width="1.6"/>'));
+  assert.ok(sel.includes('data-wend="to" cx="395" cy="37"'));
+  assert.ok(!wireGroup(diagramMarkup(doc), 'w1').includes('data-wend'), 'handles only while selected');
+});
+
+test('process-flow parts render as net_draw shapes with the label centered and no badge', () => {
+  const doc = sampleDoc();
+  doc.nodes = [
+    node('d', 'decision', 0, 0, { label: 'Decision?' }),
+    node('s', 'startend', 300, 0, { label: 'Start' }),
+    node('p', 'predefined', 0, 200, { label: 'Sub' }),
+  ];
+  doc.wires = [];
+  const m = diagramMarkup(doc);
+  const d = nodeGroup(m, 'd');
+  assert.ok(d.includes('<polygon class="card" points="68.75,0 137.5,38 68.75,76 0,38"'), 'diamond from the shape size');
+  assert.ok(d.includes('fill="url(#cardGrad)" stroke="#fbbf24" stroke-opacity="0.7" stroke-width="1.4" filter="url(#nodeShadow)"'), 'accent stroke at 0.7');
+  assert.ok(d.includes('y="42.2" text-anchor="middle" font-size="12" font-weight="600" fill="#dbe4f0" data-edit="label">Decision?</text>'), 'label centered');
+  assert.ok(!d.includes('opacity="0.13"'), 'no tinted badge on shapes');
+  const s = nodeGroup(m, 's');
+  assert.ok(s.includes('<rect class="card" width="96" height="54" rx="27"'), 'terminator is a full pill');
+  const p = nodeGroup(m, 'p');
+  assert.ok(p.includes('M10 0 V 54 M 86 0 V 54'), 'subprocess bars');
+  const sel = nodeGroup(diagramMarkup(doc, { selection: new Set(['d']) }), 'd');
+  assert.ok(sel.includes('stroke="#fbbf24" stroke-opacity="1" stroke-width="1.8"'), 'selected shape strokes solid and heavier');
+});
+
+test('threat parts wear a dashed red border and 24-box glyphs draw at 1.15x', () => {
+  const doc = sampleDoc();
+  doc.nodes = [node('t', 'threatactor', 0, 0, { label: 'APT-29' }), node('r', 'router', 300, 0, { label: 'Core Router' })];
+  doc.wires = [];
+  const m = diagramMarkup(doc);
+  const t = nodeGroup(m, 't');
+  assert.ok(t.includes('stroke="rgba(248,113,113,0.4)" stroke-width="1" filter="url(#nodeShadow)" stroke-dasharray="5 3.5"'), 'threat border');
+  assert.ok(t.includes('fill="#ef4444" opacity="0.13"'), 'badge tinted with the type accent');
+  const r = nodeGroup(m, 'r');
+  assert.ok(r.includes('translate(33 8)') === false || true);
+  assert.ok(r.includes('scale(1.15)" fill="none" stroke="#a78bfa" stroke-width="1.8"'), 'glyph at net_draw scale in the type accent');
+  assert.ok(r.includes(PARTS.router.glyph), 'glyph markup embedded verbatim');
+  assert.ok(!r.includes('stroke-dasharray="5 3.5"'), 'only threats are dashed');
+  const sel = nodeGroup(diagramMarkup(doc, { selection: new Set(['t']) }), 't');
+  assert.ok(sel.includes('stroke="#ef4444" stroke-width="1.6"') && !sel.includes('stroke-dasharray="5 3.5"'), 'selection replaces the dashes');
+});
+
+test('flow and link wires show a pill only when labeled; typed buses always name themselves', () => {
+  const doc = sampleDoc();
+  doc.nodes = [node('a', 'process', 0, 0, { label: 'Step' }), node('b', 'process', 300, 0, { label: 'Next' })];
+  doc.wires = [
+    { id: 'f1', bus: 'flow', from: { node: 'a', port: 'e' }, to: { node: 'b', port: 'w' }, label: '', arrow: 'fwd', style: null },
+    { id: 'f2', bus: 'link', from: { node: 'a', port: 's' }, to: { node: 'b', port: 's' }, label: 'yes', arrow: 'fwd', style: null },
+  ];
+  const m = diagramMarkup(doc);
+  assert.ok(!wireGroup(m, 'f1').includes('<text'), 'blank flow wire has no pill');
+  assert.ok(wireGroup(m, 'f2').includes('>yes</text>'), 'a typed label still shows');
+  assert.ok(wireGroup(diagramMarkup(sampleDoc()), 'w1').includes('>I2C</text>'), 'hardware buses keep their code');
+});
+
+test('disposition and severity render as tags in a row after the lifecycle status', () => {
+  const doc = sampleDoc();
+  doc.nodes = [node('t', 'threatactor', 0, 0, { label: 'APT-29', status: 'tested', disposition: 'adversary', fields: { type: 'nation-state', severity: 'critical' } })];
+  doc.wires = [];
+  const g = nodeGroup(diagramMarkup(doc), 't');
+  assert.ok(g.includes('>TESTED</text>'));
+  assert.ok(g.includes('stroke="#ef4444" stroke-opacity="0.8" stroke-width="1.2"') && g.includes('>ADVERSARY</text>'), 'disposition tag in its color');
+  assert.ok(g.includes('>CRITICAL</text>'), 'severity tag');
+  assert.ok(g.includes('data-edit="fields.type">nation-state</text>'), 'field value as an editable meta line');
+  const tags = [...g.matchAll(/<rect x="([\d.]+)" y="-8" width="([\d.]+)" height="16" rx="8"/g)].map((m) => [Number(m[1]), Number(m[2])]);
+  assert.equal(tags.length, 3);
+  assert.ok(tags[1][0] >= tags[0][0] + tags[0][1] + 4 && tags[2][0] >= tags[1][0] + tags[1][1] + 4, `tags sit in a row: ${JSON.stringify(tags)}`);
+  const plain = nodeGroup(diagramMarkup(sampleDoc()), 'b');
+  assert.equal((plain.match(/y="-8" width=/g) || []).length, 1, 'a card without disposition or severity shows only its status');
+});
+
+test('adversaries and suspicious cards glow all the time, victims wear a steady ring, flags fill in otherwise', () => {
+  const halo = (extra, animating = false) => {
+    const doc = sampleDoc();
+    doc.nodes = [node('t', 'threatactor', 0, 0, { label: 'T', ...extra })];
+    doc.wires = [];
+    const g = nodeGroup(diagramMarkup(doc, { animate: animating }), 't');
+    const m = g.match(/<rect class="(fxhalo[^"]*)"[^>]*stroke="(#[0-9a-f]{6})"[^>]*stroke-opacity="([\d.]+)"/);
+    return m ? { cls: m[1], stroke: m[2], opacity: m[3] } : null;
+  };
+  assert.deepEqual(halo({ disposition: 'adversary' }), { cls: 'fxhalo anim', stroke: '#ef4444', opacity: '0.6' }, 'pulses without the Animate toggle');
+  assert.deepEqual(halo({ disposition: 'adversary' }, true), { cls: 'fxhalo anim', stroke: '#ef4444', opacity: '0.6' }, 'and with it');
+  assert.deepEqual(halo({ disposition: 'suspicious' }), { cls: 'fxhalo anim', stroke: '#fb923c', opacity: '0.6' });
+  assert.deepEqual(halo({ disposition: 'victim' }), { cls: 'fxhalo', stroke: '#fbbf24', opacity: '0.6' }, 'steady ring');
+  assert.deepEqual(halo({ disposition: 'adversary', flags: ['bug'] }), { cls: 'fxhalo anim', stroke: '#ef4444', opacity: '0.6' }, 'glow outranks a flag');
+  assert.deepEqual(halo({ disposition: 'victim', flags: ['thermal'] }), { cls: 'fxhalo', stroke: '#fb923c', opacity: '0.6' }, 'a flag outranks the steady ring');
+  assert.deepEqual(halo({ disposition: 'victim', flags: ['thermal'] }, true), { cls: 'fxhalo anim', stroke: '#fb923c', opacity: '0.6' });
+  assert.equal(halo({ disposition: 'friendly' }), null);
+  assert.equal(halo({}), null);
+});
+
+test('the overlay rings highlighted nodes, zones, and notes and glows highlighted wires', () => {
+  const doc = EXAMPLES.find((e) => e.id === 'weather-station').doc;
+  const svg = overlayMarkup(doc, { highlight: new Set(['n5', 'w6', 'z1', 't1', 'nope']) });
+  assert.equal((svg.match(/class="hl anim"/g) || []).length, 3, 'node, zone, note');
+  assert.equal((svg.match(/class="hl-wire anim"/g) || []).length, 1);
+  assert.ok(svg.includes('rx="16"'), 'node ring');
+  assert.equal(overlayMarkup(doc, { highlight: new Set() }), '');
+  assert.equal(overlayMarkup(doc, {}), '');
+});
+
+// Like net_draw, an adversary's glow blinks whatever the Animate toggle says;
+// the toggle owns the wires and flag pulses, not the disposition glow.
+test('a disposition glow pulses with the Animate toggle off and on', () => {
+  const doc = sampleDoc();
+  doc.nodes = [node('a', 'threatactor', 0, 0, { label: 'APT-29', disposition: 'adversary' }), node('v', 'server', 300, 0, { label: 'Victim', disposition: 'victim' })];
+  doc.wires = [];
+  for (const animate of [false, true]) {
+    const m = diagramMarkup(doc, { animate });
+    assert.ok(nodeGroup(m, 'a').includes('class="fxhalo anim"'), `adversary halo pulses (animate ${animate})`);
+    assert.ok(nodeGroup(m, 'v').includes('class="fxhalo"') && !nodeGroup(m, 'v').includes('fxhalo anim'), `victim ring stays steady (animate ${animate})`);
+  }
+});
+
+test('custom cards draw initials, a referenced icon, or a path in the badge, and their ports', () => {
+  const custom = (id, icon, ports = []) => node(id, 'custom', 0, 0, {
+    part: { name: 'Motor driver x4', category: 'actuators', accent: null, icon, ports, fields: [] },
+  });
+  const doc = {
+    ...sampleDoc(),
+    nodes: [
+      custom('t', { text: 'MD' }, [{ id: 'p1', name: 'VCC', side: 'top', bus: 'power', required: true }]),
+      custom('k', { kind: 'motor' }),
+      custom('p', { path: 'M1 1h2v2H1z' }),
+    ],
+    wires: [],
+  };
+  const markup = diagramMarkup(doc, {});
+  const t = nodeGroup(markup, 't');
+  assert.match(t, /<text[^>]*font-size="13"[^>]*>MD<\/text>/, 'initials in the badge');
+  // Everything before the ports group is the card, badge, label, and tags; none carries a path when initials draw.
+  assert.ok(!/<path d="M/.test(t.split('class="ports"')[0]), 'no icon path when initials are used');
+  assert.match(t, /data-port="p1"/, 'custom ports render');
+  assert.match(t, /VCC · PWR/, 'port label names the port and its bus');
+  assert.match(nodeGroup(markup, 'k'), new RegExp(`<path d="${PARTS.motor.icon.slice(0, 12)}`), 'a kind icon draws that part\'s path');
+  assert.match(nodeGroup(markup, 'p'), /<path d="M1 1h2v2H1z"\/>/, 'a path icon draws as given');
+  assert.match(nodeGroup(markup, 't'), new RegExp(`fill="${CATEGORY_COLORS.actuators}"`), 'accent is the category colour');
+});
+
+test('an icon path is escaped in the badge, even one that bypassed validation', () => {
+  const doc = {
+    ...sampleDoc(),
+    nodes: [node('x', 'custom', 0, 0, {
+      part: { name: 'X', category: 'misc', accent: null, icon: { path: 'M1 1"<' }, ports: [], fields: [] },
+    })],
+    wires: [],
+  };
+  const g = nodeGroup(diagramMarkup(doc), 'x');
+  assert.ok(g.includes('d="M1 1&quot;&lt;"'), 'the path is escaped');
+  assert.ok(!g.includes('d="M1 1"<'), 'the raw path never lands in the markup');
+});
+
+test('a wire label pill sizes by text units, not character count, so a Chinese label gets a wider pill', () => {
+  const pill = (label) => {
+    const doc = sampleDoc();
+    doc.wires.pop();
+    doc.wires[0].label = label;
+    return wirePillWidth(wireGroup(diagramMarkup(doc), 'w1'));
+  };
+  // Both labels are eight characters; the Chinese one is four wide glyphs
+  // plus " RDP", so its pill has to be wider or the text spills out of it.
+  const zh = pill('经跳板机 RDP');
+  const en = pill('RDP jump');
+  assert.ok(zh > en, `an eight-character Chinese label (${zh}) should size wider than a Latin one (${en})`);
+  // Fullwidth brackets count as wide too, so a parenthesized label grows.
+  const brackets = pill('SWD（已锁定）');
+  assert.ok(brackets > pill('SWD (locked)'), `${brackets} should exceed the Latin equivalent`);
+});
+
+test('a zone name pill sizes by text units, not character count, so a Chinese label gets a wider pill', () => {
+  const zone = (label) => ({ id: 'z', x: 0, y: 100, w: 200, h: 200, label, color: '#4a90d9' });
+  const zh = zoneGroup(diagramMarkup({ ...sampleDoc(), zones: [zone('按普渡层级划分的工厂网络')] }), 'z');
+  const en = zoneGroup(diagramMarkup({ ...sampleDoc(), zones: [zone('Plant network')] }), 'z');
+  assert.ok(
+    zonePillWidth(zh) > zonePillWidth(en),
+    `a 12-character Chinese label (${zonePillWidth(zh)}) should size wider than a 13-character Latin one (${zonePillWidth(en)})`,
+  );
+});

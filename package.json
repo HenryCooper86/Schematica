@@ -1,0 +1,13 @@
+{
+  "name": "schematica",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test",
+    "e2e": "node tests/e2e/smoke.mjs",
+    "acceptance": "node tests/acceptance/run.mjs"
+  }
+}

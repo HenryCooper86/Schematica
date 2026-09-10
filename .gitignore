@@ -1,0 +1,12 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+.worktrees/
+.e2e-profile/
+.acceptance/
+.wrangler/
+.claude/worktrees/
+
+# Subagent-driven-development scratch (ledger, briefs, review packages)
+.superpowers/

@@ -1,0 +1,16 @@
+{
+  // Deploy: `npx wrangler login` once, then `npx wrangler deploy` here.
+  // The printed URL (https://schematica-relay.<account>.workers.dev) is the
+  // relay; put it in the assistant's Base URL, or in RELAY in
+  // src/ai/settings.js to make it the default for everyone on your deploy.
+  "name": "schematica-relay",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-01",
+  "vars": {
+    // Hosts the relay will forward to. Anything else gets a 404.
+    "UPSTREAMS": "ollama.com,api.moonshot.ai",
+    // Sites allowed to call the relay from a browser; "*" for any, or a
+    // comma-separated list such as "https://henrycooper86.github.io".
+    "ORIGINS": "*"
+  }
+}

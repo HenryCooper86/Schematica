@@ -1,0 +1,11 @@
+*
+!package.json
+!index.html
+!server/
+!server/**
+!src/
+!src/**
+!css/
+!css/**
+!vendor/
+!vendor/**

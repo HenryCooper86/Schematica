@@ -1,0 +1,14 @@
+{
+	# IP-address clients omit SNI; Docker hides the public destination IP.
+	default_sni {$SCHEMATICA_DOMAIN}
+}
+
+{$SCHEMATICA_DOMAIN} {
+	tls {
+		issuer acme https://acme-v02.api.letsencrypt.org/directory {
+			profile shortlived
+			disable_tlsalpn_challenge
+		}
+	}
+	reverse_proxy app:3000
+}

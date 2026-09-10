@@ -1,0 +1,30 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    init: true
+    environment:
+      PUBLIC_ORIGIN: https://${SCHEMATICA_DOMAIN:?Set SCHEMATICA_DOMAIN in .env}
+      AI_BASE_URLS: ${AI_BASE_URLS:-}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+  web:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      SCHEMATICA_DOMAIN: ${SCHEMATICA_DOMAIN:?Set SCHEMATICA_DOMAIN in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ${CADDY_CONFIG:-./deploy/Caddyfile}:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+
+volumes:
+  caddy_data:
+  caddy_config:
