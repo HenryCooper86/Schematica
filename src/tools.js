@@ -9,7 +9,7 @@ import {
 import { alignMoves, distributeMoves, tidyMoves, alignAbility } from './align.js';
 import {
   buildClip, encodeClip, readClip, pasteInto, clipCount, copiedMessage, pastedMessage,
-  MAX_CLIP_ITEMS,
+  MAX_CLIP_ITEMS, pasteOffsetInfo,
 } from './clipboard.js';
 import { BUSES, BUS_ORDER } from './buses.js';
 import { nodePart } from './rdk/profiles.js';
@@ -582,7 +582,9 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
   }
 
   async function copySelection({ cut = false } = {}) {
-    const clip = buildClip(store.doc, [...store.selection]);
+    const copiedIds = [...store.selection];
+    const copiedGeneration = store.generation;
+    const clip = buildClip(store.doc, copiedIds);
     if (!clip) {
       toast(tr('Select a part, zone, or note to copy.'));
       return;
@@ -606,8 +608,8 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
     // A locked item is copied but never removed, and is counted the way Delete
     // counts it. A dialog or an assistant request that took the board over
     // while the write was in flight removes nothing, so the notice says copied.
-    const removed = cut && canEditNow();
-    const kept = removed ? lockedKeptMessage(deleteItems(store, [...store.selection]).kept) : null;
+    const removed = cut && canEditNow() && store.generation === copiedGeneration;
+    const kept = removed ? lockedKeptMessage(deleteItems(store, copiedIds).kept) : null;
     toast([
       copiedMessage(n, { cut: removed }),
       kept,
@@ -634,10 +636,18 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
       toast(err.message);
       return;
     }
-    const ids = pasteInto(store, clip, { templateFor: (lib) => templates.get(lib) });
+    const pasteInfo = pasteOffsetInfo(store.doc, clip);
+    const ids = pasteInto(store, clip, {
+      templateFor: (lib) => templates.get(lib),
+      offset: pasteInfo.offset,
+    });
     store.setSelection(ids);
-    toast(warnings.length
-      ? tr('Pasted with warnings:\n\n{list}', { list: warnings.join('\n') })
+    const list = [...warnings];
+    if (pasteInfo.saturated) {
+      list.push(tr('Paste area was crowded; some pasted items may overlap.'));
+    }
+    toast(list.length
+      ? tr('Pasted with warnings:\n\n{list}', { list: list.join('\n') })
       : pastedMessage(ids.length));
   }
 

@@ -849,6 +849,7 @@ export default {
   '{in} in · {out} out': '输入 {in} · 输出 {out}',
   ' · {n} cached': ' · 缓存 {n}',
   ' · ≈ ${cost} (estimate)': ' · 约 ${cost}（估算）',
+  'Paste area was crowded; some pasted items may overlap.': '粘贴区域已接近拥挤，部分内容可能仍重叠。',
   'Sources: {list}': '来源：{list}',
   '{name} ({used}/{total} chars{partial})': '{name}（{used}/{total} 字符{partial}）',
   ', partial': '，部分',

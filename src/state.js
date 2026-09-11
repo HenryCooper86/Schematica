@@ -125,6 +125,7 @@ export class Store {
   }
 
   replaceDoc(doc) {
+    this._batchSnap = null;
     this.doc = doc;
     this.undoStack = [];
     this.redoStack = [];

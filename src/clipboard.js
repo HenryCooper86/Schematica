@@ -130,16 +130,27 @@ export function readClip(text) {
 // space rather than drifting. Either way it steps again while an existing
 // item sits exactly under one of its items, so pasting twice cascades
 // instead of stacking out of sight.
-export function pasteOffset(doc, clip, { step = PASTE_STEP } = {}) {
+function computePasteOffset(doc, clip, { step = PASTE_STEP } = {}) {
   const placed = [...clip.nodes, ...clip.zones, ...clip.notes];
   const here = [...doc.nodes, ...doc.zones, ...doc.notes];
   const ids = new Set(here.map((i) => i.id));
   const spots = new Set(here.map((i) => `${i.x},${i.y}`));
   let d = placed.some((i) => ids.has(i.id)) ? step : 0;
+  let saturated = false;
   for (let i = 0; i < MAX_CASCADE && placed.some((p) => spots.has(`${p.x + d},${p.y + d}`)); i += 1) {
+    saturated = i + 1 === MAX_CASCADE;
     d += step;
   }
-  return { dx: d, dy: d };
+  saturated = placed.some(p => spots.has(`${p.x + d},${p.y + d}`));
+  return { offset: { dx: d, dy: d }, saturated };
+}
+
+export function pasteOffset(doc, clip, { step = PASTE_STEP } = {}) {
+  return computePasteOffset(doc, clip, { step }).offset;
+}
+
+export function pasteOffsetInfo(doc, clip, { step = PASTE_STEP } = {}) {
+  return computePasteOffset(doc, clip, { step });
 }
 
 // The keys that make two custom definitions the same part. `lib` is left out
