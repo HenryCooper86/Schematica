@@ -1,3 +1,6 @@
+import { normalizeCapability, resolveInterfaceEndpoint } from '../interface-checks.js';
+import { impactAnalysis, proposePartChange } from '../impact.js';
+import { impactSummary } from './impact-summary.js';
 import { nodePart } from '../rdk/profiles.js';
 import { uid } from '../state.js';
 import { interfaceRows, interfaceCSV, importInterfaces, normalizeSpec, normalizeBudget } from '../engineering.js';
@@ -18,7 +21,7 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
   dialog.setAttribute('aria-labelledby', 'engineering-heading'); document.body.append(dialog);
   let tab = 'revisions', selected = null, baseline = null;
   const labels = () => ({ revisions: tr('Revisions'), interfaces: tr('Interfaces'), requirements: tr('Requirements'), decisions: tr('Decisions'),
-    budgets: tr('Budget assumptions'), subsystems: tr('Subsystems'), review: tr('Review package'), interchange: tr('Interchange') });
+    impact: tr('Change impact'), budgets: tr('Budget assumptions'), subsystems: tr('Subsystems'), review: tr('Review package'), interchange: tr('Interchange') });
   const input = (name, label, value = '', type = 'text') => `<label>${esc(label)}<input name="${name}" type="${type}" value="${esc(value)}" maxlength="20000"></label>`;
   const area = (name, label, value = '') => `<label>${esc(label)}<textarea name="${name}" rows="3" maxlength="20000">${esc(value)}</textarea></label>`;
   const select = (name, label, entries, value = '') => `<label>${esc(label)}<select name="${name}">${entries.map(([id, title]) => `<option value="${esc(id)}"${id === value ? ' selected' : ''}>${esc(title)}</option>`).join('')}</select></label>`;
@@ -51,16 +54,32 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
       body.querySelectorAll('[data-baseline]').forEach(b => b.onclick = safe(() => { baseline = revisions.restore(b.dataset.baseline); tab = 'review'; paint(); }));
     } else if (tab === 'interfaces') {
       const rows = interfaceRows(store.doc); selected = rows.some(r => r.id === selected) ? selected : rows.find(r => store.selection.has(r.id))?.id || rows[0]?.id;
-      const row = rows.find(r => r.id === selected);
+      const row = rows.find(r => r.id === selected), wire = store.doc.wires.find(w=>w.id===selected);
+      const limits = [['voltageMinV',tr('Minimum voltage (V)')],['voltageMaxV',tr('Maximum voltage (V)')],['rateBps',tr('Bandwidth (bit/s)')]];
+      const capabilityFields = end => { const cap=resolveInterfaceEndpoint(store.doc,wire[end]).capability||{}; return `<fieldset><legend>${esc((end==='from'?tr('From endpoint capabilities'):tr('To endpoint capabilities')))}</legend>
+        ${select(end+'_direction',tr('Endpoint direction'),[['',tr('Unspecified')],['input',tr('Input')],['output',tr('Output')],['bidirectional',tr('Bidirectional')],['passive',tr('Passive')]],cap.direction)}
+        ${limits.map(([key,label])=>input(end+'_'+key,label,cap[key]??'','number')).join('')}${input(end+'_protocols',tr('Supported protocols (comma separated)'),cap.protocols?.join(', ')||'')}${input(end+'_source',tr('Source reference'),cap.source)}</fieldset>`; };
       body.innerHTML = `<label><input type="checkbox" id="require-interfaces"${store.doc.engineering?.interfacesRequired ? ' checked' : ''}>${esc(tr('Check required interface details'))}</label>`
         + (row ? `<form>${select('wire', tr('Connection'), rows.map(r => [r.id, `${r.from} → ${r.to} (${r.bus})`]), selected)}
           ${select('direction', tr('Direction'), [['', tr('Unspecified')], ['from-to', tr('From → To')], ['to-from', tr('To → From')], ['bidirectional', tr('Bidirectional')]], row.direction)}
-          ${input('voltage', tr('Voltage domain'), row.voltage)}${input('protocol', tr('Protocol version'), row.protocol)}${input('rate', tr('Rate / bandwidth'), row.rate)}${input('source', tr('Source reference'), row.source)}${submit(tr('Save interface'))}</form>` : `<p>${esc(tr('Draw a connection to specify its interface.'))}</p>`)
+          ${input('voltage', tr('Voltage domain'), row.voltage)}${input('protocol', tr('Protocol version'), row.protocol)}${input('rate', tr('Rate / bandwidth'), row.rate)}${input('source', tr('Source reference'), row.source)}<fieldset><legend>${esc(tr('Connection limits'))}</legend>${limits.map(([key,label])=>input(key,label,row[key]??'','number')).join('')}</fieldset>${capabilityFields('from')}${capabilityFields('to')}<p>${esc(tr('Numeric declarations are optional. Blank values mean unknown; protocol names are matched exactly, ignoring case.'))}</p>${submit(tr('Save interface'))}</form>` : `<p>${esc(tr('Draw a connection to specify its interface.'))}</p>`)
         + act('csv', tr('Export ICD CSV'));
       body.querySelector('#require-interfaces').onchange = e => edit(doc => { eng(doc).interfacesRequired = e.target.checked; });
       body.querySelector('[name=wire]')?.addEventListener('change', e => { selected = e.target.value; paint(); });
-      formHandler = data => edit(doc => { const w = doc.wires.find(w => w.id === selected); w.spec = normalizeSpec(Object.fromEntries(data));
-        w.arrow = ({ 'from-to': 'fwd', 'to-from': 'back', bidirectional: 'both' })[w.spec.direction] || null; });
+      body.querySelectorAll('input[type=number]').forEach(el=>{el.step='any';if(el.name.endsWith('rateBps'))el.min='0';});
+      formHandler = data => {
+        const numbers = prefix => Object.fromEntries(limits.filter(([key])=>data.get(prefix+key)!=='').map(([key])=>[key,Number(data.get(prefix+key))]));
+        const numeric = ['', 'from_', 'to_'].map(numbers);
+        if(numeric.some(v=>Object.values(v).some(n=>!Number.isFinite(n))||(v.rateBps!==undefined&&v.rateBps<=0)||(v.voltageMinV!==undefined&&v.voltageMaxV!==undefined&&v.voltageMinV>v.voltageMaxV))) throw new Error(tr('Declared interface limits are invalid.'));
+        edit(doc => { const w = doc.wires.find(w => w.id === selected); w.spec = normalizeSpec({...Object.fromEntries(data),...numeric[0]});
+          w.arrow = ({ 'from-to': 'fwd', 'to-from': 'back', bidirectional: 'both' })[w.spec.direction] || null;
+          ['from','to'].forEach((end,index)=>{ const {node,port}=resolveInterfaceEndpoint(doc,w[end]); if(!node)return;
+            const cap=normalizeCapability({...numeric[index+1],direction:data.get(end+'_direction'),protocols:data.get(end+'_protocols').split(','),source:data.get(end+'_source')});
+            const declared=Object.keys(numeric[index+1]).length||cap.direction||cap.protocols.length||cap.source.trim();
+            if(declared){node.interfacePorts||={};node.interfacePorts[port]=cap;}else if(node.interfacePorts){delete node.interfacePorts[port];if(!Object.keys(node.interfacePorts).length)delete node.interfacePorts;}
+          });
+        });
+      };
       actions.csv = () => download('interfaces.csv', interfaceCSV(store.doc), 'text/csv');
     } else if (tab === 'requirements' || tab === 'decisions') {
       const records = store.doc.engineering?.[tab] || [], record = records.find(r => r.id === selected);
@@ -78,6 +97,17 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
         if (!next.id || !next.text.trim()) throw new Error(tr('Record ID and description are required.'));
         if (records.some(r => r.id === next.id && r.id !== selected)) throw new Error(tr('That record ID already exists.'));
         edit(doc => { eng(doc)[tab] = [...records.filter(r => r.id !== selected), next]; selected = next.id; });
+      };
+    } else if (tab === 'impact') {
+      const nodes=store.doc.nodes.filter(n=>!n.locked&&!n.subsystem);selected=nodes.some(n=>n.id===selected)?selected:nodes.find(n=>store.selection.has(n.id))?.id||nodes[0]?.id;
+      const node=nodes.find(n=>n.id===selected);
+      body.innerHTML=`<p>${esc(tr('Preview a part-number or voltage-rail change before applying it. Replacing a part clears its old ratings and endpoint declarations; ports remain provisional until reviewed.'))}</p>`+(node?`<form>${select('node',tr('Part'),nodes.map(n=>[n.id,n.label]),selected)}${input('partNumber',tr('Part number'),node.sublabel)}${input('rail',tr('Voltage rail'),node.rail)}${submit(tr('Preview change'))}</form><div id="impact-preview"></div>`:`<p>${esc(tr('Choose an unlocked part to preview a change.'))}</p>`);
+      body.querySelector('[name=node]')?.addEventListener('change',e=>{selected=e.target.value;paint();});
+      formHandler=data=>{
+        const snapshot=JSON.stringify(store.doc),generation=store.generation,proposal=proposePartChange(store.doc,{id:selected,partNumber:data.get('partNumber'),rail:data.get('rail')});
+        const target=body.querySelector('#impact-preview');target.innerHTML=`<p><strong>${esc(data.get('partNumber'))}</strong> · ${esc(data.get('rail'))}</p>`+impactSummary(impactAnalysis(store.doc,proposal))+act('apply-preview',tr('Apply previewed change'));
+        target.querySelector('[data-action=apply-preview]').onclick=safe(()=>{if(store.generation!==generation||JSON.stringify(store.doc)!==snapshot)throw new Error(tr('The board changed. Preview again before applying.'));store.apply(doc=>{doc.nodes=proposal.nodes;});paint();});
+        target.querySelectorAll('[data-impact-id]').forEach(b=>b.onclick=()=>{store.setSelection([b.dataset.impactId]);});
       };
     } else if (tab === 'budgets') {
       const nodes = store.doc.nodes; selected = nodes.some(n => n.id === selected) ? selected : nodes.find(n => store.selection.has(n.id))?.id || nodes[0]?.id;
@@ -118,7 +148,7 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
       body.querySelectorAll('[data-enter]').forEach(b => b.onclick = safe(() => { revisions.save(navigation.rootDoc(), navigation.rootDoc().title, 'subsystem-edit'); navigation.enter(b.dataset.enter); dialog.close(); }));
     } else if (tab === 'review') {
       const findings = reviewFindings(store.doc);
-      body.innerHTML = `<p>${esc(baseline ? tr('Baseline: {title}', { title: baseline.title }) : tr('Choose a revision as the baseline to include a comparison.'))}</p>${act('package', tr('Download review package'))}
+      body.innerHTML = `<p>${esc(baseline ? tr('Baseline: {title}', { title: baseline.title }) : tr('Choose a revision as the baseline to include a comparison.'))}</p>${act('package', tr('Download review package'))}${baseline ? impactSummary(impactAnalysis(baseline,navigation.rootDoc())) : ''}
         <p>${esc(tr('Reviewed exceptions retain the finding and its rationale. They expire when relevant design data changes.'))}</p>
         <ul>${findings.map(f => `<li><strong>${esc(f.level)} · ${esc(f.rule)}</strong> ${esc(f.message)} ${f.exception ? `<p>${esc(f.exception.owner)}: ${esc(f.exception.rationale)}</p>${act('unreview-' + f.id, tr('Remove exception'))}` : `<button data-finding="${esc(f.id)}">${esc(tr('Review exception'))}</button>`}</li>`).join('')}</ul>
         ${selected && findings.some(f => f.id === selected) ? `<form>${input('owner', tr('Reviewer'))}${area('rationale', tr('Exception rationale'))}${submit(tr('Save reviewed exception'))}</form>` : ''}`;
@@ -140,6 +170,7 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
     }
     dialog.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; selected = null; paint(); });
     dialog.querySelectorAll('[data-action]').forEach(b => b.onclick = safe(actions[b.dataset.action] || (() => {})));
+    body.querySelectorAll('[data-impact-id]').forEach(b=>b.onclick=()=>{const id=b.dataset.impactId;if(tab==='review')while(navigation.depth())navigation.up();store.setSelection([id]);paint();});
     body.querySelector('form')?.addEventListener('submit', safe(e => formHandler?.(new FormData(e.currentTarget))));
   }
   button.onclick = () => { paint(); openModal(dialog); };

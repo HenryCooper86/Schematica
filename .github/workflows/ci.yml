@@ -14,6 +14,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Deployment gate and rollback tests
+        run: python3 -m unittest discover -s tests/deploy
       - name: Unit tests
         run: npm test
       - name: Browser smoke test (headless Chrome over the DevTools Protocol)

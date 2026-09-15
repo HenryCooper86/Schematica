@@ -1574,3 +1574,7 @@ html[data-theme="light"] .ai-result.warn { color: #92400e; }
 #engineering-dialog aside { padding:16px;border:2px solid #fbbf24; }
 #engineering-dialog table { width:100%;border-collapse:collapse;margin-top:16px; }
 #engineering-dialog th,#engineering-dialog td { text-align:left;padding:9px;border-bottom:1px solid #667085; }
+
+#engineering-dialog fieldset { min-width:0;border:1px solid #667085;border-radius:6px; }
+#engineering-dialog fieldset label { margin:10px 0; }
+#engineering-dialog input { box-sizing:border-box;max-width:100%; }

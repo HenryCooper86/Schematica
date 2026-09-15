@@ -36,6 +36,7 @@ export function nodeLine(doc, node) {
     const v = node.fields?.[fd.id];
     if (v) s += ` ${fd.id}=${value(v)}`;
   }
+  if (node.interfacePorts) s += ` interfaces=${JSON.stringify(node.interfacePorts)}`;
   if (node.budget) s += ` budget=${JSON.stringify(node.budget)}`;
   if (node.subsystem) s += ` subsystem-parts=${node.subsystem.doc.nodes.length}`;
   if (node.color) s += ` color=${node.color}`;

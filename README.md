@@ -61,7 +61,10 @@ for verified fixes, architectural follow-ups, and proposed engineer workflows.
 The **Engineering** toolbar button opens revisions and recovery, interface
 specifications, requirements and decisions, budget assumptions, reusable
 subsystems, review packages, and experimental KiCad XML netlist import.
-See [engineering workflows and interchange](docs/engineering-workflows.md),
+Change-impact previews, declared interface compatibility checks, and readable
+subsystem review reports support daily design reviews.
+See [the architecture release notes](docs/architecture-release-2026-09-15.md) and
+[engineering workflows and interchange](docs/engineering-workflows.md),
 [measured large-board performance](docs/performance.md), and the
 [engineer validation kit](docs/engineer-study-kit.md).
 

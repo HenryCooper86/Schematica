@@ -103,8 +103,14 @@ Choose a saved revision as a baseline, then **Review package → Download review
 package**. The standalone HTML file includes an offline board viewer and embedded
 board JSON, ICD CSV, BOM CSV, and review JSON with findings, requirements,
 decisions, budget assumptions, and comparison when a baseline is selected.
-The full nested architecture remains in the embedded board file. Review internal
-ICDs by opening/exporting their subsystem in the editor.
+The report presents findings, interfaces, requirements, decisions, power budgets,
+and BOM as readable tables. Its scope selector opens embedded subsystems; finding
+and allocation buttons focus their diagram items. Internal interfaces and endpoint
+limits appear alongside root interfaces. `interfaces-all.csv` adds scope and numeric
+limits; `interfaces.csv` preserves the original focused-root column contract.
+Requirements count as fully allocated only when all targets exist in that scope.
+“Verified with evidence” checks the supplied status, evidence text, and allocations;
+it does not verify the evidence itself. Exported reports currently use English.
 
 A reviewed exception requires a reviewer and rationale. Findings remain in the
 report; an exception is attached rather than deleting or suppressing it. It stops
@@ -116,13 +122,13 @@ fail on errors even if a reviewer has recorded an exception.
 
 Board JSON is the canonical lossless interchange format. Schema 3 adds optional
 `engineering` (requirements, decisions, budget settings, exceptions), wire `spec`,
-node `budget`, and node `subsystem` (embedded `doc` and exposed-port mappings).
+node `budget`, node `interfacePorts`, and node `subsystem` (embedded `doc` and exposed-port mappings).
 Engineering records use `targets` containing stable item IDs.
 
 BOM CSV retains the existing human-facing columns. For stable programmatic BOM
 exchange, use `review.json` → `bom`: part/kind/part-number (`sublabel`), quantity,
 references, addresses, rails, current in mA, statuses, flags, and notes. The review
-format is versioned separately (`format: schematica-review`, `version: 1`).
+format is versioned separately (`format: schematica-review`, `version: 2`).
 
 The KiCad prototype imports **intermediate XML netlists**, not `.kicad_sch`, PCB
 layout, SPICE, or arbitrary `.net` files. Components become custom parts and named
@@ -136,3 +142,51 @@ This follows the documented XML `components/comp` and `nets/net/node` structure:
 [KiCad's official netlist format documentation](https://github.com/KiCad/kicad-doc/blob/master/src/eeschema/eeschema_creating_customized_netlists_and_bom_files.adoc).
 Synthetic multi-drop fixtures and browser XML parsing are tested. A real-team
 fixture trial is still needed before claiming production interchange compatibility.
+
+
+## Structured interface checks
+
+Each connection may declare a minimum/maximum voltage in volts and required
+bandwidth in **bits per second**. Each endpoint may declare direction, operating
+voltage range, maximum bandwidth, supported protocol names, and a source reference.
+An exposed subsystem port edits the declaration on its actual internal endpoint.
+These declarations belong to the individual part instance and port.
+
+- Both voltage bounds are needed for a range comparison. A declared connection
+  range must fit both endpoint ranges. Without a connection range, a source range
+  must fit its receiver's range; bidirectional ranges must fit in both directions.
+- Protocol names match exactly, ignoring case. `I2C` and `I2C v7` are different
+  declarations. The tool does not infer protocol revisions or negotiate a mode.
+- Required connection bandwidth must not exceed either declared endpoint capacity.
+- Direction checks use the connection arrow and endpoint input/output/bidirectional
+  capability. Passive endpoints do not impose a direction restriction.
+- Missing bounds, bandwidth, direction, protocol, or references produce an
+  informational incomplete-compatibility finding after structured checks are opted
+  into by supplying any numeric limit or endpoint declaration. Reversed ranges
+  and nonpositive bandwidth are invalid; negative and bipolar voltage ranges
+  are supported.
+
+These are comparisons of declared operating limits, not signal-integrity, logic
+threshold, absolute-maximum, timing, or protocol-conformance simulation. Textual
+voltage/rate notes remain separate and are not parsed into numeric constraints.
+Legacy ICD CSV edits preserve existing numeric data; use board JSON to transfer
+all declarations losslessly.
+
+## Change impact
+
+**Change impact** previews a part-number or rail change. Direct changes seed a
+review scope through connected parts, connections, and subsystem boundaries.
+The preview lists related requirements/decisions, changes to calculated power,
+and new or changed design findings. Layout-only changes do not seed this analysis.
+Record edits and global budget assumptions also participate in baseline reviews.
+
+**Apply previewed change** saves the displayed proposal in one undo step. A changed
+board invalidates a pending preview. Replacing a part number clears its old current
+fields, budget assumptions, and endpoint declarations. The existing part type and
+ports are provisional; review them against the replacement's datasheet. Changing a
+rail alone retains the part's declarations so incompatibilities remain visible.
+
+Connected items are a conservative review list, not proof of functional impact.
+Requirement statuses and evidence are not automatically invalidated or approved.
+To review a broader edit, save a revision first, make the changes, then use that
+revision as the baseline in **Review package**.

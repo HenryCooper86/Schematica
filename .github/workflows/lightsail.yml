@@ -1,0 +1,50 @@
+name: Deploy Lightsail
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: lightsail-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: lightsail-production
+      url: https://bionicloud.net
+    steps:
+      # No checkout or build artifact executes with the deployment credential.
+      - name: Deploy the CI revision through the restricted server command
+        env:
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+          DEPLOY_KEY: ${{ secrets.LIGHTSAIL_DEPLOY_KEY }}
+          KNOWN_HOSTS: ${{ secrets.LIGHTSAIL_KNOWN_HOSTS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test -n "$DEPLOY_KEY"
+          test -n "$KNOWN_HOSTS"
+          umask 077
+          key="$RUNNER_TEMP/lightsail-key"
+          hosts="$RUNNER_TEMP/lightsail-hosts"
+          trap 'rm -f "$key" "$hosts"' EXIT
+          printf '%s\n' "$DEPLOY_KEY" > "$key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$hosts"
+          unset DEPLOY_KEY KNOWN_HOSTS
+          printf '%s\n' "$RELEASE_SHA" | ssh -T -i "$key" \
+            -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$hosts" -o ConnectTimeout=20 \
+            -o ServerAliveInterval=15 -o ServerAliveCountMax=20 \
+            ubuntu@18.226.225.37

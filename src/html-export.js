@@ -213,6 +213,17 @@ function offlineViewer(data, focusGraph, makePlayback, nextPosition, readMoment)
     else { clearStory(); paint(); view(data.bounds); }
   }
   restoreMoment(); window.addEventListener('hashchange',restoreMoment);
+  // A review package can focus its read-only child viewer. No document edits or data transmission.
+  window.addEventListener('message',event=>{
+    if(event.source!==window.parent||event.data?.type!=='schematica-review-focus'||!Array.isArray(event.data.ids))return;
+    const ids=event.data.ids.filter(id=>typeof id==='string'&&(data.doc.nodes.some(n=>n.id===id)||data.doc.wires.some(w=>w.id===id)));
+    clearStory();selected.clear();bus.value='';connections.value='all';
+    if(!ids.length){paint();view(data.bounds);return;}
+    const nodes=new Set(ids);for(const wire of data.doc.wires)if(ids.includes(wire.id)){nodes.add(wire.from.node);nodes.add(wire.to.node);}
+    story=[...new Set([...ids,...nodes])];paint();
+    const rects=data.nodes.filter(n=>nodes.has(n.id)).map(n=>n.rect);
+    if(rects.length){const x=Math.min(...rects.map(r=>r.x)),y=Math.min(...rects.map(r=>r.y));frame({x,y,w:Math.max(...rects.map(r=>r.x+r.w))-x,h:Math.max(...rects.map(r=>r.y+r.h))-y});}
+  });
 }
 
 export function buildHTML(doc, options = {}) {

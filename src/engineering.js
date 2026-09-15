@@ -1,5 +1,6 @@
+import { normalizeConstraints, interfaceCompatibility } from './interface-checks.js';
 // Portable engineering records. These live in the document, never in settings.
-import { partOf } from './custom.js';
+import { nodePart } from './rdk/profiles.js';
 import { toCSV, parseCSV } from './tabular.js';
 import { tr } from './i18n.js';
 
@@ -9,7 +10,7 @@ export const refs = value => Array.isArray(value) ? [...new Set(value.filter(v =
 export function normalizeSpec(raw) {
   if (!object(raw)) return undefined;
   return { direction: ['from-to', 'to-from', 'bidirectional'].includes(raw.direction) ? raw.direction : '',
-    voltage: text(raw.voltage), protocol: text(raw.protocol), rate: text(raw.rate), source: text(raw.source) };
+    voltage: text(raw.voltage), protocol: text(raw.protocol), rate: text(raw.rate), source: text(raw.source), ...normalizeConstraints(raw) };
 }
 export function normalizeBudget(raw) {
   if (!object(raw)) return undefined;
@@ -50,12 +51,12 @@ export function interfaceRows(doc) {
   const nodes = new Map(doc.nodes.map(n => [n.id, n]));
   const endpoint = ref => {
     const node = nodes.get(ref.node);
-    const port = node && partOf(node).ports.find(p => p.id === ref.port);
+    const port = node && nodePart(node).ports.find(p => p.id === ref.port);
     return `${node?.label || ref.node}.${port?.name || ref.port}`;
   };
   return [...doc.wires].sort((a, b) => a.id.localeCompare(b.id)).map(w => ({
     id: w.id, from: endpoint(w.from), to: endpoint(w.to), bus: w.bus,
-    ...(normalizeSpec(w.spec) || { direction: w.arrow === 'both' ? 'bidirectional' : w.arrow === 'fwd' ? 'from-to' : '', voltage: '', protocol: '', rate: '', source: '' }),
+    ...(normalizeSpec(w.spec) || { direction: w.arrow === 'both' ? 'bidirectional' : w.arrow === 'fwd' ? 'from-to' : w.arrow === 'back' ? 'to-from' : '', voltage: '', protocol: '', rate: '', source: '' }),
   }));
 }
 export const ICD_COLUMNS = ['id', 'from', 'to', 'bus', 'direction', 'voltage', 'protocol', 'rate', 'source'];
@@ -74,7 +75,7 @@ export function importInterfaces(doc, csv) {
     if (!existing || patches.has(row.id)) throw new Error('Unknown or duplicate interface ID: ' + row.id);
     if (['from', 'to', 'bus'].some(k => row[k] !== existing[k])) throw new Error('Interface endpoints or bus differ: ' + row.id);
     if (row.direction && !['from-to', 'to-from', 'bidirectional'].includes(row.direction)) throw new Error('Invalid interface direction: ' + row.id);
-    patches.set(row.id, normalizeSpec(row));
+    patches.set(row.id, normalizeSpec({ ...doc.wires.find(w=>w.id===row.id).spec, ...row }));
   }
   for (const wire of doc.wires) if (patches.has(wire.id)) {
     wire.spec = patches.get(wire.id);
@@ -84,7 +85,7 @@ export function importInterfaces(doc, csv) {
 }
 
 export function engineeringChecks(doc) {
-  const findings = [];
+  const findings = interfaceCompatibility(doc);
   const ids = new Set([...doc.nodes, ...doc.wires, ...(doc.zones || []), ...(doc.notes || [])].map(i => i.id));
   if (doc.engineering?.interfacesRequired) for (const row of interfaceRows(doc)) {
     const missing = ['direction', 'voltage', 'protocol', 'rate', 'source'].filter(key => !row[key].trim());

@@ -1,3 +1,4 @@
+import { runEngineeringNextChecks } from './engineering-next.mjs';
 export async function runEngineeringChecks({ js, key, check, sleep }) {
   await js(`(async()=>{const {Store,addNode,addWire}=await import('/src/state.js');const s=new Store();s.doc.title='Engineering test';const a=addNode(s,'mcu',0,0),b=addNode(s,'temp',400,0);addWire(s,'i2c',{node:a,port:'i2c'},{node:b,port:'i2c'});const dt=new DataTransfer();dt.items.add(new File([JSON.stringify(s.doc)],'test.json'));const input=document.getElementById('file-input');input.files=dt.files;input.dispatchEvent(new Event('change'));})()`);
   await sleep(200);
@@ -41,4 +42,5 @@ export async function runEngineeringChecks({ js, key, check, sleep }) {
   await js(`document.querySelector('[data-action=keep]').click();true`);
   check('keeping local version restores its autosave without losing the other snapshot',await js(`JSON.parse(localStorage.getItem('schematica.autosave')).title==='Engineering test'&&[...document.querySelectorAll('#engineering-body li')].some(li=>li.textContent.includes('Other tab'))`));
   await js(`document.querySelector('[data-action=close]').click();true`);
+  await runEngineeringNextChecks({js,key,check,sleep});
 }

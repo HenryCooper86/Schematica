@@ -54,3 +54,30 @@ is visible in measured tasks. These are proposed pilot criteria, not results.
 Keep real-team fixture compatibility and target-device performance as explicit
 release gates. Recruit/contact participants only through an agreed channel with
 identified recipients; this document itself does not send invitations.
+
+
+## Next session: interface changes and review handoff
+
+Use the new release for the following measured tasks within the existing session:
+
+1. Declare a 3.0–3.6 V, 400,000 bit/s I2C connection and its two endpoint limits.
+   Lower one endpoint to 100,000 bit/s. Ask the participant to explain the finding.
+2. Preview a replacement part and identify the directly changed item, connected
+   items, and requirements that need review. Apply, undo, and verify recovery.
+3. Export a report containing a subsystem. Ask the recipient to find an internal
+   interface, open its diagram, and distinguish missing declarations from errors.
+
+Record whether each participant understands the limits of declared-data checks,
+conservative change scope, and evidence-presence counts without prompting. Treat
+misinterpreting these as electrical validation as a usability finding.
+
+### Invitation template (not sent)
+
+> We're testing Schematica with practicing embedded and system architects. Would
+> you join a 45-minute session to create a small architecture, review a part/interface
+> change, and hand off a report? Please bring an anonymized example if permitted.
+> We will record task timing and usability notes; recording a call is optional and
+> requires your agreement. Please suggest a time and your preferred meeting channel.
+
+Scheduling remains pending until five participants and a contact channel are
+identified. Automated browser tests do not substitute for participant results.

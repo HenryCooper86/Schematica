@@ -1,3 +1,4 @@
+import { normalizeInterfacePorts } from './interface-checks.js';
 import { normalizeSpec, normalizeBudget, normalizeEngineering } from './engineering.js';
 import { normalizeTargets, normalizeStops } from './journey.js';
 import { knownPorts } from './rdk/profiles.js';
@@ -188,6 +189,8 @@ export function deserialize(text, { depth = 0 } = {}) {
       node.x = coord(node.x + (coord(n.w) - w) / 2);
       node.y = coord(node.y + (coord(n.h) - h) / 2);
     }
+    const interfacePorts = normalizeInterfacePorts(n.interfacePorts);
+    if (interfacePorts) node.interfacePorts = interfacePorts;
     const budget = normalizeBudget(n.budget);
     if (budget) node.budget = budget;
     if (n.subsystem && typeof n.subsystem === 'object' && n.subsystem.doc) {
