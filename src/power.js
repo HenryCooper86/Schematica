@@ -137,7 +137,10 @@ export function partCurrents(node, mode = 'active') {
   if (b && mode === 'average') {
     typical = b.activeMa != null && b.sleepMa != null && b.dutyPercent != null
       ? (b.activeMa * b.dutyPercent + b.sleepMa * (100 - b.dutyPercent)) / 100 : undefined;
-    peak = b.activePeakMa ?? b.activeMa;
+    // A sleep-state burst can exceed the active peak. The duty average does
+    // not reduce instantaneous peak demand, and absent data stays unknown.
+    const peaks = [b.activePeakMa ?? b.activeMa, b.sleepPeakMa ?? b.sleepMa].filter(v => v != null);
+    peak = peaks.length ? Math.max(...peaks) : undefined;
   }
   const modeSpecific = b && mode !== 'active';
   return {

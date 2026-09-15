@@ -63,6 +63,8 @@ The **Budget assumptions** tab adds per-part active/sleep currents and peaks,
 active duty percentage, and converter input/output voltage and efficiency.
 The board selects active, sleep, or duty-weighted-average mode. Peak scenarios
 can sum all peaks or assume only one excursion above typical current at a time.
+Average mode uses the higher declared active/sleep peak (or that state's typical
+current when its peak is blank); duty percentage does not reduce peak demand.
 
 Reference calculations covered by tests:
 
@@ -185,6 +187,9 @@ board invalidates a pending preview. Replacing a part number clears its old curr
 fields, budget assumptions, and endpoint declarations. The existing part type and
 ports are provisional; review them against the replacement's datasheet. Changing a
 rail alone retains the part's declarations so incompatibilities remain visible.
+The Properties editor and assistant part-number edits apply the same reset. An
+assistant edit can supply fresh fields with the replacement; old fields are not
+merged into them. Undo restores the previous declarations.
 
 Connected items are a conservative review list, not proof of functional impact.
 Requirement statuses and evidence are not automatically invalidated or approved.

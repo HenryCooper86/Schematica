@@ -2,6 +2,7 @@
 // their English names. Grouped by the surface that shows them. Identity
 // entries mark Latin terms that stay Latin on purpose.
 export default {
+  'Changing the part number clears its old ratings and fields. Undo restores them.': '更改型号会清除原有额定值和字段。撤销可恢复它们。',
   "Interface {id}: {detail}": "接口 {id}：{detail}",
   "Declared interface limits are invalid.": "声明的接口限制无效。",
   "Connection direction conflicts with a declared endpoint direction.": "连接方向与声明的端点方向冲突。",

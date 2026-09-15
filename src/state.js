@@ -1,3 +1,4 @@
+import { partChangePatch } from './part-change.js';
 import { selectedEngineering, mergeEngineering } from './engineering.js';
 import { getPart } from './palette.js';
 import { normalizePart, partOf } from './custom.js';
@@ -272,7 +273,8 @@ export function updateItem(store, id, props) {
     const found = findItem(doc, id);
     if (!found) return;
     if (found.type === 'wire' && found.item.spec && Object.hasOwn(props, 'arrow')) found.item.spec.direction = ({ fwd: 'from-to', back: 'to-from', both: 'bidirectional' })[props.arrow] || '';
-    for (const [key, value] of Object.entries(props)) {
+    const patch = found.type === 'node' ? partChangePatch(found.item, props) : props;
+    for (const [key, value] of Object.entries(patch)) {
       if (value === undefined) delete found.item[key];
       else found.item[key] = value;
     }

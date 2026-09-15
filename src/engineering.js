@@ -87,7 +87,9 @@ export function importInterfaces(doc, csv) {
 export function engineeringChecks(doc) {
   const findings = interfaceCompatibility(doc);
   const ids = new Set([...doc.nodes, ...doc.wires, ...(doc.zones || []), ...(doc.notes || [])].map(i => i.id));
-  if (doc.engineering?.interfacesRequired) for (const row of interfaceRows(doc)) {
+  const requiredInterfaces = new Set(doc.wires.filter(w => w.interfacesRequired).map(w => w.id));
+  for (const row of interfaceRows(doc)) {
+    if (!doc.engineering?.interfacesRequired && !requiredInterfaces.has(row.id)) continue;
     const missing = ['direction', 'voltage', 'protocol', 'rate', 'source'].filter(key => !row[key].trim());
     if (missing.length) findings.push({ rule: 'interface-incomplete', level: 'warning', ids: [row.id],
       message: tr('Interface {id} is missing: {fields}.', { id: row.id, fields: missing.join(', ') }) });

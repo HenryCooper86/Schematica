@@ -5,7 +5,8 @@ export function analysisDoc(source) {
   const out = { ...source, nodes: [], wires: [], zones: [], notes: [], journey: [] };
   const records = { requirements: [], decisions: [] };
   const idAt = (path, id) => JSON.stringify([...path, id]);
-  function walk(doc, path, owner, offset, labels) {
+  function walk(doc, path, owner, offset, labels, inheritedInterfacesRequired = false) {
+    const interfacesRequired = inheritedInterfacesRequired || doc.engineering?.interfacesRequired === true;
     const mapped = new Map();
     const resolve = (ref, scope = doc, currentPath = path) => {
       const node = scope.nodes.find(n => n.id === ref.node);
@@ -17,7 +18,7 @@ export function analysisDoc(source) {
       const id = idAt(path, n.id), selectionId = owner || n.id;
       if (n.subsystem) {
         const start = out.nodes.length;
-        walk(n.subsystem.doc, [...path, n.id], selectionId, { x: offset.x + n.x, y: offset.y + n.y }, [...labels, n.label]);
+        walk(n.subsystem.doc, [...path, n.id], selectionId, { x: offset.x + n.x, y: offset.y + n.y }, [...labels, n.label], interfacesRequired);
         mapped.set(n.id, out.nodes.slice(start).map(n => n.id));
         // Keep a fallback vertex only for unresolved outer ports.
         if (doc.wires.some(w => [w.from, w.to].some(r => r.node === n.id && !n.subsystem.exposed.some(p => p.port === r.port)))) {
@@ -30,7 +31,8 @@ export function analysisDoc(source) {
     }
     for (const w of doc.wires) {
       const id = idAt(path, w.id); mapped.set(w.id, [id]);
-      out.wires.push({ ...w, id, selectionId: owner || w.id, from: resolve(w.from), to: resolve(w.to) });
+      // Analysis-only metadata keeps each scope's checking policy with its wires.
+      out.wires.push({ ...w, id, selectionId: owner || w.id, from: resolve(w.from), to: resolve(w.to), ...(interfacesRequired ? { interfacesRequired: true } : {}) });
     }
     for (const kind of ['zones', 'notes']) for (const item of doc[kind] || []) {
       const id = idAt(path, item.id); mapped.set(item.id, [id]);

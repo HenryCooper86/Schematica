@@ -137,7 +137,9 @@ function partNumberField(item) {
     + ` value="${escAttr(item.sublabel)}"${presets.length ? ' list="preset-list"' : ''}>`
     + (presets.length ? `<datalist id="preset-list">${presets.map((p) => (
       `<option value="${escAttr(p.sublabel)}">${escAttr(p.name)}</option>`
-    )).join('')}</datalist>` : ''));
+    )).join('')}</datalist>` : ''))
+    + (item.budget || item.interfacePorts || Object.keys(item.fields || {}).length
+      ? `<p class="align-hint">${escAttr(tr('Changing the part number clears its old ratings and fields. Undo restores them.'))}</p>` : '');
 }
 
 function addrRailFields(item) {

@@ -1,3 +1,4 @@
+import { partChangePatch } from '../part-change.js';
 import { nodePart, profileFor } from '../rdk/profiles.js';
 // Edit operations: the only way the assistant changes a board. A batch is
 // applied to a working copy and reaches the document only if every
@@ -185,7 +186,8 @@ function nodePatch(ctx, part, op, node) {
   if (op.fields !== undefined) {
     if (!op.fields || typeof op.fields !== 'object' || Array.isArray(op.fields)) fail('fields must be an object of strings');
     if (!part.fields) fail(`${part.name} has no schema fields`);
-    const merged = { ...(node?.fields || {}) };
+    const replacing = Object.hasOwn(patch, 'sublabel') && patch.sublabel !== node?.sublabel;
+    const merged = replacing ? {} : { ...(node?.fields || {}) };
     for (const [k, v] of Object.entries(op.fields)) {
       const fd = part.fields.find((f) => f.id === k);
       if (!fd) fail(`unknown field "${k}" on ${part.name}; fields: ${part.fields.map((f) => f.id).join(', ')}`);
@@ -206,8 +208,9 @@ function nodePatch(ctx, part, op, node) {
 
 // Null disposition and empty fields are absent keys, as in a saved file.
 function assignPatch(node, patch) {
-  for (const [k, v] of Object.entries(patch)) {
-    if (k === 'disposition' && v === null) delete node.disposition;
+  for (const [k, v] of Object.entries(partChangePatch(node, patch))) {
+    if (v === undefined) delete node[k];
+    else if (k === 'disposition' && v === null) delete node.disposition;
     else if (k === 'fields' && !Object.keys(v).length) delete node.fields;
     else if (k === 'locked') setLocked(node, v);
     else node[k] = v;
@@ -506,6 +509,8 @@ HANDLERS.replace_part = (ctx, op) => {
     else delete node.fields;
   }
   node.kind = part.kind;
+  delete node.budget;
+  delete node.interfacePorts;
   delete node.part;
   const counts = rewireNode(ctx, node, oldPart, part);
   ctx.touched.add(node.id);

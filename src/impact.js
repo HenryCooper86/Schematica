@@ -1,3 +1,4 @@
+import { partChangePatch } from './part-change.js';
 import { architectureScopes, scopedId } from './architecture-scopes.js';
 import { checkDoc } from './drc.js';
 import { powerSummary } from './power.js';
@@ -161,13 +162,13 @@ export function proposePartChange(doc, { id, partNumber, rail }) {
   const proposal = structuredClone(doc),
     node = proposal.nodes.find((n) => n.id === id);
   if (!node || node.locked) throw new Error('Choose an unlocked part');
-  const replacement = partNumber !== node.sublabel;
-  node.sublabel = String(partNumber).slice(0, 20000);
-  node.rail = String(rail).slice(0, 20000);
-  if (replacement) {
-    delete node.budget;
-    delete node.interfacePorts;
-    node.fields = {};
+  const patch = partChangePatch(node, {
+    sublabel: String(partNumber).slice(0, 20000),
+    rail: String(rail).slice(0, 20000),
+  });
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === undefined) delete node[key];
+    else node[key] = value;
   }
   return proposal;
 }
