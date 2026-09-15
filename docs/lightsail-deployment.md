@@ -13,7 +13,11 @@ GitHub Actions deploys a successful `CI` push run on `main` through
 [the Lightsail workflow](../.github/workflows/lightsail.yml). The server separately
 checks that the requested hash is still `main` and that its latest CI run succeeded.
 It checks again after building/testing, before activation. Each release's `REVISION`
-file records the full hash. GitHub Pages continues to publish from `main` separately.
+file records the full hash. GitHub Pages publishes from `main` separately through
+[the Pages workflow](../.github/workflows/pages.yml), with GitHub Actions selected
+as its publishing source. Its `revision.json` records the published commit. All
+three workflows use the explicit Ubuntu 22.04 runner pool after the default pool
+left builds queued without assigning a runner on 15 September 2026.
 
 The workflow uses a dedicated SSH key with a forced deployment command, no shell,
 no forwarding, and a pinned server host key. The operator's administrative key is
