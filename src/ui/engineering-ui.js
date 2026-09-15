@@ -34,6 +34,7 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
   function paint() {
     labelButton();
     const names = labels();
+    dialog.dataset.section = tab;
     dialog.innerHTML = `<header><h2 id="engineering-heading">${esc(tr('Engineering'))}</h2><button data-action="close">${esc(tr('Close'))}</button></header>
       <nav aria-label="${esc(tr('Engineering sections'))}">${Object.entries(names).map(([id, name]) => `<button data-tab="${id}" aria-pressed="${tab === id}">${esc(name)}</button>`).join('')}</nav>
       <p>${esc(store.doc.title)}${navigation.depth() ? ' · ' + esc(tr('Expanded subsystem')) : ''}</p><section id="engineering-body"></section>`;

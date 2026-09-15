@@ -1559,22 +1559,107 @@ html[data-theme="light"] .ai-result.warn { color: #92400e; }
 #present-overlay { max-height: 48dvh; overflow-y: auto; }
 #examples-menu button small { color: var(--muted); font-size: 10px; margin-left: 6px; }
 
-/* Engineering workspace: one keyboard-accessible dialog for durable records. */
-#engineering-dialog { width:min(1000px,94vw);max-height:90vh;overflow:auto;background:var(--panel,#182130);color:var(--text,#e5eaf2);border:1px solid #667085;border-radius:12px;padding:24px; }
-#engineering-dialog::backdrop { background:#0009; }
-#engineering-dialog header { display:flex;align-items:center;justify-content:space-between;gap:16px; }
-#engineering-dialog nav { display:flex;gap:6px;flex-wrap:wrap;margin:12px 0; }
-#engineering-dialog button { padding:8px 12px;margin:3px; }
-#engineering-dialog [aria-pressed=true] { outline:2px solid #38bdf8; }
-#engineering-dialog form { display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin:20px 0; }
-#engineering-dialog label { display:flex;flex-direction:column;gap:6px; }
-#engineering-dialog input,#engineering-dialog select,#engineering-dialog textarea { padding:9px;min-width:0;color:inherit;background:var(--bg,#101722);border:1px solid #667085;border-radius:5px; }
-#engineering-dialog ul { padding-left:20px; } #engineering-dialog li { margin:14px 0; }
-#engineering-dialog pre { white-space:pre-wrap;overflow-wrap:anywhere;max-height:380px;overflow:auto; }
-#engineering-dialog aside { padding:16px;border:2px solid #fbbf24; }
-#engineering-dialog table { width:100%;border-collapse:collapse;margin-top:16px; }
-#engineering-dialog th,#engineering-dialog td { text-align:left;padding:9px;border-bottom:1px solid #667085; }
-
-#engineering-dialog fieldset { min-width:0;border:1px solid #667085;border-radius:6px; }
-#engineering-dialog fieldset label { margin:10px 0; }
-#engineering-dialog input { box-sizing:border-box;max-width:100%; }
+/* Engineering uses the same surface, field, and control tokens as the other dialogs. */
+#engineering-dialog {
+  width: min(1000px, calc(100vw - 32px));
+  max-width: none;
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  background: var(--bg1);
+  color: var(--text);
+  border: 1px solid var(--line2);
+  border-radius: 14px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .6);
+  overflow: hidden;
+  font: inherit;
+}
+#engineering-dialog[open] { display: flex; flex-direction: column; }
+#engineering-dialog::backdrop { background: rgba(4, 6, 12, .6); }
+#engineering-dialog header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 18px 22px 12px; flex: none;
+}
+#engineering-dialog h2 { margin: 0; font-size: 15px; font-weight: 700; }
+#engineering-dialog nav {
+  display: flex; flex-wrap: wrap; gap: 5px; padding: 0 22px 14px;
+  border-bottom: 1px solid var(--line); flex: none;
+}
+#engineering-dialog button, #engineering-dialog input::file-selector-button {
+  background: var(--bg2); border: 1px solid var(--line); color: var(--muted);
+  border-radius: 8px; padding: 7px 11px; margin: 0;
+  font: inherit; font-size: 12.5px; line-height: 1.4; cursor: pointer;
+}
+#engineering-dialog button:hover:not(:disabled),
+#engineering-dialog input::file-selector-button:hover { color: var(--text); border-color: var(--line2); background: var(--bg3); }
+#engineering-dialog button:disabled { opacity: .4; cursor: default; }
+#engineering-dialog nav button { background: transparent; border-color: transparent; }
+#engineering-dialog nav [aria-pressed=true] {
+  color: var(--accent); background: var(--accent-dim); border-color: var(--accent);
+}
+#engineering-dialog button[type=submit],
+#engineering-dialog [data-action=apply-preview],
+#engineering-dialog [data-action=package] {
+  background: var(--accent-dim); border-color: var(--accent); color: var(--text);
+}
+#engineering-dialog :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#engineering-dialog > p {
+  margin: 0; padding: 10px 22px; color: var(--muted); background: var(--bg0);
+  border-bottom: 1px solid var(--line); font-size: 12px; flex: none;
+}
+#engineering-body { padding: 18px 22px 22px; overflow: auto; min-height: 0; user-select: text; -webkit-user-select: text; }
+#engineering-body p { margin: 0 0 14px; font-size: 12.5px; line-height: 1.6; color: var(--muted); }
+#engineering-body h3 { font-size: 14px; margin: 18px 0 10px; }
+#engineering-body h4, #engineering-dialog legend {
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--muted);
+}
+#engineering-dialog form {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px;
+  margin: 0 0 18px; align-items: start;
+}
+#engineering-dialog form > button { align-self: end; justify-self: start; }
+#engineering-dialog form > label:has(textarea),
+#engineering-dialog form > label:has(select[multiple]),
+#engineering-dialog form > p { grid-column: 1 / -1; }
+#engineering-dialog label { display: flex; flex-direction: column; gap: 7px; min-width: 0; font-size: 12px; color: var(--muted); }
+#engineering-dialog label:has(input[type=checkbox]) { flex-direction: row; align-items: center; margin-bottom: 16px; }
+#engineering-dialog input, #engineering-dialog select, #engineering-dialog textarea {
+  width: 100%; min-width: 0; max-width: 100%; padding: 8px 10px;
+  color: var(--text); background: var(--bg0); border: 1px solid var(--line);
+  border-radius: 8px; font: inherit; font-size: 12.5px; line-height: 1.4;
+}
+#engineering-dialog textarea { resize: vertical; min-height: 80px; }
+#engineering-dialog input[type=number] { font-family: var(--mono); }
+#engineering-dialog input[type=checkbox] { width: auto; margin: 0; accent-color: var(--accent); }
+#engineering-dialog input[type=file] { padding: 7px; }
+#engineering-dialog input::file-selector-button { margin-right: 10px; }
+#engineering-dialog input:focus, #engineering-dialog select:focus, #engineering-dialog textarea:focus { border-color: var(--accent); }
+#engineering-dialog fieldset { min-width: 0; margin: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; }
+#engineering-dialog legend { padding: 0 5px; }
+#engineering-dialog fieldset label + label { margin-top: 12px; }
+#engineering-dialog[data-section=interfaces] fieldset:first-of-type { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+#engineering-dialog[data-section=interfaces] fieldset:first-of-type label { margin: 0; }
+#engineering-dialog[data-section=revisions] form { grid-template-columns: minmax(0, 1fr) auto; max-width: 660px; align-items: end; }
+#engineering-dialog[data-section=interchange] #engineering-body > label { margin: 16px 0; }
+#engineering-dialog:is([data-section=requirements], [data-section=decisions]) #engineering-body > div { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+#engineering-dialog ul { list-style: none; padding: 0; margin: 14px 0; }
+#engineering-dialog li { padding: 12px; margin: 8px 0; background: var(--bg2); border: 1px solid var(--line); border-radius: 8px; font-size: 12.5px; line-height: 1.6; overflow-wrap: anywhere; }
+#engineering-dialog li button { margin: 4px 3px 0 0; }
+#engineering-dialog time { color: var(--muted); font-size: 11px; margin: 0 8px; }
+#engineering-dialog pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 380px; overflow: auto; }
+#engineering-dialog aside { padding: 14px; border: 1px solid var(--accent); background: var(--accent-dim); border-radius: 10px; margin-bottom: 16px; }
+#engineering-dialog table { display: block; width: 100%; overflow-x: auto; border-collapse: collapse; margin: 14px 0; font-size: 12px; }
+#engineering-dialog th, #engineering-dialog td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+#engineering-dialog th { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+#engineering-dialog td { overflow-wrap: anywhere; }
+#engineering-dialog #impact-preview { border-top: 1px solid var(--line); padding-top: 16px; }
+#engineering-dialog #impact-preview:empty { display: none; }
+@media (max-width: 620px) {
+  #engineering-dialog { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); }
+  #engineering-dialog header { padding: 14px 14px 10px; }
+  #engineering-dialog nav { padding: 0 14px 12px; gap: 4px; }
+  #engineering-dialog nav button { padding: 6px 8px; font-size: 12px; }
+  #engineering-dialog > p { padding: 9px 14px; }
+  #engineering-body { padding: 14px; }
+  #engineering-dialog form, #engineering-dialog[data-section=revisions] form,
+  #engineering-dialog[data-section=interfaces] fieldset:first-of-type { grid-template-columns: minmax(0, 1fr); }
+}
