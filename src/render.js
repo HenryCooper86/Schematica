@@ -1,3 +1,4 @@
+import { sceneIndex } from './scene-index.js';
 import { connectionFocus, readingDepth } from './explore.js';
 import { displayPart, nodePart } from './rdk/profiles.js';
 import { tr, trd } from './i18n.js';
@@ -362,14 +363,15 @@ function nodeMarkup(node, selected, ui, animating, now, wires) {
 
 const geoData = (geo) => [geo.p1, geo.c1, geo.c2, geo.p2].map((p) => `${p.x},${p.y}`).join(',');
 
-function wireMarkup(byId, wire, lane, selected, ui, animating, now) {
+function wireMarkup(index, wire, lane, selected, ui, animating, now) {
+  const { byId, rects } = index;
   const a = byId.get(wire.from.node);
   const b = byId.get(wire.to.node);
   if (!a || !b) return '';
   const invalid = !nodePart(a).ports.some((p) => p.id === wire.from.port)
     || !nodePart(b).ports.some((p) => p.id === wire.to.port);
   const bus = BUSES[wire.bus] || BUSES.gpio;
-  const geo = wireGeom(nodeRect(a), nodeRect(b), lane);
+  const geo = wireGeom(rects.get(a.id), rects.get(b.id), lane);
   const sneak = wire.style === 'sneakernet';
   // Per-wire override: 'on' animates even with the global toggle off, 'off'
   // never animates, null follows the toggle. Traffic on an air gap is a pair
@@ -388,7 +390,7 @@ function wireMarkup(byId, wire, lane, selected, ui, animating, now) {
     + (dash ? ` stroke-dasharray="${dash}"` : '')
     + (flowing && now != null ? ` stroke-dashoffset="${flowOffset(now)}"` : '')
     + (wire.arrow === 'fwd' || wire.arrow === 'both' ? ' marker-end="url(#arrow)"' : '')
-    + (wire.arrow === 'both' ? ' marker-start="url(#arrow)"' : '')
+    + (wire.arrow === 'both' || wire.arrow === 'back' ? ' marker-start="url(#arrow)"' : '')
     + ' pointer-events="none"/>';
   if (wants && sneak) {
     for (let j = 0; j < 3; j++) {
@@ -542,11 +544,11 @@ export function diagramMarkup(doc, ui = {}) {
   const sel = ui.selection || new Set();
   const animating = !!ui.animate;
   const now = Number.isFinite(ui.now) ? ui.now : null;
-  const byId = new Map(doc.nodes.map((n) => [n.id, n]));
-  const lanes = wireLanes(doc.wires);
+  const index = sceneIndex(doc);
+  const { lanes, incident } = index;
   const zones = doc.zones.map((z) => zoneMarkup(z, sel.has(z.id))).join('');
-  const wires = doc.wires.map((w) => wireMarkup(byId, w, lanes.get(w.id) || 0, sel.has(w.id), ui, animating, now)).join('');
-  const nodes = doc.nodes.map((n) => nodeMarkup(n, sel.has(n.id), ui, animating, now, doc.wires)).join('');
+  const wires = doc.wires.map((w) => wireMarkup(index, w, lanes.get(w.id) || 0, sel.has(w.id), ui, animating, now)).join('');
+  const nodes = doc.nodes.map((n) => nodeMarkup(n, sel.has(n.id), ui, animating, now, incident.get(n.id))).join('');
   const notes = doc.notes.map((n) => noteMarkup(n, sel.has(n.id))).join('');
   return `<g class="layer-zones">${zones}</g><g class="layer-wires">${wires}</g>`
     + `<g class="layer-nodes">${nodes}</g><g class="layer-notes">${notes}</g>`;

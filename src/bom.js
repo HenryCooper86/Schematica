@@ -1,3 +1,5 @@
+import { analysisDoc } from './analysis-doc.js';
+import { csvCell } from './tabular.js';
 // Bill of materials: pure derivation from a document; the column headers and
 // the catalogue part names are language-dependent.
 
@@ -13,11 +15,12 @@ export const bomHeaders = () => [tr('Part'), tr('Part number'), tr('Qty'), tr('R
 const partName = (row) => (row.kind === 'custom' ? row.part : trd(row.part));
 
 export function buildBOM(doc) {
+  doc = analysisDoc(doc);
   const groups = new Map();
   for (const node of doc.nodes) {
     const part = partOf(node);
     // Copies of one library template are one line; a one-off groups by name.
-    const key = part.custom ? `custom:${part.lib || part.name}|${node.sublabel}` : `${node.kind}|${node.sublabel}`;
+    const key = JSON.stringify([node.kind, part.custom ? part.lib || part.name : null, node.sublabel]);
     let g = groups.get(key);
     if (!g) {
       g = {
@@ -39,7 +42,7 @@ export function buildBOM(doc) {
       groups.set(key, g);
     }
     g.qty += 1;
-    const { typicalMa, peakMa } = partCurrents(node);
+    const { typicalMa, peakMa } = partCurrents(node, doc.engineering?.budget?.mode);
     const ma = typicalMa ?? peakMa;
     if (ma != null) g.currentMa = (g.currentMa ?? 0) + ma;
     g.refs.push(node.label);
@@ -60,12 +63,6 @@ export function buildBOM(doc) {
 // a tab or return that lets one hide behind whitespace) is prefixed with an
 // apostrophe, the convention spreadsheets read as "this is text", and quoted
 // so the apostrophe survives the CSV parser.
-function csvCell(v) {
-  const s = String(v ?? '');
-  const formula = /^[=+\-@\t\r]/.test(s);
-  const text = formula ? `'${s}` : s;
-  return formula || /[",\n\r]/.test(s) ? `"${text.replace(/"/g, '""')}"` : text;
-}
 
 // What the board declares it draws, across every line. Null when no part on
 // the board states a current at all, in which case no total row is written.
@@ -118,19 +115,19 @@ export function bomMarkdown(rows) {
 // each cell that states a capacity would last on the rail it feeds. Both are
 // arithmetic on declared figures, not a model of the board's behaviour.
 export function bomSummary(doc) {
+  doc = analysisDoc(doc);
   const lines = [];
-  const total = declaredTypicalMa(doc.nodes);
+  const total = declaredTypicalMa(doc.nodes, doc.engineering?.budget?.mode);
   if (total != null) lines.push(tr('Declared typical current: {total}.', { total: formatCurrent(total) }));
   for (const rail of powerRails(doc)) {
+    if (rail.unknown) continue;
     for (const source of rail.sources) {
       const hours = runtimeHours(source.currents.capacityMah, rail.typicalMa);
       if (hours == null) continue;
-      lines.push(tr('{label} at {capacity}: about {hours} h at a continuous {draw}, ignoring duty cycle and efficiency.', {
-        label: source.node.label,
-        capacity: formatCapacity(source.currents.capacityMah),
-        hours: formatHours(hours),
-        draw: formatCurrent(rail.typicalMa),
-      }));
+      const vars = { label: source.node.label, capacity: formatCapacity(source.currents.capacityMah), hours: formatHours(hours), draw: formatCurrent(rail.typicalMa) };
+      lines.push(doc.engineering?.budget || doc.nodes.some(n => n.budget)
+        ? tr('{label}: about {hours} h at {draw} under the selected operating and conversion assumptions.', vars)
+        : tr('{label} at {capacity}: about {hours} h at a continuous {draw}, ignoring duty cycle and efficiency.', vars));
     }
   }
   return lines;

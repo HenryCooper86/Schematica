@@ -184,7 +184,7 @@ function wireFields(item) {
     `<option value="${b}"${b === item.bus ? ' selected' : ''}>${trd(BUSES[b].name)}</option>`).join('');
   let html = propField(tr('Bus type'), `<select data-prop="bus">${options}</select>`);
   html += propField(tr('Label (blank = bus name)'), `<input type="text" data-prop="label" value="${escAttr(item.label)}">`);
-  const ARROWS = [[null, tr('None')], ['fwd', tr('→ To')], ['both', tr('↔ Both')]];
+  const ARROWS = [[null, tr('None')], ['fwd', tr('→ To')], ['back', tr('← From')], ['both', tr('↔ Both')]];
   html += `<label>${escAttr(tr('Arrowheads'))}</label><div class="chips">${ARROWS.map(([v, lab]) => (
     `<button class="chip${(item.arrow ?? null) === v ? ' active' : ''}" data-warrow="${v ?? ''}">${lab}</button>`
   )).join('')}</div>`;

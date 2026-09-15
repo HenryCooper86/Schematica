@@ -228,3 +228,21 @@ test('backend migration changes only the old default relay and static transport 
     assert.equal(passed, init);
   }, false);
 });
+
+test('a stalled request body times out and releases its concurrency slot', { timeout: 2000 }, async (t) => {
+  let calls = 0;
+  const { origin, request } = await start(t, { timeoutMs: 60, maxConcurrent: 1,
+    fetchImpl: async () => { calls++; return Response.json({ ok: true }); } });
+  const status = await new Promise((resolve, reject) => {
+    const req = httpRequest(`${origin}/api/ai`, { method: 'POST', headers: {
+      ...POST.headers, 'x-schematica-client': '1', 'x-schematica-target': TARGET, origin,
+    } }, res => { res.resume(); res.on('end', () => { req.destroy(); resolve(res.statusCode); }); });
+    req.on('error', reject);
+    t.after(() => req.destroy());
+    req.write('{"model":'); // Intentionally never finish the body.
+  });
+  assert.equal(status, 504);
+  assert.equal(calls, 0);
+  assert.equal((await request(TARGET, POST)).status, 200);
+  assert.equal(calls, 1);
+});

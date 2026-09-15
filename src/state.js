@@ -1,3 +1,4 @@
+import { selectedEngineering, mergeEngineering } from './engineering.js';
 import { getPart } from './palette.js';
 import { normalizePart, partOf } from './custom.js';
 import { tr, trd } from './i18n.js';
@@ -18,7 +19,7 @@ export function uid(prefix = 'id') {
 // The document format version this app writes. Bump it when a saved field
 // changes meaning or shape, and add the matching step to MIGRATIONS in
 // src/serialize.js so older files are upgraded on load.
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export function newDoc(title = tr('Untitled Board')) {
   return { schema: SCHEMA_VERSION, title, nodes: [], wires: [], zones: [], notes: [], journey: [] };
@@ -33,6 +34,7 @@ export class Store {
     this.redoStack = [];
     this.selection = new Set();
     this.listeners = new Set();
+    this.beforeReplace = new Set();
     this._batchSnap = null;
     // Bumped by replaceDoc so subscribers can tell "a different board" from
     // "the same board edited" (the assistant clears its thread on the former).
@@ -93,6 +95,7 @@ export class Store {
     if (this._batchSnap) {
       this.doc = this._batchSnap;
       this._batchSnap = null;
+      this._pruneSelection();
       this.emit();
     }
   }
@@ -105,8 +108,8 @@ export class Store {
   cancelDrag() { this.cancelBatch(); }
   isDragging() { return this.inBatch(); }
 
-  canUndo() { return this.undoStack.length > 0; }
-  canRedo() { return this.redoStack.length > 0; }
+  canUndo() { return !this.inBatch() && this.undoStack.length > 0; }
+  canRedo() { return !this.inBatch() && this.redoStack.length > 0; }
 
   undo() {
     if (!this.canUndo()) return;
@@ -125,6 +128,7 @@ export class Store {
   }
 
   replaceDoc(doc) {
+    for (const fn of this.beforeReplace) fn(this.doc, doc);
     this._batchSnap = null;
     this.doc = doc;
     this.undoStack = [];
@@ -267,6 +271,7 @@ export function updateItem(store, id, props) {
   store.apply((doc) => {
     const found = findItem(doc, id);
     if (!found) return;
+    if (found.type === 'wire' && found.item.spec && Object.hasOwn(props, 'arrow')) found.item.spec.direction = ({ fwd: 'from-to', back: 'to-from', both: 'bidirectional' })[props.arrow] || '';
     for (const [key, value] of Object.entries(props)) {
       if (value === undefined) delete found.item[key];
       else found.item[key] = value;
@@ -358,22 +363,26 @@ export function duplicateItems(store, ids) {
     }
     for (const z of doc.zones.filter((z) => src.has(z.id))) {
       const id = uid('z');
+      map.set(z.id, id);
       newIds.push(id);
       doc.zones.push({ ...structuredClone(z), id, x: z.x + 16, y: z.y + 16 });
     }
     for (const t of doc.notes.filter((t) => src.has(t.id))) {
       const id = uid('t');
+      map.set(t.id, id);
       newIds.push(id);
       doc.notes.push({ ...structuredClone(t), id, x: t.x + 16, y: t.y + 16 });
     }
     for (const w of doc.wires.filter((w) => src.has(w.from.node) && src.has(w.to.node))) {
       const id = uid('w');
+      map.set(w.id, id);
       doc.wires.push({
         ...structuredClone(w), id,
         from: { node: map.get(w.from.node), port: w.from.port },
         to: { node: map.get(w.to.node), port: w.to.port },
       });
     }
+    mergeEngineering(doc, selectedEngineering(doc, [...map.keys()]), map);
   });
   return newIds;
 }

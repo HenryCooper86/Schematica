@@ -3,11 +3,17 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "node server/index.js",
     "test": "node --test",
     "e2e": "node tests/e2e/smoke.mjs",
-    "acceptance": "node tests/acceptance/run.mjs"
+    "acceptance": "node tests/acceptance/run.mjs",
+    "check:board": "node scripts/check-board.mjs",
+    "benchmark": "node scripts/benchmark.mjs",
+    "e2e:firefox": "node tests/e2e/cross-browser.mjs firefox",
+    "e2e:safari": "node tests/e2e/cross-browser.mjs safari"
   }
 }

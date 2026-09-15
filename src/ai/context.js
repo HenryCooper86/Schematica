@@ -36,6 +36,8 @@ export function nodeLine(doc, node) {
     const v = node.fields?.[fd.id];
     if (v) s += ` ${fd.id}=${value(v)}`;
   }
+  if (node.budget) s += ` budget=${JSON.stringify(node.budget)}`;
+  if (node.subsystem) s += ` subsystem-parts=${node.subsystem.doc.nodes.length}`;
   if (node.color) s += ` color=${node.color}`;
   if (node.notes) s += ` notes=${quote(node.notes)}`;
   return s;
@@ -46,6 +48,7 @@ function wireLine(w) {
   let s = `wire ${w.id} ${w.bus} ${w.from.node}.${w.from.port} ${arrow} ${w.to.node}.${w.to.port}`;
   if (w.label) s += ` ${quote(w.label)}`;
   if (w.style) s += ` style=${w.style}`;
+  if (w.spec) s += ` spec=${JSON.stringify(w.spec)}`;
   if (w.flow) s += ` flow=${w.flow}`;
   return s;
 }
@@ -59,6 +62,7 @@ function zoneLine(doc, z) {
 
 export function boardText(doc, { selection = [], findings = [] } = {}) {
   const lines = [`board ${quote(doc.title)}`];
+  if (doc.engineering) lines.push(`Engineering records (preserve unless explicitly changed): ${JSON.stringify(doc.engineering)}`);
   for (const z of doc.zones) lines.push(zoneLine(doc, z));
   for (const n of doc.nodes) lines.push(nodeLine(doc, n));
   const profiles = new Map();

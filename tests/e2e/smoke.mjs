@@ -1,3 +1,5 @@
+import { runPerformance } from './performance.mjs';
+import { runEngineeringChecks } from './engineering.mjs';
 import { runPresentationChecks } from './presentation.mjs';
 import { runAdoptionChecks } from './adoption.mjs';
 import { runExploreChecks } from './explore.mjs';
@@ -242,7 +244,13 @@ function check(name, ok, detail = '') {
 }
 
 try {
-  if (process.env.PRESENTATION_E2E_ONLY) {
+  if (process.env.BENCHMARK_ONLY) {
+    const report = await runPerformance({ js });
+    writeFileSync(process.env.BENCHMARK_OUTPUT || 'docs/benchmark-latest.json', JSON.stringify(report, null, 2));
+    check('benchmark completed at 100, 500 and 1000 nodes', report.results.length === 3);
+  } else if (process.env.ENGINEERING_E2E_ONLY) {
+    await runEngineeringChecks({ js, key, check, sleep });
+  } else if (process.env.PRESENTATION_E2E_ONLY) {
     await runPresentationChecks({ js, key, check, sleep });
   } else if (process.env.ADOPTION_E2E_ONLY) {
     await runAdoptionChecks({ js, key, check, sleep });
@@ -1302,6 +1310,21 @@ try {
   await sleep(100);
   const outsideClickDialog = await js(`({ open: document.getElementById('part-dialog').open, nodes: document.querySelectorAll('#canvas g.node').length })`);
   check('a pointerdown on the dialog backdrop closes the part editor and adds no node', outsideClickDialog.open === false && outsideClickDialog.nodes === nodesBeforeDialogChecks, JSON.stringify(outsideClickDialog));
+  check('pagehide flushes the last title edit before autosave debounce', await js(`(() => {
+    const title = document.getElementById('title');
+    title.value = 'Lifecycle save regression';
+    title.dispatchEvent(new Event('change'));
+    window.dispatchEvent(new Event('pagehide'));
+    return JSON.parse(localStorage.getItem('schematica.autosave')).title === 'Lifecycle save regression';
+  })()`));
+  await send('Page.reload');
+  await waitFor(`document.getElementById('title')?.value === 'Lifecycle save regression'`);
+  check('the flushed board survives a browser reload', await js(`document.getElementById('title').value === 'Lifecycle save regression'`));
+  await runEngineeringChecks({ js, key, check, sleep });
+  if (process.env.KICAD_MANIFEST) {
+    const { runKiCadChecks } = await import('./kicad.mjs');
+    await runKiCadChecks({ js, check, manifest: JSON.parse(readFileSync(process.env.KICAD_MANIFEST, 'utf8')) });
+  }
   await loadBoard(weather);
   await runAdoptionChecks({ js, key, check, sleep });
   }

@@ -1,10 +1,11 @@
+import { normalizeSpec, normalizeBudget, normalizeEngineering } from './engineering.js';
 import { normalizeTargets, normalizeStops } from './journey.js';
 import { knownPorts } from './rdk/profiles.js';
 import { BUSES, DEFAULT_BUS } from './buses.js';
 import { PARTS, DISPOSITIONS, PORT_ALIASES } from './palette.js';
 import { newDoc, NODE_STATUSES, NODE_FLAGS, SCHEMA_VERSION } from './state.js';
 import { nodeSize } from './geometry.js';
-import { normalizePart, partOf } from './custom.js';
+import { normalizePart, partOf, LIMITS } from './custom.js';
 import { tr, trd } from './i18n.js';
 
 export function serialize(doc) {
@@ -20,6 +21,7 @@ const MIGRATIONS = {
   // exists so an older build warns that the file is newer before it turns
   // custom nodes into generic boxes.
   1: (raw) => raw,
+  2: (raw) => raw, // Engineering metadata and embedded subsystem documents.
 };
 
 // Caps on what a file may carry: a text field longer than this is cut, a
@@ -40,7 +42,8 @@ export function migrateRaw(raw, migrations = MIGRATIONS, target = SCHEMA_VERSION
   return raw;
 }
 
-export function deserialize(text) {
+export function deserialize(text, { depth = 0 } = {}) {
+  if (depth > 8) throw new Error(tr('Subsystem nesting exceeds eight levels.'));
   let raw;
   try {
     raw = JSON.parse(text);
@@ -89,7 +92,7 @@ export function deserialize(text) {
   const doc = newDoc(typeof raw.title === 'string' && raw.title.trim() ? str(raw.title) : tr('Untitled Board'));
   const seen = new Set();
   const validId = (v) => typeof v === 'string' && v.length > 0;
-  const HEX_COLOR = /^#[0-9a-fA-F]{3,8}$/;
+  const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
   const coerced = new Set(); // nodes whose unknown kind became a custom box
 
   for (const n of raw.nodes ?? []) {
@@ -116,7 +119,7 @@ export function deserialize(text) {
         kind = 'generic';
         coerced.add(n.id);
       }
-    } else if (!PARTS[kind]) {
+    } else if (!Object.hasOwn(PARTS, kind)) {
       warnings.push(tr('Unknown part "{kind}" became a custom box.', { kind }));
       kind = 'generic';
       coerced.add(n.id);
@@ -175,7 +178,7 @@ export function deserialize(text) {
       }
     }
     if (n.disposition != null) {
-      if (typeof n.disposition === 'string' && DISPOSITIONS[n.disposition]) node.disposition = n.disposition;
+      if (typeof n.disposition === 'string' && Object.hasOwn(DISPOSITIONS, n.disposition)) node.disposition = n.disposition;
       else warnings.push(tr('Ignored unknown disposition "{value}" on node "{id}".', { value: n.disposition, id: n.id }));
     }
     // Older files stored a fixed card size. Cards now size to their content,
@@ -184,6 +187,15 @@ export function deserialize(text) {
       const { w, h } = nodeSize(node);
       node.x = coord(node.x + (coord(n.w) - w) / 2);
       node.y = coord(node.y + (coord(n.h) - h) / 2);
+    }
+    const budget = normalizeBudget(n.budget);
+    if (budget) node.budget = budget;
+    if (n.subsystem && typeof n.subsystem === 'object' && n.subsystem.doc) {
+      const child = deserialize(JSON.stringify(n.subsystem.doc), { depth: depth + 1 });
+      warnings.push(...child.warnings);
+      node.subsystem = { doc: child.doc, exposed: Array.isArray(n.subsystem.exposed) ? n.subsystem.exposed.slice(0, LIMITS.ports)
+        .filter(r => r && typeof r.port === 'string' && typeof r.node === 'string' && typeof r.childPort === 'string')
+        .map(r => ({ port: str(r.port), node: str(r.node), childPort: str(r.childPort) })) : [] };
     }
     doc.nodes.push(node);
   }
@@ -220,16 +232,17 @@ export function deserialize(text) {
       warnings.push(tr('Wire "{id}" was moved onto the custom box\'s generic ports.', { id: w.id }));
     }
     let bus = typeof w.bus === 'string' ? w.bus : DEFAULT_BUS;
-    if (!BUSES[bus]) {
+    if (!Object.hasOwn(BUSES, bus)) {
       warnings.push(tr('Unknown bus "{bus}" became {code}.', { bus, code: BUSES[DEFAULT_BUS].short }));
       bus = DEFAULT_BUS;
     }
     doc.wires.push({
       id: w.id, bus,
+      ...(normalizeSpec(w.spec) ? { spec: normalizeSpec(w.spec) } : {}),
       from: { node: from.node, port: from.port },
       to: { node: to.node, port: to.port },
       label: str(w.label),
-      arrow: w.arrow === 'fwd' || w.arrow === 'both' ? w.arrow : null,
+      arrow: w.arrow === 'fwd' || w.arrow === 'both' || w.arrow === 'back' ? w.arrow : null,
       style: ['solid', 'dashed', 'dotted', 'sneakernet'].includes(w.style) ? w.style : null,
       flow: w.flow === 'on' || w.flow === 'off' ? w.flow : null,
     });
@@ -307,5 +320,7 @@ export function deserialize(text) {
 
   if (clampedText) warnings.push(tr('Clamped {n} over-long text field(s) to {max} characters.', { n: clampedText, max: MAX_TEXT }));
   if (clampedCoord) warnings.push(tr('Clamped {n} out-of-range position(s) or size(s).', { n: clampedCoord }));
+  const engineering = normalizeEngineering(raw.engineering, warnings);
+  if (engineering) doc.engineering = engineering;
   return { doc, warnings };
 }

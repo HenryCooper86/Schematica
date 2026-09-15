@@ -1,3 +1,4 @@
+import { trimHistory, encodeThread, decodeThread } from '../ai/session.js';
 // The assistant panel: settings, a message thread, quick actions, and the
 // composer. One reply is one undo step: the agent owns the store batch, the
 // panel only shows what happened and points the camera at it.
@@ -414,32 +415,15 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     composer.classList.toggle('has-text', input.value.trim().length > 0);
   }
 
-  // Keep the last 40 model-facing messages, but never cut between a
-  // tool_use and its results: start at a user message that carries text.
-  function trimHistory(h, max = 40) {
-    if (h.length <= max) return h;
-    let start = h.length - max;
-    while (start < h.length && !(h[start].role === 'user' && h[start].content.some((b) => b.type === 'text'))) start += 1;
-    return h.slice(start);
-  }
-
-  const VISIBLE_ROLES = ['user', 'assistant', 'status', 'error'];
-
   function saveThread() {
     try {
-      // The undo snapshot is a whole document and belongs to this session
-      // only: a restored thread's chips are dead.
-      const shown = visible.slice(-80).map(({ undoSnap, ...m }) => m);
-      localStorage.setItem(THREAD_KEY, JSON.stringify({ history, visible: shown, totals }));
+      localStorage.setItem(THREAD_KEY, encodeThread(history, visible, totals));
     } catch { /* storage may be blocked; the thread lives for this session */ }
   }
   function loadThread() {
     try {
-      const t = JSON.parse(localStorage.getItem(THREAD_KEY) || 'null');
-      const ok = t && Array.isArray(t.history) && Array.isArray(t.visible)
-        && t.history.every((m) => m && typeof m.role === 'string' && Array.isArray(m.content))
-        && t.visible.every((m) => m && VISIBLE_ROLES.includes(m.role) && typeof m.text === 'string');
-      if (ok) {
+      const t = decodeThread(localStorage.getItem(THREAD_KEY));
+      if (t) {
         history = t.history;
         visible = t.visible;
         Object.assign(totals, t.totals || {});

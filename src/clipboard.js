@@ -1,3 +1,4 @@
+import { selectedEngineering, mergeEngineering } from './engineering.js';
 // Copy and paste. A selection travels as one versioned JSON payload written
 // to the system clipboard, so it crosses boards, tabs, and a browser restart.
 // Everything here is pure: no DOM and no clipboard API — src/tools.js owns
@@ -50,6 +51,7 @@ export function buildClip(doc, ids) {
     wires: structuredClone(wires),
     zones: structuredClone(zones),
     notes: structuredClone(notes),
+    ...(selectedEngineering(doc, [...nodes, ...wires, ...zones, ...notes].map(i => i.id)) ? { engineering: selectedEngineering(doc, [...nodes, ...wires, ...zones, ...notes].map(i => i.id)) } : {}),
   };
 }
 
@@ -110,6 +112,7 @@ export function readClip(text) {
       wires: raw.wires,
       zones: raw.zones,
       notes: raw.notes,
+      engineering: raw.engineering,
     }));
     clip = loaded.doc;
     warnings.push(...loaded.warnings);
@@ -136,12 +139,10 @@ function computePasteOffset(doc, clip, { step = PASTE_STEP } = {}) {
   const ids = new Set(here.map((i) => i.id));
   const spots = new Set(here.map((i) => `${i.x},${i.y}`));
   let d = placed.some((i) => ids.has(i.id)) ? step : 0;
-  let saturated = false;
   for (let i = 0; i < MAX_CASCADE && placed.some((p) => spots.has(`${p.x + d},${p.y + d}`)); i += 1) {
-    saturated = i + 1 === MAX_CASCADE;
     d += step;
   }
-  saturated = placed.some(p => spots.has(`${p.x + d},${p.y + d}`));
+  const saturated = placed.some(p => spots.has(`${p.x + d},${p.y + d}`));
   return { offset: { dx: d, dy: d }, saturated };
 }
 
@@ -155,7 +156,7 @@ export function pasteOffsetInfo(doc, clip, { step = PASTE_STEP } = {}) {
 
 // The keys that make two custom definitions the same part. `lib` is left out
 // on purpose: it is the link being judged, not part of the shape.
-const DEF_KEYS = ['name', 'category', 'accent', 'icon', 'ports', 'fields'];
+const DEF_KEYS = ['name', 'category', 'accent', 'icon', 'ports', 'fields', 'feeds', 'passes', 'trio'];
 const defShape = (def) => JSON.stringify(DEF_KEYS.map((k) => def[k] ?? null));
 function sameDefinition(a, b) {
   if (!a || !b) return false;
@@ -175,10 +176,11 @@ export function materializeClip(clip, {
   const ids = [];
   // Ids are random, so a collision is vanishingly unlikely; minting again is
   // cheaper than reasoning about what a collision would do to a wire.
-  const fresh = (prefix) => {
+  const fresh = (prefix, oldId) => {
     let id;
     do { id = mint(prefix); } while (taken.has(id));
     taken.add(id);
+    if (oldId) map.set(oldId, id);
     ids.push(id);
     return id;
   };
@@ -205,15 +207,15 @@ export function materializeClip(clip, {
   for (const n of nodes) {
     if (n.kind === 'rdksoftware' && map.has(n.fields?.target)) n.fields.target = map.get(n.fields.target);
   }
-  const zones = clip.zones.map((z) => moved(z, fresh('z')));
-  const notes = clip.notes.map((t) => moved(t, fresh('t')));
+  const zones = clip.zones.map((z) => moved(z, fresh('z', z.id)));
+  const notes = clip.notes.map((t) => moved(t, fresh('t', t.id)));
   const wires = clip.wires.map((w) => ({
     ...structuredClone(w),
-    id: fresh('w'),
+    id: fresh('w', w.id),
     from: { node: map.get(w.from.node), port: w.from.port },
     to: { node: map.get(w.to.node), port: w.to.port },
   }));
-  return { nodes, wires, zones, notes, ids };
+  return { nodes, wires, zones, notes, ids, map };
 }
 
 // Adds a validated payload to the board as one undo step and returns the new
@@ -232,6 +234,7 @@ export function pasteInto(store, clip, { templateFor = () => null, mint = uid, o
     doc.zones.push(...made.zones);
     doc.notes.push(...made.notes);
     doc.wires.push(...made.wires);
+    mergeEngineering(doc, clip.engineering, made.map);
   });
   return made.ids;
 }

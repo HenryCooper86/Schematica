@@ -385,7 +385,7 @@ export const PARTS = {
 };
 
 export function getPart(kind) {
-  return PARTS[kind] ?? PARTS.generic;
+  return Object.hasOwn(PARTS, kind) ? PARTS[kind] : PARTS.generic;
 }
 
 // Old port ids that saved files may still reference, per kind. Renaming a

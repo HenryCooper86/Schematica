@@ -164,3 +164,11 @@ test('custom nodes group by template, or by name without one, and show the defin
   assert.equal(md.length, 2, 'template copies group together; the one-off is its own row');
   assert.deepEqual(md.map((r) => r.qty).sort(), [1, 2]);
 });
+
+test('custom names containing separators cannot merge distinct BOM rows', () => {
+  const custom = name => ({ name, category: 'power', icon: { text: 'P' }, ports: [], fields: [] });
+  const d = sampleDoc();
+  d.nodes = [node('a', 'custom', 'A', 'C', { part: custom('A|B') }),
+    node('b', 'custom', 'B', 'B|C', { part: custom('A') })];
+  assert.equal(buildBOM(d).length, 2);
+});

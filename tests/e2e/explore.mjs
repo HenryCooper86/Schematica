@@ -48,5 +48,5 @@ export async function runExploreChecks({ js, key, check, sleep }) {
   await js(`document.getElementById('zoom-reset').click(); document.getElementById('canvas').focus(); true`);
   await sleep(350);
   const after = await js(`JSON.stringify({ saved: localStorage.getItem('schematica.autosave'), undo: document.getElementById('undo').disabled, geometry: [...document.querySelectorAll('#canvas .node')].map(n => [n.dataset.id, n.getAttribute('transform'), n.querySelector('.card')?.getAttribute('height')]) })`);
-  check('exploring does not edit the document, create undo steps, or change card geometry', before === after);
+  check('exploring does not edit the document, create undo steps, or change card geometry', before === after, before === after ? undefined : { before: JSON.parse(before), after: JSON.parse(after) });
 }

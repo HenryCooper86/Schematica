@@ -1,8 +1,9 @@
+import { analysisDoc } from './analysis-doc.js';
 // Current accounting: a tolerant reader for the figures people type on a card,
 // and the power tree built from the drawn power wires. Pure, DOM-free, and
-// deliberately narrow - it sums declared currents per rail. It does not model
-// conversion efficiency, duty cycle, inrush, or voltage, so nothing here can
-// prove a supply is adequate; it only says what the board says about itself.
+// deliberately narrow: declared currents, optional operating modes, and explicit
+// voltage/efficiency conversion. It does not simulate transients, thermal effects,
+// or ageing and cannot prove supply adequacy.
 
 import { nodePart } from './rdk/profiles.js';
 
@@ -33,7 +34,9 @@ function quantity(text, unit) {
   // 350.00000000000006); a nanoamp is finer than any of these figures, so
   // round there and let sums stay exact.
   if (!m[3]) return value;
-  return Math.round(value * SCALE[m[2] ?? ''] * 1e6) / 1e6;
+  const scaled = value * SCALE[m[2] ?? ''];
+  if (!Number.isFinite(scaled)) return null;
+  return scaled > Number.MAX_SAFE_INTEGER / 1e6 ? scaled : Math.round(scaled * 1e6) / 1e6;
 }
 
 // "250mA", "0.25 A", "250 ma", "1.2A", "3.6uA", or a bare 250 meaning 250 mA.
@@ -127,10 +130,19 @@ const fieldOf = (node, id) => node.fields?.[id];
 
 // What one part says about itself: what it draws, what it can deliver, what it
 // stores. Any of them may be null.
-export function partCurrents(node) {
+export function partCurrents(node, mode = 'active') {
+  const b = node.budget;
+  let typical = b?.activeMa, peak = b?.activePeakMa;
+  if (b && mode === 'sleep') { typical = b.sleepMa; peak = b.sleepPeakMa; }
+  if (b && mode === 'average') {
+    typical = b.activeMa != null && b.sleepMa != null && b.dutyPercent != null
+      ? (b.activeMa * b.dutyPercent + b.sleepMa * (100 - b.dutyPercent)) / 100 : undefined;
+    peak = b.activePeakMa ?? b.activeMa;
+  }
+  const modeSpecific = b && mode !== 'active';
   return {
-    typicalMa: parseCurrentMa(fieldOf(node, 'ityp')),
-    peakMa: parseCurrentMa(fieldOf(node, 'ipeak')),
+    typicalMa: typical ?? (modeSpecific ? null : parseCurrentMa(fieldOf(node, 'ityp'))),
+    peakMa: peak ?? (modeSpecific ? null : parseCurrentMa(fieldOf(node, 'ipeak'))),
     limitMa: parseCurrentMa(fieldOf(node, 'imax')),
     capacityMah: parseCapacityMah(fieldOf(node, 'capacity')),
   };
@@ -141,7 +153,8 @@ export function partCurrents(node) {
 // things at once on its input: its own quiescent current, if it stated one,
 // plus the whole load of the rail it feeds - a regulator does not stop
 // delivering current because it also declared what it burns idling. Carrying
-// the load across ignores the conversion ratio and the efficiency, so it is a
+// the load across defaults to a 1:1 ratio unless voltage and efficiency are
+// explicitly supplied. That default is a
 // rough figure: about right for a linear regulator, high for a step-down
 // converter, low for a step-up one. Where the rail it feeds cannot be summed,
 // its own declared figure is all there is to report.
@@ -154,15 +167,19 @@ function drawOf(entry, rails, load, guard) {
   if (fed >= 0 && !guard.has(fed)) {
     const downstream = load(fed, guard);
     if (downstream.known) {
+      const b = node.budget;
+      const conversion = b?.inputV > 0 && b?.outputV > 0 && b?.efficiency > 0;
+      const ratio = conversion ? b.outputV / b.inputV / (b.efficiency / 100) : 1;
       return {
-        typicalMa: ownTypical + downstream.typicalMa,
-        peakMa: ownPeak + downstream.peakMa,
+        typicalMa: ownTypical + downstream.typicalMa * ratio,
+        peakMa: ownPeak + downstream.peakMa * ratio,
         known: true,
         carried: true,
+        incomplete: downstream.unknown > 0 || (!!b && [b.inputV, b.outputV, b.efficiency].some(v => v != null) && !conversion),
       };
     }
   }
-  if (declared) return { typicalMa: ownTypical, peakMa: ownPeak, known: true, carried: false };
+  if (declared) return { typicalMa: ownTypical, peakMa: ownPeak, known: true, carried: false, incomplete: fed >= 0 };
   return { typicalMa: 0, peakMa: 0, known: false, carried: false };
 }
 
@@ -170,6 +187,7 @@ function drawOf(entry, rails, load, guard) {
 // A rail is a set of pins that share a supply; `sources` are the parts feeding
 // it, `draws` the parts hanging off it.
 export function powerRails(doc) {
+  doc = analysisDoc(doc);
   const byId = new Map(doc.nodes.map((n) => [n.id, n]));
   const partOfId = new Map(doc.nodes.map((n) => [n.id, nodePart(n)]));
   const vertexOf = (ref) => {
@@ -191,7 +209,7 @@ export function powerRails(doc) {
       const node = byId.get(id);
       if (!node) continue;
       const bucket = kind === 'pass' ? passes : (kind === 'feed' ? sources : draws);
-      if (!bucket.has(id)) bucket.set(id, { node, currents: partCurrents(node) });
+      if (!bucket.has(id)) bucket.set(id, { node, currents: partCurrents(node, doc.engineering?.budget?.mode) });
     }
     return { sources: [...sources.values()], draws: [...draws.values()], passes: [...passes.values()] };
   }).filter((r) => r.sources.length || r.draws.length);
@@ -199,30 +217,32 @@ export function powerRails(doc) {
   // Rails resolve in whatever order they are asked for; `guard` holds the
   // rails already being summed so a regulator wired in a ring (its own output
   // feeding its input, however that came about) stops instead of recursing.
-  const cache = new Map();
+  // Resolve each root independently: a total computed with a different guard
+  // cannot be reused in a cycle without counting a load twice.
   const load = (index, guard) => {
-    if (cache.has(index)) return cache.get(index);
     const rail = rails[index];
     const next = new Set(guard).add(index);
     let typicalMa = 0;
     let peakMa = 0;
-    // The parts that contribute nothing, by id rather than only by count, so a
-    // reader can be shown which datasheets are still missing.
+    let largestExcursion = 0;
+    // Parts with missing own or downstream figures, by id so the reader can
+    // locate the incomplete branch. A partial branch still contributes its
+    // known subtotal below.
     const unknownIds = [];
     let declared = false;
+    let known = false;
     for (const entry of rail.draws) {
       if (entry.currents.typicalMa != null || entry.currents.peakMa != null) declared = true;
       const d = drawOf(entry, rails, load, next);
-      if (!d.known) { unknownIds.push(entry.node.id); continue; }
+      if (!d.known || d.incomplete) unknownIds.push(entry.node.id);
+      if (!d.known) continue;
+      known = true;
       typicalMa += d.typicalMa;
       peakMa += d.peakMa;
+      largestExcursion = Math.max(largestExcursion, d.peakMa - d.typicalMa);
     }
-    const known = rail.draws.length > unknownIds.length;
-    const result = { typicalMa, peakMa, unknown: unknownIds.length, unknownIds, known, declaredDraw: declared };
-    // Only a complete answer is worth keeping: a partial one computed inside a
-    // guard could differ from the same rail asked for on its own.
-    if (!guard.size) cache.set(index, result);
-    return result;
+    if (doc.engineering?.budget?.peaks === 'noncoincident') peakMa = typicalMa + largestExcursion;
+    return { typicalMa, peakMa, unknown: unknownIds.length, unknownIds, known, declaredDraw: declared };
   };
 
   return rails.map((rail, i) => {
@@ -234,7 +254,7 @@ export function powerRails(doc) {
     // parallel do not share a load evenly unless they were built to, and none
     // of that is modelled here - so the sum is only worth comparing against
     // when every supply on the rail stated one, which `limitComplete` says.
-    const limits = rail.sources.map((s) => s.currents.limitMa).filter((v) => v != null && v > 0);
+    const limits = rail.sources.map((s) => s.currents.limitMa).filter((v) => v != null);
     return {
       sources: rail.sources,
       draws: rail.draws,
@@ -243,6 +263,7 @@ export function powerRails(doc) {
       peakMa: summed.peakMa,
       unknown: summed.unknown,
       unknownIds: summed.unknownIds,
+      known: summed.known,
       // Whether anything on this rail opted into the budget at all. A board
       // that declares no currents gets no findings and no numbers.
       declared: summed.declaredDraw || declaredLimit || declaredCell,
@@ -283,12 +304,12 @@ export function powerSummary(doc) {
       // where nobody said anything has no total, which is not the same as a
       // total of zero, and a reader must never be shown the second for the
       // first.
-      summed: rail.draws.length > rail.unknown,
+      summed: rail.known,
       undeclared: rail.unknownIds.map((id) => byId.get(id).node.label),
-      runtimes: rail.sources
+      runtimes: (rail.unknown ? [] : rail.sources)
         .map((s) => ({ label: s.node.label, capacityMah: s.currents.capacityMah, hours: runtimeHours(s.currents.capacityMah, rail.typicalMa) }))
         .filter((r) => r.hours != null),
-      ids: [...rail.sources, ...rail.passes, ...rail.draws].map((e) => e.node.id),
+      ids: [...rail.sources, ...rail.passes, ...rail.draws].map((e) => e.node.selectionId || e.node.id),
     };
   });
 }
@@ -296,10 +317,10 @@ export function powerSummary(doc) {
 // The typical current one part declares, summed for the whole board. Used by
 // the bill of materials, which counts parts rather than rails, so a part that
 // is not wired to a supply still shows what it draws.
-export function declaredTypicalMa(nodes) {
+export function declaredTypicalMa(nodes, mode = 'active') {
   let total = null;
   for (const node of nodes) {
-    const { typicalMa, peakMa } = partCurrents(node);
+    const { typicalMa, peakMa } = partCurrents(node, mode);
     const ma = typicalMa ?? peakMa;
     if (ma == null) continue;
     total = (total ?? 0) + ma;

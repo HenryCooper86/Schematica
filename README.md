@@ -30,6 +30,41 @@ For the static edition, any static file server works (for example,
 `python3 -m http.server 8000`). To publish that edition on GitHub Pages: push this repo,
 then Settings → Pages → deploy from branch `main`, root folder.
 
+### Check saved boards from the command line
+
+Run the editor's design rules in a review script or CI without opening the UI:
+
+```bash
+npm run check:board -- board.schematica.json
+npm run --silent check:board -- --strict --json board.schematica.json another.schematica.json
+```
+
+Exit code `0` means the checks passed; `1` means design errors or import repairs
+were found (`--strict` also fails on warnings); `2` means a file could not be
+read/parsed or the command was invalid. Information findings do not fail a run.
+JSON output includes each board's findings, referenced item IDs, import warnings,
+and pass/fail status. Checks inspect declared architecture data; they do not
+simulate the hardware. Files are limited to 16 MiB each.
+
+Power reports keep known current subtotals visible when loads are missing,
+including loads behind a regulator. Battery-runtime estimates are withheld while
+any downstream load is incomplete. Zero current limits are treated as declared
+ratings. Engineering → Budget assumptions adds explicit operating modes,
+duty cycles, and voltage/efficiency conversion.
+
+See the [quality review and product roadmap](docs/quality-review-2026-09-15.md)
+for verified fixes, architectural follow-ups, and proposed engineer workflows.
+
+
+## Engineering workspace
+
+The **Engineering** toolbar button opens revisions and recovery, interface
+specifications, requirements and decisions, budget assumptions, reusable
+subsystems, review packages, and experimental KiCad XML netlist import.
+See [engineering workflows and interchange](docs/engineering-workflows.md),
+[measured large-board performance](docs/performance.md), and the
+[engineer validation kit](docs/engineer-study-kit.md).
+
 ## Use it
 
 | Action | How |
@@ -79,6 +114,9 @@ then Settings → Pages → deploy from branch `main`, root folder.
 | Custom parts | **+ New** under My parts in the palette defines a part: name, category, accent, an icon (a built-in one, initials, or an SVG path), typed ports on any side, and extra fields. It is saved to My parts (this browser) and placed on the board. **Customize…** on any built-in card starts from its definition, so an MCU with a second CAN port keeps its wires. **Edit part…** on a custom card changes it and, when it came from a template, offers to update its siblings. Export and Import move My parts between machines as a JSON file. Custom parts in a board file travel with it; an older build of the app opens them as custom boxes |
 
 Work is autosaved to the browser's localStorage and restored on reload.
+Pending edits are flushed when the page is hidden or closed. Storage failures
+are reported; save a board file for a portable copy.
+
 
 A lock protects an item's position and its existence, nothing else. A locked
 part keeps every field in the properties panel editable, keeps its ports open
@@ -204,7 +242,7 @@ open: it treats every peak as landing in the same instant, which is the
 conservative reading, and whether the bulk capacitance rides them out is not
 something a sum of datasheet figures can settle. A battery that states a
 capacity gets a runtime: capacity divided by the rail's typical current, held
-continuously, with no duty cycle, no converter losses, no ageing and no cut-off
+using the selected operating and conversion assumptions, with no ageing or cut-off
 voltage — so a board that sleeps between readings runs far longer than the
 division says. Parts that state nothing are counted, never assumed to draw
 zero, and reported on their own line whose **Select** picks out exactly those
@@ -377,3 +415,5 @@ Schematica started as a hardware-focused take on the ideas in
 [net_draw](https://mr-r3b00t.github.io/net_draw/) and has since grown its own
 model: typed ports and buses, design rules, the bill of materials, vendor
 presets, and content-sized cards.
+
+Native Safari/Firefox and real KiCad-export validation: [setup and results](docs/local-validation.md).

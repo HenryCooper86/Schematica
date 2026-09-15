@@ -29,6 +29,22 @@ function withoutDocuments(messages) {
   return messages.map(m => ({ ...m, content: m.content.filter(b => b.assistantDocument !== true) }));
 }
 
+// Providers can resolve after Stop (or after a different board is opened).
+// Check ownership at each asynchronous boundary before accepting any edits.
+function requestGuard(store, signal) {
+  const generation = store?.generation;
+  return {
+    ownsBoard: () => !store || store.generation === generation,
+    check() {
+      if (signal?.aborted || (store && store.generation !== generation)) {
+        const error = new Error('Request cancelled');
+        error.name = 'AbortError';
+        throw error;
+      }
+    },
+  };
+}
+
 export async function runRequest({
   provider, executor, system, history = [], userText, boardText, documentText = '',
   store = null, signal = null, onText = null, onStatus = null, maxRounds = MAX_ROUNDS,
@@ -45,12 +61,15 @@ export async function runRequest({
   let applied = 0;
   let rounds = 0;
   let error;
+  const guard = requestGuard(store, signal);
   executor.resetTouched();
   store?.beginBatch();
   try {
     for (let round = 0; round < maxRounds; round++) {
       rounds = round + 1;
+      guard.check();
       const res = await provider.chat({ system, messages, tools: TOOLS, signal, onText });
+      guard.check();
       addUsage(usage, res.usage);
       const content = [];
       if (res.text) {
@@ -84,6 +103,7 @@ export async function runRequest({
         let r;
         try {
           onStatus?.(statusLine(tc.name, tc.input));
+          guard.check();
           r = executor.run(tc.name, tc.input);
         } catch (err) {
           failure = failure || err;
@@ -105,7 +125,7 @@ export async function runRequest({
       error = err;
     }
   } finally {
-    store?.endBatch();
+    if (guard.ownsBoard()) store?.endBatch();
   }
   return { text, messages: withoutDocuments(messages), touched: new Set(executor.touched), usage, stop, stopDetails, rounds, applied, cutOff, error };
 }
@@ -138,13 +158,16 @@ export async function runSingleShot({
   let applied = 0;
   let rounds = 0;
   let error;
+  const guard = requestGuard(store, signal);
   executor.resetTouched();
   store?.beginBatch();
   try {
     let plan = null;
     for (let attempt = 0; attempt < 2 && !plan; attempt++) {
       rounds += 1;
+      guard.check();
       const res = await provider.chat({ system, messages, tools: [], signal, onText: attempt === 0 ? onText : null });
+      guard.check();
       addUsage(usage, res.usage);
       messages.push({ role: 'assistant', content: res.text ? [{ type: 'text', text: res.text }] : [], raw: res.raw });
       stop = res.stop;
@@ -163,6 +186,7 @@ export async function runSingleShot({
       text = String(plan.summary || '').trim();
       if (plan.ops.length) {
         onStatus?.(statusLine('apply_edits', { ops: plan.ops }));
+        guard.check();
         const r = executor.run('apply_edits', { ops: plan.ops });
         if (r.isError) text += tr('\n\nThe edits were rejected:\n{list}', { list: r.text.replace(/^Batch rejected, nothing applied:\n/, '') });
         else applied += 1;
@@ -172,7 +196,7 @@ export async function runSingleShot({
     if (err?.name === 'AbortError' || signal?.aborted) stop = 'aborted';
     else error = err;
   } finally {
-    store?.endBatch();
+    if (guard.ownsBoard()) store?.endBatch();
   }
   return { text, messages: withoutDocuments(messages), touched: new Set(executor.touched), usage, stop, stopDetails, rounds, applied, cutOff: stop === 'aborted' || stop === 'max_tokens', error };
 }

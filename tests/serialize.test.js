@@ -507,11 +507,11 @@ const CUSTOM = {
   fields: [{ id: 'f1', label: 'Channels' }],
 };
 
-test('the app writes schema 2 and a schema 1 file upgrades with no change', () => {
-  assert.equal(SCHEMA_VERSION, 2);
+test('the app writes schema 3 and a schema 1 file upgrades with no change', () => {
+  assert.equal(SCHEMA_VERSION, 3);
   const { doc, warnings } = deserialize('{"schema": 1, "title": "Old", "nodes": [{"id": "a", "kind": "mcu", "x": 0, "y": 0}]}');
   assert.deepEqual(warnings, []);
-  assert.equal(doc.schema, 2);
+  assert.equal(doc.schema, 3);
   assert.equal(doc.nodes[0].kind, 'mcu');
   // What an older build sees: a schema 2 file left alone by migrateRaw.
   assert.deepEqual(migrateRaw({ schema: 2, title: 'New' }, {}, 1), { schema: 2, title: 'New' });
@@ -519,7 +519,7 @@ test('the app writes schema 2 and a schema 1 file upgrades with no change', () =
 
 test('a custom node round-trips with its definition, fields, and wires', () => {
   const doc = {
-    schema: 2, title: 'C', zones: [], notes: [], journey: [],
+    schema: 3, title: 'C', zones: [], notes: [], journey: [],
     nodes: [
       { id: 'c', kind: 'custom', x: 0, y: 0, label: 'MD', sublabel: 'MD-4', color: null, addr: '', rail: '12V', notes: '', status: null, flags: [], part: CUSTOM, fields: { f1: '4' } },
       { id: 'm', kind: 'mcu', x: 300, y: 0, label: 'MCU', sublabel: '', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
@@ -543,7 +543,7 @@ test('a customized supply keeps its power markers through a file, and a hostile 
     feeds: ['out'], trio: true,
   };
   const doc = {
-    schema: 2, title: 'C', zones: [], notes: [], journey: [], wires: [],
+    schema: 3, title: 'C', zones: [], notes: [], journey: [], wires: [],
     nodes: [{ id: 'c', kind: 'custom', x: 0, y: 0, label: 'Buck', sublabel: '', color: null, addr: '', rail: '3V3', notes: '', status: null, flags: [], part: REG, fields: { imax: '600mA' } }],
   };
   const { doc: back, warnings } = deserialize(serialize(doc));
@@ -610,5 +610,29 @@ test('deserialize warnings follow the interface language', () => {
     assert.equal(deserialize(text).warnings[0], '未知部件“nope”已变为自定义框。');
   } finally {
     setLang('en');
+  }
+});
+
+test('inherited object names are not catalogue entries, buses, or dispositions', () => {
+  for (const name of ['constructor', '__proto__', 'toString']) {
+    const raw = sampleDoc();
+    raw.nodes[0].kind = name;
+    raw.nodes[0].disposition = name;
+    raw.wires[0].bus = name;
+    const { doc, warnings } = deserialize(JSON.stringify(raw));
+    assert.equal(doc.nodes[0].kind, 'generic');
+    assert.equal(doc.nodes[0].disposition, undefined);
+    assert.equal(doc.wires[0].bus, 'gpio');
+    assert.ok(warnings.length >= 3);
+  }
+});
+
+test('invalid five- and seven-digit hex colors are rejected', () => {
+  for (const color of ['#12345', '#1234567']) {
+    const raw = sampleDoc();
+    raw.nodes[0].color = color; raw.zones[0].color = color;
+    const { doc } = deserialize(JSON.stringify(raw));
+    assert.equal(doc.nodes[0].color, null);
+    assert.equal(doc.zones[0].color, '#4a90d9');
   }
 });

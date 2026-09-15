@@ -386,3 +386,12 @@ test('the messages are translated', () => {
   assert.throws(() => readClip('nope'), /剪贴板/);
   setLang('en');
 });
+
+test('a template with different power semantics must not capture a pasted part', () => {
+  const base = { ...DEF, ports: [{ id: 'p1', name: 'OUT', side: 'right', bus: 'power' }] };
+  const clip = customClip({ ...base, feeds: ['p1'] });
+  const local = template(base);
+  const made = materializeClip(clip, { mint: counter(), known: () => local });
+  assert.equal(made.nodes[0].part.lib, undefined);
+  assert.deepEqual(made.nodes[0].part.feeds, ['p1']);
+});

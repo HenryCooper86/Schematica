@@ -19,7 +19,7 @@ const DEF = {
 
 test('limits match the spec and sides are the four card edges', () => {
   assert.equal(LIMITS.name, 60);
-  assert.equal(LIMITS.ports, 24);
+  assert.equal(LIMITS.ports, 64);
   assert.equal(LIMITS.portName, 12);
   assert.equal(LIMITS.fields, 8);
   assert.equal(LIMITS.options, 20);
@@ -125,9 +125,9 @@ test('ports: ids are generated and unique, bad entries drop, buses fall back, sa
   assert.ok(res.warnings.some((w) => /no name or side/.test(w)));
   assert.ok(res.warnings.some((w) => /unknown bus "warp"/.test(w)));
   assert.equal(res.warnings.filter((w) => /no name or side/.test(w)).length, 2);
-  const many = normalizePart({ name: 'P', ports: Array.from({ length: 30 }, (_, i) => ({ name: `P${i}`, side: 'left', bus: 'gpio' })) });
+  const many = normalizePart({ name: 'P', ports: Array.from({ length: LIMITS.ports + 6 }, (_, i) => ({ name: `P${i}`, side: 'left', bus: 'gpio' })) });
   assert.equal(many.part.ports.length, LIMITS.ports);
-  assert.ok(many.warnings.some((w) => /first 24 ports/.test(w)));
+  assert.ok(many.warnings.some((w) => /first 64 ports/.test(w)));
   assert.equal(normalizePart({ name: 'P', ports: [{ name: 'ABCDEFGHIJKLMNOP', side: 'left', bus: 'gpio' }] }).part.ports[0].name.length, LIMITS.portName);
   assert.deepEqual(normalizePart({ name: 'P', ports: 'nope' }).part.ports, []);
 });

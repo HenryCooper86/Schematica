@@ -1,0 +1,44 @@
+export async function runEngineeringChecks({ js, key, check, sleep }) {
+  await js(`(async()=>{const {Store,addNode,addWire}=await import('/src/state.js');const s=new Store();s.doc.title='Engineering test';const a=addNode(s,'mcu',0,0),b=addNode(s,'temp',400,0);addWire(s,'i2c',{node:a,port:'i2c'},{node:b,port:'i2c'});const dt=new DataTransfer();dt.items.add(new File([JSON.stringify(s.doc)],'test.json'));const input=document.getElementById('file-input');input.files=dt.files;input.dispatchEvent(new Event('change'));})()`);
+  await sleep(200);
+  const open = async tab => js(`document.getElementById('btn-engineering').click();document.querySelector('[data-tab="${tab}"]').click();true`);
+  const submit = async values => js(`(()=>{const f=document.querySelector('#engineering-body form');for(const [k,v]of Object.entries(${JSON.stringify(values)}))f.elements.namedItem(k).value=v;f.requestSubmit();return true;})()`);
+  await open('revisions'); await submit({label:'Design baseline'});
+  check('named revision is visible and exportable',await js(`!![...document.querySelectorAll('#engineering-body li')].find(li=>li.textContent.includes('Design baseline')&&li.querySelector('[data-export]'))`));
+  await js(`document.querySelector('[data-tab=interfaces]').click();true`);
+  await submit({direction:'to-from',voltage:'3.3V',protocol:'I2C v7',rate:'400kHz',source:'datasheet page 3'});
+  await js(`document.getElementById('require-interfaces').click();document.querySelector('[data-action=close]').click();window.dispatchEvent(new Event('pagehide'));true`);
+  check('interface editor persists details and draws the reverse arrow',await js(`(()=>{const d=JSON.parse(localStorage.getItem('schematica.autosave'));return d.wires[0].spec.protocol==='I2C v7'&&d.wires[0].arrow==='back'&&!!document.querySelector('#canvas .wire [marker-start]');})()`));
+  await open('requirements');
+  await js(`document.querySelector('[name=targets]').options[0].selected=true;true`);
+  await submit({id:'REQ-1',text:'Measure temperature',owner:'Engineer',rationale:'Control loop',evidence:'test-report.pdf',status:'verified'});
+  check('requirement record is editable with its allocation',await js(`document.querySelector('[name=id]').value==='REQ-1'&&document.querySelector('[name=targets]').selectedOptions.length===1`));
+  await js(`document.querySelector('[data-tab=budgets]').click();true`);
+  await submit({activeMa:'100',sleepMa:'1',dutyPercent:'10',activePeakMa:'200',mode:'average'});
+  check('mode and current assumptions are saved',await js(`document.querySelector('[name=activeMa]').value==='100'&&document.querySelector('[name=mode]').value==='average'`));
+  await js(`document.querySelector('[data-action=close]').click();document.activeElement.blur();document.getElementById('canvas').focus();true`);
+  await key('a','KeyA',65,2);
+  await open('subsystems');await submit({name:'Sensing subsystem'});
+  check('grouping creates a subsystem with an expanded view',await js(`!!document.querySelector('[data-enter]')&&document.querySelectorAll('#canvas .node').length===1`));
+  await js(`document.querySelector('[name=port-name]').value='Service port';document.querySelector('[data-action=expose]').click();true`);
+  check('an internal port can be exposed for subsystem reuse',await js(`document.querySelector('.exposed-ports').textContent.includes('Service port')`));
+  await js(`document.querySelector('[data-enter]').click();true`);
+  check('opening a subsystem restores its internal parts',await js(`document.querySelectorAll('#canvas .node').length===2`));
+  await js(`document.getElementById('title').value='Edited internals';document.getElementById('title').dispatchEvent(new Event('change'));window.dispatchEvent(new Event('pagehide'));true`);
+  check('autosave while expanded preserves the entire parent architecture',await js(`(()=>{const d=JSON.parse(localStorage.getItem('schematica.autosave'));return d.title==='Engineering test'&&d.nodes[0].subsystem.doc.title==='Edited internals'&&d.nodes[0].subsystem.doc.engineering.requirements[0].id==='REQ-1';})()`));
+  await open('subsystems');await js(`document.querySelector('[data-action=up]').click();true`);
+  check('returning commits the child and keeps the parent title',await js(`document.getElementById('title').value==='Engineering test'&&document.querySelectorAll('#canvas .node').length===1`));
+  await open('review');
+  check('review package and exception actions are available',await js(`!!document.querySelector('[data-action=package]')&&!!document.querySelector('[data-finding]')`));
+  await js(`document.querySelector('[data-finding]').click();true`);await submit({owner:'Reviewer',rationale:'Known prototype limitation'});
+  check('reviewed exception retains its rationale',await js(`document.getElementById('engineering-body').textContent.includes('Known prototype limitation')`));
+  await js(`document.querySelector('[data-action=close]').click();window.dispatchEvent(new Event('pagehide'));true`);
+  check('KiCad XML parsing preserves a net and rejects malformed input',await js(`(async()=>{const {importKiCad}=await import('/src/kicad.js');const d=importKiCad('<export><components><comp ref="U1"><value>MCU</value></comp><comp ref="J1"><value>Header</value></comp></components><nets><net name="N"><node ref="U1" pin="1"/><node ref="J1" pin="2"/></net></nets></export>');let failed=false;try{importKiCad('<bad>')}catch{failed=true}return d.nodes.length===3&&d.wires.length===2&&failed;})()`));
+  // Simulate an actual second writer and its browser storage notification.
+  await js(`(()=>{const key='schematica.autosave',oldValue=localStorage.getItem(key),d=JSON.parse(oldValue);d.title='Other tab';const newValue=JSON.stringify(d);localStorage.setItem(key,newValue);window.dispatchEvent(new StorageEvent('storage',{key,oldValue,newValue,storageArea:localStorage}));return true;})()`);
+  await open('revisions');
+  check('cross-tab conflict exposes an explicit choice',await js(`!!document.querySelector('[data-action=keep]')&&!!document.querySelector('[data-action=remote]')`));
+  await js(`document.querySelector('[data-action=keep]').click();true`);
+  check('keeping local version restores its autosave without losing the other snapshot',await js(`JSON.parse(localStorage.getItem('schematica.autosave')).title==='Engineering test'&&[...document.querySelectorAll('#engineering-body li')].some(li=>li.textContent.includes('Other tab'))`));
+  await js(`document.querySelector('[data-action=close]').click();true`);
+}

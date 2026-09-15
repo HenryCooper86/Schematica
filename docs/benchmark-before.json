@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+  "hardwareConcurrency": 18,
+  "deviceMemoryGiB": 32,
+  "results": [
+    {
+      "nodes": 100,
+      "wires": 99,
+      "render": {
+        "medianMs": 10.199999999254942,
+        "p95Ms": 16.299999998882413
+      },
+      "markup": {
+        "medianMs": 1,
+        "p95Ms": 1.099999999627471
+      },
+      "drag": {
+        "medianMs": 8.099999999627471,
+        "p95Ms": 8.900000000372529
+      },
+      "search": {
+        "medianMs": 0.19999999925494194,
+        "p95Ms": 0.30000000074505806
+      },
+      "checks": {
+        "medianMs": 0.19999999925494194,
+        "p95Ms": 0.8000000007450581
+      },
+      "layout": {
+        "medianMs": 4.900000000372529,
+        "p95Ms": 6.400000000372529
+      },
+      "export": {
+        "medianMs": 1.199999999254942,
+        "p95Ms": 1.200000001117587
+      },
+      "svgElements": 2413,
+      "heapBytes": 56322104
+    },
+    {
+      "nodes": 500,
+      "wires": 499,
+      "render": {
+        "medianMs": 39.100000001490116,
+        "p95Ms": 45
+      },
+      "markup": {
+        "medianMs": 8.599999999627471,
+        "p95Ms": 9
+      },
+      "drag": {
+        "medianMs": 40.69999999925494,
+        "p95Ms": 46.899999998509884
+      },
+      "search": {
+        "medianMs": 0.30000000074505806,
+        "p95Ms": 0.3999999985098839
+      },
+      "checks": {
+        "medianMs": 0.40000000037252903,
+        "p95Ms": 0.7999999988824129
+      },
+      "layout": {
+        "medianMs": 22.5,
+        "p95Ms": 26
+      },
+      "export": {
+        "medianMs": 7.800000000745058,
+        "p95Ms": 8.199999999254942
+      },
+      "svgElements": 12013,
+      "heapBytes": 34198412
+    },
+    {
+      "nodes": 1000,
+      "wires": 999,
+      "render": {
+        "medianMs": 87.09999999962747,
+        "p95Ms": 94.90000000037253
+      },
+      "markup": {
+        "medianMs": 24.5,
+        "p95Ms": 25
+      },
+      "drag": {
+        "medianMs": 87,
+        "p95Ms": 99
+      },
+      "search": {
+        "medianMs": 0.6999999992549419,
+        "p95Ms": 1
+      },
+      "checks": {
+        "medianMs": 0.5,
+        "p95Ms": 0.900000000372529
+      },
+      "layout": {
+        "medianMs": 39.69999999925494,
+        "p95Ms": 43.30000000074506
+      },
+      "export": {
+        "medianMs": 22.699999999254942,
+        "p95Ms": 23.40000000037253
+      },
+      "svgElements": 24013,
+      "heapBytes": 36907920
+    }
+  ]
+}

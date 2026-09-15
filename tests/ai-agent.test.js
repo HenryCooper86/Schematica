@@ -239,3 +239,35 @@ test('makeProvider builds the adapter each provider names and sends the key the 
   for (const i of [1, 2, 3, 4]) assert.equal(seen[i].init.headers.authorization, 'Bearer k', paths[i]);
   assert.throws(() => makeProvider(s('carrier-pigeon'), 'k'), /unknown provider/);
 });
+
+for (const runner of [runRequest, runSingleShot]) {
+  test(`${runner.name} ignores a late provider reply after cancellation`, async () => {
+    const { store, executor } = setup([]);
+    const controller = new AbortController();
+    const provider = { async chat() {
+      controller.abort(); // A provider that resolves despite the aborted signal.
+      return { stop: runner === runRequest ? 'tool_use' : 'end', toolCalls: [build],
+        text: JSON.stringify({ summary: 'Late', ops: build.input.ops }) };
+    } };
+    const res = await runner({ provider, executor, store, signal: controller.signal, userText: 'Build', boardText: '' });
+    assert.equal(res.stop, 'aborted');
+    assert.equal(store.doc.nodes.length, 0);
+    assert.equal(store.undoStack.length, 0);
+  });
+
+  test(`${runner.name} cannot edit or finish a batch belonging to a replacement board`, async () => {
+    const { store, executor } = setup([]);
+    const provider = { async chat() {
+      store.replaceDoc(newDoc('Replacement'));
+      store.beginBatch();
+      return { stop: runner === runRequest ? 'tool_use' : 'end', toolCalls: [build],
+        text: JSON.stringify({ summary: 'Late', ops: build.input.ops }) };
+    } };
+    const res = await runner({ provider, executor, store, userText: 'Build', boardText: '' });
+    assert.equal(res.stop, 'aborted');
+    assert.equal(store.doc.title, 'Replacement');
+    assert.equal(store.doc.nodes.length, 0);
+    assert.equal(store.inBatch(), true);
+    store.cancelBatch();
+  });
+}

@@ -16,7 +16,7 @@ export const EXAMPLES = [
     name: 'Weather Station',
     group: 'Embedded',
     doc: {
-      schema: 2,
+      schema: 3,
       title: 'Weather Station',
       nodes: [
         { id: 'n1', kind: 'solar', x: 77, y: 135.8, label: 'Solar panel', sublabel: '6V 2W', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
@@ -66,7 +66,7 @@ export const EXAMPLES = [
     name: 'Drone Flight Controller',
     group: 'Embedded',
     doc: {
-      schema: 2,
+      schema: 3,
       title: 'Drone Flight Controller',
       nodes: [
         { id: 'n1', kind: 'battery', x: 77, y: 295.8, label: 'Battery', sublabel: 'LiPo 4S', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
@@ -123,7 +123,7 @@ export const EXAMPLES = [
     name: 'CAN Bus Network',
     group: 'Vehicle',
     doc: {
-      schema: 2,
+      schema: 3,
       title: 'CAN Bus Network',
       nodes: [
         { id: 'n1', kind: 'mcu', x: 116, y: 122.3, label: 'Engine ECU', sublabel: 'STM32F1', color: null, addr: 'CAN ID 0x100', rail: '5V', notes: '', status: 'prototype', flags: ['thermal'] },
@@ -169,7 +169,7 @@ export const EXAMPLES = [
     name: 'Smart Greenhouse (edge to cloud)',
     group: 'Embedded',
     doc: {
-      schema: 2,
+      schema: 3,
       title: 'Smart Greenhouse',
       nodes: [
         { id: 'n1', kind: 'temp', x: 53.4, y: 99.3, label: 'Climate sensor', sublabel: 'BME280', color: null, addr: '0x76', rail: '3.3V', notes: '', status: 'production', flags: [] },
@@ -225,7 +225,7 @@ export const EXAMPLES = [
     name: 'Robot Arm Controller',
     group: 'Embedded',
     doc: {
-      schema: 2,
+      schema: 3,
       title: 'Robot Arm Controller',
       nodes: [
         { id: 'n1', kind: 'battery', x: 61, y: 131.8, label: 'Battery', sublabel: '2S LiPo', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
@@ -275,7 +275,7 @@ export const EXAMPLES = [
     name: 'Autonomous Rover',
     group: 'Embedded',
     doc: {
-      schema: 2,
+      schema: 3,
       title: 'Autonomous Rover',
       nodes: [
         { id: 'n1', kind: 'battery', x: 61, y: 111.8, label: 'Battery', sublabel: '2S Li-ion', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
@@ -327,7 +327,7 @@ export const EXAMPLES = [
     name: 'Vehicle CAN Backbone',
     group: 'Vehicle',
     doc: {
-      schema: 2,
+      schema: 3,
       title: 'Vehicle CAN Backbone',
       nodes: [
         { id: 'n1', kind: 'vbat', x: 55, y: 111.8, label: 'Vehicle battery', sublabel: '12V lead-acid', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
@@ -388,7 +388,7 @@ export const EXAMPLES = [
     name: 'OTA Update Pipeline (swimlane)',
     group: 'Vehicle',
     doc: {
-      schema: 2,
+      schema: 3,
       title: 'OTA Update Pipeline',
       nodes: [
         { id: 'n1', kind: 'server', x: 117.2, y: 153.8, label: 'Build server', sublabel: 'CI artifacts', color: null, addr: '', rail: '', notes: '', status: 'production', flags: [] },
@@ -438,7 +438,7 @@ export const EXAMPLES = [
     name: 'Journey 6 ADAS Stack (Horizon)',
     group: 'Vehicle',
     doc: {
-      schema: 2,
+      schema: 3,
       title: 'Journey 6 ADAS Stack',
       nodes: [
         { id: 'n1', kind: 'vbat', x: 40, y: 330, label: 'Vehicle battery', sublabel: '12V', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
@@ -504,7 +504,7 @@ export const EXAMPLES = [
     name: 'Mono 2 Front-Camera ADAS (Horizon)',
     group: 'Vehicle',
     doc: {
-      schema: 2,
+      schema: 3,
       title: 'Mono 2 Front-Camera ADAS',
       nodes: [
         { id: 'n1', kind: 'vbat', x: 40, y: 330, label: 'Vehicle battery', sublabel: '12V', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
@@ -560,7 +560,7 @@ export const EXAMPLES = [
     name: 'SuperDrive HSD 600 Urban NOA (Horizon)',
     group: 'Vehicle',
     doc: {
-      schema: 2,
+      schema: 3,
       title: 'SuperDrive HSD 600 Urban NOA',
       nodes: [
         { id: 'n1', kind: 'vbat', x: 40, y: 330, label: 'Vehicle battery', sublabel: '12V', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
@@ -625,7 +625,7 @@ export const EXAMPLES = [
     name: 'Sensor Node (DRC clean)',
     group: 'Embedded',
     doc: {
-      schema: 2,
+      schema: 3,
       title: 'Sensor Node',
       nodes: [
         { id: 'n1', kind: 'battery', x: 40, y: 300, label: 'Battery', sublabel: '1S LiPo', color: null, addr: '', rail: '', notes: '', status: 'production', flags: [] },
@@ -678,7 +678,7 @@ export const EXAMPLES = [
     name: 'Vehicle OTA Security (threats & flow)',
     group: 'Security',
     doc: {
-      schema: 2,
+      schema: 3,
       title: 'Vehicle OTA Security',
       nodes: [
         { id: 't1', kind: 'insider', x: 60, y: 80, label: 'Rogue engineer', sublabel: '', color: null, addr: '', rail: '', notes: 'Could push an unsigned build if signing keys were shared.', status: null, flags: [], disposition: 'adversary', fields: { type: 'insider-disgruntled', motivation: 'personal-gain', owner: 'svc-build', severity: 'high' } },
@@ -755,7 +755,7 @@ export const EXAMPLES = [
     name: 'ADAS Security (threats & response)',
     group: 'Security',
     doc: {
-      schema: 2,
+      schema: 3,
       title: 'ADAS Security',
       nodes: [
         { id: 't1', kind: 'spoofing', x: 60, y: 60, label: 'Sensor spoofer', sublabel: '', color: null, addr: '', rail: '', notes: 'Fake GNSS signals and projected images against the perception stack.', status: null, flags: [], disposition: 'adversary', fields: { target: 'GNSS', severity: 'high' } },
@@ -839,7 +839,7 @@ export const EXAMPLES = [
     name: 'EV Battery Management (HV + CAN)',
     group: 'Vehicle',
     doc: {
-      schema: 2,
+      schema: 3,
       title: 'EV Battery Management',
       nodes: [
         { id: 'n1', kind: 'battery', x: 60, y: 140, label: 'HV pack', sublabel: '96S 400 V', color: null, addr: '', rail: '', notes: 'Ninety-six cells in series; the contactors isolate it from the vehicle whenever the BMS opens them.', status: 'production', flags: ['safety'] },
@@ -912,7 +912,7 @@ export const EXAMPLES = [
     name: 'OT Network Segmentation (Purdue swimlane)',
     group: 'Security',
     doc: {
-      schema: 2,
+      schema: 3,
       title: 'OT Network Segmentation',
       nodes: [
         { id: 'n1', kind: 'hostpc', x: 60, y: 116, label: 'Engineering workstation', sublabel: 'Windows 11', color: null, addr: '', rail: '', notes: '', status: 'production', flags: [], fields: { ip: '10.1.0.20', dns: 'eng01.corp.local' } },
@@ -981,7 +981,7 @@ export const EXAMPLES = [
     name: 'Secure Boot Chain (flow + hardware)',
     group: 'Security',
     doc: {
-      schema: 2,
+      schema: 3,
       title: 'Secure Boot Chain',
       nodes: [
         { id: 'f1', kind: 'startend', x: 90, y: 60, label: 'Power on', sublabel: '', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },

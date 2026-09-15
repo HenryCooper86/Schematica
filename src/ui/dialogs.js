@@ -15,11 +15,11 @@ import { encodeShare } from '../share.js';
 import { toast, openModal } from './press.js';
 import { tr, trd, onLanguageChange } from '../i18n.js';
 
-export function initDialogs({ store }) {
+export function initDialogs({ store, getRootDoc = () => store.doc }) {
   const safeName = (ext) => `${(store.doc.title || 'schematica').replace(/[^\w-]+/g, '_')}${ext}`;
 
   function saveJSON() {
-    download(safeName('.schematica.json'), serialize(store.doc), 'application/json');
+    download(safeName('.schematica.json'), serialize(getRootDoc()), 'application/json');
   }
 
   document.getElementById('btn-new').addEventListener('click', () => {
@@ -233,7 +233,7 @@ export function initDialogs({ store }) {
         [tr('Peak'), r.summed ? formatCurrent(r.peakMa) : dash],
       ];
       for (const p of r.passes) facts.push([tr('In series'), `${p.label}${p.limitMa == null ? '' : ` · ${formatCurrent(p.limitMa)}`}`]);
-      if (r.undeclared.length) facts.push([tr('Declares nothing'), r.undeclared.join(', ')]);
+      if (r.undeclared.length) facts.push([tr('Incomplete current data'), r.undeclared.join(', ')]);
       // The cell is named, because a rail may be fed by more than one of them.
       for (const rt of r.runtimes) {
         facts.push([tr('Runtime'), `${rt.label} · ${tr('{capacity} at a continuous {draw} is about {hours} h', {

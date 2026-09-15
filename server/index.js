@@ -53,20 +53,46 @@ function targetFor(req, allowed) {
   return url.href;
 }
 
-async function readBody(req, limit) {
-  const size = Number(req.headers['content-length']);
-  if (size > limit) throw error(413, 'The assistant request is too large. Reduce the attached context.');
-  const chunks = [];
-  let bytes = 0;
-  // Do not destroy the socket on an oversized chunk: return a readable 413.
-  for await (const chunk of req.iterator({ destroyOnReturn: false })) {
-    bytes += chunk.length;
-    if (bytes > limit) { req.resume(); throw error(413, 'The assistant request is too large. Reduce the attached context.'); }
-    chunks.push(chunk);
-  }
-  const body = Buffer.concat(chunks);
-  try { JSON.parse(body.toString('utf8')); } catch { throw error(400, 'The assistant request must be valid JSON.'); }
-  return body;
+function readBody(req, limit, signal) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let bytes = 0;
+    const cleanup = () => {
+      req.off('data', onData);
+      req.off('end', onEnd);
+      req.off('error', fail);
+      signal.removeEventListener('abort', onAbort);
+    };
+    const fail = (err) => {
+      cleanup();
+      // Drain without retaining bytes, leaving the response socket usable
+      // for a readable 413/504 and releasing the concurrency slot promptly.
+      req.resume();
+      reject(err);
+    };
+    const onAbort = () => fail(signal.reason || new Error('Request aborted'));
+    const onData = (chunk) => {
+      bytes += chunk.length;
+      if (bytes > limit) { fail(error(413, 'The assistant request is too large. Reduce the attached context.')); return; }
+      chunks.push(chunk);
+    };
+    const onEnd = () => {
+      cleanup();
+      const body = Buffer.concat(chunks);
+      try { JSON.parse(body.toString('utf8')); }
+      catch { reject(error(400, 'The assistant request must be valid JSON.')); return; }
+      resolve(body);
+    };
+    if (Number(req.headers['content-length']) > limit) {
+      fail(error(413, 'The assistant request is too large. Reduce the attached context.'));
+      return;
+    }
+    if (signal.aborted) { onAbort(); return; }
+    req.on('data', onData);
+    req.on('end', onEnd);
+    req.on('error', fail);
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
 }
 
 export function createAppServer({
@@ -115,7 +141,7 @@ export function createAppServer({
         req.on('aborted', disconnected);
         res.on('close', disconnected);
         try {
-          const body = req.method === 'POST' ? await readBody(req, maxBodyBytes) : undefined;
+          const body = req.method === 'POST' ? await readBody(req, maxBodyBytes, controller.signal) : undefined;
           const headers = new Headers();
           for (const name of FORWARD_HEADERS) if (req.headers[name]) headers.set(name, req.headers[name]);
           const upstream = await fetchImpl(target, { method: req.method, headers, body, redirect: 'manual', signal: controller.signal });

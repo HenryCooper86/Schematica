@@ -30,6 +30,8 @@ export function compareBoards(before, after) {
       if (moved.length) changes.push({ ...base, type: 'moved', fields: moved });
     }
   }
+  if (!equal(before.engineering, after.engineering)) changes.push({ type: 'changed', collection: 'board', id: '', label: tr('Engineering'),
+    fields: [{ field: 'engineering', before: before.engineering, after: after.engineering }] });
   // Step order is semantic even when the steps themselves are unchanged.
   const shared = new Set((before.journey || []).filter(s => (after.journey || []).some(t => t.id === s.id)).map(s => s.id));
   const order = doc => (doc.journey || []).filter(s => shared.has(s.id)).map(s => s.id);

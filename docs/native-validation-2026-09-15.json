@@ -1,0 +1,894 @@
+{
+  "date": "2026-09-15",
+  "kicadVersion": "10.0.6",
+  "fixtures": [
+    {
+      "name": "pic_programmer",
+      "sourceSha256": "cf92bff8aebe19e45444f13b2ccd1c8ad578df6a226acd5381e2eff95e2fc08f",
+      "xmlSha256": "d52ec52212a2a822dda3238e27908178089e1fa1d37e6d73067da74c6adbc7d7",
+      "maxConnectedPins": 40,
+      "components": 63,
+      "nets": 111,
+      "connectedPins": 236
+    },
+    {
+      "name": "complex_hierarchy",
+      "sourceSha256": "4344cf98eac9e48262bc6092add7c0dffe27b560627d0658e5129250e7226e9e",
+      "xmlSha256": "79117986968cd48430b1e2a7fa960233fc3cc44adae350228318bcd07a204f62",
+      "maxConnectedPins": 8,
+      "components": 68,
+      "nets": 52,
+      "connectedPins": 164
+    },
+    {
+      "name": "multichannel_mixer",
+      "sourceSha256": "e47aecee9416d51fb5aed36d008a0442d3d6d68abfc5224bcdb5c5bb4a690fcf",
+      "xmlSha256": "6efb36f520c290e7cc9cf9629acf93ad8f0d24c6667b506e61dcf73daafc8b19",
+      "maxConnectedPins": 8,
+      "components": 114,
+      "nets": 80,
+      "connectedPins": 280
+    },
+    {
+      "name": "RoyalBlue54L-Feather",
+      "sourceSha256": "3636dcd5252ae18b2651dce4480a61765bd37b2e601679c3c1465dc8ca21fad8",
+      "xmlSha256": "f632531e727178dbf655109edde7f13d4487e8a076e0529a1de73b8f07b08a02",
+      "maxConnectedPins": 45,
+      "components": 71,
+      "nets": 95,
+      "connectedPins": 313
+    }
+  ],
+  "browsers": [
+    {
+      "browser": "firefox",
+      "version": "155.0.1",
+      "passed": true,
+      "checks": [
+        {
+          "name": "editor initializes",
+          "passed": true
+        },
+        {
+          "name": "toolbar stays within the viewport",
+          "passed": true
+        },
+        {
+          "name": "native pointer drag moves a part",
+          "passed": true
+        },
+        {
+          "name": "undo restores native pointer movement",
+          "passed": true
+        },
+        {
+          "name": "slash opens board search with keyboard focus",
+          "passed": true
+        },
+        {
+          "name": "search finds actual placed parts",
+          "passed": true
+        },
+        {
+          "name": "Enter selects and reveals the search result",
+          "passed": true
+        },
+        {
+          "name": "bus filter and immediate-neighbor highlight agree on drawn wires",
+          "passed": true
+        },
+        {
+          "name": "connected-network mode highlights a filtered network",
+          "passed": true
+        },
+        {
+          "name": "overview hides secondary text but keeps selected details and warning tags",
+          "passed": true
+        },
+        {
+          "name": "automatic reading depth changes with zoom without rebuilding the diagram",
+          "passed": true
+        },
+        {
+          "name": "unmatched or hostile search input stays plain text",
+          "passed": true
+        },
+        {
+          "name": "exploration controls translate to Chinese",
+          "passed": true
+        },
+        {
+          "name": "reset clears filters and restores full detail",
+          "passed": true
+        },
+        {
+          "name": "Escape closes exploration and returns focus to its button",
+          "passed": true
+        },
+        {
+          "name": "exploring does not edit the document, create undo steps, or change card geometry",
+          "passed": true
+        },
+        {
+          "name": "named revision is visible and exportable",
+          "passed": true
+        },
+        {
+          "name": "interface editor persists details and draws the reverse arrow",
+          "passed": true
+        },
+        {
+          "name": "requirement record is editable with its allocation",
+          "passed": true
+        },
+        {
+          "name": "mode and current assumptions are saved",
+          "passed": true
+        },
+        {
+          "name": "grouping creates a subsystem with an expanded view",
+          "passed": true
+        },
+        {
+          "name": "an internal port can be exposed for subsystem reuse",
+          "passed": true
+        },
+        {
+          "name": "opening a subsystem restores its internal parts",
+          "passed": true
+        },
+        {
+          "name": "autosave while expanded preserves the entire parent architecture",
+          "passed": true
+        },
+        {
+          "name": "returning commits the child and keeps the parent title",
+          "passed": true
+        },
+        {
+          "name": "review package and exception actions are available",
+          "passed": true
+        },
+        {
+          "name": "reviewed exception retains its rationale",
+          "passed": true
+        },
+        {
+          "name": "KiCad XML parsing preserves a net and rejects malformed input",
+          "passed": true
+        },
+        {
+          "name": "cross-tab conflict exposes an explicit choice",
+          "passed": true
+        },
+        {
+          "name": "keeping local version restores its autosave without losing the other snapshot",
+          "passed": true
+        },
+        {
+          "name": "reload recovers the saved architecture",
+          "passed": true
+        },
+        {
+          "name": "pic_programmer: KiCad component references survive save/reload",
+          "passed": true,
+          "detail": {
+            "components": 63,
+            "expected": 63
+          }
+        },
+        {
+          "name": "pic_programmer: every net and connected pin survives save/reload",
+          "passed": true,
+          "detail": {
+            "nets": 111,
+            "wires": 236
+          }
+        },
+        {
+          "name": "pic_programmer: no import normalization warnings",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "pic_programmer: imported board renders all parts and net junctions",
+          "passed": true
+        },
+        {
+          "name": "complex_hierarchy: KiCad component references survive save/reload",
+          "passed": true,
+          "detail": {
+            "components": 68,
+            "expected": 68
+          }
+        },
+        {
+          "name": "complex_hierarchy: every net and connected pin survives save/reload",
+          "passed": true,
+          "detail": {
+            "nets": 52,
+            "wires": 164
+          }
+        },
+        {
+          "name": "complex_hierarchy: no import normalization warnings",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "complex_hierarchy: imported board renders all parts and net junctions",
+          "passed": true
+        },
+        {
+          "name": "multichannel_mixer: KiCad component references survive save/reload",
+          "passed": true,
+          "detail": {
+            "components": 114,
+            "expected": 114
+          }
+        },
+        {
+          "name": "multichannel_mixer: every net and connected pin survives save/reload",
+          "passed": true,
+          "detail": {
+            "nets": 80,
+            "wires": 280
+          }
+        },
+        {
+          "name": "multichannel_mixer: no import normalization warnings",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "multichannel_mixer: imported board renders all parts and net junctions",
+          "passed": true
+        },
+        {
+          "name": "RoyalBlue54L-Feather: KiCad component references survive save/reload",
+          "passed": true,
+          "detail": {
+            "components": 71,
+            "expected": 71
+          }
+        },
+        {
+          "name": "RoyalBlue54L-Feather: every net and connected pin survives save/reload",
+          "passed": true,
+          "detail": {
+            "nets": 95,
+            "wires": 313
+          }
+        },
+        {
+          "name": "RoyalBlue54L-Feather: no import normalization warnings",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "RoyalBlue54L-Feather: imported board renders all parts and net junctions",
+          "passed": true
+        },
+        {
+          "name": "presentation shows named chapters and bounded navigation",
+          "passed": true
+        },
+        {
+          "name": "chapter rail jumps to final chapter",
+          "passed": true
+        },
+        {
+          "name": "play starts and pause cancels playback",
+          "passed": true
+        },
+        {
+          "name": "show all clears story focus and pauses playback",
+          "passed": true
+        },
+        {
+          "name": "presentation exits cleanly",
+          "passed": true
+        },
+        {
+          "name": "stop authoring renders ordered parts and captions",
+          "passed": true
+        },
+        {
+          "name": "stop reorder changes the first part",
+          "passed": true
+        },
+        {
+          "name": "clicking a stop focuses its part and caption",
+          "passed": true
+        },
+        {
+          "name": "timed playback advances to the next stop",
+          "passed": true
+        },
+        {
+          "name": "stop transition reveals exact wire, ports and unspecified direction",
+          "passed": true
+        },
+        {
+          "name": "editing the active stop pauses playback and preserves its identity",
+          "passed": true
+        },
+        {
+          "name": "copy moment includes the board and stable stop ID",
+          "passed": true
+        },
+        {
+          "name": "shared board restores the exact presentation stop",
+          "passed": true
+        },
+        {
+          "name": "offline HTML restores exact stop with relationship and presentation stage",
+          "passed": true
+        },
+        {
+          "name": "offline player advances through authored stops",
+          "passed": true
+        },
+        {
+          "name": "offline sharing explains file transfer and exposes a moment fragment",
+          "passed": true
+        },
+        {
+          "name": "offline show all pauses and removes transient highlights",
+          "passed": true
+        },
+        {
+          "name": "no captured browser errors or unhandled rejections",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "viewport": {
+        "height": 865,
+        "width": 1500
+      },
+      "performance": {
+        "deviceMemoryGiB": null,
+        "hardwareConcurrency": 18,
+        "results": [
+          {
+            "checks": {
+              "medianMs": 0,
+              "p95Ms": 1
+            },
+            "drag": {
+              "medianMs": 9,
+              "p95Ms": 9
+            },
+            "export": {
+              "medianMs": 0,
+              "p95Ms": 1
+            },
+            "heapBytes": null,
+            "layout": {
+              "medianMs": 2,
+              "p95Ms": 4
+            },
+            "markup": {
+              "medianMs": 1,
+              "p95Ms": 1
+            },
+            "nodes": 100,
+            "render": {
+              "medianMs": 9,
+              "p95Ms": 9
+            },
+            "search": {
+              "medianMs": 0,
+              "p95Ms": 1
+            },
+            "svgElements": 2413,
+            "wires": 99
+          },
+          {
+            "checks": {
+              "medianMs": 0,
+              "p95Ms": 1
+            },
+            "drag": {
+              "medianMs": 43,
+              "p95Ms": 43
+            },
+            "export": {
+              "medianMs": 2,
+              "p95Ms": 4
+            },
+            "heapBytes": null,
+            "layout": {
+              "medianMs": 24,
+              "p95Ms": 25
+            },
+            "markup": {
+              "medianMs": 3,
+              "p95Ms": 4
+            },
+            "nodes": 500,
+            "render": {
+              "medianMs": 43,
+              "p95Ms": 45
+            },
+            "search": {
+              "medianMs": 0,
+              "p95Ms": 1
+            },
+            "svgElements": 12013,
+            "wires": 499
+          },
+          {
+            "checks": {
+              "medianMs": 1,
+              "p95Ms": 1
+            },
+            "drag": {
+              "medianMs": 87,
+              "p95Ms": 95
+            },
+            "export": {
+              "medianMs": 5,
+              "p95Ms": 6
+            },
+            "heapBytes": null,
+            "layout": {
+              "medianMs": 49,
+              "p95Ms": 49
+            },
+            "markup": {
+              "medianMs": 7,
+              "p95Ms": 8
+            },
+            "nodes": 1000,
+            "render": {
+              "medianMs": 85,
+              "p95Ms": 90
+            },
+            "search": {
+              "medianMs": 1,
+              "p95Ms": 1
+            },
+            "svgElements": 24013,
+            "wires": 999
+          }
+        ],
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:155.0) Gecko/20100101 Firefox/155.0",
+        "version": 1
+      },
+      "errors": []
+    },
+    {
+      "browser": "safari",
+      "version": "26.6.2",
+      "passed": true,
+      "checks": [
+        {
+          "name": "editor initializes",
+          "passed": true
+        },
+        {
+          "name": "toolbar stays within the viewport",
+          "passed": true
+        },
+        {
+          "name": "native pointer drag moves a part",
+          "passed": true
+        },
+        {
+          "name": "undo restores native pointer movement",
+          "passed": true
+        },
+        {
+          "name": "slash opens board search with keyboard focus",
+          "passed": true
+        },
+        {
+          "name": "search finds actual placed parts",
+          "passed": true
+        },
+        {
+          "name": "Enter selects and reveals the search result",
+          "passed": true
+        },
+        {
+          "name": "bus filter and immediate-neighbor highlight agree on drawn wires",
+          "passed": true
+        },
+        {
+          "name": "connected-network mode highlights a filtered network",
+          "passed": true
+        },
+        {
+          "name": "overview hides secondary text but keeps selected details and warning tags",
+          "passed": true
+        },
+        {
+          "name": "automatic reading depth changes with zoom without rebuilding the diagram",
+          "passed": true
+        },
+        {
+          "name": "unmatched or hostile search input stays plain text",
+          "passed": true
+        },
+        {
+          "name": "exploration controls translate to Chinese",
+          "passed": true
+        },
+        {
+          "name": "reset clears filters and restores full detail",
+          "passed": true
+        },
+        {
+          "name": "Escape closes exploration and returns focus to its button",
+          "passed": true
+        },
+        {
+          "name": "exploring does not edit the document, create undo steps, or change card geometry",
+          "passed": true
+        },
+        {
+          "name": "named revision is visible and exportable",
+          "passed": true
+        },
+        {
+          "name": "interface editor persists details and draws the reverse arrow",
+          "passed": true
+        },
+        {
+          "name": "requirement record is editable with its allocation",
+          "passed": true
+        },
+        {
+          "name": "mode and current assumptions are saved",
+          "passed": true
+        },
+        {
+          "name": "grouping creates a subsystem with an expanded view",
+          "passed": true
+        },
+        {
+          "name": "an internal port can be exposed for subsystem reuse",
+          "passed": true
+        },
+        {
+          "name": "opening a subsystem restores its internal parts",
+          "passed": true
+        },
+        {
+          "name": "autosave while expanded preserves the entire parent architecture",
+          "passed": true
+        },
+        {
+          "name": "returning commits the child and keeps the parent title",
+          "passed": true
+        },
+        {
+          "name": "review package and exception actions are available",
+          "passed": true
+        },
+        {
+          "name": "reviewed exception retains its rationale",
+          "passed": true
+        },
+        {
+          "name": "KiCad XML parsing preserves a net and rejects malformed input",
+          "passed": true
+        },
+        {
+          "name": "cross-tab conflict exposes an explicit choice",
+          "passed": true
+        },
+        {
+          "name": "keeping local version restores its autosave without losing the other snapshot",
+          "passed": true
+        },
+        {
+          "name": "reload recovers the saved architecture",
+          "passed": true
+        },
+        {
+          "name": "pic_programmer: KiCad component references survive save/reload",
+          "passed": true,
+          "detail": {
+            "components": 63,
+            "expected": 63
+          }
+        },
+        {
+          "name": "pic_programmer: every net and connected pin survives save/reload",
+          "passed": true,
+          "detail": {
+            "nets": 111,
+            "wires": 236
+          }
+        },
+        {
+          "name": "pic_programmer: no import normalization warnings",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "pic_programmer: imported board renders all parts and net junctions",
+          "passed": true
+        },
+        {
+          "name": "complex_hierarchy: KiCad component references survive save/reload",
+          "passed": true,
+          "detail": {
+            "components": 68,
+            "expected": 68
+          }
+        },
+        {
+          "name": "complex_hierarchy: every net and connected pin survives save/reload",
+          "passed": true,
+          "detail": {
+            "nets": 52,
+            "wires": 164
+          }
+        },
+        {
+          "name": "complex_hierarchy: no import normalization warnings",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "complex_hierarchy: imported board renders all parts and net junctions",
+          "passed": true
+        },
+        {
+          "name": "multichannel_mixer: KiCad component references survive save/reload",
+          "passed": true,
+          "detail": {
+            "components": 114,
+            "expected": 114
+          }
+        },
+        {
+          "name": "multichannel_mixer: every net and connected pin survives save/reload",
+          "passed": true,
+          "detail": {
+            "nets": 80,
+            "wires": 280
+          }
+        },
+        {
+          "name": "multichannel_mixer: no import normalization warnings",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "multichannel_mixer: imported board renders all parts and net junctions",
+          "passed": true
+        },
+        {
+          "name": "RoyalBlue54L-Feather: KiCad component references survive save/reload",
+          "passed": true,
+          "detail": {
+            "components": 71,
+            "expected": 71
+          }
+        },
+        {
+          "name": "RoyalBlue54L-Feather: every net and connected pin survives save/reload",
+          "passed": true,
+          "detail": {
+            "nets": 95,
+            "wires": 313
+          }
+        },
+        {
+          "name": "RoyalBlue54L-Feather: no import normalization warnings",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "RoyalBlue54L-Feather: imported board renders all parts and net junctions",
+          "passed": true
+        },
+        {
+          "name": "presentation shows named chapters and bounded navigation",
+          "passed": true
+        },
+        {
+          "name": "chapter rail jumps to final chapter",
+          "passed": true
+        },
+        {
+          "name": "play starts and pause cancels playback",
+          "passed": true
+        },
+        {
+          "name": "show all clears story focus and pauses playback",
+          "passed": true
+        },
+        {
+          "name": "presentation exits cleanly",
+          "passed": true
+        },
+        {
+          "name": "stop authoring renders ordered parts and captions",
+          "passed": true
+        },
+        {
+          "name": "stop reorder changes the first part",
+          "passed": true
+        },
+        {
+          "name": "clicking a stop focuses its part and caption",
+          "passed": true
+        },
+        {
+          "name": "timed playback advances to the next stop",
+          "passed": true
+        },
+        {
+          "name": "stop transition reveals exact wire, ports and unspecified direction",
+          "passed": true
+        },
+        {
+          "name": "editing the active stop pauses playback and preserves its identity",
+          "passed": true
+        },
+        {
+          "name": "copy moment includes the board and stable stop ID",
+          "passed": true
+        },
+        {
+          "name": "shared board restores the exact presentation stop",
+          "passed": true
+        },
+        {
+          "name": "offline HTML restores exact stop with relationship and presentation stage",
+          "passed": true
+        },
+        {
+          "name": "offline player advances through authored stops",
+          "passed": true
+        },
+        {
+          "name": "offline sharing explains file transfer and exposes a moment fragment",
+          "passed": true
+        },
+        {
+          "name": "offline show all pauses and removes transient highlights",
+          "passed": true
+        },
+        {
+          "name": "no captured browser errors or unhandled rejections",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "viewport": {
+        "width": 1500,
+        "height": 898
+      },
+      "performance": {
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.6.2 Safari/605.1.15",
+        "results": [
+          {
+            "render": {
+              "p95Ms": 10.000000000000028,
+              "medianMs": 9.999999999999972
+            },
+            "markup": {
+              "p95Ms": 1,
+              "medianMs": 1
+            },
+            "search": {
+              "p95Ms": 0,
+              "medianMs": 0
+            },
+            "checks": {
+              "p95Ms": 1,
+              "medianMs": 0
+            },
+            "layout": {
+              "p95Ms": 4,
+              "medianMs": 2
+            },
+            "wires": 99,
+            "export": {
+              "p95Ms": 1,
+              "medianMs": 0
+            },
+            "svgElements": 2413,
+            "drag": {
+              "p95Ms": 10,
+              "medianMs": 9.000000000000028
+            },
+            "nodes": 100,
+            "heapBytes": null
+          },
+          {
+            "render": {
+              "p95Ms": 48,
+              "medianMs": 46.99999999999994
+            },
+            "markup": {
+              "p95Ms": 3.000000000000057,
+              "medianMs": 2
+            },
+            "search": {
+              "p95Ms": 2,
+              "medianMs": 0
+            },
+            "checks": {
+              "p95Ms": 1,
+              "medianMs": 0
+            },
+            "layout": {
+              "p95Ms": 48,
+              "medianMs": 27.999999999999886
+            },
+            "wires": 499,
+            "export": {
+              "p95Ms": 2,
+              "medianMs": 2
+            },
+            "svgElements": 12013,
+            "drag": {
+              "p95Ms": 50,
+              "medianMs": 49.000000000000114
+            },
+            "nodes": 500,
+            "heapBytes": null
+          },
+          {
+            "render": {
+              "p95Ms": 101,
+              "medianMs": 99
+            },
+            "markup": {
+              "p95Ms": 5.000000000000227,
+              "medianMs": 4
+            },
+            "search": {
+              "p95Ms": 1.0000000000002274,
+              "medianMs": 0.9999999999997726
+            },
+            "checks": {
+              "p95Ms": 1.0000000000002274,
+              "medianMs": 0.9999999999997726
+            },
+            "layout": {
+              "p95Ms": 55,
+              "medianMs": 55
+            },
+            "wires": 999,
+            "export": {
+              "p95Ms": 4,
+              "medianMs": 3
+            },
+            "svgElements": 24013,
+            "drag": {
+              "p95Ms": 100,
+              "medianMs": 99
+            },
+            "nodes": 1000,
+            "heapBytes": null
+          }
+        ],
+        "version": 1,
+        "deviceMemoryGiB": null,
+        "hardwareConcurrency": 8
+      },
+      "errors": []
+    }
+  ],
+  "chrome": {
+    "version": "153.0.8010.36",
+    "passed": true,
+    "checksPassed": 216,
+    "checksTotal": 216,
+    "includesKiCadFixtures": true,
+    "consoleErrors": 0
+  },
+  "unit": {
+    "passed": 830,
+    "failed": 0
+  }
+}

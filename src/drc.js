@@ -1,3 +1,6 @@
+import { analysisDoc } from './analysis-doc.js';
+import { subsystemIssues } from './subsystems.js';
+import { engineeringChecks } from './engineering.js';
 // Design-rule checker: pure derivation from a document; the messages are
 // written in the interface language.
 // Findings: { level: 'error'|'warning'|'info', rule, message, ids: [nodeOrWireIds] }.
@@ -14,7 +17,20 @@ export function i2cAddrKey(addr) {
 }
 
 export function checkDoc(doc) {
-  const findings = [];
+  if (doc.nodes.some(n => n.subsystem)) {
+    const flat = analysisDoc(doc);
+    const owners = new Map([...flat.nodes, ...flat.wires, ...flat.zones, ...flat.notes].map(item => [item.id, item.selectionId]));
+    const findings = checkDoc(flat).map(f => ({ ...f, ids: [...new Set(f.ids.map(id => owners.get(id) || id))] }));
+    const visit = (scope, owner = null) => {
+      for (const node of scope.nodes) if (node.subsystem) {
+        if (subsystemIssues(node).length) findings.push({ rule: 'subsystem-boundary', level: 'error', ids: [owner || node.id], message: tr('Subsystem {name} has a missing or incompatible exposed port.', { name: node.label }) });
+        visit(node.subsystem.doc, owner || node.id);
+      }
+    };
+    visit(doc);
+    return findings;
+  }
+  const findings = engineeringChecks(doc);
   const byId = new Map(doc.nodes.map((n) => [n.id, n]));
   const wiredPorts = new Set();
   const wiredNodes = new Set();
@@ -183,9 +199,11 @@ export function checkDoc(doc) {
         findings.push({
           level: 'warning',
           rule: 'power-budget-peak',
-          message: (shared
-            ? tr('{names} can supply {limit} between them; the peaks on their rail add up to {peak} if they all land at once.', vars)
-            : tr('{label} can supply {limit}; the peaks on its rail add up to {peak} if they all land at once.', vars)) + caveat,
+          message: (doc.engineering?.budget?.peaks === 'noncoincident'
+            ? tr('The rail can supply {limit}; with one peak excursion at a time it reaches {peak}.', vars)
+            : shared
+              ? tr('{names} can supply {limit} between them; the peaks on their rail add up to {peak} if they all land at once.', vars)
+              : tr('{label} can supply {limit}; the peaks on its rail add up to {peak} if they all land at once.', vars)) + caveat,
           ids,
         });
       }
@@ -195,7 +213,7 @@ export function checkDoc(doc) {
       // anything. Name the ones that stated nothing. A rail whose only figure
       // was carried across from downstream says nothing here, because a
       // derived number is no reason to demand a rating.
-      const quiet = rail.sources.filter((s) => !(s.currents.limitMa > 0));
+      const quiet = rail.sources.filter((s) => s.currents.limitMa == null);
       const who = quiet.map((s) => s.node.label).join(tr(' and '));
       findings.push({
         level: 'info',
@@ -212,7 +230,7 @@ export function checkDoc(doc) {
     // so calling its rating blown on a sum of datasheet peaks would be wrong.
     for (const pass of rail.passes) {
       const rating = pass.currents.limitMa;
-      if (!(rating > 0)) continue;
+      if (rating == null) continue;
       const vars = { label: pass.node.label, limit: formatCurrent(rating), draw };
       if (rail.typicalMa > rating) {
         findings.push({
@@ -237,30 +255,32 @@ export function checkDoc(doc) {
     // Only where there is a total for them to be missing from: a rail whose
     // sole figure is a cell's capacity is computing nothing yet, and saying
     // parts are left out of a 0 mA sum would be noise, not information.
-    if (rail.unknown && rail.draws.length > rail.unknown) {
+    if (rail.unknown && rail.known) {
       findings.push({
         level: 'info',
         rule: 'power-budget-unknown-parts',
-        message: rail.unknown === 1
-          ? tr('One part on this rail declares no current, so the {draw} total leaves it out.', { draw })
-          : tr('{n} parts on this rail declare no current, so the {draw} total leaves them out.', { n: rail.unknown, draw }),
+        message: tr('Current data is incomplete for {n} part(s) on this rail, including downstream loads; {draw} is only the known subtotal.', { n: rail.unknown, draw }),
         ids: rail.unknownIds,
       });
     }
     // A cell with a capacity and a known load has a runtime. It is division,
-    // not a model: no duty cycle, no converter losses, no ageing, no cut-off.
+    // not a transient simulation: operating/conversion assumptions apply only
+    // when explicitly selected; no ageing or cut-off is modeled.
     // The word "continuous" is load-bearing - a board that sleeps between
     // readings runs far longer than this, and the line must not read as a
     // forecast that contradicts the board's own note.
     for (const source of rail.sources) {
+      if (rail.unknown) continue;
       const hours = runtimeHours(source.currents.capacityMah, rail.typicalMa);
       if (hours == null) continue;
       findings.push({
         level: 'info',
         rule: 'battery-runtime',
-        message: tr('{label} holds {capacity}; at a continuous {draw} that is about {hours} h, ignoring duty cycle and conversion efficiency.', {
-          label: source.node.label, capacity: formatCapacity(source.currents.capacityMah), draw, hours: formatHours(hours),
-        }),
+        message: doc.engineering?.budget || doc.nodes.some(n => n.budget)
+          ? tr('{label}: about {hours} h at {draw} under the selected operating and conversion assumptions.', { label: source.node.label, hours: formatHours(hours), draw })
+          : tr('{label} holds {capacity}; at a continuous {draw} that is about {hours} h, ignoring duty cycle and conversion efficiency.', {
+            label: source.node.label, capacity: formatCapacity(source.currents.capacityMah), draw, hours: formatHours(hours),
+          }),
         ids: [source.node.id],
       });
     }

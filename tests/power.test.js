@@ -140,7 +140,7 @@ test('a regulator with a declared current whose own rail cannot be summed still 
   );
   const rails = powerRails(d);
   assert.equal(rail(rails, 'bat').typicalMa, 0.055, 'nothing downstream stated a figure, so only its own is known');
-  assert.equal(rail(rails, 'bat').unknown, 0);
+  assert.equal(rail(rails, 'bat').unknown, 1, 'the regulator cannot account for its downstream load');
   assert.equal(rail(rails, 'reg').unknown, 1);
 });
 
@@ -253,8 +253,7 @@ test('powerSummary lists every rail as something to read, judging nothing', () =
   const cell = rows.find((r) => r.sources.includes('bat'));
   assert.deepEqual(cell.passes, [{ label: 'f', limitMa: 2000 }]);
   assert.equal(cell.typicalMa, 100);
-  assert.equal(cell.runtimes.length, 1);
-  assert.equal(cell.runtimes[0].hours, 20);
+  assert.equal(cell.runtimes.length, 0, 'unknown downstream draw prevents a runtime estimate');
   assert.deepEqual(cell.ids.sort(), ['bat', 'f', 'reg']);
   const out = rows.find((r) => r.sources.includes('reg'));
   assert.equal(out.limitMa, 600);
@@ -304,4 +303,76 @@ test('a USB port heads a rail and a customized regulator keeps heading its own',
 test('declaredTypicalMa counts every part, wired to a rail or not', () => {
   assert.equal(declaredTypicalMa([node('a', 'mcu', { ityp: '100mA' }), node('b', 'imu', { ipeak: '5mA' }), node('c', 'led')]), 105);
   assert.equal(declaredTypicalMa([node('c', 'led')]), null, 'a board that states nothing has no total');
+});
+
+test('unknown downstream loads remain incomplete upstream and suppress runtime estimates', () => {
+  const d = doc([
+    node('b', 'battery', { capacity: '2000mAh', imax: '1A' }),
+    node('r', 'regulator', { ityp: '5mA', imax: '1A' }),
+    node('known', 'mcu', { ityp: '100mA' }), node('missing', 'temp'),
+  ], [wire('a', 'power', 'b', 'out', 'r', 'in'),
+    wire('c', 'power', 'r', 'out', 'known', 'vcc'),
+    wire('d', 'power', 'r', 'out', 'missing', 'vcc')]);
+  const upstream = rail(powerRails(d), 'b');
+  assert.equal(upstream.typicalMa, 105);
+  assert.equal(upstream.unknown, 1);
+  assert.equal(upstream.known, true);
+  assert.deepEqual(upstream.unknownIds, ['r']);
+  assert.deepEqual(powerSummary(d).find(r => r.sources.includes('b')).runtimes, []);
+});
+
+test('zero output limit is a declared rating, not an unknown rating', () => {
+  const d = doc([node('b', 'battery', { imax: '0mA' }), node('m', 'mcu', { ityp: '10mA' })],
+    [wire('w', 'power', 'b', 'out', 'm', 'vcc')]);
+  const r = powerRails(d)[0];
+  assert.equal(r.limitMa, 0);
+  assert.equal(r.limitComplete, true);
+});
+
+test('unit scaling never returns an infinite current or capacity', () => {
+  const huge = '9'.repeat(308);
+  assert.equal(parseCurrentMa(huge + 'kA'), null);
+  assert.equal(parseCapacityMah(huge + 'kAh'), null);
+});
+
+test('cyclic power totals do not depend on which rail is requested first', () => {
+  const d = doc([node('a', 'regulator', { ityp: '1mA' }), node('b', 'regulator', { ityp: '2mA' }),
+    node('m', 'mcu', { ityp: '3mA' })],
+  [wire('ab', 'power', 'a', 'out', 'b', 'in'), wire('ba', 'power', 'b', 'out', 'a', 'in'),
+    wire('am', 'power', 'a', 'out', 'm', 'vcc')]);
+  const totals = () => Object.fromEntries(powerRails(d).map(r => [r.sources[0].node.id, r.typicalMa]));
+  const first = totals();
+  d.wires.reverse();
+  assert.deepEqual(totals(), first);
+  assert.deepEqual(first, { a: 6, b: 6 });
+});
+
+test('Check and BOM also withhold runtime for incomplete loads', async () => {
+  const { checkDoc } = await import('../src/drc.js');
+  const { bomSummary } = await import('../src/bom.js');
+  const d = doc([node('b', 'battery', { capacity: '2000mAh', imax: '0mA' }),
+    node('known', 'mcu', { ityp: '100mA' }), node('missing', 'temp')],
+  [wire('a', 'power', 'b', 'out', 'known', 'vcc'), wire('c', 'power', 'b', 'out', 'missing', 'vcc')]);
+  const findings = checkDoc(d);
+  assert.ok(findings.some(f => f.rule === 'power-budget' && f.level === 'error'));
+  assert.ok(!findings.some(f => f.rule === 'battery-runtime'));
+  assert.ok(!bomSummary(d).some(line => line.includes(' h at ')));
+});
+
+test('converter voltage and efficiency scale downstream load while keeping quiescent current', () => {
+  const d=doc([node('bat','battery'),node('reg','regulator',{ityp:'5mA'}),node('load','mcu',{ityp:'100mA'})],
+    [wire('w1','power','bat','out','reg','in'),wire('w2','power','reg','out','load','vcc')]);
+  d.nodes[1].budget={inputV:12,outputV:3.3,efficiency:90};
+  assert.ok(Math.abs(rail(powerRails(d),'bat').typicalMa-(5+100*3.3/12/0.9))<1e-9);
+});
+test('operating modes and explicit noncoincident peaks use their stated assumptions', () => {
+  const d=doc([node('bat','battery'),node('a','mcu'),node('b','temp')],
+    [wire('wa','power','bat','out','a','vcc'),wire('wb','power','bat','out','b','vcc')]);
+  d.nodes[1].budget={activeMa:100,sleepMa:1,activePeakMa:200,dutyPercent:10};
+  d.nodes[2].budget={activeMa:20,sleepMa:2,activePeakMa:50,dutyPercent:50};
+  d.engineering={budget:{mode:'average',peaks:'simultaneous'}};
+  let r=powerRails(d)[0];assert.ok(Math.abs(r.typicalMa-21.9)<1e-9);assert.equal(r.peakMa,250);
+  d.engineering.budget={mode:'active',peaks:'noncoincident'};
+  r=powerRails(d)[0];assert.equal(r.typicalMa,120);assert.equal(r.peakMa,220);
+  d.engineering.budget.mode='sleep';assert.equal(powerRails(d)[0].typicalMa,3);
 });

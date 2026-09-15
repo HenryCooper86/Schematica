@@ -195,12 +195,12 @@ test('parts that declare nothing are reported even when the budget is comfortabl
   const [f] = budget(d);
   assert.equal(f.level, 'info');
   assert.equal(f.rule, 'power-budget-unknown-parts');
-  assert.equal(f.message, '3 parts on this rail declare no current, so the 100 mA total leaves them out.');
+  assert.equal(f.message, 'Current data is incomplete for 3 part(s) on this rail, including downstream loads; 100 mA is only the known subtotal.');
   assert.deepEqual(f.ids, ['LED', 'Buzz', 'Disp'], 'Select picks the silent parts, not the whole rail');
   const one = powered(node('LDO', 'regulator', { fields: { imax: '1A' } }), [
     node('MCU', 'mcu', { fields: { ityp: '100mA' } }), node('LED', 'led'),
   ]);
-  assert.equal(budget(one)[0].message, 'One part on this rail declares no current, so the 100 mA total leaves it out.');
+  assert.equal(budget(one)[0].message, 'Current data is incomplete for 1 part(s) on this rail, including downstream loads; 100 mA is only the known subtotal.');
 });
 
 test('a peak sum over the limit is a warning that names the assumption behind it', () => {
@@ -212,6 +212,8 @@ test('a peak sum over the limit is a warning that names the assumption behind it
   assert.equal(f.level, 'warning');
   assert.equal(f.rule, 'power-budget-peak');
   assert.equal(f.message, 'LDO can supply 600 mA; the peaks on its rail add up to 2.5 A if they all land at once.');
+  d.engineering = { budget: { peaks: 'noncoincident' } };
+  assert.equal(budget(d)[0].message, 'The rail can supply 600 mA; with one peak excursion at a time it reaches 2.1 A.');
 });
 
 test('the peak rule stays quiet when the typical rule already reported the rail', () => {
@@ -391,7 +393,7 @@ test('the rules added to the budget read in Chinese too', () => {
   try {
     const say = (d, rule) => checkDoc(d).find((f) => f.rule === rule).message;
     assert.equal(say(peaks, 'power-budget-peak'), 'LDO 可提供 600 mA；若其电压轨上的峰值同时出现，合计为 2.5 A。');
-    assert.equal(say(peaks, 'power-budget-unknown-parts'), '该电压轨上有 1 个部件未声明电流，因此 180 mA 的合计未将其计入。');
+    assert.equal(say(peaks, 'power-budget-unknown-parts'), '该电压轨上有 1 个部件的电流数据不完整（包括下游负载）；180 mA 仅为已知电流的小计。');
     assert.equal(say(fuse, 'power-fuse-rating'), 'Fuse 的额定电流为 1 A，而其电压轨上的部件需要 1.2 A。');
   } finally {
     setLang('en');

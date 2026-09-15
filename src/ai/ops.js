@@ -283,8 +283,8 @@ export function pickPorts(doc, a, b, portA, portB, bus) {
 
 function parseArrow(v) {
   if (v === null || v === undefined) return null;
-  if (v === 'fwd' || v === 'both') return v;
-  return fail('arrow must be fwd, both, or null');
+  if (v === 'fwd' || v === 'both' || v === 'back') return v;
+  return fail('arrow must be fwd, back, both, or null');
 }
 
 function parseStyle(v) {
@@ -437,7 +437,7 @@ HANDLERS.update_wire = (ctx, op) => {
     changed.push('bus');
   }
   if (op.label !== undefined) { w.label = text(ctx, op.label, 'label'); changed.push('label'); }
-  if (op.arrow !== undefined) { w.arrow = parseArrow(op.arrow); changed.push('arrow'); }
+  if (op.arrow !== undefined) { w.arrow = parseArrow(op.arrow); if (w.spec) w.spec.direction = ({ fwd: 'from-to', back: 'to-from', both: 'bidirectional' })[w.arrow] || ''; changed.push('arrow'); }
   if (op.style !== undefined) { w.style = parseStyle(op.style); changed.push('style'); }
   if (op.flow !== undefined) {
     if (![null, 'on', 'off'].includes(op.flow)) fail('flow must be on, off, or null');

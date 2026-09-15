@@ -62,10 +62,8 @@ html, body {
   color: var(--text);
   border-radius: 8px;
   padding: 6px 10px;
-  /* Grows with the window so the toolbar stays on one row from 1390 px up.
-     The ? button costs 22px, so the widest the field may grow came down by
-     the same amount; measured at 1500px, where the row has 11px to spare. */
-  width: clamp(110px, calc(100vw - 1292px), 148px);
+  /* Reserve room for the engineering control; groups wrap on narrower windows. */
+  width: clamp(100px, calc(100vw - 1323px), 117px);
   font-size: 13px;
 }
 #title:focus { outline: none; border-color: var(--accent); }
@@ -1560,3 +1558,19 @@ html[data-theme="light"] .ai-result.warn { color: #92400e; }
 #canvas .ports.story-ports .portg:not(.story-port) { opacity: 0; }
 #present-overlay { max-height: 48dvh; overflow-y: auto; }
 #examples-menu button small { color: var(--muted); font-size: 10px; margin-left: 6px; }
+
+/* Engineering workspace: one keyboard-accessible dialog for durable records. */
+#engineering-dialog { width:min(1000px,94vw);max-height:90vh;overflow:auto;background:var(--panel,#182130);color:var(--text,#e5eaf2);border:1px solid #667085;border-radius:12px;padding:24px; }
+#engineering-dialog::backdrop { background:#0009; }
+#engineering-dialog header { display:flex;align-items:center;justify-content:space-between;gap:16px; }
+#engineering-dialog nav { display:flex;gap:6px;flex-wrap:wrap;margin:12px 0; }
+#engineering-dialog button { padding:8px 12px;margin:3px; }
+#engineering-dialog [aria-pressed=true] { outline:2px solid #38bdf8; }
+#engineering-dialog form { display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin:20px 0; }
+#engineering-dialog label { display:flex;flex-direction:column;gap:6px; }
+#engineering-dialog input,#engineering-dialog select,#engineering-dialog textarea { padding:9px;min-width:0;color:inherit;background:var(--bg,#101722);border:1px solid #667085;border-radius:5px; }
+#engineering-dialog ul { padding-left:20px; } #engineering-dialog li { margin:14px 0; }
+#engineering-dialog pre { white-space:pre-wrap;overflow-wrap:anywhere;max-height:380px;overflow:auto; }
+#engineering-dialog aside { padding:16px;border:2px solid #fbbf24; }
+#engineering-dialog table { width:100%;border-collapse:collapse;margin-top:16px; }
+#engineering-dialog th,#engineering-dialog td { text-align:left;padding:9px;border-bottom:1px solid #667085; }

@@ -10,7 +10,7 @@ import { BUSES } from './buses.js';
 import { tr } from './i18n.js';
 
 export const LIMITS = {
-  name: 60, ports: 24, portName: 12, id: 24, fields: 8, fieldLabel: 40,
+  name: 60, ports: 64, portName: 12, id: 24, fields: 8, fieldLabel: 40,
   options: 20, option: 40, placeholder: 40, path: 2000, text: 3, lib: 40, library: 200,
 };
 export const SIDES = ['left', 'right', 'top', 'bottom'];

@@ -553,3 +553,29 @@ test('zones, swimlanes and notes get language-aware default text', () => {
   const z = addZone(store, { x: 0, y: 0, w: 100, h: 100 });
   assert.equal(store.doc.zones.find((x) => x.id === z).label, 'Zone');
 });
+
+test('toolbar undo and redo cannot alter history during an active drag', () => {
+  const store = new Store();
+  const id = addNode(store, 'mcu', 0, 0);
+  store.beginDrag();
+  store.mutate(doc => { doc.nodes[0].x = 100; });
+  assert.equal(store.canUndo(), false);
+  store.undo(); store.redo();
+  assert.equal(store.doc.nodes[0].x, 100);
+  store.endDrag();
+  store.undo();
+  assert.equal(store.doc.nodes[0].id, id);
+  assert.equal(store.doc.nodes[0].x, 0);
+  store.redo();
+  assert.equal(store.doc.nodes[0].x, 100);
+});
+
+test('cancelling a batch removes selection references to rolled-back items', () => {
+  const store = new Store();
+  store.beginBatch();
+  const id = addNode(store, 'mcu', 0, 0);
+  store.setSelection([id]);
+  store.cancelBatch();
+  assert.equal(store.selection.size, 0);
+  assert.equal(store.doc.nodes.length, 0);
+});

@@ -1,5 +1,10 @@
+import { createRevisions, conflictStorage } from './revisions.js';
+import { createSubsystemNavigation } from './subsystems.js';
+import { initEngineering } from './ui/engineering-ui.js';
+import { importKiCad } from './kicad.js';
 import { initAppearance } from './ui/theme-ui.js';
 import { initCompare } from './ui/compare-ui.js';
+import { createAutosave } from './autosave.js';
 // Boot: the store, renderer, and tools, the toolbar, autosave, and the
 // animation ticker. Every panel and dialog lives in src/ui/.
 import { Store, newDoc } from './state.js';
@@ -53,6 +58,26 @@ let explorer = null;
 let storage = null;
 try { storage = window.localStorage; } catch { storage = null; }
 const library = createLibrary(storage);
+let engineeringUI = null;
+const navigation = createSubsystemNavigation(store);
+const revisions = createRevisions(storage, { onError: () => toast(tr('Revision storage failed. Export a board file to keep a durable copy.')) });
+store.beforeReplace.add(() => {
+  if (navigation.navigating()) return;
+  const previous = navigation.rootDoc();
+  if (previous.nodes.length || previous.notes.length || previous.zones.length || previous.engineering) revisions.save(previous, previous.title, 'before-replace');
+  navigation.reset();
+});
+let persistence;
+try {
+  persistence = conflictStorage(storage, { getDoc: () => navigation.rootDoc(), revisions,
+    onConflict: () => toast(tr('Another tab changed this board. Open Engineering to choose which version to keep.'), {
+      action: { label: tr('Review versions'), run: () => engineeringUI?.openRevisions() },
+    }) });
+} catch { persistence = conflictStorage(null, { getDoc: () => navigation.rootDoc(), revisions, onConflict: () => {} }); }
+window.addEventListener('storage', event => {
+  if (event.key === 'schematica.autosave') persistence.observe(event.newValue);
+});
+
 // tools reads the library to recognise a pasted custom card's template.
 const tools = createTools({
   svg, store, requestRender: render, onToolChange: updateToolButtons,
@@ -160,21 +185,13 @@ document.getElementById('btn-fullscreen').addEventListener('click', () => {
 // ---- Autosave ----
 // A failure (storage full, blocked, or unavailable) is reported once per
 // streak so the user knows the board only lives in this tab until saved.
-let autosaveTimer = null;
-let autosaveBroken = false;
-store.subscribe(() => {
-  clearTimeout(autosaveTimer);
-  autosaveTimer = setTimeout(() => {
-    try {
-      localStorage.setItem('schematica.autosave', serialize(store.doc));
-      autosaveBroken = false;
-    } catch {
-      if (!autosaveBroken) {
-        toast(tr('Autosave failed: this browser\'s storage is full or blocked. Save the board to a file to keep it.'));
-      }
-      autosaveBroken = true;
-    }
-  }, 300);
+const autosave = createAutosave({ store, storage: persistence, getDoc: () => navigation.rootDoc(), onError: () => {
+  if (persistence.pending()) return;
+  toast(tr('Autosave failed: this browser\'s storage is full or blocked. Save the board to a file to keep it.'));
+} });
+window.addEventListener('pagehide', () => autosave.flush());
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') autosave.flush();
 });
 
 // ---- Toolbar ----
@@ -221,7 +238,8 @@ initPalette({ svg, store, tools, library, editor });
 initLegend();
 initCompare({ store });
 explorer = initExplore({ store, tools, svg, render });
-dialogs = initDialogs({ store });
+dialogs = initDialogs({ store, getRootDoc: () => navigation.rootDoc() });
+engineeringUI = initEngineering({ store, revisions, navigation, persistence, flush: () => autosave.flush(), importKiCad });
 const recorder = initRecording({ svg, store });
 const journeyUI = initJourney({ svg, store, tools, render, recorder, propsPanel });
 initExamplesMenu({ store });

@@ -5,12 +5,12 @@
 - SSH user: `ubuntu`
 - OS: Ubuntu 24.04 LTS, 2 GB RAM
 - Active release: `/opt/schematica/current`
-- Release directory: `/opt/schematica/releases/20260910-0214`
+- Release directory: `/opt/schematica/releases/20260915-061548`
 - Docker Compose project: `schematica`
-- Deployed: 2026-09-10
+- Deployed: 2026-09-15
 
-The release was uploaded from the tested local workspace, including the new
-backend. It is not a Git checkout and does not automatically deploy GitHub
+The release is uploaded from the tested Git commit on `main`. Its `REVISION`
+file records the full commit hash; the backend and static assets use that same revision. It is not a Git checkout and does not automatically deploy GitHub
 commits. The SSH private key remains on the operator's computer.
 
 The deployment's `.env` sets `SCHEMATICA_DOMAIN=bionicloud.net` and
