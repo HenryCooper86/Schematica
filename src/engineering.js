@@ -1,3 +1,4 @@
+import { normalizeViews, normalizeReviews } from './workflows.js';
 import { normalizeConstraints, interfaceCompatibility } from './interface-checks.js';
 // Portable engineering records. These live in the document, never in settings.
 import { nodePart } from './rdk/profiles.js';
@@ -36,9 +37,12 @@ export function normalizeEngineering(raw, warnings = []) {
       seen.add(id);
       out[key].push({ id, text: text(entry.text), rationale: text(entry.rationale), owner: text(entry.owner),
         evidence: text(entry.evidence), status: ['draft', 'verified', 'rejected', 'accepted'].includes(entry.status) ? entry.status : 'draft',
-        targets: refs(entry.targets) });
+        targets: refs(entry.targets), ...(entry.method !== undefined ? { method: text(entry.method) } : {}),
+        ...(entry.verifiedFingerprint ? { verifiedFingerprint: text(entry.verifiedFingerprint), verifiedAt: text(entry.verifiedAt) } : {}) });
     }
   }
+  if (Array.isArray(raw.savedViews)) out.savedViews = normalizeViews(raw.savedViews);
+  if (Array.isArray(raw.reviews)) out.reviews = normalizeReviews(raw.reviews);
   if (raw.interfacesRequired === true) out.interfacesRequired = true;
   if (object(raw.budget)) out.budget = { mode: ['active', 'sleep', 'average'].includes(raw.budget.mode) ? raw.budget.mode : 'active',
     peaks: raw.budget.peaks === 'noncoincident' ? 'noncoincident' : 'simultaneous' };
@@ -123,7 +127,7 @@ export function mergeEngineering(doc, incoming, map) {
       const targets = record.targets.map(id => map.get(id)).filter(Boolean);
       if (!targets.length) continue;
       const same = existing.find(r => r.id === record.id);
-      if (same && ['text', 'rationale', 'owner', 'evidence', 'status'].every(k => same[k] === record[k])) {
+      if (same && ['text', 'rationale', 'owner', 'evidence', 'status', 'method', 'verifiedFingerprint'].every(k => same[k] === record[k])) {
         same.targets = [...new Set([...same.targets, ...targets])]; continue;
       }
       let id = record.id, suffix = 2;

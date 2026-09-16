@@ -1663,3 +1663,32 @@ html[data-theme="light"] .ai-result.warn { color: #92400e; }
   #engineering-dialog form, #engineering-dialog[data-section=revisions] form,
   #engineering-dialog[data-section=interfaces] fieldset:first-of-type { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Engineering workflow controls use the existing application theme. */
+.workflow-dialog { width: min(980px, calc(100vw - 32px)); max-height: 88dvh; overflow: auto; padding: 24px; background: var(--bg1); color: var(--text); border: 1px solid var(--line); border-radius: 12px; }
+.workflow-dialog footer, .guide-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.workflow-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.workflow-table { overflow: auto; grid-column: 1 / -1; }
+.review-record { padding: 16px 0; border-top: 1px solid var(--line); }
+#first-project { position: absolute; left: 14px; bottom: 54px; width: min(340px, calc(100% - 28px)); max-height: 70%; overflow: auto; padding: 18px; z-index: 15; background: var(--bg1); color: var(--text); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 32px #0004; }
+#first-project[hidden] { display: none; }
+#first-project header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+#first-project h2 { font-size: 16px; margin: 0; }
+#first-project li { margin: 10px 0; line-height: 1.5; }
+#recovery-status { font-size: 11px; max-width: 150px; white-space: normal; }
+#recovery-status[data-state=error] { color: var(--warn, #f59e0b); }
+.ai-preview-option { display: flex; gap: 6px; align-items: center; font-size: 12px; margin: 4px 0 8px; }
+@media(max-width: 640px) { .workflow-columns { grid-template-columns: 1fr; } }
+
+#recovery-status { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 12; padding: 5px 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg1); color: var(--muted); cursor: pointer; }
+#recovery-status[data-state=error] { color: #f59e0b; }
+#app.presenting :is(#recovery-status, #first-project) { display: none; }
+
+#btn-guide { display: block; width: calc(100% - 24px); margin: 0 12px 12px; padding: 8px; color: var(--text); background: var(--bg2); border: 1px solid var(--line); border-radius: 7px; cursor: pointer; }
+#btn-guide:focus-visible { outline: 2px solid var(--accent); }
+.workflow-dialog button, #first-project button { font: inherit; padding: 7px 10px; color: var(--text); background: var(--bg2); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+.workflow-dialog button:disabled { opacity: .5; cursor: default; }
+.workflow-dialog button:focus-visible, #first-project button:focus-visible { outline: 2px solid var(--accent); }
+.workflow-dialog li { line-height: 1.6; overflow-wrap: anywhere; }
+.workflow-dialog table { width: 100%; border-collapse: collapse; }
+.workflow-dialog td, .workflow-dialog th { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); }

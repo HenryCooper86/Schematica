@@ -25,7 +25,7 @@ export function analysisDoc(source) {
           out.nodes.push({ ...n, id, subsystem: undefined, selectionId });
         }
       } else {
-        out.nodes.push({ ...n, id, selectionId, x: n.x + offset.x, y: n.y + offset.y, label: [...labels, n.label].join(' / ') });
+        out.nodes.push({ ...n, id, selectionId, analysisScope: JSON.stringify(path), analysisBudget: doc.engineering?.budget || { mode: 'active', peaks: 'simultaneous' }, x: n.x + offset.x, y: n.y + offset.y, label: [...labels, n.label].join(' / ') });
         mapped.set(n.id, [id]);
       }
     }

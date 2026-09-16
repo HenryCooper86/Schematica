@@ -20,7 +20,7 @@ export function checkDoc(doc) {
   if (doc.nodes.some(n => n.subsystem)) {
     const flat = analysisDoc(doc);
     const owners = new Map([...flat.nodes, ...flat.wires, ...flat.zones, ...flat.notes].map(item => [item.id, item.selectionId]));
-    const findings = checkDoc(flat).map(f => ({ ...f, ids: [...new Set(f.ids.map(id => owners.get(id) || id))] }));
+    const findings = checkDoc(flat).map(f => ({ ...f, analysisIds: f.ids, ids: [...new Set(f.ids.map(id => owners.get(id) || id))] }));
     const visit = (scope, owner = null) => {
       for (const node of scope.nodes) if (node.subsystem) {
         if (subsystemIssues(node).length) findings.push({ rule: 'subsystem-boundary', level: 'error', ids: [owner || node.id], message: tr('Subsystem {name} has a missing or incompatible exposed port.', { name: node.label }) });

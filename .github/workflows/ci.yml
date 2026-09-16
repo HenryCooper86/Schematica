@@ -14,6 +14,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Deployment gate and rollback tests
         run: python3 -m unittest discover -s tests/deploy
       - name: Unit tests
@@ -22,6 +25,11 @@ jobs:
         run: npm run e2e
         env:
           CHROME_PATH: /usr/bin/google-chrome
+      - name: Recovery and engineering workflow checks
+        run: npm run e2e
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          WORKFLOW_E2E_ONLY: '1'
       - name: Presentation and offline story flows
         run: npm run e2e
         env:

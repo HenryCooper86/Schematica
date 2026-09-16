@@ -56,6 +56,15 @@ See the [quality review and product roadmap](docs/quality-review-2026-09-15.md)
 for verified fixes, architectural follow-ups, and proposed engineer workflows.
 
 
+## Review and onboarding improvements
+
+The assistant now previews edits before applying them. **Engineering** also
+includes **Saved views**, **Review comments**, and a **Verification matrix**;
+**First project** in the palette guides the path to a shareable design.
+Revision history uses transactional IndexedDB storage and shows whether each
+snapshot is durable. See [engineering workflows](docs/engineering-workflows.md)
+for scope rules, review exchange, and verification evidence tracking.
+
 ## Engineering workspace
 
 The **Engineering** toolbar button opens revisions and recovery, interface

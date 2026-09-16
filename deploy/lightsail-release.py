@@ -138,6 +138,8 @@ def deploy(sha):
 
 
 def main():
+    if not hasattr(tarfile, 'data_filter'):
+        raise SystemExit('Python with tarfile data-filter support is required (use Python 3.12+).')
     if len(sys.argv) != 1:
         raise ValueError('Arguments are not accepted')
     signal.alarm(20)

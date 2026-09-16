@@ -1,7 +1,7 @@
 # Engineering workflows
 
 Open **Engineering** in the toolbar. The editor remains local-first and requires
-no account for these workflows. New board files use schema 3; schema 1 and 2
+no account for these workflows. New board files use schema 4; schema 1, 2, and 3
 files migrate automatically. Older application builds cannot preserve the new
 engineering metadata: use this version when editing these files.
 
@@ -9,11 +9,13 @@ engineering metadata: use this version when editing these files.
 
 **Revisions → Save revision** stores a named snapshot of the entire architecture.
 New/Open/Example and other board replacements first snapshot existing work.
-Restore, export, or select a revision as a comparison baseline. Snapshots use
-independent keys to avoid a shared-index overwrite between tabs. Retention is
+Restore, export, or select a revision as a comparison baseline. Snapshots use IndexedDB with atomic insertion and retention in one transaction.
+Existing localStorage revisions migrate after a successful database write. Retention is
 bounded to 30 recent revisions and approximately 6 MiB of document text; a large
 newest snapshot is retained. Browser quota failures are reported and the current
-session retains its snapshot in memory. Export important milestones.
+session retains its snapshot in memory. The canvas save status and revision list distinguish
+durable saves from pending or failed writes; **Retry saving revisions** retries
+recovery storage and autosave. Export important milestones.
 
 If another tab writes the autosave, the editor retains both versions and pauses
 its writes until **Keep this version** or **Open other version** is chosen.
@@ -111,8 +113,8 @@ and allocation buttons focus their diagram items. Internal interfaces and endpoi
 limits appear alongside root interfaces. `interfaces-all.csv` adds scope and numeric
 limits; `interfaces.csv` preserves the original focused-root column contract.
 Requirements count as fully allocated only when all targets exist in that scope.
-“Verified with evidence” checks the supplied status, evidence text, and allocations;
-it does not verify the evidence itself. Exported reports currently use English.
+The current-verification count checks status, method, evidence, valid allocations,
+and an unchanged verification fingerprint; it does not verify evidence contents. Exported reports currently use English.
 
 A reviewed exception requires a reviewer and rationale. Findings remain in the
 report; an exception is attached rather than deleting or suppressing it. It stops
@@ -195,3 +197,70 @@ Connected items are a conservative review list, not proof of functional impact.
 Requirement statuses and evidence are not automatically invalidated or approved.
 To review a broader edit, save a revision first, make the changes, then use that
 revision as the baseline in **Review package**.
+
+
+## AI change previews
+
+The assistant defaults to **Preview changes before applying**. It runs tools on
+an isolated draft, then shows changed fields, affected interfaces and records,
+and design checks before and after. **Apply changes** commits the draft in one
+undo step; **Discard draft** leaves the board unchanged. A stale draft cannot
+replace a board edited or opened after the request started. Cancelled or failed
+requests discard their draft. Read-only replies need no approval. Uncheck the
+preview option to use the existing direct-edit behavior for that session.
+
+## Saved views
+
+Set Explore filters, select items, choose the reading detail and camera, then
+open **Engineering → Saved views → Save current view**. A view records the current
+subsystem path and returns to the root to save it. Open a view to return to that
+scope and restore its filters, selection, detail and camera. Missing subsystems
+are reported rather than substituted. Views travel in board JSON and share links;
+review packages include a saved-view selector for the offline diagram. A view
+contains references, not a separate copy of the design. Up to 100 are supported.
+
+## Revision comments
+
+**Review comments → Start revision review** creates a named snapshot and a local
+review record tied to its ID and design fingerprint. Add comments against parts,
+connections, or requirements; resolve or reopen them. Open comments prevent
+approval. Editing the design marks approval stale, while adding review metadata
+or saved views does not. A new review is needed for a changed revision.
+
+Export/import `review-comments.json` to exchange discussions asynchronously.
+Subsystem paths are retained, missing scopes reject the import, and conflicting
+versions are kept separately rather than overwriting local decisions. The file
+contains comments and revision references, so exchange the corresponding board
+or review package too. Reviewer names and decisions are local records, not
+identity-verified signatures or server permissions. Recent revision snapshots
+remain subject to recovery retention; export important review milestones.
+
+## Verification matrix
+
+Requirements now include a verification method. Saving a requirement as verified
+requires a method, evidence reference, and valid allocations; this records the
+current allocated design and adjacent interfaces. **Verification matrix** filters
+by ID, text, owner or scope, and can show only records needing attention. Changes
+to allocations or connected interface declarations mark evidence for re-review;
+cosmetic movement does not. Choose a revision baseline to see changed requirements.
+The matrix exports CSV and is included in review packages. Old verified records
+without a verification stamp need review; evidence contents are not independently
+validated by the application.
+
+## First project
+
+The palette's **First project** button opens five actionable steps: place parts,
+connect ports, declare interface details, inspect checks, and export a review.
+It can guide work on an existing board or load the Sensor Node example. Loading
+a starter first requires a durable recovery snapshot of existing work. Completed
+checks and export steps become incomplete again if the design changes. Progress
+is session-local; the actual board and engineering data use normal persistence.
+
+## Subsystem power semantics
+
+Each scope owns its operating mode and peak assumption. A scope with no explicit
+settings uses Active and simultaneous peaks. Grouping copies its parent settings;
+subsequent child changes are independent. Root power, BOM, checks and review
+reports evaluate those child settings. Noncoincident peaks are combined within a
+scope; independent scope excursions on a shared rail are summed. This remains
+arithmetic on declared loads, not electrical or transient simulation.

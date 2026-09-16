@@ -22,6 +22,7 @@ const MIGRATIONS = {
   // exists so an older build warns that the file is newer before it turns
   // custom nodes into generic boxes.
   1: (raw) => raw,
+  3: (raw) => raw, // Saved views, review comments, and verification evidence stamps.
   2: (raw) => raw, // Engineering metadata and embedded subsystem documents.
 };
 

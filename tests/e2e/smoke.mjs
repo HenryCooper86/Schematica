@@ -1,3 +1,4 @@
+import { runWorkflowChecks } from './workflows.mjs';
 import { runPerformance } from './performance.mjs';
 import { runEngineeringChecks } from './engineering.mjs';
 import { runPresentationChecks } from './presentation.mjs';
@@ -244,7 +245,10 @@ function check(name, ok, detail = '') {
 }
 
 try {
-  if (process.env.BENCHMARK_ONLY) {
+  if (!process.env.WORKFLOW_E2E_ONLY) await js(`(()=>{const p=document.getElementById('ai-preview-enabled');p.checked=false;p.dispatchEvent(new Event('change'));return true;})()`);
+  if (process.env.WORKFLOW_E2E_ONLY) {
+    await runWorkflowChecks({js,check,sleep,origin});
+  } else if (process.env.BENCHMARK_ONLY) {
     const report = await runPerformance({ js });
     writeFileSync(process.env.BENCHMARK_OUTPUT || 'docs/benchmark-latest.json', JSON.stringify(report, null, 2));
     check('benchmark completed at 100, 500 and 1000 nodes', report.results.length === 3);
@@ -257,7 +261,7 @@ try {
   } else if (process.env.EXPLORE_E2E_ONLY) {
     await runExploreChecks({ js, key, check, sleep });
   } else if (process.env.DOCUMENT_E2E_ONLY) {
-    const seedDocumentsFake = () => js(`localStorage.setItem('schematica.ai.settings', JSON.stringify({ provider: 'anthropic', model: 'test-model', baseUrl: location.origin + '/fake', effort: 'low', remember: true, tools: true })); localStorage.setItem('schematica.ai.key.anthropic', 'sk-fake'); true`);
+    const seedDocumentsFake = () => js(`localStorage.setItem('schematica.ai.settings', JSON.stringify({ provider: 'anthropic', model: 'test-model', baseUrl: location.origin + '/fake', effort: 'low', remember: true, tools: true })); localStorage.setItem('schematica.ai.key.anthropic', 'sk-fake'); const preview=document.getElementById('ai-preview-enabled');preview.checked=false;preview.dispatchEvent(new Event('change')); true`);
     const captureDocuments = async (path) => {
       const shot = await send('Page.captureScreenshot', { format: 'png' });
       writeFileSync(path, Buffer.from(shot.result.data, 'base64'));
@@ -910,7 +914,7 @@ try {
   // An empty board through a share link (loadBoard clears storage, so the
   // settings are seeded afterwards; they are read at send time).
   const EMPTY = { schema: 1, title: 'Empty', nodes: [], wires: [], zones: [], notes: [], journey: [] };
-  const seedFake = () => js(`localStorage.setItem('schematica.ai.settings', JSON.stringify({ provider: 'anthropic', model: 'test-model', baseUrl: location.origin + '/fake', effort: 'low', remember: true, tools: true })); localStorage.setItem('schematica.ai.key.anthropic', 'sk-fake'); true`);
+  const seedFake = () => js(`localStorage.setItem('schematica.ai.settings', JSON.stringify({ provider: 'anthropic', model: 'test-model', baseUrl: location.origin + '/fake', effort: 'low', remember: true, tools: true })); localStorage.setItem('schematica.ai.key.anthropic', 'sk-fake'); const preview=document.getElementById('ai-preview-enabled');preview.checked=false;preview.dispatchEvent(new Event('change')); true`);
   await loadBoard(EMPTY);
   await seedFake();
   const screenshot = async (path) => {

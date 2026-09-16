@@ -131,6 +131,7 @@ const fieldOf = (node, id) => node.fields?.[id];
 // What one part says about itself: what it draws, what it can deliver, what it
 // stores. Any of them may be null.
 export function partCurrents(node, mode = 'active') {
+  mode = node.analysisBudget?.mode || mode;
   const b = node.budget;
   let typical = b?.activeMa, peak = b?.activePeakMa;
   if (b && mode === 'sleep') { typical = b.sleepMa; peak = b.sleepPeakMa; }
@@ -227,7 +228,7 @@ export function powerRails(doc) {
     const next = new Set(guard).add(index);
     let typicalMa = 0;
     let peakMa = 0;
-    let largestExcursion = 0;
+    const excursions = new Map();
     // Parts with missing own or downstream figures, by id so the reader can
     // locate the incomplete branch. A partial branch still contributes its
     // known subtotal below.
@@ -241,10 +242,11 @@ export function powerRails(doc) {
       if (!d.known) continue;
       known = true;
       typicalMa += d.typicalMa;
-      peakMa += d.peakMa;
-      largestExcursion = Math.max(largestExcursion, d.peakMa - d.typicalMa);
+      const assumption = entry.node.analysisBudget || doc.engineering?.budget;
+      const key = assumption?.peaks === 'noncoincident' ? (entry.node.analysisScope || '[]') : entry.node.id;
+      excursions.set(key, Math.max(excursions.get(key) || 0, d.peakMa - d.typicalMa));
     }
-    if (doc.engineering?.budget?.peaks === 'noncoincident') peakMa = typicalMa + largestExcursion;
+    peakMa = typicalMa + [...excursions.values()].reduce((a, b) => a + b, 0);
     return { typicalMa, peakMa, unknown: unknownIds.length, unknownIds, known, declaredDraw: declared };
   };
 

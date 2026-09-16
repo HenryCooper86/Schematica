@@ -118,5 +118,12 @@ export function initExplore({ store, tools, svg, render }) {
   store.subscribe(() => { if (!store.isDragging()) refresh(); });
   onLanguageChange(translate);
   translate();
-  return { state };
+  return { state, capture: () => ({ ...state(), query: query.value }), restore(view) {
+    generation = store.generation;
+    tools.ui.story = null;
+    query.value = view.query || ''; bus.value = view.bus || ''; connections.value = view.connections || 'all'; depth.value = view.depth || 'full';
+    const ids = new Set([...store.doc.nodes,...store.doc.wires,...store.doc.notes,...store.doc.zones].map(i => i.id));
+    store.setSelection((view.selection || []).filter(id => ids.has(id)));
+    Object.assign(tools.view, view.camera); refresh(); render();
+  } };
 }

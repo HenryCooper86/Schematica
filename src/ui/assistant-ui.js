@@ -1,3 +1,5 @@
+import { createEditPreview } from '../ai/preview.js';
+import { showEditPreview } from './ai-preview.js';
 import { trimHistory, encodeThread, decodeThread } from '../ai/session.js';
 // The assistant panel: settings, a message thread, quick actions, and the
 // composer. One reply is one undo step: the agent owns the store batch, the
@@ -65,6 +67,8 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
   try { storage = window.localStorage; } catch { storage = null; }
   const settings = createSettings(storage);
   let settingsOpen = false;
+  let pendingPreview = false;
+  let previewEnabled = true;
   let busy = null;           // AbortController while a request runs
 
   const el = (id) => document.getElementById(id);
@@ -98,7 +102,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
       + actionCards().map((c) => `<button type="button" data-act="${c.act}"><i class="ai-act-ic">${icon(c.icon)}</i><span><b>${escAttr(c.title)}</b><small>${escAttr(c.desc)}</small></span></button>`).join('')
       + '</div>'
       + '</div>'
-      + '<div id="ai-foot"><div id="ai-documents"></div><div id="ai-composer">'
+       + `<div id="ai-foot"><label class="ai-preview-option"><input id="ai-preview-enabled" type="checkbox"${previewEnabled ? ' checked' : ''}>${escAttr(tr('Preview changes before applying'))}</label><div id="ai-documents"></div><div id="ai-composer">`
       + `<textarea id="ai-input" rows="1" placeholder="${escAttr(tr('Describe a board, or ask for a change'))}" aria-label="${escAttr(tr('Message the assistant'))}"></textarea>`
       + `<div class="ai-composer-row"><span class="ai-hint"><kbd>Enter</kbd> ${escAttr(tr('send'))} &middot; <kbd>Shift</kbd>+<kbd>Enter</kbd> ${escAttr(tr('new line'))}</span>`
       + `<button id="ai-send" type="button" title="${escAttr(tr('Send (Enter)'))}" aria-label="${escAttr(tr('Send'))}">${icon('send')}</button>`
@@ -122,6 +126,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
   // toolbar button, the window, the document, the store) are bound once, on
   // their own, and must not come through here.
   function bindChrome() {
+    el('ai-preview-enabled').onchange = e => { previewEnabled = e.target.checked; };
     form = el('ai-settings');
     meta = el('ai-meta');
     metaText = meta.querySelector('span');
@@ -608,14 +613,16 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
 
   async function send(text) {
     const userText = String(text ?? '').trim();
-    if (!userText || busy || attachments.isImporting()) return;
+    if (!userText || busy || pendingPreview || attachments.isImporting()) return;
     if (!settings.configured()) { open(); showSettings(true); toast(tr('Add a provider and key first.')); return; }
     const gen = store.generation;
     const s = settings.get();
     const wasEmpty = !store.doc.nodes.length && !store.doc.zones.length && !store.doc.notes.length;
+    const preview = previewEnabled ? createEditPreview(store) : null;
+    const requestStore = preview?.draft || store;
     const executor = createExecutor({
-      getDoc: () => store.doc,
-      commit: (fn) => store.mutate(fn),
+      getDoc: () => requestStore.doc,
+      commit: (fn) => requestStore.mutate(fn),
       selection: () => [...store.selection],
       library,
     });
@@ -645,7 +652,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     try {
       res = await run({
         provider: makeProvider(s, settings.getKey()),
-        executor, store, system, history, userText, boardText: board, documentText: sources.text, signal: busy.signal,
+        executor, store: requestStore, system, history, userText, boardText: board, documentText: sources.text, signal: busy.signal,
         onText: (t) => { reply.text += t; renderThread(); },
         onStatus: (line) => { visible.splice(visible.length - 1, 0, { role: 'status', text: line }); renderThread(); },
       });
@@ -659,9 +666,9 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     if (store.generation !== gen) return;
     history = trimHistory(res.messages);
     reply.text = res.text || (res.error ? '' : tr('(no reply)'));
-    if (res.cutOff) reply.text += '\n\n' + tr('({how}; edits made so far are kept.)', { how: res.stop === 'aborted' ? tr('Stopped') : tr('Cut off') });
+    if (res.cutOff && !preview) reply.text += '\n\n' + tr('({how}; edits made so far are kept.)', { how: res.stop === 'aborted' ? tr('Stopped') : tr('Cut off') });
     if (res.stop === 'max_tokens') reply.text += '\n\n' + tr('(The reply hit the length limit.)');
-    reply.touched = [...res.touched];
+    reply.touched = preview ? [] : [...res.touched];
     reply.undoSnap = (store.undoStack.length > undoLenBefore || store.undoStack.at(-1) !== undoTopBefore)
       ? store.undoStack.at(-1)
       : null;
@@ -683,7 +690,24 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     if (kept.length !== store.selection.size) store.setSelection(kept);
     renderThread();
     saveThread();
-    if (res.touched.size) {
+    if (preview?.changed()) {
+      if (res.error || res.stop === 'aborted' || res.stop === 'refusal') {
+        preview.discard();
+        visible.push({ role: 'status', text: tr('The draft was discarded; the board is unchanged.') });
+        history = [];
+      } else {
+        pendingPreview = true;
+        showEditPreview(preview, applied => {
+          pendingPreview = false;
+          if (applied) { reply.touched = [...res.touched]; reply.undoSnap = store.undoStack.at(-1); highlight(res.touched); showTouched([...res.touched], wasEmpty); }
+          else history = [];
+          visible.push({ role: 'status', text: applied ? tr('Draft applied.') : tr('The draft was discarded; the board is unchanged.') });
+          renderThread(); saveThread();
+        });
+      }
+      renderThread(); saveThread();
+    }
+    if (!preview && res.touched.size) {
       highlight(res.touched);
       showTouched([...res.touched], wasEmpty);
     }

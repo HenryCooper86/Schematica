@@ -1,3 +1,4 @@
+import { initOnboarding } from './ui/onboarding.js';
 import { createRevisions, conflictStorage } from './revisions.js';
 import { createSubsystemNavigation } from './subsystems.js';
 import { initEngineering } from './ui/engineering-ui.js';
@@ -60,13 +61,16 @@ try { storage = window.localStorage; } catch { storage = null; }
 const library = createLibrary(storage);
 let engineeringUI = null;
 const navigation = createSubsystemNavigation(store);
-const revisions = createRevisions(storage, { onError: () => toast(tr('Revision storage failed. Export a board file to keep a durable copy.')) });
+let recoveryDB = null;
+try { recoveryDB = globalThis.indexedDB; } catch { /* blocked storage */ }
+const revisions = createRevisions(storage, { indexedDB: recoveryDB, onError: () => toast(tr('Revision storage failed. Export a board file to keep a durable copy.')) });
 store.beforeReplace.add(() => {
   if (navigation.navigating()) return;
   const previous = navigation.rootDoc();
   if (previous.nodes.length || previous.notes.length || previous.zones.length || previous.engineering) revisions.save(previous, previous.title, 'before-replace');
   navigation.reset();
 });
+window.addEventListener('focus', () => revisions.refresh().catch(() => {}));
 let persistence;
 try {
   persistence = conflictStorage(storage, { getDoc: () => navigation.rootDoc(), revisions,
@@ -185,10 +189,21 @@ document.getElementById('btn-fullscreen').addEventListener('click', () => {
 // ---- Autosave ----
 // A failure (storage full, blocked, or unavailable) is reported once per
 // streak so the user knows the board only lives in this tab until saved.
-const autosave = createAutosave({ store, storage: persistence, getDoc: () => navigation.rootDoc(), onError: () => {
+let autosaveState = 'saved';
+const recoveryStatus = document.createElement('button'); recoveryStatus.id = 'recovery-status'; recoveryStatus.setAttribute('aria-live', 'polite');
+document.getElementById('canvas-wrap').append(recoveryStatus);
+const showSaveState = () => {
+  const pending = revisions.list().some(r => !r.durable);
+  recoveryStatus.textContent = autosaveState === 'error' || pending ? tr('Unsaved changes — recovery') : autosaveState === 'pending' ? tr('Saving…') : tr('Saved on this device');
+  recoveryStatus.dataset.state = autosaveState === 'error' || pending ? 'error' : autosaveState;
+};
+recoveryStatus.onclick = () => engineeringUI?.openRevisions();
+revisions.subscribe(showSaveState); onLanguageChange(showSaveState);
+const autosave = createAutosave({ store, storage: persistence, getDoc: () => navigation.rootDoc(), onStatus: state => { autosaveState = state; showSaveState(); }, onError: () => {
   if (persistence.pending()) return;
   toast(tr('Autosave failed: this browser\'s storage is full or blocked. Save the board to a file to keep it.'));
 } });
+showSaveState();
 window.addEventListener('pagehide', () => autosave.flush());
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') autosave.flush();
@@ -239,7 +254,8 @@ initLegend();
 initCompare({ store });
 explorer = initExplore({ store, tools, svg, render });
 dialogs = initDialogs({ store, getRootDoc: () => navigation.rootDoc() });
-engineeringUI = initEngineering({ store, revisions, navigation, persistence, flush: () => autosave.flush(), importKiCad });
+engineeringUI = initEngineering({ store, revisions, navigation, persistence, flush: () => autosave.flush(), importKiCad, explorer, tools });
+initOnboarding({ store, navigation, revisions, engineering: engineeringUI, tools });
 const recorder = initRecording({ svg, store });
 const journeyUI = initJourney({ svg, store, tools, render, recorder, propsPanel });
 initExamplesMenu({ store });

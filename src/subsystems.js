@@ -30,7 +30,7 @@ export function groupSubsystem(store, ids, name) {
   child.nodes = structuredClone(nodes).map(n => ({ ...n, x: n.x - x, y: n.y - y }));
   child.wires = structuredClone(inside);
   const engineering = selectedEngineering(doc, [...members, ...inside.map(w => w.id)]);
-  if (engineering) child.engineering = engineering;
+  if (engineering || doc.engineering?.budget) child.engineering = { ...engineering, ...(doc.engineering?.budget ? { budget: structuredClone(doc.engineering.budget) } : {}) };
   const part = normalizePart({ name, category: 'system', icon: { text: 'SYS' }, ports, fields: [] }).part;
   if (!part) throw new Error('Invalid subsystem name');
   store.apply(d => {
@@ -80,6 +80,7 @@ export function createSubsystemNavigation(store) {
     return doc;
   }
   return {
+    path: () => stack.map(entry => entry.id),
     depth: () => stack.length, rootDoc, navigating: () => navigating, reset: () => { stack.length = 0; },
     enter(id) {
       const node = store.doc.nodes.find(n => n.id === id);

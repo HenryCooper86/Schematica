@@ -107,3 +107,15 @@ Mac. Screenshots and full driver logs remain under `.acceptance`.
 The KiCad importer remains one-way and bounded at 64 pins per component. These
 four example designs establish tested compatibility, not universal KiCad support.
 No participant interviews or separate physical-laptop trials have been conducted.
+
+## Deployment tooling runtime
+
+Use Python 3.12 or newer for local deployment tests and release tooling:
+
+```sh
+python3.12 -m unittest discover -s tests/deploy
+```
+
+CI pins Python 3.12. The release entry point requires `tarfile.data_filter`
+(the secure extraction support backported to some older Python patch releases)
+and exits with a clear message when that capability is absent.

@@ -1,7 +1,7 @@
 // Source-aware architectural starters. No hardware or runtime validation is implied.
 export const RDK_EXAMPLES = [
   { id: "rdk-rover", name: "RDK X5 Rover (D-Robotics)", group: "Vehicle",
-    doc: { schema: 3, title: "RDK X5 Rover",
+    doc: { schema: 4, title: "RDK X5 Rover",
       nodes: [
         {"id":"n1","kind":"battery","x":40,"y":300,"label":"Battery","sublabel":"4S Li-ion","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[]},
         {"id":"n2","kind":"regulator","x":40,"y":140,"label":"Regulator","sublabel":"5V 5A buck","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[]},
@@ -53,7 +53,7 @@ export const RDK_EXAMPLES = [
     },
   },
   { id: "rdk-perception", name: "RDK X5 Stereo Perception", group: "Embedded",
-    doc: { schema: 3, title: "RDK X5 Stereo Perception",
+    doc: { schema: 4, title: "RDK X5 Stereo Perception",
       nodes: [
         {"id":"n1","kind":"battery","x":40,"y":300,"label":"Battery","sublabel":"4S Li-ion","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[]},
         {"id":"n2","kind":"regulator","x":40,"y":140,"label":"Regulator","sublabel":"5V 5A buck","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[]},
@@ -91,7 +91,7 @@ export const RDK_EXAMPLES = [
     },
   },
   { id: "rdk-x3-robot", name: "RDK X3 Vision Robot (D-Robotics)", group: "Embedded",
-    doc: { schema: 3, title: "RDK X3 Vision Robot",
+    doc: { schema: 4, title: "RDK X3 Vision Robot",
       nodes: [
         {"id":"n1","kind":"battery","x":40,"y":300,"label":"Battery","sublabel":"3S Li-ion","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[]},
         {"id":"n2","kind":"regulator","x":40,"y":140,"label":"Regulator","sublabel":"5V 3A buck","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[]},
@@ -139,7 +139,7 @@ export const RDK_EXAMPLES = [
     },
   },
   { id: "rdk-s100-node", name: "RDK S100 Perception Node (D-Robotics)", group: "Embedded",
-    doc: { schema: 3, title: "RDK S100 Perception Node",
+    doc: { schema: 4, title: "RDK S100 Perception Node",
       nodes: [
         {"id":"n1","kind":"battery","x":40,"y":250,"label":"Battery","sublabel":"4S Li-ion","color":null,"addr":"","rail":"14.8V","notes":"Feeds the S100 directly: its documented input is 12-20V DC, so no board regulator is drawn.","status":null,"flags":[]},
         {"id":"n3","kind":"aisbc","x":330,"y":250,"label":"Perception node","sublabel":"RDK S100","color":null,"addr":"","rail":"14.8V","notes":"RDK S100 (80 TOPS, 12GB LPDDR5); 12-20V DC input from a 4S pack. Camera signals arrive through J25 and ribbon cameras need the camera expansion board. The catalogue lists no verified connector map, so every connector here is an open finding. Architectural design only; hardware has not been tested.","status":null,"flags":[]},

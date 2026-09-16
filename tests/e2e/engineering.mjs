@@ -12,7 +12,7 @@ export async function runEngineeringChecks({ js, key, check, sleep }) {
   check('interface editor persists details and draws the reverse arrow',await js(`(()=>{const d=JSON.parse(localStorage.getItem('schematica.autosave'));return d.wires[0].spec.protocol==='I2C v7'&&d.wires[0].arrow==='back'&&!!document.querySelector('#canvas .wire [marker-start]');})()`));
   await open('requirements');
   await js(`document.querySelector('[name=targets]').options[0].selected=true;true`);
-  await submit({id:'REQ-1',text:'Measure temperature',owner:'Engineer',rationale:'Control loop',evidence:'test-report.pdf',status:'verified'});
+  await submit({id:'REQ-1',text:'Measure temperature',owner:'Engineer',rationale:'Control loop',evidence:'test-report.pdf',method:'Bench test',status:'verified'});
   check('requirement record is editable with its allocation',await js(`document.querySelector('[name=id]').value==='REQ-1'&&document.querySelector('[name=targets]').selectedOptions.length===1`));
   await js(`document.querySelector('[data-tab=budgets]').click();true`);
   await submit({activeMa:'100',sleepMa:'1',dutyPercent:'10',activePeakMa:'200',mode:'average'});

@@ -1,3 +1,6 @@
+import { requirementFingerprint } from '../workflows.js';
+import { renderWorkflow } from './workflow-ui.js';
+import { architectureScopes } from '../architecture-scopes.js';
 import { normalizeCapability, resolveInterfaceEndpoint } from '../interface-checks.js';
 import { impactAnalysis, proposePartChange } from '../impact.js';
 import { impactSummary } from './impact-summary.js';
@@ -12,7 +15,7 @@ import { serialize } from '../serialize.js';
 import { escAttr as esc, openModal, toast } from './press.js';
 import { tr, onLanguageChange } from '../i18n.js';
 
-export function initEngineering({ store, revisions, navigation, persistence, flush, importKiCad }) {
+export function initEngineering({ store, revisions, navigation, persistence, flush, importKiCad, explorer, tools }) {
   const button = document.createElement('button'); button.id = 'btn-engineering';
   button.innerHTML = '<svg viewBox="0 0 18 18" aria-hidden="true"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="11" y="11" width="5" height="5" rx="1"/><path d="M7 4.5h6.5V11M4.5 7v6.5H11"/></svg>';
   const labelButton = () => { button.title = tr('Engineering'); button.setAttribute('aria-label', tr('Engineering')); };
@@ -21,7 +24,7 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
   dialog.setAttribute('aria-labelledby', 'engineering-heading'); document.body.append(dialog);
   let tab = 'revisions', selected = null, baseline = null;
   const labels = () => ({ revisions: tr('Revisions'), interfaces: tr('Interfaces'), requirements: tr('Requirements'), decisions: tr('Decisions'),
-    impact: tr('Change impact'), budgets: tr('Budget assumptions'), subsystems: tr('Subsystems'), review: tr('Review package'), interchange: tr('Interchange') });
+    impact: tr('Change impact'), budgets: tr('Budget assumptions'), subsystems: tr('Subsystems'), review: tr('Review package'), interchange: tr('Interchange'), views: tr('Saved views'), comments: tr('Review comments'), matrix: tr('Verification matrix') });
   const input = (name, label, value = '', type = 'text') => `<label>${esc(label)}<input name="${name}" type="${type}" value="${esc(value)}" maxlength="20000"></label>`;
   const area = (name, label, value = '') => `<label>${esc(label)}<textarea name="${name}" rows="3" maxlength="20000">${esc(value)}</textarea></label>`;
   const select = (name, label, entries, value = '') => `<label>${esc(label)}<select name="${name}">${entries.map(([id, title]) => `<option value="${esc(id)}"${id === value ? ' selected' : ''}>${esc(title)}</option>`).join('')}</select></label>`;
@@ -39,13 +42,13 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
       <nav aria-label="${esc(tr('Engineering sections'))}">${Object.entries(names).map(([id, name]) => `<button data-tab="${id}" aria-pressed="${tab === id}">${esc(name)}</button>`).join('')}</nav>
       <p>${esc(store.doc.title)}${navigation.depth() ? ' · ' + esc(tr('Expanded subsystem')) : ''}</p><section id="engineering-body"></section>`;
     const body = dialog.querySelector('section');
-    const actions = { close: () => dialog.close() };
+    const actions = { retry: async () => { await revisions.retry(); flush(); paint(); }, close: () => dialog.close() };
     let formHandler;
     if (tab === 'revisions') {
       const conflict = persistence.pending();
       body.innerHTML = (conflict ? `<aside role="alert"><p>${esc(tr('Another tab changed this board. Both versions are kept in revisions.'))}</p>${act('keep', tr('Keep this version'))}${conflict.doc ? act('remote', tr('Open other version')) : ''}</aside>` : '')
         + `<form>${input('label', tr('Revision name'), navigation.rootDoc().title)}${submit(tr('Save revision'))}</form>`
-        + `<p>${esc(tr('Up to 30 recent revisions are kept on this device. Export important milestones to a file.'))}</p><ul>${revisions.list().map(r => `<li><strong>${esc(r.label)}</strong> <time>${esc(new Date(r.at).toLocaleString())}</time>
+        + act('retry', tr('Retry saving revisions')) + `<p>${esc(tr('Up to 30 recent revisions are kept on this device. Export important milestones to a file.'))}</p><ul>${revisions.list().map(r => `<li><strong>${esc(r.label)}</strong> <span>${esc(r.durable ? tr('Saved on this device') : tr('Not saved — export or retry'))}</span> <time>${esc(new Date(r.at).toLocaleString())}</time>
           <button data-restore="${esc(r.id)}">${esc(tr('Restore'))}</button><button data-export="${esc(r.id)}">${esc(tr('Export'))}</button><button data-baseline="${esc(r.id)}">${esc(tr('Use as baseline'))}</button></li>`).join('')}</ul>`;
       formHandler = data => { revisions.save(navigation.rootDoc(), data.get('label')); paint(); };
       actions.keep = () => { persistence.resolve(); persistence.setItem('schematica.autosave', JSON.stringify(navigation.rootDoc())); flush(); paint(); };
@@ -86,7 +89,7 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
       const records = store.doc.engineering?.[tab] || [], record = records.find(r => r.id === selected);
       const targets = record?.targets || [...store.selection];
       body.innerHTML = `<div>${act('new', tr('New record'))}${records.map(r => `<button data-record="${esc(r.id)}">${esc(r.id)} · ${esc(r.text.slice(0, 70))}</button>`).join('')}</div><form>
-        ${input('id', tr('Record ID'), record?.id || uid(tab === 'requirements' ? 'REQ-' : 'ADR-'))}${area('text', tr('Description'), record?.text)}${area('rationale', tr('Rationale'), record?.rationale)}${input('owner', tr('Owner'), record?.owner)}${input('evidence', tr('Evidence URL'), record?.evidence)}
+        ${input('id', tr('Record ID'), record?.id || uid(tab === 'requirements' ? 'REQ-' : 'ADR-'))}${area('text', tr('Description'), record?.text)}${area('rationale', tr('Rationale'), record?.rationale)}${input('owner', tr('Owner'), record?.owner)}${input('evidence', tr('Evidence URL'), record?.evidence)}${tab === 'requirements' ? input('method', tr('Verification method'), record?.method) : ''}
         ${select('status', tr('Verification status'), [['draft', tr('Draft')], ['verified', tr('Verified')], ['accepted', tr('Accepted')], ['rejected', tr('Rejected')]], record?.status || 'draft')}
         <label>${esc(tr('Linked parts and connections'))}<select name="targets" multiple size="8">${[...items(), ...targets.filter(id => !items().some(([key]) => key === id)).map(id => [id, `${id} (${tr('Missing')})`])].map(([id, label]) => `<option value="${esc(id)}"${targets.includes(id) ? ' selected' : ''}>${esc(label)}</option>`).join('')}</select></label>
         ${submit(tr('Save record'))}${record ? act('delete', tr('Delete record')) : ''}</form>`;
@@ -97,8 +100,13 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
         const next = { ...Object.fromEntries(data), targets: data.getAll('targets') }; next.id = next.id.trim();
         if (!next.id || !next.text.trim()) throw new Error(tr('Record ID and description are required.'));
         if (records.some(r => r.id === next.id && r.id !== selected)) throw new Error(tr('That record ID already exists.'));
+        if (tab === 'requirements' && next.status === 'verified') {
+          if (!next.method?.trim() || !next.evidence.trim() || !next.targets.length || next.targets.some(id => !items().some(([key]) => key === id))) throw new Error(tr('Verification needs a method, evidence, and valid allocations.'));
+          next.verifiedFingerprint = requirementFingerprint(store.doc, next); next.verifiedAt = new Date().toISOString(); }
         edit(doc => { eng(doc)[tab] = [...records.filter(r => r.id !== selected), next]; selected = next.id; });
       };
+    } else if (['views', 'comments', 'matrix'].includes(tab)) {
+      renderWorkflow({ tab, body, store, navigation, revisions, baseline, explorer, tools, paint, close: () => dialog.close(), openTab: (next, id) => { tab = next; selected = id; paint(); } });
     } else if (tab === 'impact') {
       const nodes=store.doc.nodes.filter(n=>!n.locked&&!n.subsystem);selected=nodes.some(n=>n.id===selected)?selected:nodes.find(n=>store.selection.has(n.id))?.id||nodes[0]?.id;
       const node=nodes.find(n=>n.id===selected);
@@ -115,7 +123,7 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
       const node = nodes.find(n => n.id === selected), b = node?.budget || {}, settings = store.doc.engineering?.budget || {};
       const fields = [['inputV', tr('Input voltage (V)')], ['outputV', tr('Output voltage (V)')], ['efficiency', tr('Efficiency (%)')],
         ['activeMa', tr('Active current (mA)')], ['sleepMa', tr('Sleep current (mA)')], ['activePeakMa', tr('Active peak (mA)')], ['sleepPeakMa', tr('Sleep peak (mA)')], ['dutyPercent', tr('Active duty (%)')]];
-      body.innerHTML = `<p>${esc(tr('Conversion requires input voltage, output voltage, and efficiency. Blank values remain unknown. Estimates exclude transients, thermal effects, and ageing.'))}</p><form>
+      body.innerHTML = `<p>${esc(tr('Conversion requires input voltage, output voltage, and efficiency. Blank values remain unknown. Estimates exclude transients, thermal effects, and ageing.'))}</p><p>${esc(tr('Operating and peak modes apply to this scope. Subsystems use their own settings; grouping copies the current settings.'))}</p><form>
         ${select('mode', tr('Operating mode'), [['active', tr('Active')], ['sleep', tr('Sleep')], ['average', tr('Duty-weighted average')]], settings.mode || 'active')}
         ${select('peaks', tr('Peak assumption'), [['simultaneous', tr('All peaks simultaneous')], ['noncoincident', tr('Only one peak at a time')]], settings.peaks || 'simultaneous')}
         ${node ? select('node', tr('Part'), nodes.map(n => [n.id, n.label]), selected) + fields.map(([key, label]) => input(key, label, b[key] ?? '', 'number')).join('') : ''}${submit(tr('Save assumptions'))}</form>
@@ -155,10 +163,10 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
         ${selected && findings.some(f => f.id === selected) ? `<form>${input('owner', tr('Reviewer'))}${area('rationale', tr('Exception rationale'))}${submit(tr('Save reviewed exception'))}</form>` : ''}`;
       actions.package = () => download('architecture-review.html', reviewHTML(navigation.rootDoc(), baseline), 'text/html');
       body.querySelectorAll('[data-finding]').forEach(b => b.onclick = () => { selected = b.dataset.finding; paint(); });
-      for (const f of findings) actions['unreview-' + f.id] = () => edit(doc => { eng(doc).exceptions = (eng(doc).exceptions || []).filter(e => e.id !== f.id); });
+      for (const f of findings) actions['unreview-' + f.id] = () => edit(doc => { const scope = architectureScopes(doc).find(s => s.key === f.scope).doc; eng(scope).exceptions = (eng(scope).exceptions || []).filter(e => e.id !== f.exceptionId); });
       formHandler = data => {
         const f = findings.find(f => f.id === selected); if (!f || !data.get('rationale').trim() || !data.get('owner').trim()) throw new Error(tr('Reviewer and rationale are required.'));
-        edit(doc => { const e = eng(doc); e.exceptions = [...(e.exceptions || []).filter(e => e.id !== f.id), { id: f.id, fingerprint: f.fingerprint, rationale: data.get('rationale'), owner: data.get('owner'), at: new Date().toISOString() }]; selected = null; });
+        edit(doc => { const e = eng(architectureScopes(doc).find(s => s.key === f.scope).doc); e.exceptions = [...(e.exceptions || []).filter(e => e.id !== f.exceptionId), { id: f.exceptionId, fingerprint: f.fingerprint, rationale: data.get('rationale'), owner: data.get('owner'), at: new Date().toISOString() }]; selected = null; });
       };
     } else {
       body.innerHTML = `<p>${esc(tr('ICD CSV updates existing connections by ID and checks endpoint names and bus before applying. KiCad XML netlists import as a new architecture board; review the result before use.'))}</p>
@@ -174,8 +182,9 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
     body.querySelectorAll('[data-impact-id]').forEach(b=>b.onclick=()=>{const id=b.dataset.impactId;if(tab==='review')while(navigation.depth())navigation.up();store.setSelection([id]);paint();});
     body.querySelector('form')?.addEventListener('submit', safe(e => formHandler?.(new FormData(e.currentTarget))));
   }
+  revisions.subscribe?.(() => { if (dialog.open && tab === 'revisions' && !dialog.querySelector('input:focus')) paint(); });
   button.onclick = () => { paint(); openModal(dialog); };
   onLanguageChange(() => { labelButton(); if (dialog.open) paint(); });
   labelButton();
-  return { openRevisions() { tab = 'revisions'; paint(); openModal(dialog); } };
+  return { openTab(next) { tab = next; selected = null; paint(); openModal(dialog); }, openRevisions() { tab = 'revisions'; paint(); openModal(dialog); } };
 }

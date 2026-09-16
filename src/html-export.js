@@ -23,6 +23,7 @@ function offlineViewer(data, focusGraph, makePlayback, nextPosition, readMoment)
   const chapters = document.getElementById('chapters');
   const caption = document.getElementById('caption');
   let selected = new Set();
+  let readingMode = 'full', savedZoom = 1;
   let story = null;
   let stopIndex = -1, current = null, tween = null;
   const playback = makePlayback({ advance: () => advance(1), delay: () => document.getElementById('speed').value,
@@ -35,6 +36,9 @@ function offlineViewer(data, focusGraph, makePlayback, nextPosition, readMoment)
       el.classList.toggle('current', !!story && el.dataset.id === current);
       el.classList.toggle('muted', (story || focus.active) && !matches);
       el.classList.toggle('focused', (story || focus.active || selected.has(el.dataset.id)) && matches);
+      const depth=readingMode==='auto'?(savedZoom<.65?'overview':savedZoom<1.25?'normal':'full'):readingMode;
+      const reveal=selected.has(el.dataset.id)||el.classList.contains('focused');
+      el.querySelectorAll('[data-detail]').forEach(detail=>detail.setAttribute('visibility',!reveal&&(depth==='overview'||(depth==='normal'&&detail.dataset.detail==='fine'))?'hidden':'visible'));
     }
   }
   function view(rect) {
@@ -215,9 +219,15 @@ function offlineViewer(data, focusGraph, makePlayback, nextPosition, readMoment)
   restoreMoment(); window.addEventListener('hashchange',restoreMoment);
   // A review package can focus its read-only child viewer. No document edits or data transmission.
   window.addEventListener('message',event=>{
+    if(event.source===window.parent && event.data?.type==='schematica-saved-view') {
+      const v=event.data.view; if(!v || !v.camera || ![v.camera.x,v.camera.y,v.camera.zoom].every(Number.isFinite) || v.camera.zoom<=0)return;
+      clearStory(); readingMode=v.depth||'full';savedZoom=v.camera.zoom;selected=new Set(Array.isArray(v.selection)?v.selection:[]); search.value=v.query||'';bus.value=v.bus||'';connections.value=v.connections||'all';find();paint();
+      const r=svg.getBoundingClientRect(),z=v.camera.zoom;view({x:-v.camera.x/z,y:-v.camera.y/z,w:r.width/z,h:r.height/z});
+      return;
+    }
     if(event.source!==window.parent||event.data?.type!=='schematica-review-focus'||!Array.isArray(event.data.ids))return;
     const ids=event.data.ids.filter(id=>typeof id==='string'&&(data.doc.nodes.some(n=>n.id===id)||data.doc.wires.some(w=>w.id===id)));
-    clearStory();selected.clear();bus.value='';connections.value='all';
+    clearStory();readingMode='full';selected.clear();bus.value='';connections.value='all';
     if(!ids.length){paint();view(data.bounds);return;}
     const nodes=new Set(ids);for(const wire of data.doc.wires)if(ids.includes(wire.id)){nodes.add(wire.from.node);nodes.add(wire.to.node);}
     story=[...new Set([...ids,...nodes])];paint();
