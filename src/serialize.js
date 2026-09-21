@@ -1,3 +1,4 @@
+import { validateBlueprint } from './blueprint.js';
 import { normalizeInterfacePorts } from './interface-checks.js';
 import { normalizeSpec, normalizeBudget, normalizeEngineering } from './engineering.js';
 import { normalizeTargets, normalizeStops } from './journey.js';
@@ -324,6 +325,10 @@ export function deserialize(text, { depth = 0 } = {}) {
 
   if (clampedText) warnings.push(tr('Clamped {n} over-long text field(s) to {max} characters.', { n: clampedText, max: MAX_TEXT }));
   if (clampedCoord) warnings.push(tr('Clamped {n} out-of-range position(s) or size(s).', { n: clampedCoord }));
+  if (raw.blueprint != null) {
+    try { doc.blueprint = validateBlueprint(raw.blueprint); }
+    catch { warnings.push(tr('Dropped an invalid Blueprint.')); }
+  }
   const engineering = normalizeEngineering(raw.engineering, warnings);
   if (engineering) doc.engineering = engineering;
   return { doc, warnings };

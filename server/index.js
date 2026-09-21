@@ -1,3 +1,4 @@
+import { fetchPublicSource, WEB_TIMEOUT_MS } from './web.js';
 import { createServer } from 'node:http';
 import { realpath, stat } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
@@ -96,7 +97,7 @@ function readBody(req, limit, signal) {
 }
 
 export function createAppServer({
-  root = ROOT, fetchImpl = globalThis.fetch, baseUrls = DEFAULT_BASE_URLS,
+  root = ROOT, fetchImpl = globalThis.fetch, baseUrls = DEFAULT_BASE_URLS, webFetch = fetchPublicSource,
   publicOrigin = '', maxBodyBytes = 8 * 1024 * 1024, timeoutMs = 120_000, idleTimeoutMs = 120_000, maxConcurrent = 16,
 } = {}) {
   const allowed = baseUrls.map(parseBase);
@@ -117,6 +118,37 @@ export function createAppServer({
       if (publicUrl ? host !== publicUrl.host : !localHosts.includes(host)) throw error(421, 'This host is not configured. Set PUBLIC_ORIGIN for public deployments.');
       const origin = publicUrl?.origin || `http://${host}`;
       const url = new URL(req.url, origin);
+
+      if (url.pathname === '/api/web') {
+        if (req.method !== 'POST') throw error(405, 'Only POST is supported.');
+        if (req.headers['x-schematica-client'] !== '1'
+          || (req.headers.origin && req.headers.origin !== origin)
+          || (req.headers['sec-fetch-site'] && req.headers['sec-fetch-site'] !== 'same-origin')) {
+          throw error(403, 'Use the assistant from this website. Cross-origin API access is not enabled.', POLICY_CODE);
+        }
+        if (!/^application\/json(?:;|$)/i.test(req.headers['content-type'] || '')) throw error(415, 'Use application/json for source requests.');
+        if (active >= maxConcurrent) { res.setHeader('retry-after', '5'); throw error(429, 'The assistant server is busy. Try again shortly.'); }
+        active++;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), WEB_TIMEOUT_MS);
+        const disconnected = () => controller.abort();
+        req.on('aborted', disconnected); res.on('close', disconnected);
+        try {
+          const body = JSON.parse((await readBody(req, 8192, controller.signal)).toString('utf8'));
+          if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(k => k !== 'url')) throw error(400, 'A source request contains only a URL.');
+          const source = await webFetch(body.url, { signal: controller.signal });
+          if (res.destroyed) return;
+          res.writeHead(200, { 'content-type':'application/json', 'cache-control':'no-store' });
+          res.end(JSON.stringify(source));
+        } catch (err) {
+          if (res.destroyed) return;
+          if (controller.signal.aborted) throw error(504, 'Source request timed out.');
+          throw err;
+        } finally {
+          clearTimeout(timer); req.off('aborted', disconnected); res.off('close', disconnected); active--;
+        }
+        return;
+      }
 
       if (url.pathname === '/api/ai') {
         if (!['GET', 'POST'].includes(req.method)) throw error(405, 'Only GET and POST are supported.');

@@ -65,6 +65,19 @@ Revision history uses transactional IndexedDB storage and shows whether each
 snapshot is durable. See [engineering workflows](docs/engineering-workflows.md)
 for scope rules, review exchange, and verification evidence tracking.
 
+## Assistant skills and Blueprints
+
+The assistant includes Blueprint planning, flow design, diagram simplification,
+presentation storytelling, and architecture review. Choose a **Skill** or leave
+it on **Automatic**. **Assistant → Blueprint** edits the saved project plan;
+quick starts help turn it into a flow or a presentation with linked chapters and
+stops. AI changes use the existing preview and undo workflow.
+See [assistant skills and Blueprints](docs/assistant-skills.md).
+
+On the Node-backed site, paste a public URL into an assistant request to read
+HTML/text sources or PDFs. Results include source URLs and partial-content
+indicators; replies can link to sources. See [web source support and limits](docs/backend.md#reading-public-url-sources).
+
 ## Engineering workspace
 
 The **Engineering** toolbar button opens revisions and recovery, interface
@@ -411,7 +424,7 @@ holds journey steps and camera tween math; `src/recorder.js` drives frame
 capture and MediaRecorder. `src/main.js` only boots the app; the panels,
 dialogs, and menus live in `src/ui/` (properties panel, palette, legend,
 export/BOM/DRC dialogs, journey and present mode, examples menu, recording).
-The assistant lives in `src/ai/`: `ops.js` is the atomic edit-operation batch (the only way the model changes a board), `layout.js` places whatever a batch creates, `context.js` renders the board and the palette catalogue as text for the model, `tools.js` exposes seven tools over a `getDoc`/`commit` interface, `agent.js` runs the request loop, `providers/` holds the fetch adapters, and `src/ui/assistant-ui.js` is the panel; `relay/` is the Cloudflare Worker that fronts ollama.com and api.moonshot.ai, which send no CORS headers. The smoke test drives it through a fake provider, so CI needs no key.
+The assistant lives in `src/ai/`: `ops.js` is the atomic edit-operation batch (the only way the model changes a board), `layout.js` places whatever a batch creates, `context.js` renders the board and the palette catalogue as text for the model, `tools.js` exposes nine tools over a `getDoc`/`commit` interface, `agent.js` runs the request loop, `providers/` holds the fetch adapters, and `src/ui/assistant-ui.js` is the panel; `relay/` is the Cloudflare Worker that fronts ollama.com and api.moonshot.ai, which send no CORS headers. The smoke test drives it through a fake provider, so CI needs no key.
 See `docs/superpowers/specs/` for the design spec.
 
 ## Licence

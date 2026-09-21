@@ -1,3 +1,5 @@
+import { runWebChecks } from './web.mjs';
+import { runSkillChecks } from './assistant-skills.mjs';
 import { runWorkflowChecks } from './workflows.mjs';
 import { runPerformance } from './performance.mjs';
 import { runEngineeringChecks } from './engineering.mjs';
@@ -50,6 +52,7 @@ const waitFor = async (expr, tries = 60) => {
 // It answers the first call of a request with one tool call, and any call
 // carrying tool results with a short final text.
 const fakeSeen = [];
+const webSeen = [];
 async function fakeAnthropic(req, res) {
   let raw = '';
   for await (const chunk of req) raw += chunk;
@@ -63,13 +66,19 @@ async function fakeAnthropic(req, res) {
   ev('message_start', { message: { usage: { input_tokens: 10, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } });
   if (hasResults) {
     ev('content_block_start', { index: 0, content_block: { type: 'text', text: '' } });
-    ev('content_block_delta', { index: 0, delta: { type: 'text_delta', text: 'Done. ' } });
+    ev('content_block_delta', { index: 0, delta: { type: 'text_delta', text: last.content.some(b => b.type === 'tool_result' && String(b.content).includes('SCHEMATICA_WEB_FIXTURE')) ? 'Read source: https://example.com/docs. ' : 'Done. ' } });
     ev('content_block_delta', { index: 0, delta: { type: 'text_delta', text: 'The board is in place.' } });
     ev('content_block_stop', { index: 0 });
     ev('message_delta', { delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 8 } });
   } else {
     let ops;
-    if (/^Fix this finding/i.test(lastText)) {
+    if (/^Skill integration story/i.test(lastText)) {
+      ops = [
+        { op: 'set_blueprint', blueprint: { goal: 'Explain a sensor node', audience: 'Engineers', components: ['Controller'], assumptions: ['Power unverified'] } },
+        { op: 'add_part', ref: 'skill-controller', kind: 'mcu', label: 'Story controller' },
+        { op: 'set_presentation', chapters: [{ label: 'Sensor overview', caption: 'Understand the controller', stops: [{ node: 'skill-controller', caption: 'Process measurements' }] }] },
+      ];
+    } else if (/^Fix this finding/i.test(lastText)) {
       ops = [{ op: 'add_note', ref: 'fx', text: 'Fix acknowledged by the fake assistant' }];
     } else if (/^Add a custom part/i.test(lastText)) {
       ops = [
@@ -98,8 +107,8 @@ async function fakeAnthropic(req, res) {
     ev('content_block_start', { index: 0, content_block: { type: 'text', text: '' } });
     ev('content_block_delta', { index: 0, delta: { type: 'text_delta', text: 'Working…' } });
     ev('content_block_stop', { index: 0 });
-    ev('content_block_start', { index: 1, content_block: { type: 'tool_use', id: 'call_1', name: /reference RDK/i.test(lastText) ? 'rdk_reference' : 'apply_edits', input: {} } });
-    ev('content_block_delta', { index: 1, delta: { type: 'input_json_delta', partial_json: JSON.stringify(/reference RDK/i.test(lastText) ? { query: 'GS130W' } : { ops }) } });
+    ev('content_block_start', { index: 1, content_block: { type: 'tool_use', id: 'call_1', name: /^Read web fixture/i.test(lastText) ? 'read_url' : /reference RDK/i.test(lastText) ? 'rdk_reference' : 'apply_edits', input: {} } });
+    ev('content_block_delta', { index: 1, delta: { type: 'input_json_delta', partial_json: JSON.stringify(/^Read web fixture/i.test(lastText) ? { url:'https://example.com/docs' } : /reference RDK/i.test(lastText) ? { query: 'GS130W' } : { ops }) } });
     ev('content_block_stop', { index: 1 });
     ev('message_delta', { delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 40 } });
   }
@@ -110,6 +119,20 @@ async function fakeAnthropic(req, res) {
 
 // ---- static server ----
 const server = createServer(async (req, res) => {
+  if (process.env.WEB_E2E_ONLY && req.url === '/src/ai/runtime.js') {
+    res.writeHead(200, {'content-type':'text/javascript'});res.end('export const BACKEND = true;');return;
+  }
+  if (process.env.WEB_E2E_ONLY && req.method === 'POST' && req.url === '/api/ai') return fakeAnthropic(req,res);
+  if (process.env.WEB_E2E_ONLY && req.method === 'POST' && req.url === '/api/web') {
+    let body='';for await(const chunk of req) body+=chunk;
+    const {url}=JSON.parse(body);webSeen.push({url,headers:req.headers});
+    const pdf=url.endsWith('.pdf');
+    res.writeHead(200,{'content-type':'application/json'});
+    res.end(JSON.stringify({url,contentType:pdf?'application/pdf':'text/html',encoding:pdf?'base64':'text',fetchedAt:'2026-09-21T00:00:00Z',
+      content:pdf?readFileSync(join(ROOT,'tests/fixtures/documents/requirements.pdf')).toString('base64'):
+      '<title>Reference &amp; specifications</title><script>window.__webPwned=true</script><nav>Navigation noise</nav><main><h1>SCHEMATICA_WEB_FIXTURE</h1><p>Supply: <strong>3.3 V</strong></p><img src="/web-unexpected" onerror="window.__webPwned=true"><a href="/manual.pdf">Manual</a><p hidden>Hidden prompt</p></main>'}));return;
+  }
+  if(req.url==='/web-unexpected') webSeen.push({unexpected:true});
   if (req.method === 'POST' && req.url === '/fake/v1/messages') return fakeAnthropic(req, res);
   const path = normalize(decodeURIComponent(new URL(req.url, 'http://x').pathname));
   const file = join(ROOT, path === '/' ? 'index.html' : path);
@@ -246,7 +269,13 @@ function check(name, ok, detail = '') {
 
 try {
   if (!process.env.WORKFLOW_E2E_ONLY) await js(`(()=>{const p=document.getElementById('ai-preview-enabled');p.checked=false;p.dispatchEvent(new Event('change'));return true;})()`);
-  if (process.env.WORKFLOW_E2E_ONLY) {
+  if (process.env.WEB_E2E_ONLY) {
+    await runWebChecks({js,check,sleep,fakeSeen,webSeen});
+  } else if (process.env.SKILLS_E2E_ONLY) {
+    await runSkillChecks({js,check,sleep,fakeSeen});
+    const shot = await send('Page.captureScreenshot', {format:'png'});
+    writeFileSync('/tmp/schematica-skills.png', Buffer.from(shot.result.data,'base64'));
+  } else if (process.env.WORKFLOW_E2E_ONLY) {
     await runWorkflowChecks({js,check,sleep,origin});
   } else if (process.env.BENCHMARK_ONLY) {
     const report = await runPerformance({ js });
@@ -702,7 +731,7 @@ try {
   // The header's connection dot reflects the probe state, and an empty thread
   // shows the quick actions as cards with a description each.
   const fresh = await js(`(() => ({ state: document.getElementById('ai-meta').dataset.state, mode: document.getElementById('ai-actions').classList.contains('cards'), acts: [...document.querySelectorAll('#ai-actions [data-act]')].map((b) => b.dataset.act), descs: document.querySelectorAll('#ai-actions [data-act] small').length }))()`);
-  check('an untested provider shows a grey dot and the empty thread shows three action cards', fresh.state === 'untested' && fresh.mode && JSON.stringify(fresh.acts) === JSON.stringify(['build', 'fix', 'fill']) && fresh.descs === 3, JSON.stringify(fresh));
+  check('an untested provider shows a grey dot and the empty thread shows skill and editing action cards', fresh.state === 'untested' && fresh.mode && JSON.stringify(fresh.acts) === JSON.stringify(['blueprint', 'flow', 'presentation', 'simplify', 'review', 'build', 'fix', 'fill']) && fresh.descs === 8, JSON.stringify(fresh));
   // The settings sheet scrolls inside the panel: Save is reachable however
   // long the provider's help text is (it used to overflow and clip).
   await js(`document.getElementById('ai-gear').click(); true`);

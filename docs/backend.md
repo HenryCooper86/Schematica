@@ -89,8 +89,8 @@ The built-in allowlist contains Ollama, Moonshot, OpenAI, OpenRouter, Z.AI,
 and Anthropic. Additional entries grant server-side network access, so only
 the operator can configure them. Only `/models` GET and `/chat/completions`
 or `/messages` POST below an enabled base are forwarded. Redirects are
-rejected. Arbitrary URLs, credentials in URLs, query strings, and browser
-requests from other sites are rejected.
+rejected. For `/api/ai`, arbitrary URLs, credentials in URLs, query strings,
+and browser requests from other sites are rejected.
 
 For self-hosted Ollama, enable its base URL in `AI_BASE_URLS` and enter the
 same URL in assistant settings with the placeholder key `ollama`. Here,
@@ -119,3 +119,46 @@ directly from the browser or through Cloudflare.
 origin restrictions, headers, streaming, cancellation, errors, and limits.
 Authenticated connection verification additionally needs a valid provider
 key and a model available to that account.
+
+## Reading public URL sources
+
+The Node-backed assistant can now read a public URL with `read_url`. Paste an
+HTTP(S) link into a request such as “Use this datasheet to draft a Blueprint”.
+HTML pages, plain text, Markdown, CSV, JSON, XML, and text-bearing PDFs are
+supported. PDF extraction uses the same bundled browser parser as attachments.
+A source response includes its final URL, fetch time, extracted text, related
+links, and whether extraction was partial. The assistant can cite clickable URLs.
+
+The same-origin `POST /api/web` endpoint accepts only `{ "url": "..." }`. It
+forwards no browser cookies, authorization headers, provider keys, or board data
+to the source. Each destination, including redirects, is resolved and checked
+against private and reserved address ranges; the validated address is pinned to
+the actual connection while preserving hostname-based TLS verification. Only
+HTTP(S) on standard ports is supported. URL credentials are rejected.
+
+Downloads allow at most three redirects, 15 seconds, and 2 MiB per source.
+Requests ask for uncompressed responses; sources that insist on compression are
+reported as unsupported. Extraction contributes at most 24,000 characters per
+source and four source attempts per assistant request. Successful repeated URLs
+reuse their result within that request. Partial PDF extraction is marked, and
+image-only PDFs require OCR. The existing server concurrency cap also covers
+source downloads. Stop cancels active URL fetching and PDF extraction.
+
+Tool-capable models use `read_url` when needed. Single-shot models receive up to
+four explicitly supplied message URLs as temporary source context before their
+response. Source text is available throughout that request, then replaced with a
+URL/time summary in saved tool history. Ordinary assistant summaries or quotes
+remain part of the conversation, and authored Blueprint content is saved normally.
+
+This is URL reading, not a search engine or an interactive browser. It does not
+log in, execute page JavaScript, automatically crawl links, or bypass source
+access restrictions. Fetch failures are returned to the assistant, not converted
+into invented content. The static GitHub Pages edition and the provider relay
+do not offer this endpoint; use the Node-backed website or attach a downloaded
+source. Restart/redeploy the Node server to enable this endpoint on an existing
+installation.
+
+Verification: `npm test` and `WEB_E2E_ONLY=1 npm run e2e` cover the network policy,
+redirects, byte limits, cancellation, source extraction, citations and ephemeral
+history. Browser source/provider responses are fixtures; the actual server reader
+was also checked against a live public HTTPS page.

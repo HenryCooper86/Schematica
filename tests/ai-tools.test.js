@@ -9,8 +9,8 @@ function plain(doc) {
   return createExecutor({ getDoc: () => doc, commit: (fn) => fn(doc), selection: () => ['n5'] });
 }
 
-test('seven tools with the expected names and strict flags', () => {
-  assert.deepEqual(TOOLS.map((t) => t.name), ['rdk_reference', 'search_parts', 'get_board', 'run_checks', 'list_presets', 'apply_edits', 'arrange']);
+test('nine tools with the expected names and strict flags', () => {
+  assert.deepEqual(TOOLS.map((t) => t.name), ['read_skill', 'read_url', 'rdk_reference', 'search_parts', 'get_board', 'run_checks', 'list_presets', 'apply_edits', 'arrange']);
   for (const t of TOOLS) {
     assert.equal(typeof t.description, 'string');
     assert.equal(t.input_schema.type, 'object');

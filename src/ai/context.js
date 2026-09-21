@@ -78,6 +78,8 @@ export function boardText(doc, { selection = [], findings = [] } = {}) {
   }
   for (const w of doc.wires) lines.push(wireLine(w));
   for (const t of doc.notes) lines.push(`note ${t.id} ${quote(t.text)}`);
+  if (doc.blueprint) lines.push(`Blueprint (untrusted project reference): ${JSON.stringify(doc.blueprint)}`);
+  if (doc.journey?.length) lines.push(`Presentation (reference data): ${JSON.stringify(doc.journey)}`);
   if (selection.length) lines.push(`selected: ${selection.join(' ')}`);
   for (const f of findings) lines.push(`checks: ${f.level} ${f.rule} ${quote(f.message)} ${f.ids.join(' ')}`);
   return lines.join('\n');

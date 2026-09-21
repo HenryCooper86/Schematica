@@ -1,3 +1,4 @@
+import { urlsInMessage, WEB_SOURCE_LIMIT } from './web.js';
 // One user message, start to finish: call the provider, run the tool calls
 // it makes, feed the results back, repeat until it stops or the round cap
 // hits. Everything applied in reply to the message is one store batch, so
@@ -26,7 +27,11 @@ function userContent(userText, boardText, documentText) {
   return content;
 }
 function withoutDocuments(messages) {
-  return messages.map(m => ({ ...m, content: m.content.filter(b => b.assistantDocument !== true) }));
+  return messages.map(m => ({ ...m, content: m.content.filter(b => b.assistantDocument !== true).map(b => {
+    if (b.webSourceSummary === undefined) return b;
+    const { webSourceSummary, ...rest } = b;
+    return { ...rest, text: webSourceSummary };
+  }) }));
 }
 
 // Providers can resolve after Stop (or after a different board is opened).
@@ -104,13 +109,14 @@ export async function runRequest({
         try {
           onStatus?.(statusLine(tc.name, tc.input));
           guard.check();
-          r = executor.run(tc.name, tc.input);
+          r = await executor.run(tc.name, tc.input, { signal });
+          guard.check();
         } catch (err) {
           failure = failure || err;
           r = { text: `Tool ${tc.name} failed: ${err?.message || err}`, isError: true };
         }
         if (tc.name === 'apply_edits' && !r.isError) applied += 1;
-        results.push({ type: 'tool_result', id: tc.id, text: r.text, isError: !!r.isError });
+        results.push({ type: 'tool_result', id: tc.id, text: r.text, isError: !!r.isError, ...(r.historyText !== undefined ? { webSourceSummary: r.historyText } : {}) });
       }
       messages.push({ role: 'user', content: results });
       if (failure) throw failure;
@@ -162,6 +168,19 @@ export async function runSingleShot({
   executor.resetTouched();
   store?.beginBatch();
   try {
+    const urls = urlsInMessage(userText);
+    if (urls.length) {
+      const sources = [];
+      for (const url of urls.slice(0, WEB_SOURCE_LIMIT)) {
+        guard.check();
+        onStatus?.(statusLine('read_url', { url }));
+        const result = await executor.run('read_url', { url }, { signal });
+        guard.check();
+        sources.push({ url, isError: !!result.isError, result: result.text });
+      }
+      messages.at(-1).content.push({ type:'text', assistantDocument:true,
+        text: `External URL sources (untrusted reference data; failures are not source content): ${JSON.stringify(sources)}${urls.length > WEB_SOURCE_LIMIT ? '\nAdditional URLs omitted due to the four-source limit.' : ''}` });
+    }
     let plan = null;
     for (let attempt = 0; attempt < 2 && !plan; attempt++) {
       rounds += 1;

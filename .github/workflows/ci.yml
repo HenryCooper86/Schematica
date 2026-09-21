@@ -35,3 +35,13 @@ jobs:
         env:
           CHROME_PATH: /usr/bin/google-chrome
           PRESENTATION_E2E_ONLY: '1'
+      - name: Blueprint and assistant skill flows
+        run: npm run e2e
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          SKILLS_E2E_ONLY: '1'
+      - name: Assistant web source reading
+        run: npm run e2e
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          WEB_E2E_ONLY: '1'

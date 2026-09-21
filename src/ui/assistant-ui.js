@@ -1,3 +1,6 @@
+import { linkedText } from './linked-text.js';
+import { SKILLS } from '../ai/skills.js';
+import { showBlueprint } from './blueprint-ui.js';
 import { createEditPreview } from '../ai/preview.js';
 import { showEditPreview } from './ai-preview.js';
 import { trimHistory, encodeThread, decodeThread } from '../ai/session.js';
@@ -53,6 +56,11 @@ const icon = (name) => `<svg class="ai-ic" viewBox="0 0 24 24" aria-hidden="true
 const states = () => ({ unset: tr('Set up'), untested: tr('Untested'), ready: tr('Ready'), single: tr('Single-shot') });
 
 const actionCards = () => [
+  { act: 'blueprint', icon: 'build', title: tr('Plan a Blueprint'), desc: tr('Turn an idea into a reusable project plan') },
+  { act: 'flow', icon: 'build', title: tr('Build a flow'), desc: tr('Build from the saved Blueprint') },
+  { act: 'presentation', icon: 'show', title: tr('Create a presentation'), desc: tr('Chapters and guided stops from this board') },
+  { act: 'simplify', icon: 'eye', title: tr('Simplify the diagram'), desc: tr('Improve clarity while preserving meaning') },
+  { act: 'review', icon: 'check', title: tr('Review architecture'), desc: tr('Check the board against its project plan') },
   { act: 'build', icon: 'build', title: tr('Build from a brief'), desc: tr('Start a board from a short spec') },
   { act: 'fix', icon: 'fix', title: tr('Fix checks'), desc: tr('Resolve the design-rule findings on this board') },
   { act: 'fill', icon: 'fill', title: tr('Fill in details'), desc: tr('Part numbers, addresses, and rails from the presets') },
@@ -66,6 +74,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
   let storage = null;
   try { storage = window.localStorage; } catch { storage = null; }
   const settings = createSettings(storage);
+  let activeSkill = 'auto';
   let settingsOpen = false;
   let pendingPreview = false;
   let previewEnabled = true;
@@ -102,7 +111,8 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
       + actionCards().map((c) => `<button type="button" data-act="${c.act}"><i class="ai-act-ic">${icon(c.icon)}</i><span><b>${escAttr(c.title)}</b><small>${escAttr(c.desc)}</small></span></button>`).join('')
       + '</div>'
       + '</div>'
-       + `<div id="ai-foot"><label class="ai-preview-option"><input id="ai-preview-enabled" type="checkbox"${previewEnabled ? ' checked' : ''}>${escAttr(tr('Preview changes before applying'))}</label><div id="ai-documents"></div><div id="ai-composer">`
+       + `<div id="ai-foot"><label class="ai-preview-option"><input id="ai-preview-enabled" type="checkbox"${previewEnabled ? ' checked' : ''}>${escAttr(tr('Preview changes before applying'))}</label><p class="ai-web-state">${escAttr(BACKEND ? tr('Web sources available — paste a public URL in your message.') : tr('Web sources need the Node-backed site. You can attach downloaded documents here.'))}</p><div id="ai-documents"></div><div id="ai-composer">`
+      + `<div class="ai-composer-row"><label>${escAttr(tr('Skill'))} <select id="ai-skill"><option value="auto">${escAttr(tr('Automatic'))}</option>${SKILLS.map(s => `<option value="${s.id}"${activeSkill === s.id ? ' selected' : ''}>${escAttr(trd(s.name))}</option>`).join('')}</select></label><button id="ai-blueprint" type="button">${escAttr(tr('Blueprint'))}</button></div>`
       + `<textarea id="ai-input" rows="1" placeholder="${escAttr(tr('Describe a board, or ask for a change'))}" aria-label="${escAttr(tr('Message the assistant'))}"></textarea>`
       + `<div class="ai-composer-row"><span class="ai-hint"><kbd>Enter</kbd> ${escAttr(tr('send'))} &middot; <kbd>Shift</kbd>+<kbd>Enter</kbd> ${escAttr(tr('new line'))}</span>`
       + `<button id="ai-send" type="button" title="${escAttr(tr('Send (Enter)'))}" aria-label="${escAttr(tr('Send'))}">${icon('send')}</button>`
@@ -126,6 +136,8 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
   // toolbar button, the window, the document, the store) are bound once, on
   // their own, and must not come through here.
   function bindChrome() {
+    el('ai-skill').onchange = e => { activeSkill = e.target.value; };
+    el('ai-blueprint').onclick = () => { if (!busy && !pendingPreview) showBlueprint(store); };
     el('ai-preview-enabled').onchange = e => { previewEnabled = e.target.checked; };
     form = el('ai-settings');
     meta = el('ai-meta');
@@ -478,7 +490,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
       }
       flush();
       if (m.role === 'error') parts.push(`<div class="ai-msg error">${icon('alert')}<span>${escAttr(m.text)}</span></div>`);
-      else parts.push(`<div class="ai-msg ${m.role}">${escAttr(m.text)}${m.role === 'assistant' ? chipRow(m, i) : ''}</div>`);
+      else parts.push(`<div class="ai-msg ${m.role}">${m.role === 'assistant' ? linkedText(m.text) : escAttr(m.text)}${m.role === 'assistant' ? chipRow(m, i) : ''}</div>`);
     });
     flush();
     thread.innerHTML = parts.join('');
@@ -580,6 +592,8 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     sendBtn.hidden = on;
     stopBtn.hidden = !on;
     input.disabled = on;
+    el('ai-skill').disabled = on;
+    el('ai-blueprint').disabled = on;
     actions.querySelectorAll('button').forEach((b) => { b.disabled = on; });
     tools.ui.busy = on;
     // `inert` takes the chrome out of the tab order as well as the pointer,
@@ -627,7 +641,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
       library,
     });
     const board = boardText(store.doc, { selection: [...store.selection], findings: checkDoc(store.doc) });
-    const system = [stable, perRequestSystem({ date: new Date().toISOString().slice(0, 10), effort: s.effort, singleShot: s.tools === false, language: getLang() })];
+    const system = [stable, perRequestSystem({ date: new Date().toISOString().slice(0, 10), effort: s.effort, singleShot: s.tools === false, language: getLang(), userText, skill: activeSkill })];
     const sources = attachments.context();
     const sourceSummary = sources.entries.length
       ? '\n\n' + tr('Sources: {list}', { list: sources.entries.map((e) => tr('{name} ({used}/{total} chars{partial})', { name: e.name, used: e.used.toLocaleString(), total: e.total.toLocaleString(), partial: e.partial ? tr(', partial') : '' })).join('; ') })
@@ -713,8 +727,21 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     }
   }
 
+  function draftSkill(skill, text) {
+    activeSkill = skill;
+    el('ai-skill').value = skill;
+    input.value = text;
+    grow(); input.focus();
+  }
+
   const ACTIONS = {
+    blueprint: () => draftSkill('blueprint', tr('Create a Blueprint for: ')),
+    flow: () => draftSkill('flow', tr('Build a flow from the saved Blueprint. ')),
+    presentation: () => draftSkill('presentation', tr('Create a presentation from this board for: ')),
+    simplify: () => draftSkill('simplify', tr('Simplify the diagram while preserving its technical meaning. ')),
+    review: () => draftSkill('review', tr('Review the architecture against the Blueprint and report findings without changing the board. ')),
     build: () => {
+      activeSkill = 'auto'; el('ai-skill').value = activeSkill;
       input.value = 'Build a board for: \nMust have: \nPower: \nConnectivity: ';
       grow();
       input.focus();

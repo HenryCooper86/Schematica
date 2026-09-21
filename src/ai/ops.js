@@ -1,19 +1,20 @@
+import { BLUEPRINT_SCHEMA, validateBlueprint } from '../blueprint.js';
 import { partChangePatch } from '../part-change.js';
 import { nodePart, profileFor } from '../rdk/profiles.js';
 // Edit operations: the only way the assistant changes a board. A batch is
 // applied to a working copy and reaches the document only if every
-// operation succeeds. No operation carries a coordinate; src/ai/layout.js
-// places whatever a batch creates.
+// operation succeeds. Diagram items are placed by src/ai/layout.js; only
+// presentation fallback cameras carry explicit view coordinates.
 import { PARTS, DISPOSITIONS } from '../palette.js';
 import { normalizePart, partOf, mergePortIds, mergeFieldIds } from '../custom.js';
 import { BUSES } from '../buses.js';
 import { uid, NODE_STATUSES, NODE_FLAGS } from '../state.js';
-import { MAX_TEXT } from '../serialize.js';
+import { MAX_TEXT, MAX_COORD } from '../serialize.js';
 
 export const MAX_OPS = 200;
 export const OP_TYPES = [
   'add_part', 'update_part', 'replace_part', 'remove', 'connect', 'update_wire',
-  'add_zone', 'update_zone', 'add_note', 'update_note', 'set_title',
+  'add_zone', 'update_zone', 'add_note', 'update_note', 'set_title', 'set_blueprint', 'set_presentation',
 ];
 // A port on a shared bus carries any number of wires; every other bus is
 // point-to-point and a port takes one wire. Untyped buses connect anything.
@@ -69,6 +70,19 @@ export const EDIT_SCHEMA = {
           members: { type: 'array', items: { type: 'string' }, description: 'Zone members: node ids or refs' },
           text: { type: 'string', description: 'Note text' },
           title: { type: 'string', description: 'Board title' },
+          blueprint: BLUEPRINT_SCHEMA,
+          chapters: { type: 'array', maxItems: 50, description: 'set_presentation replaces the whole journey. Preserve existing chapter and stop ids when revising. Empty array clears it.', items: {
+            type: 'object', additionalProperties: false, required: ['label', 'stops'], properties: {
+              id: { type: 'string', description: 'Existing chapter id; omit for a new chapter' },
+              label: { type: 'string', maxLength: 4000 }, caption: { type: 'string', maxLength: 4000 },
+              view: { type: 'object', properties: { cx: { type: 'number' }, cy: { type: 'number' }, zoom: { type: 'number' } }, required: ['cx', 'cy', 'zoom'], additionalProperties: false },
+              targets: { type: 'object', properties: { nodes: { type: 'array', maxItems: 500, items: { type: 'string' } }, wires: { type: 'array', maxItems: 500, items: { type: 'string' } } }, additionalProperties: false },
+              stops: { type: 'array', maxItems: 100, items: { type: 'object', additionalProperties: false, required: ['node'], properties: {
+                id: { type: 'string', description: 'Existing stop id within this chapter; omit for a new stop' },
+                node: { type: 'string', description: 'Existing node id or earlier batch ref' }, caption: { type: 'string', maxLength: 4000 },
+              } } },
+            },
+          } },
         },
         required: ['op'],
       },
@@ -340,6 +354,59 @@ HANDLERS.set_title = (ctx, op) => {
   const title = text(ctx, op.title, 'title').trim();
   ctx.work.title = title || 'Untitled Board';
   ctx.changes.push(`title "${ctx.work.title}"`);
+};
+
+HANDLERS.set_blueprint = (ctx, op) => {
+  try { ctx.work.blueprint = validateBlueprint(op.blueprint); }
+  catch (e) { fail(e.message); }
+  ctx.changes.push('updated Blueprint');
+};
+
+HANDLERS.set_presentation = (ctx, op) => {
+  if (!Array.isArray(op.chapters) || op.chapters.length > 50) fail('Presentation needs at most 50 chapters');
+  const old = new Map((ctx.work.journey || []).map(s => [s.id, s]));
+  const seen = new Set();
+  const caption = value => {
+    if (typeof value !== 'string' || value.length > 4000) fail('Presentation text must be at most 4000 characters');
+    return value;
+  };
+  ctx.work.journey = op.chapters.map(chapter => {
+    if (!chapter || typeof chapter !== 'object') fail('Invalid chapter');
+    const previous = chapter.id === undefined ? null : old.get(chapter.id);
+    if (chapter.id !== undefined && !previous) fail('Unknown chapter id; omit id for new chapters');
+    const id = previous?.id || uid('j');
+    if (seen.has(id)) fail('Duplicate chapter id');
+    seen.add(id);
+    if (!Array.isArray(chapter.stops) || chapter.stops.length > 100) fail('Chapter needs at most 100 stops');
+    const stopIds = new Set();
+    const stops = chapter.stops.map(stop => {
+      if (!stop || typeof stop !== 'object') fail('Invalid stop');
+      if (stop.id !== undefined && !previous?.stops?.some(s => s.id === stop.id)) fail('Unknown stop id; omit id for new stops');
+      const sid = stop.id ?? uid('s');
+      if (stopIds.has(sid)) fail('Duplicate stop id');
+      stopIds.add(sid);
+      return { id: sid, node: findNode(ctx, stop.node).id, caption: caption(stop.caption ?? previous?.stops?.find(s => s.id === stop.id)?.caption ?? '') };
+    });
+    const view = chapter.view ?? previous?.view ?? { cx: 0, cy: 0, zoom: 1 };
+    if (!view || ![view.cx, view.cy, view.zoom].every(Number.isFinite) || view.zoom < 0.2 || view.zoom > 4
+      || Math.abs(view.cx) > MAX_COORD || Math.abs(view.cy) > MAX_COORD) fail('Invalid chapter camera');
+    const result = { id, label: caption(chapter.label), caption: caption(chapter.caption ?? previous?.caption ?? ''),
+      view: { cx: view.cx, cy: view.cy, zoom: view.zoom }, stops };
+    const targets = chapter.targets;
+    if (targets !== undefined) {
+      if (!targets || typeof targets !== 'object' || Array.isArray(targets)) fail('Invalid chapter targets');
+      result.targets = {};
+      for (const kind of ['nodes', 'wires']) {
+        const keys = targets[kind] ?? [];
+        if (!Array.isArray(keys) || keys.length > 500) fail('Too many chapter targets');
+        result.targets[kind] = [...new Set(keys.map(key => (kind === 'nodes' ? findNode(ctx, key) : findWire(ctx, key)).id))];
+      }
+    } else if (previous?.targets) result.targets = structuredClone(previous.targets);
+    if (!previous && !stops.length && !result.targets?.nodes?.length && !result.targets?.wires?.length) fail('New chapters need linked parts or wires');
+    for (const stop of stops) ctx.touched.add(stop.node);
+    return result;
+  });
+  ctx.changes.push(`updated presentation (${ctx.work.journey.length} chapters)`);
 };
 
 HANDLERS.add_note = (ctx, op) => {

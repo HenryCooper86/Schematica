@@ -1,3 +1,5 @@
+import { SKILLS } from '../src/ai/skills.js';
+import { BLUEPRINT_FIELDS } from '../src/blueprint.js';
 // Every English string the interface can show must have a Chinese entry, and
 // every Chinese entry must still be shown somewhere. Sources of keys:
 //  1. tr('literal') calls in src (single-line literal, no ${}).
@@ -73,7 +75,7 @@ for (const m of html.matchAll(/\b(?:title|placeholder|aria-label)="([^"]*)"/g)) 
 }
 
 // Data tables shown through trd().
-const data = new Set();
+const data = new Set([...SKILLS.map(s => s.name), ...Object.values(BLUEPRINT_FIELDS)]);
 for (const p of Object.values(PARTS)) {
   data.add(p.name);
   if (p.defaultLabel) data.add(p.defaultLabel);

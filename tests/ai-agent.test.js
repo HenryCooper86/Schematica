@@ -62,7 +62,7 @@ test('a build runs a tool round, feeds results back, and ends as one undo step',
   assert.equal(second[2].content[0].id, 'c1');
   assert.match(second[2].content[0].text, /^Applied 3 change/);
   assert.equal(res.messages.length, 4, 'history: user, assistant, tool results, assistant');
-  assert.deepEqual(provider.calls[0].tools.map((t) => t.name).slice(0, 2), ['rdk_reference', 'search_parts']);
+  assert.deepEqual(provider.calls[0].tools.map((t) => t.name).slice(0, 2), ['read_skill', 'read_url']);
 });
 
 test('a failing batch is returned to the model as an error result, not thrown', async () => {
