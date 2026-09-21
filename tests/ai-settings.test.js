@@ -9,7 +9,7 @@ function fakeStorage() {
 
 test('defaults come from the provider table and merge with what is stored', () => {
   const s = createSettings(fakeStorage());
-  assert.deepEqual(s.get(), { provider: 'anthropic', model: 'claude-opus-5', baseUrl: 'https://api.anthropic.com', effort: 'medium', remember: false, tools: null });
+  assert.deepEqual(s.get(), { provider: 'anthropic', model: 'claude-opus-5', baseUrl: 'https://api.anthropic.com', effort: 'medium', remember: false, tools: null, connected: false });
   s.set({ provider: 'openrouter', model: 'anthropic/claude-sonnet-5' });
   assert.equal(s.get().baseUrl, PROVIDERS.openrouter.baseUrl, 'base url follows the provider until set');
   s.set({ baseUrl: 'http://box:11434' });
@@ -193,4 +193,33 @@ test('editing a migrated endpoint cannot overwrite or delete an unrelated OpenAI
     assert.equal(s.getKey(), 'ollama-key');
     assert.equal(st.getItem(keyStorageKey('openai')), 'existing-openai-key');
   }
+});
+
+test('successful requests mark only their original connection ready without assuming tool support', () => {
+  const storage = fakeStorage();
+  const s = createSettings(storage);
+  s.setKey('key', true);
+  const snapshot = s.get();
+  assert.equal(s.markConnected(snapshot, 'key'), true);
+  assert.equal(s.get().connected, true);
+  assert.equal(s.get().tools, null);
+  assert.equal(createSettings(storage).get().connected, true);
+  for (const patch of [{ model: 'other' }, { baseUrl: 'https://other.example' }, { effort: 'high' }, { provider: 'openai' }]) {
+    s.set(patch);
+    assert.equal(s.get().connected, false);
+    assert.equal(s.markConnected(snapshot, 'key'), false);
+    s.markConnected(s.get(), s.getKey());
+  }
+  s.setKey('new-key', false);
+  assert.equal(s.get().connected, false);
+  assert.equal(s.markConnected(s.get(), 'key'), false);
+  s.markConnected(s.get(), 'new-key');
+  s.set({ tools: null });
+  assert.equal(s.get().connected, false);
+  s.set({ tools: false });
+  s.markConnected(s.get(), 'new-key');
+  assert.equal(s.get().tools, false);
+  assert.equal(s.get().connected, true);
+  s.forgetKey();
+  assert.equal(s.get().connected, false);
 });

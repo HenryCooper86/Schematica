@@ -108,7 +108,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
       + '</form>'
       + '<div id="ai-thread" role="log" aria-live="polite"></div>'
       + `<div id="ai-actions" class="cards"><p class="ai-intro">${escAttr(intro())}</p>`
-      + actionCards().map((c) => `<button type="button" data-act="${c.act}"><i class="ai-act-ic">${icon(c.icon)}</i><span><b>${escAttr(c.title)}</b><small>${escAttr(c.desc)}</small></span></button>`).join('')
+      + actionCards().map((c) => `<button type="button" data-act="${c.act}" title="${escAttr(c.desc)}"><i class="ai-act-ic">${icon(c.icon)}</i><span><b>${escAttr(c.title)}</b><small>${escAttr(c.desc)}</small></span></button>`).join('')
       + '</div>'
       + '</div>'
        + `<div id="ai-foot"><label class="ai-preview-option"><input id="ai-preview-enabled" type="checkbox"${previewEnabled ? ' checked' : ''}>${escAttr(tr('Preview changes before applying'))}</label><p class="ai-web-state">${escAttr(BACKEND ? tr('Web sources available — paste a public URL in your message.') : tr('Web sources need the Node-backed site. You can attach downloaded documents here.'))}</p><div id="ai-documents"></div><div id="ai-composer">`
@@ -194,7 +194,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     const s = settings.get();
     const single = s.tools === false;
     metaText.innerHTML = `${escAttr(PROVIDERS[s.provider].name)} · <code>${escAttr(s.model || tr('no model'))}</code>${single ? escAttr(tr(' · single-shot')) : ''}`;
-    const state = !settings.configured() ? 'unset' : s.tools === true ? 'ready' : single ? 'single' : 'untested';
+    const state = !settings.configured() ? 'unset' : s.connected || s.tools === true ? 'ready' : single ? 'single' : 'untested';
     meta.dataset.state = state;
     metaState.textContent = states()[state];
     meta.title = tr('{meta} · {state}. Click for settings.', { meta: metaText.textContent, state: states()[state] });
@@ -631,6 +631,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     if (!settings.configured()) { open(); showSettings(true); toast(tr('Add a provider and key first.')); return; }
     const gen = store.generation;
     const s = settings.get();
+    const requestKey = settings.getKey();
     const wasEmpty = !store.doc.nodes.length && !store.doc.zones.length && !store.doc.notes.length;
     const preview = previewEnabled ? createEditPreview(store) : null;
     const requestStore = preview?.draft || store;
@@ -665,7 +666,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     let res;
     try {
       res = await run({
-        provider: makeProvider(s, settings.getKey()),
+        provider: makeProvider(s, requestKey),
         executor, store: requestStore, system, history, userText, boardText: board, documentText: sources.text, signal: busy.signal,
         onText: (t) => { reply.text += t; renderThread(); },
         onStatus: (line) => { visible.splice(visible.length - 1, 0, { role: 'status', text: line }); renderThread(); },
@@ -676,6 +677,8 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
       busy = null;
       setBusy(false);
     }
+    if (!res.error && res.stop !== 'aborted') settings.markConnected(s, requestKey);
+    refreshMeta();
     // The board this reply was written against is gone: it has its own thread.
     if (store.generation !== gen) return;
     history = trimHistory(res.messages);

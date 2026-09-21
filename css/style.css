@@ -781,20 +781,23 @@ g.node:hover .ports,
 
 /* Quick actions: cards under an intro while the thread is empty, a chip row
    above the composer once there is a conversation. Same buttons both ways. */
-#ai-actions { display: flex; flex-wrap: wrap; gap: 6px; flex: none; }
+#ai-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; flex: none; }
 #ai-actions .ai-intro { display: none; }
 #ai-actions button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  min-width: 0;
+  min-height: 24px;
   background: var(--bg2);
   border: 1px solid var(--line);
   color: var(--muted);
-  border-radius: 999px;
-  padding: 4px 11px 4px 8px;
+  border-radius: 6px;
+  padding: 3px 6px;
   cursor: pointer;
   font: inherit;
-  font-size: 11.5px;
+  font-size: 10.5px;
+  line-height: 16px;
   text-align: left;
 }
 #ai-actions button:hover:not(:disabled) { color: var(--text); border-color: var(--accent); }
@@ -803,15 +806,9 @@ g.node:hover .ports,
 #ai-actions button small { display: none; }
 #ai-actions .ai-act-ic { display: inline-flex; align-items: center; justify-content: center; color: var(--accent); flex: none; }
 #ai-actions .ai-act-ic .ai-ic { width: 13px; height: 13px; }
-#ai-actions.cards { order: -1; flex-direction: column; flex-wrap: nowrap; gap: 8px; }
-#ai-actions.cards .ai-intro { display: block; margin: 2px 0 6px; font-size: 12.5px; line-height: 1.5; color: var(--muted); }
-#ai-actions.cards button { border-radius: 11px; padding: 9px 12px 9px 10px; gap: 11px; border-color: var(--line); }
-#ai-actions.cards button:hover:not(:disabled) { background: var(--bg3); border-color: var(--line2); color: var(--text); }
-#ai-actions.cards .ai-act-ic { width: 32px; height: 32px; border-radius: 9px; background: color-mix(in srgb, var(--accent) 13%, transparent); }
-#ai-actions.cards .ai-act-ic .ai-ic { width: 16px; height: 16px; }
-#ai-actions.cards button span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-#ai-actions.cards button b { color: var(--text); font-size: 12.5px; font-weight: 600; }
-#ai-actions.cards button small { display: block; font-size: 11px; color: var(--faint); line-height: 1.35; }
+#ai-actions.cards { order: -1; }
+#ai-actions.cards .ai-intro { grid-column: 1 / -1; display: block; margin: 2px 0 6px; font-size: 12px; line-height: 1.5; color: var(--muted); }
+#ai-actions button span { min-width: 0; }
 
 /* Composer: one field with the send button inside it. */
 #ai-foot {
@@ -1699,8 +1696,12 @@ html[data-theme="light"] .ai-result.warn { color: #92400e; }
 .blueprint-fields label:first-child { grid-column: 1 / -1; }
 .blueprint-fields textarea { box-sizing: border-box; width: 100%; resize: vertical; padding: 9px 11px; font: inherit; line-height: 1.5; color: var(--text); background: var(--bg2); border: 1px solid var(--line); border-radius: 7px; }
 .blueprint-fields textarea:focus-visible, #ai-skill:focus-visible, #ai-blueprint:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-#ai-skill, #ai-blueprint { max-width: 100%; font: inherit; font-size: 11px; color: var(--text); background: var(--bg2); border: 1px solid var(--line); border-radius: 6px; padding: 5px 7px; }
-#ai-composer > .ai-composer-row:first-child { flex-wrap: wrap; margin-bottom: 6px; color: var(--muted); font-size: 11px; }
+#ai-skill, #ai-blueprint { box-sizing: border-box; height: 24px; max-width: 100%; font: inherit; font-size: 10.5px; color: var(--muted); background: var(--bg2); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; }
+#ai-skill { width: 132px; min-width: 0; }
+#ai-blueprint { cursor: pointer; }
+#ai-blueprint:hover:not(:disabled), #ai-skill:hover:not(:disabled) { color: var(--text); border-color: var(--accent); }
+#ai-composer > .ai-composer-row:first-child label { display: flex; align-items: center; gap: 6px; min-width: 0; }
+#ai-composer > .ai-composer-row:first-child { flex-wrap: wrap; margin-bottom: 2px; color: var(--muted); font-size: 10.5px; }
 #ai-actions.cards { max-height: 230px; overflow-y: auto; }
 #ai-actions.cards button { flex-shrink: 0; }
 @media (max-width: 650px) { .blueprint-fields { grid-template-columns: 1fr; } }

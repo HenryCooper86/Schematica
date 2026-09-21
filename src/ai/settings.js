@@ -81,16 +81,16 @@ export function estimateCost(model, usage) {
   return (usage.input * p.input + usage.output * p.output + usage.cacheRead * p.cacheRead + usage.cacheWrite * p.cacheWrite) / 1e6;
 }
 
-const DEFAULTS = { provider: 'anthropic', model: '', baseUrl: '', effort: 'medium', remember: false, tools: null };
+const DEFAULTS = { provider: 'anthropic', model: '', baseUrl: '', effort: 'medium', remember: false, tools: null, connected: false };
 
 // Keep migrated credentials in their old slot so an existing OpenAI key is
 // never overwritten. Only this migration may select the legacy key slot.
 function migrateSettings(s) {
   const baseUrl = backendBaseUrl(s.baseUrl);
-  if (baseUrl !== s.baseUrl) s = { ...s, baseUrl, tools: null };
+  if (baseUrl !== s.baseUrl) s = { ...s, baseUrl, tools: null, connected: false };
   if (s.provider !== 'ollamacloud') return s;
   const base = (s.baseUrl || (BACKEND ? 'https://ollama.com' : `${RELAY}/ollama.com`)).replace(/\/+$/, '');
-  return { ...s, provider: 'openai', model: s.model || 'glm-5.3', baseUrl: base.endsWith('/v1') ? base : `${base}/v1`, keyProvider: 'ollamacloud', tools: null };
+  return { ...s, provider: 'openai', model: s.model || 'glm-5.3', baseUrl: base.endsWith('/v1') ? base : `${base}/v1`, keyProvider: 'ollamacloud', tools: null, connected: false };
 }
 
 export function createSettings(storage) {
@@ -125,7 +125,9 @@ export function createSettings(storage) {
     // The UI loads another key only when the provider selection changes.
     if (Object.hasOwn(patch, 'provider') && patch.provider !== current.provider) delete next.keyProvider;
     next = migrateSettings(next);
-    if (!Object.hasOwn(patch, 'tools') && ['provider', 'model', 'baseUrl', 'effort'].some((k) => Object.hasOwn(patch, k) && patch[k] !== current[k])) next.tools = null;
+    const connectionChanged = ['provider', 'model', 'baseUrl', 'effort'].some(k => Object.hasOwn(patch, k) && patch[k] !== current[k]);
+    if (!Object.hasOwn(patch, 'tools') && connectionChanged) next.tools = null;
+    if (connectionChanged || (Object.hasOwn(patch, 'tools') && patch.tools === null)) next.connected = false;
     let stored = false;
     try { if (storage) { storage.setItem(SETTINGS_KEY, JSON.stringify(next)); stored = true; } } catch { /* blocked or full */ }
     if (!stored) memory = next;
@@ -164,5 +166,13 @@ export function createSettings(storage) {
     return !PROVIDERS[s.provider].needsKey || !!getKey();
   }
 
-  return { get, set, getKey, setKey, forgetKey, configured };
+  // Only credit the connection that actually produced this response.
+  function markConnected(snapshot, key) {
+    const current = get();
+    if (key !== getKey() || !['provider', 'model', 'baseUrl', 'effort'].every(k => snapshot[k] === current[k])) return false;
+    set({ connected: true });
+    return true;
+  }
+
+  return { get, set, getKey, setKey, forgetKey, configured, markConnected };
 }
