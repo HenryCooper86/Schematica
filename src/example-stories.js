@@ -1,6 +1,8 @@
+import { HCT_STORIES } from './example-stories-hct.js';
 // Authored presentation order, independent of electrical wire direction.
 // Each entry is [part ID, English caption, Chinese caption].
 const EXAMPLE_STORIES = {
+  ...HCT_STORIES,
   'weather-station': {
     j1: [
       ['n1', 'Start with the solar source feeding the charger.', '从为充电器供电的太阳能电池板开始。'],
