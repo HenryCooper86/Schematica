@@ -1,6 +1,5 @@
 import { REFERENCE_EXAMPLE } from './examples-reference.js';
 import { attachExampleStories, localizeExampleStories } from './example-stories.js';
-import { HCT_EXAMPLES } from './examples-hct.js';
 import { EXTENDED_EXAMPLES } from './examples-extended.js';
 import { RDK_EXAMPLES } from './rdk/examples.js';
 import EXAMPLE_OVERLAYS_ZH from './i18n/examples.zh.js';
@@ -437,7 +436,6 @@ export const EXAMPLES = [
   },
   ...RDK_EXAMPLES,
   ...EXTENDED_EXAMPLES,
-  ...HCT_EXAMPLES,
   REFERENCE_EXAMPLE,
   {
     id: 'journey-adas',

@@ -1,4 +1,3 @@
-import HCT_OVERLAYS_ZH from './examples-hct.zh.js';
 import REFERENCE_OVERLAY_ZH from './examples-reference.zh.js';
 import EXTENDED_OVERLAYS_ZH from './examples-extended.zh.js';
 
@@ -12,7 +11,6 @@ import EXTENDED_OVERLAYS_ZH from './examples-extended.zh.js';
 // The RDK software-stage cards share this note on every board.
 const RDK_STAGE_NOTE = '描述性处理阶段；流程箭头不会部署或执行软件包。运行时及具体示例集成需要验证。';
 export default {
-  ...HCT_OVERLAYS_ZH,
   ...EXTENDED_OVERLAYS_ZH,
   'declared-uart-reference': REFERENCE_OVERLAY_ZH,
   'weather-station': {
