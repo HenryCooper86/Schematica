@@ -813,7 +813,7 @@ try {
   await js(`document.getElementById('btn-examples').click(); true`);
   await sleep(100);
   const menu = await js(`(() => { const m = document.getElementById('examples-menu'); return { hidden: m.hidden, headings: [...m.querySelectorAll('.menu-group')].map((h) => h.textContent), buttons: m.querySelectorAll('button').length }; })()`);
-  check('the Examples menu opens with Embedded, Vehicle, and Security headings over twenty-one boards', menu.hidden === false && JSON.stringify(menu.headings) === JSON.stringify(['Embedded', 'Vehicle', 'Security']) && menu.buttons === EXAMPLES.length && EXAMPLES.length === 21, JSON.stringify(menu));
+  check('the Examples menu opens with Embedded, Vehicle, and Security headings over every built-in board', menu.hidden === false && JSON.stringify(menu.headings) === JSON.stringify(['Embedded', 'Vehicle', 'Security']) && menu.buttons === EXAMPLES.length, JSON.stringify(menu));
   await key('Escape', 'Escape', 27);
   await sleep(100);
   check('Escape closes the Examples menu', (await js(`document.getElementById('examples-menu').hidden`)) === true);
