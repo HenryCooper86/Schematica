@@ -1,4 +1,5 @@
 import { attachExampleStories, localizeExampleStories } from './example-stories.js';
+import { EXTENDED_EXAMPLES } from './examples-extended.js';
 import { RDK_EXAMPLES } from './rdk/examples.js';
 import EXAMPLE_OVERLAYS_ZH from './i18n/examples.zh.js';
 export { EXAMPLE_OVERLAYS_ZH };
@@ -433,6 +434,7 @@ export const EXAMPLES = [
     },
   },
   ...RDK_EXAMPLES,
+  ...EXTENDED_EXAMPLES,
   {
     id: 'journey-adas',
     name: 'Journey 6 ADAS Stack (Horizon)',

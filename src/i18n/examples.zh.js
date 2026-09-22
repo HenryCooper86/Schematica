@@ -1,3 +1,5 @@
+import EXTENDED_OVERLAYS_ZH from './examples-extended.zh.js';
+
 // Simplified Chinese overlays for the built-in example boards, keyed by
 // example id, then by node / zone / wire / note / journey id. Only text
 // translates: card labels and notes, zone labels and lane names, the
@@ -8,6 +10,7 @@
 // The RDK software-stage cards share this note on every board.
 const RDK_STAGE_NOTE = '描述性处理阶段；流程箭头不会部署或执行软件包。运行时及具体示例集成需要验证。';
 export default {
+  ...EXTENDED_OVERLAYS_ZH,
   'weather-station': {
     name: '气象站',
     title: '气象站',
