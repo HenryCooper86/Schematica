@@ -531,7 +531,10 @@ g.node:hover .ports,
   border-radius: 10px;
   padding: 4px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
-  min-width: 210px;
+  width: 340px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 16px);
+  overflow: auto;
 }
 #examples-menu button {
   display: block;
@@ -1121,6 +1124,10 @@ g.node:hover .ports,
 #shortcuts-dialog::backdrop { background: transparent; }
 .rec-card {
   width: 380px;
+  min-width: 0;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
   background: var(--bg1);
   border: 1px solid var(--line2);
   border-radius: 14px;
@@ -1134,7 +1141,7 @@ g.node:hover .ports,
 .rec-card input[type="radio"] { accent-color: var(--accent); }
 .rec-card input[type="file"] { font-size: 11px; color: var(--muted); }
 #rec-audio.disabled { opacity: 0.4; pointer-events: none; }
-.rec-buttons { display: flex; gap: 8px; margin-top: 16px; }
+.rec-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 #rec-start {
   flex: 1;
   display: flex;
@@ -1163,7 +1170,7 @@ g.node:hover .ports,
 #rec-cancel:hover { color: var(--text); border-color: var(--line2); }
 
 /* ---- Export + BOM dialogs ---- */
-.dialog-row { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-size: 12.5px; color: var(--muted); }
+.dialog-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; font-size: 12.5px; color: var(--muted); }
 .dialog-row input[type="number"] {
   width: 88px;
   background: var(--bg0);
@@ -1358,9 +1365,9 @@ html {
 
 /* ---- Part editor ---- */
 .part-card { width: 780px; max-width: 94vw; max-height: 92vh; overflow: auto; }
-.pe-grid { display: grid; grid-template-columns: 1fr 236px; gap: 18px; }
-.pe-row { display: flex; gap: 10px; }
-.pe-field { flex: 1; flex-direction: column; align-items: stretch; gap: 4px; padding: 0; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--faint); }
+.pe-grid { display: grid; grid-template-columns: minmax(0, 1fr) 236px; gap: 18px; }
+.pe-row { display: flex; min-width: 0; gap: 10px; }
+.pe-field { flex: 1; min-width: 0; flex-direction: column; align-items: stretch; gap: 4px; padding: 0; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--faint); }
 .part-card input[type="text"], .part-card select, .part-card textarea {
   width: 100%; background: var(--bg0); border: 1px solid var(--line); color: var(--text);
   border-radius: 8px; padding: 6px 8px; font-size: 12.5px; font-family: inherit; text-transform: none; letter-spacing: 0;
@@ -1487,7 +1494,7 @@ html {
 .compare-previews .delta-focus { filter: drop-shadow(0 0 8px #38bdf8); }
 @media (max-width: 650px) { .compare-previews { grid-template-columns: 1fr; } }
 
-.check-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+.check-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 /* Only the selected tab was styled, so the other one fell back to the
    browser's default button; both are pills like the part editor's tabs. */
 .check-tabs button {
@@ -1710,3 +1717,25 @@ html[data-theme="light"] .ai-result.warn { color: #92400e; }
 @media (max-width: 650px) { .blueprint-fields { grid-template-columns: 1fr; } }
 .ai-web-state { margin: 5px 0 8px; font-size: 11px; line-height: 1.4; color: var(--muted); }
 .ai-msg a { color: var(--accent); text-decoration: underline; overflow-wrap: anywhere; }
+
+/* Keep modal controls inside their surface at narrow widths and browser zoom. */
+#export-dialog .rec-card { width: 520px; }
+.rec-buttons > button { flex: 0 0 auto; max-width: 100%; }
+.rec-card :is(label, select, input[type=file]), .review-card input[type=file] { min-width: 0; max-width: 100%; }
+#rec-audio label { flex-wrap: wrap; }
+.export-dimensions { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; align-items: end; }
+.export-dimensions label { display: flex; flex-direction: column; align-items: stretch; padding: 0; }
+.export-dimensions input[type=number] { width: 100%; min-width: 0; }
+.export-dimensions > span { padding-bottom: 6px; }
+.dialog-check { min-width: 0; flex-wrap: wrap; }
+.drc-row { flex-wrap: wrap; }
+.drc-row .msg { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
+.power-fact { flex-wrap: wrap; }
+.pe-main, .pe-side { min-width: 0; }
+.pe-table { display: block; overflow-x: auto; }
+#toolbar .group { max-width: 100%; flex-wrap: wrap; }
+#examples-menu button { white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 620px) {
+  .pe-grid { grid-template-columns: minmax(0, 1fr); }
+  .rec-card { padding: 16px; }
+}

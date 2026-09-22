@@ -1,3 +1,4 @@
+import { runLayoutChecks } from './layout.mjs';
 import { runWebChecks } from './web.mjs';
 import { runSkillChecks } from './assistant-skills.mjs';
 import { runWorkflowChecks } from './workflows.mjs';
@@ -269,7 +270,12 @@ function check(name, ok, detail = '') {
 
 try {
   if (!process.env.WORKFLOW_E2E_ONLY) await js(`(()=>{const p=document.getElementById('ai-preview-enabled');p.checked=false;p.dispatchEvent(new Event('change'));return true;})()`);
-  if (process.env.WEB_E2E_ONLY) {
+  if (process.env.LAYOUT_E2E_ONLY) {
+    await runLayoutChecks({ js, send, check, sleep, screenshot: async path => {
+      const shot = await send('Page.captureScreenshot', { format: 'png' });
+      writeFileSync(path, Buffer.from(shot.result.data, 'base64'));
+    } });
+  } else if (process.env.WEB_E2E_ONLY) {
     await runWebChecks({js,check,sleep,fakeSeen,webSeen});
   } else if (process.env.SKILLS_E2E_ONLY) {
     await runSkillChecks({js,check,sleep,fakeSeen});

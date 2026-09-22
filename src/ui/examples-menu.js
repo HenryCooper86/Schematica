@@ -27,9 +27,16 @@ export function initExamplesMenu({ store }) {
     menu.innerHTML = EXAMPLE_GROUPS.map((group) => `<div class="menu-group">${escAttr(trd(group))}</div>`
       + shown.filter((ex) => ex.group === group).map((ex) => `<button data-example="${escAttr(ex.id)}"><span class="example-name">${escAttr(ex.name)}</span>${ex.doc.journey.some(s => s.stops?.length) ? ` <small>${escAttr(tr('Guided story'))}</small>` : ''}</button>`).join('')).join('');
     const r = btn.getBoundingClientRect();
-    menu.style.left = `${Math.min(r.left, window.innerWidth - 230)}px`;
-    menu.style.top = `${r.bottom + 6}px`;
     menu.hidden = false;
+    // Measure the actual translated menu instead of assuming a 230px width.
+    const gap = 8;
+    const below = Math.max(0, window.innerHeight - r.bottom - gap - 6);
+    const above = Math.max(0, r.top - gap - 6);
+    const useBelow = below >= Math.min(240, above);
+    menu.style.maxHeight = `${Math.max(40, useBelow ? below : above)}px`;
+    const bounds = menu.getBoundingClientRect();
+    menu.style.left = `${Math.max(gap, Math.min(r.left, window.innerWidth - bounds.width - gap))}px`;
+    menu.style.top = `${Math.max(gap, useBelow ? r.bottom + 6 : r.top - bounds.height - 6)}px`;
     menu.querySelectorAll('button').forEach((b) => {
       b.addEventListener('click', () => {
         const ex = shown.find((e2) => e2.id === b.dataset.example);
@@ -51,6 +58,8 @@ export function initExamplesMenu({ store }) {
       window.addEventListener('pointerdown', dismiss);
     }, 0);
   });
+
+  window.addEventListener('resize', close);
 
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !menu.hidden) close();
