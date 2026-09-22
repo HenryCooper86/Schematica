@@ -1,3 +1,4 @@
+import { reviewReadiness } from './validation-coverage.js';
 import {
   verificationRows,
   verificationCSV,
@@ -184,6 +185,7 @@ export function reviewPackage(doc, baseline = null) {
         currentState: reviewState(scope.doc, r),
       })),
     ),
+    interfaceReadiness: reviewReadiness(doc),
     coverage: {
       total: requirements.length,
       allocated: requirements.filter(allocated).length,

@@ -145,25 +145,7 @@ export function interfaceCompatibility(doc) {
       !a.protocols.some((p) => b.protocols.some((q) => p.toLowerCase() === q.toLowerCase()))
     )
       add('interface-protocol', 'error', tr('The declared endpoints have no common protocol.'));
-    const missing = [];
-    if (!direction) missing.push(tr('connection direction'));
-    for (const [i, c] of [a, b].entries()) {
-      if (
-        !c?.direction ||
-        !range(c) ||
-        c?.rateBps === undefined ||
-        !c?.protocols?.length ||
-        !c?.source?.trim()
-      )
-        missing.push(tr('endpoint {endpoint} declarations', { endpoint: i + 1 }));
-    }
-    if (
-      !range(spec) ||
-      spec.rateBps === undefined ||
-      !spec.protocol?.trim() ||
-      !spec.source?.trim()
-    )
-      missing.push(tr('connection limits and source'));
+    const missing = missingInterfaceDeclarations(doc, wire);
     if (missing.length)
       add(
         'interface-unknown',
@@ -172,4 +154,34 @@ export function interfaceCompatibility(doc) {
       );
   }
   return findings;
+}
+
+// Coverage and compatibility use the same completeness requirements. Power/ground
+// need direction, voltage ranges and sources, not a made-up protocol or bit rate.
+export function missingInterfaceDeclarations(doc, wire) {
+  const spec = wire.spec || {};
+  const a = resolveInterfaceEndpoint(doc, wire.from).capability;
+  const b = resolveInterfaceEndpoint(doc, wire.to).capability;
+  const direction = spec.direction || { fwd: 'from-to', back: 'to-from', both: 'bidirectional' }[wire.arrow];
+  const signal = !['power', 'gnd'].includes(wire.bus);
+  const missing = [];
+  if (!direction) missing.push(tr('connection direction'));
+  for (const [i, c] of [a, b].entries()) {
+    if (
+      !c?.direction ||
+      !range(c) ||
+      (signal && c?.rateBps === undefined) ||
+      (signal && !c?.protocols?.length) ||
+      !c?.source?.trim()
+    )
+      missing.push(tr('endpoint {endpoint} declarations', { endpoint: i + 1 }));
+  }
+  if (
+    !range(spec) ||
+    (signal && spec.rateBps === undefined) ||
+    (signal && !spec.protocol?.trim()) ||
+    !spec.source?.trim()
+  )
+    missing.push(tr('connection limits and source'));
+  return missing;
 }

@@ -1244,6 +1244,9 @@ g.node:hover .ports,
 .bom-summary { margin: 0; padding: 7px 9px 0; color: var(--muted); font-size: 11.5px; }
 .bom-summary:last-child { padding-bottom: 8px; }
 
+.validation-coverage > p { margin: 0 0 10px; }
+.validation-coverage > .drc-row { margin-bottom: 8px; }
+.drc-incomplete { color: var(--muted); }
 #drc-list { max-height: 320px; overflow: auto; margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
 .drc-row {
   display: flex;

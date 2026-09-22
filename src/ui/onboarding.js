@@ -52,7 +52,7 @@ export function initOnboarding({
       <p>${esc(tr("Work on this board or load a starter. Follow the steps to make a reviewable design."))}</p><button id="guide-starter">${esc(tr("Load sensor starter"))}</button>
       <ol>${[tr("Place parts from the palette."), tr("Drag between ports to connect parts."), tr("Declare direction, voltage, protocol, rate, and source."), tr("Run checks and inspect the findings."), tr("Export a review package for a colleague.")].map((label, i) => `<li>${checks[i] ? "✓ " : ""}${esc(label)}</li>`).join("")}</ol>
       <div class="guide-actions"><button id="guide-interfaces">${esc(tr("Edit interfaces"))}</button><button id="guide-check">${esc(tr("Run checks"))}</button><button id="guide-export">${esc(tr("Export review package"))}</button></div>
-      <p role="status">${checks.filter(Boolean).length}/5 ${esc(tr("steps complete"))}${checks.every(Boolean) ? " · " + esc(tr("Ready to share")) : ""}</p>`;
+      <p role="status">${checks.filter(Boolean).length}/5 ${esc(tr("steps complete"))}${checks.every(Boolean) ? " · " + esc(tr("First-project steps complete; check review readiness before handoff.")) : ""}</p>`;
     panel.querySelector("#guide-close").onclick = () => {
       panel.hidden = true;
       paint();

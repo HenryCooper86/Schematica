@@ -1,3 +1,4 @@
+import { validationCoverage, reviewReadiness, coverageSummary, coverageScope } from '../validation-coverage.js';
 import { getTheme, themeBackground } from '../theme.js';
 import { checkLayout } from '../layout-checks.js';
 import { buildHTML } from '../html-export.js';
@@ -255,16 +256,36 @@ export function initDialogs({ store, getRootDoc = () => store.doc }) {
   function renderDRC() {
     if (drcMode === 'power') { renderPower(); return; }
     const findings = drcMode === 'layout' ? checkLayout(store.doc) : checkDoc(store.doc);
+    const coverage = drcMode === 'layout' ? null : validationCoverage(store.doc);
+    const readiness = coverage && reviewReadiness(store.doc, findings, coverage);
+    let summary = '';
+    if (coverage) {
+      const missingRows = coverage.connections.map((c, i) => {
+        if (!c.missing.length) return '';
+        return `<div class="drc-row"><span class="msg">${esc(tr('Interface {id}: missing {fields}.', {
+          id: c.label, fields: c.missing.join(', '),
+        }))}</span><button data-coverage="${i}">${esc(tr('Select'))}</button></div>`;
+      }).join('');
+      const status = drcMode === 'readiness'
+        ? `<p><strong>${esc(readiness.ready ? tr('Ready for interface review') : tr('Not ready for interface review'))}</strong> — ${esc(tr('{count} blocking design findings.', { count: readiness.blockingFindings }))}</p>`
+        : '';
+      summary = `<div class="validation-coverage"><p>${esc(coverageSummary(coverage))}</p>
+        <p>${esc(coverageScope())}</p>${status}
+        ${!coverage.applicable ? `<p>${esc(tr('No applicable connections to assess.'))}</p>` : ''}${missingRows}</div>`;
+    }
     const list = document.getElementById('drc-list');
     if (!findings.length) {
-      list.innerHTML = `<p class="drc-clean">${esc(drcMode === 'layout' ? tr('No layout issues found.') : tr('No issues found - the board passes every check.'))}</p>`;
-      return;
+      list.innerHTML = summary + `<p class="${coverage && !readiness.ready ? 'drc-incomplete' : 'drc-clean'}">${esc(drcMode === 'layout' ? tr('No layout issues found.') : tr('No issues detected in the available declarations.'))}</p>`;
+    } else {
+      list.innerHTML = summary + (drcMode === 'layout' && findings.length === 200 ? `<p>${esc(tr('Showing the first 200 layout findings. Resolve some and check again.'))}</p>` : '') + findings.map((f, i) => (
+        `<div class="drc-row"><span class="drc-level ${f.level}">${esc(levelLabel(f.level))}</span>`
+        + `<span class="msg">${esc(f.message)}${f.suggestion ? `<small>${esc(f.suggestion)}</small>` : ''}</span>`
+        + `<button data-drc="${i}">${esc(tr('Select'))}</button>${fixable(f) ? `<button data-drc-fix="${i}">${esc(tr('Fix'))}</button>` : ''}</div>`
+      )).join('');
     }
-    list.innerHTML = (drcMode === 'layout' && findings.length === 200 ? `<p>${esc(tr('Showing the first 200 layout findings. Resolve some and check again.'))}</p>` : '') + findings.map((f, i) => (
-      `<div class="drc-row"><span class="drc-level ${f.level}">${esc(levelLabel(f.level))}</span>`
-      + `<span class="msg">${esc(f.message)}${f.suggestion ? `<small>${esc(f.suggestion)}</small>` : ''}</span>`
-      + `<button data-drc="${i}">${esc(tr('Select'))}</button>${fixable(f) ? `<button data-drc-fix="${i}">${esc(tr('Fix'))}</button>` : ''}</div>`
-    )).join('');
+    list.querySelectorAll('[data-coverage]').forEach(btn => {
+      btn.onclick = () => { store.setSelection(coverage.connections[Number(btn.dataset.coverage)].ids); drcDialog.close(); };
+    });
     list.querySelectorAll('[data-drc]').forEach((btn) => {
       btn.addEventListener('click', () => {
         store.setSelection(findings[Number(btn.dataset.drc)].ids);

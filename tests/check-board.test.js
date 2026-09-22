@@ -34,3 +34,31 @@ test('board CLI checks files, reports import repairs, and returns actionable exi
     assert.equal(strict.status, 1);
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
+
+test('review-ready mode blocks undeclared and empty boards while default and strict keep their existing policy', async () => {
+  const { EXAMPLES } = await import('../src/examples.js');
+  const dir = await mkdtemp(join(tmpdir(), 'schematica-ready-'));
+  try {
+    const file = join(dir, 'board.json');
+    await writeFile(file, JSON.stringify(EXAMPLES.find(e => e.id === 'rdk-x5-inspection').doc));
+    assert.equal(run('--strict', file).status, 0);
+    let result = run('--review-ready', '--json', file);
+    assert.equal(result.status, 1);
+    let report = JSON.parse(result.stdout).reports[0];
+    assert.equal(report.reviewReady, false);
+    assert.equal(report.coverage.unassessed, 4);
+    const declared = structuredClone(EXAMPLES.find(e => e.id === 'declared-uart-reference').doc);
+    await writeFile(file, JSON.stringify(declared));
+    result = run('--review-ready', '--strict', '--json', file);
+    assert.equal(result.status, 0);
+    report = JSON.parse(result.stdout).reports[0];
+    assert.equal(report.reviewReady, true);
+    assert.equal(report.coverage.checked, 4);
+    assert.match(run(file).stdout, /Interface coverage: 4 checked/);
+    declared.nodes[1].interfacePorts.left.rateBps = 9600;
+    await writeFile(file, JSON.stringify(declared));
+    assert.equal(run('--review-ready', file).status, 1);
+    await writeFile(file, JSON.stringify(newDoc()));
+    assert.equal(run('--review-ready', file).status, 1);
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});

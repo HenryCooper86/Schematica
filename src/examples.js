@@ -1,3 +1,4 @@
+import { REFERENCE_EXAMPLE } from './examples-reference.js';
 import { attachExampleStories, localizeExampleStories } from './example-stories.js';
 import { EXTENDED_EXAMPLES } from './examples-extended.js';
 import { RDK_EXAMPLES } from './rdk/examples.js';
@@ -435,6 +436,7 @@ export const EXAMPLES = [
   },
   ...RDK_EXAMPLES,
   ...EXTENDED_EXAMPLES,
+  REFERENCE_EXAMPLE,
   {
     id: 'journey-adas',
     name: 'Journey 6 ADAS Stack (Horizon)',

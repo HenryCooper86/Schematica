@@ -7,6 +7,10 @@ export async function runEngineeringNextChecks({ js, key, check, sleep }) {
     `(async()=>{const {Store,addNode,addWire}=await import('/src/state.js');const s=new Store();s.doc.title='Interface review';const a=addNode(s,'mcu',0,0),b=addNode(s,'temp',400,0);addWire(s,'i2c',{node:a,port:'i2c'},{node:b,port:'i2c'});const dt=new DataTransfer();dt.items.add(new File([JSON.stringify(s.doc)],'review.json'));const f=document.getElementById('file-input');f.files=dt.files;f.dispatchEvent(new Event('change'));})()`,
   );
   await sleep(200);
+  await js(`document.getElementById('btn-check').click();document.querySelector('[data-check-mode=readiness]').click();true`);
+  check('undeclared connections are unassessed and block review readiness', await js(`(()=>{const t=document.getElementById('drc-list').textContent;return t.includes('1 unassessed')&&t.includes('Not ready for interface review')&&!t.includes('passes every check')})()`));
+  await js(`document.querySelector('#drc-list [data-coverage]').click();true`);
+  check('coverage selects the incomplete connection', await js(`!document.getElementById('drc-dialog').open&&!!document.querySelector('#canvas .wire [stroke="#7dd3fc"]')`));
   await js(
     `document.getElementById('btn-engineering').click();document.querySelector('[data-tab=interfaces]').click();true`,
   );
@@ -106,8 +110,17 @@ export async function runEngineeringNextChecks({ js, key, check, sleep }) {
       `(()=>{const d=document.getElementById('review-test-frame').contentDocument,data=JSON.parse(d.getElementById('review-data').textContent);return data.files['interfaces-all.csv'].includes('Nested sensors')&&JSON.parse(data.files['review.json']).interfaces[0].fromCapability.protocols[0]==='I2C'})()`,
     ),
   );
+  check('offline review includes failed interface coverage', await js(`document.getElementById('review-test-frame').contentDocument.getElementById('interface-coverage').textContent.includes('1 failed')`));
+  await js(`document.getElementById('review-test-frame').remove();true`);
+  await js(`(async()=>{const {EXAMPLES}=await import('/src/examples.js');const dt=new DataTransfer();dt.items.add(new File([JSON.stringify(EXAMPLES.find(e=>e.id==='declared-uart-reference').doc)],'reference.json'));const f=document.getElementById('file-input');f.files=dt.files;f.dispatchEvent(new Event('change'));})()`);
+  await sleep(200);
+  await js(`document.getElementById('btn-check').click();document.querySelector('[data-check-mode=readiness]').click();true`);
+  check('fully declared reference is ready with four checked connections', await js(`(()=>{const t=document.getElementById('drc-list').textContent;return t.includes('4 checked')&&t.includes('Ready for interface review')&&t.includes('not hardware validation')})()`));
+  await js(`(async()=>{const {setLang}=await import('/src/i18n.js');setLang('zh')})()`);
+  check('readiness coverage is translated in the open dialog', await js(`document.getElementById('drc-list').textContent.includes('4 条已检查')&&document.querySelector('[data-check-mode=readiness]').textContent.includes('审查')`));
+  await js(`(async()=>{const {setLang}=await import('/src/i18n.js');setLang('en');document.querySelector('[data-check-mode=design]').click();document.getElementById('drc-close').click()})()`);
   await js(
-    `(()=>{document.getElementById('review-test-frame').remove();const dt=new DataTransfer();dt.items.add(new File([${JSON.stringify(original)}],'restore.json'));const f=document.getElementById('file-input');f.files=dt.files;f.dispatchEvent(new Event('change'));return true})()`,
+    `(()=>{const dt=new DataTransfer();dt.items.add(new File([${JSON.stringify(original)}],'restore.json'));const f=document.getElementById('file-input');f.files=dt.files;f.dispatchEvent(new Event('change'));return true})()`,
   );
   await sleep(200);
 }

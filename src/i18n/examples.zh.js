@@ -1,3 +1,4 @@
+import REFERENCE_OVERLAY_ZH from './examples-reference.zh.js';
 import EXTENDED_OVERLAYS_ZH from './examples-extended.zh.js';
 
 // Simplified Chinese overlays for the built-in example boards, keyed by
@@ -11,6 +12,7 @@ import EXTENDED_OVERLAYS_ZH from './examples-extended.zh.js';
 const RDK_STAGE_NOTE = '描述性处理阶段；流程箭头不会部署或执行软件包。运行时及具体示例集成需要验证。';
 export default {
   ...EXTENDED_OVERLAYS_ZH,
+  'declared-uart-reference': REFERENCE_OVERLAY_ZH,
   'weather-station': {
     name: '气象站',
     title: '气象站',

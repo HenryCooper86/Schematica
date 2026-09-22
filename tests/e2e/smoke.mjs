@@ -841,7 +841,7 @@ try {
   check('the palette headings are Chinese', palette.includes('我的部件') && palette.includes('计算') && palette.includes('机器人'), JSON.stringify(palette));
   await js(`document.getElementById('btn-check').click(); true`);
   await sleep(150);
-  const drc = await js(`(() => { const rows = [...document.querySelectorAll('#drc-list .drc-row')]; return { n: rows.length, level: rows[0]?.querySelector('.drc-level')?.textContent, msg: rows[0]?.querySelector('.msg')?.textContent, buttons: [...(rows[0]?.querySelectorAll('button') || [])].map((b) => b.textContent) }; })()`);
+  const drc = await js(`(() => { const rows = [...document.querySelectorAll('#drc-list .drc-row')].filter(row => row.querySelector('.drc-level')); return { n: rows.length, level: rows[0]?.querySelector('.drc-level')?.textContent, msg: rows[0]?.querySelector('.msg')?.textContent, buttons: [...(rows[0]?.querySelectorAll('button') || [])].map((b) => b.textContent) }; })()`);
   check('the design-rule dialog reports in Chinese', drc.n > 0 && ['错误', '警告'].includes(drc.level) && /[一-鿿]/.test(drc.msg) && JSON.stringify(drc.buttons) === JSON.stringify(['选中', '修复']), JSON.stringify(drc));
   await js(`document.getElementById('drc-close').click(); true`);
   await sleep(100);
