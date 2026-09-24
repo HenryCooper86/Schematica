@@ -21,6 +21,8 @@ jobs:
         run: python3 -m unittest discover -s tests/deploy
       - name: Unit tests
         run: npm test
+      - name: Source lint and module reachability
+        run: npm run lint
       - name: Browser smoke test (headless Chrome over the DevTools Protocol)
         run: npm run e2e
         env:

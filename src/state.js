@@ -58,17 +58,18 @@ export class Store {
   }
 
   apply(fn) {
-    // Inside a batch the batch's own snapshot is the undo step: pushing one
-    // here too would leave a second, half-way entry and clear the redo stack.
-    if (this._batchSnap !== null) {
-      this.mutate(fn);
-      return;
-    }
+    // A failed edit must leave no partial mutation, including inside a batch.
+    // The batch's own snapshot remains the single undo step for successful edits.
     const snap = structuredClone(this.doc);
-    fn(this.doc);
+    try {
+      fn(this.doc);
+    } catch (error) {
+      this.doc = snap;
+      throw error;
+    }
     // A mutation that changed nothing (e.g. a blur committing an unedited
     // field) must not cost an undo step or clear the redo stack.
-    if (JSON.stringify(snap) !== JSON.stringify(this.doc)) this._push(snap);
+    if (this._batchSnap === null && JSON.stringify(snap) !== JSON.stringify(this.doc)) this._push(snap);
     this.emit();
   }
 

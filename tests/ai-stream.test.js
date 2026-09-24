@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { sseParser, readStream } from '../src/ai/providers/stream.js';
+import { ProviderError } from '../src/ai/providers/errors.js';
 
 test('sse events survive chunk boundaries, CRLF, comments, and multi-line data', () => {
   const got = [];
@@ -39,4 +40,9 @@ test('a rejected stream record cancels the response and releases its reader', as
   await assert.rejects(() => readStream(new Response(body), sseParser(() => { throw new SyntaxError('rejected'); })), SyntaxError);
   assert.equal(cancelled, true);
   assert.equal(body.locked, false);
+});
+
+test('an unterminated provider event cannot grow without a bound', () => {
+  const parser = sseParser(() => {});
+  assert.throws(() => parser.push('data: ' + 'x'.repeat(8 * 1024 * 1024)), ProviderError);
 });

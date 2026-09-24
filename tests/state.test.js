@@ -136,6 +136,35 @@ test('new apply clears redo stack', () => {
   assert.ok(!store.canRedo());
 });
 
+test('an edit that throws leaves the board and undo history unchanged', () => {
+  const store = new Store();
+  addNode(store, 'mcu', 0, 0);
+  const before = structuredClone(store.doc);
+  const undoDepth = store.undoStack.length;
+  assert.throws(() => store.apply((doc) => {
+    doc.nodes[0].label = 'Partial edit';
+    throw new Error('Edit failed');
+  }), /Edit failed/);
+  assert.deepEqual(store.doc, before);
+  assert.equal(store.undoStack.length, undoDepth);
+});
+
+test('a failed edit inside a batch preserves earlier edits but discards its own partial changes', () => {
+  const store = new Store();
+  addNode(store, 'mcu', 0, 0);
+  store.beginBatch();
+  store.apply((doc) => { doc.nodes[0].label = 'Earlier edit'; });
+  assert.throws(() => store.apply((doc) => {
+    doc.nodes[0].x = 99;
+    throw new Error('Later edit failed');
+  }), /Later edit failed/);
+  assert.equal(store.doc.nodes[0].label, 'Earlier edit');
+  assert.equal(store.doc.nodes[0].x, 0);
+  store.endBatch();
+  store.undo();
+  assert.equal(store.doc.nodes[0].label, 'MCU');
+});
+
 test('undo stack caps at 100', () => {
   const store = new Store();
   for (let i = 0; i < 120; i++) store.apply((doc) => { doc.title = `t${i}`; });

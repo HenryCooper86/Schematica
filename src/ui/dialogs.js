@@ -5,7 +5,7 @@ import { buildHTML } from '../html-export.js';
 // File and export actions: new/save/open, the export dialog (PNG, SVG, PDF,
 // seamless loop GIF), the BOM and design-rule dialogs, and share links.
 import { newDoc, deleteItems, lockedKeptMessage } from '../state.js';
-import { serialize, deserialize } from '../serialize.js';
+import { serialize, deserializeFile } from '../serialize.js';
 import { buildExportSVG, exportBounds, exportPNG, exportPDF, download, copyPNG } from '../export.js';
 import { encodeGIF } from '../gif.js';
 import { LOOP_MS, esc } from '../render.js';
@@ -337,7 +337,7 @@ export function initDialogs({ store, getRootDoc = () => store.doc }) {
     fileInput.value = '';
     if (!file) return;
     try {
-      const { doc, warnings } = deserialize(await file.text());
+      const { doc, warnings } = await deserializeFile(file);
       store.replaceDoc(doc);
       if (warnings.length) toast(tr('Opened with warnings:\n\n{list}', { list: warnings.join('\n') }));
     } catch (err) {

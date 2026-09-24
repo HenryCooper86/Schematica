@@ -419,14 +419,18 @@ and tested with Node's built-in runner:
 
 ```bash
 npm test      # node --test: unit tests, no dependencies
+npm run lint  # syntax, local imports, browser module reachability, and whitespace
 npm run e2e   # headless Chrome smoke test over the DevTools Protocol (set CHROME_PATH if needed)
 ```
 
-Both run in GitHub Actions on every push and pull request (`.github/workflows/ci.yml`).
+All three run in GitHub Actions on every push and pull request (`.github/workflows/ci.yml`).
 
 Layout: `src/state.js` owns the document model + undo; `src/render.js` draws
-it into layered SVG; `src/tools.js` is the pointer/keyboard state machine and
-`src/shortcuts.js` the table its overlay reads;
+it into layered SVG, with frame timing in `src/render-animation.js`;
+`src/tools.js` is the pointer/keyboard state machine, with selection layout in
+`src/tools-layout.js`; `src/shortcuts.js` supplies the overlay's shortcut table.
+`src/ui/assistant-ui.js` coordinates requests while `src/ui/assistant-chrome.js`
+and `src/ui/assistant-thread.js` render its UI.
 `src/align.js` is the align/distribute/tidy arithmetic (measured rectangles in,
 new positions out, no DOM and no store);
 `src/serialize.js` validates files; `src/export.js` builds standalone

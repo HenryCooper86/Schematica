@@ -34,6 +34,11 @@ const MIGRATIONS = {
 export const MAX_TEXT = 20000;
 export const MAX_COORD = 1e6;
 
+export async function deserializeFile(file) {
+  if (file.size > 16 * 1024 * 1024) throw new Error(tr('Board file exceeds 16 MiB.'));
+  return deserialize(await file.text());
+}
+
 export function migrateRaw(raw, migrations = MIGRATIONS, target = SCHEMA_VERSION) {
   let version = Number.isInteger(raw.schema) && raw.schema >= 1 ? raw.schema : 1;
   while (version < target) {

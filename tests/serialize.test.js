@@ -24,6 +24,14 @@ test('round trip preserves the document', () => {
   assert.deepEqual(warnings, []);
 });
 
+test('opening an oversized board rejects it before reading the file', async () => {
+  const { deserializeFile } = await import('../src/serialize.js');
+  let read = false;
+  const file = { size: 16 * 1024 * 1024 + 1, text: async () => { read = true; return '{}'; } };
+  await assert.rejects(() => deserializeFile(file), /Board file exceeds 16 MiB/);
+  assert.equal(read, false);
+});
+
 test('invalid JSON throws readable error', () => {
   assert.throws(() => deserialize('{nope'), /could not parse JSON/);
 });

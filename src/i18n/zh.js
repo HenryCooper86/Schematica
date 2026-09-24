@@ -1136,6 +1136,7 @@ export default {
   'Could not reach {provider}: {error}': '无法连接 {provider}：{error}',
   'A tool call input exceeded 256 KB; split the work into smaller batches.': '某次工具调用的输入超过 256 KB；请拆分为更小的批次。',
   'The reply exceeded 2 MB of text; ask for a shorter answer.': '回复的文本超过 2 MB；请要求更简短的回答。',
+  'The provider sent an oversized stream event.': '提供方发送了过大的流事件。',
   'stream error': '流错误',
   'The response stream ended before the reply completed. Try again.': '响应流在回复完成前结束。请重试。',
   'The provider failed while streaming the reply.': '服务商在流式回复时出错。',

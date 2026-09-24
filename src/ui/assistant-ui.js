@@ -1,4 +1,5 @@
-import { linkedText } from './linked-text.js';
+import { threadMarkup } from './assistant-thread.js';
+import { privacy, intro, icon, states, actionCards } from './assistant-chrome.js';
 import { SKILLS } from '../ai/skills.js';
 import { showBlueprint } from './blueprint-ui.js';
 import { createEditPreview } from '../ai/preview.js';
@@ -23,48 +24,6 @@ import { panelHeader, bindCollapsible } from './collapsible.js';
 import { escAttr, toast, onPress } from './press.js';
 import { initAssistantDocuments } from './assistant-documents.js';
 import { tr, trd, onLanguageChange, getLang } from '../i18n.js';
-
-const privacy = () => BACKEND
-  ? tr('The board\'s text and API key pass through this website\'s server to your chosen provider. The server does not store your key. Remember saves it only in this browser.')
-  : tr('The board\'s text and API key are sent to your chosen endpoint, through a relay when configured. Keys are saved in this browser only when you choose Remember.');
-const intro = () => tr('Describe a board and it builds it; ask for a change and it edits the one you have. Every reply is a single undo step.');
-
-// Lucide icons (ISC, see THIRD_PARTY_NOTICES.md), the same stroke family as
-// the toolbar. 24-box paths; the size comes from CSS.
-const ICONS = {
-  sparkles: '<path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/>',
-  newThread: '<path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/><path d="M12 8v6"/><path d="M9 11h6"/>',
-  settings: '<path d="M14 17H5"/><path d="M19 7h-9"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/>',
-  close: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
-  send: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
-  stop: '<rect width="18" height="18" x="3" y="3" rx="2"/>',
-  undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>',
-  show: '<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/><path d="m16 16-1.9-1.9"/>',
-  build: '<rect width="18" height="7" x="3" y="3" rx="1"/><rect width="9" height="7" x="3" y="14" rx="1"/><rect width="5" height="7" x="16" y="14" rx="1"/>',
-  fix: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/>',
-  fill: '<path d="M14.364 13.634a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506l4.013-4.009a1 1 0 0 0-3.004-3.004z"/><path d="M14.487 7.858A1 1 0 0 1 14 7V2"/><path d="M20 19.645V20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l2.516 2.516"/><path d="M8 18h1"/>',
-  check: '<path d="M20 6 9 17l-5-5"/>',
-  alert: '<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>',
-  ok: '<circle cx="12" cy="12" r="10"/><path d="m16 9-5.5 5.5L8 12"/>',
-  eye: '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',
-  eyeOff: '<path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/>',
-};
-const icon = (name) => `<svg class="ai-ic" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
-
-// What the header's dot says about the provider: the probe result when there
-// is one, otherwise whether there is anything to call at all.
-const states = () => ({ unset: tr('Set up'), untested: tr('Untested'), ready: tr('Ready'), single: tr('Single-shot') });
-
-const actionCards = () => [
-  { act: 'blueprint', icon: 'build', title: tr('Plan a Blueprint'), desc: tr('Turn an idea into a reusable project plan') },
-  { act: 'flow', icon: 'build', title: tr('Build a flow'), desc: tr('Build from the saved Blueprint') },
-  { act: 'presentation', icon: 'show', title: tr('Create a presentation'), desc: tr('Chapters and guided stops from this board') },
-  { act: 'simplify', icon: 'eye', title: tr('Simplify the diagram'), desc: tr('Improve clarity while preserving meaning') },
-  { act: 'review', icon: 'check', title: tr('Review architecture'), desc: tr('Check the board against its project plan') },
-  { act: 'build', icon: 'build', title: tr('Build from a brief'), desc: tr('Start a board from a short spec') },
-  { act: 'fix', icon: 'fix', title: tr('Fix checks'), desc: tr('Resolve the design-rule findings on this board') },
-  { act: 'fill', icon: 'fill', title: tr('Fill in details'), desc: tr('Part numbers, addresses, and rails from the presets') },
-];
 
 export function initAssistant({ store, tools, render, svg, library = null }) {
   const panel = document.getElementById('assistant');
@@ -458,47 +417,11 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     repaintUsage();
   }
 
-  function chipRow(m, index) {
-    if (!m.touched?.length) return '';
-    const live = !busy && m.undoSnap && store.undoStack.at(-1) === m.undoSnap;
-    return `<div class="ai-chips"><button type="button" data-undo="${index}"${live ? '' : ' disabled'}>${icon('undo')}${escAttr(tr('Undo this'))}</button>`
-      + `<button type="button" data-show="${index}">${icon('show')}${escAttr(tr('Show changes'))}</button></div>`;
-  }
-
-  // Consecutive tool status lines render as one activity block, a check per
-  // finished step and a spinner on the one still running; a reply that has
-  // no text yet shows as a thinking row while the request is open.
   function renderThread() {
-    const parts = [];
-    let activity = null;
-    const flush = () => { if (activity) { parts.push(`<div class="ai-activity">${activity.join('')}</div>`); activity = null; } };
-    const last = visible.length - 1;
-    visible.forEach((m, i) => {
-      if (m.role === 'status') {
-        const live = !!busy && (i === last || (i === last - 1 && visible[last].role === 'assistant'));
-        activity = activity || [];
-        activity.push(`<div class="ai-status${live ? ' live' : ''}">${icon('check')}<span>${escAttr(m.text)}</span></div>`);
-        return;
-      }
-      // A request that failed before any text leaves nothing to show but the
-      // error bubble that follows it.
-      if (m.role === 'assistant' && !m.text && !m.touched?.length) {
-        // Thinking dots before the first tool call; once there is a live
-        // status line its spinner is the indicator.
-        if (busy && i === last && visible[i - 1]?.role !== 'status') { flush(); parts.push(`<div class="ai-typing" aria-label="${escAttr(tr('Thinking'))}"><i></i><i></i><i></i></div>`); }
-        return;
-      }
-      flush();
-      if (m.role === 'error') parts.push(`<div class="ai-msg error">${icon('alert')}<span>${escAttr(m.text)}</span></div>`);
-      else parts.push(`<div class="ai-msg ${m.role}">${m.role === 'assistant' ? linkedText(m.text) : escAttr(m.text)}${m.role === 'assistant' ? chipRow(m, i) : ''}</div>`);
-    });
-    flush();
-    thread.innerHTML = parts.join('');
-    thread.querySelectorAll('[data-undo]').forEach((b) => onPress(b, () => { if (!b.disabled && !busy) store.undo(); }));
-    thread.querySelectorAll('[data-show]').forEach((b) => onPress(b, () => highlight(visible[Number(b.dataset.show)].touched || [])));
+    thread.innerHTML = threadMarkup(visible, { busy: !!busy, undoTop: store.undoStack.at(-1) });
+    thread.querySelectorAll('[data-undo]').forEach((button) => onPress(button, () => { if (!button.disabled && !busy) store.undo(); }));
+    thread.querySelectorAll('[data-show]').forEach((button) => onPress(button, () => highlight(visible[Number(button.dataset.show)].touched || [])));
     thread.scrollTop = thread.scrollHeight;
-    // An empty thread shows the actions as cards under an intro; once there
-    // is a conversation they fold to a chip row above the composer.
     const empty = visible.length === 0;
     actions.classList.toggle('cards', empty);
     actions.classList.toggle('chips', !empty);

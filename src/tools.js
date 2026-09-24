@@ -1,12 +1,12 @@
 import {
-  snap, normRect, rectsIntersect, nodeRect, NOTE_W, noteHeight, laneSnapPoint, contentBounds,
-  resizeZone, zoneMembers, ZONE_MIN, LANE_MIN,
+  snap, normRect, nodeRect, laneSnapPoint, contentBounds, resizeZone, ZONE_MIN, LANE_MIN,
 } from './geometry.js';
 import {
   addWire, addZone, addSwimlane, addNote, updateItem, deleteItems, duplicateItems, findItem,
   rewireEnd, resolveBus, isLocked, nextLockState, setLock, lockedKeptMessage,
 } from './state.js';
 import { alignMoves, distributeMoves, tidyMoves, alignAbility } from './align.js';
+import { movableSelection, selectionRects, applyMoves, hitMarquee } from './tools-layout.js';
 import { createClipboardCommands } from './ui/clipboard-commands.js';
 import { BUSES, BUS_ORDER } from './buses.js';
 import { nodePart } from './rdk/profiles.js';
@@ -102,35 +102,6 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
     requestRender('view');
   }
 
-  // Everything the selection drags: its own nodes, zones, and notes, plus the
-  // cards and notes inside any selected zone (net_draw moves a zone with its
-  // contents). `carried` marks those passengers so lane snapping leaves them
-  // to follow the zone rather than jitter onto lane centerlines. Locked items
-  // are left out at both levels: a locked card inside a moving zone stays
-  // where it is while the zone travels over it.
-  function movableSelection() {
-    const orig = new Map();
-    const carried = new Set();
-    for (const id of store.selection) {
-      const found = findItem(store.doc, id);
-      if (found && found.type !== 'wire' && !isLocked(found.item)) {
-        orig.set(id, { x: found.item.x, y: found.item.y });
-      }
-    }
-    for (const id of [...orig.keys()]) {
-      const found = findItem(store.doc, id);
-      if (found?.type !== 'zone') continue;
-      for (const mid of zoneMembers(store.doc, found.item)) {
-        if (orig.has(mid)) continue;
-        const m = findItem(store.doc, mid);
-        if (!m || isLocked(m.item)) continue;
-        orig.set(mid, { x: m.item.x, y: m.item.y });
-        carried.add(mid);
-      }
-    }
-    return { orig, carried };
-  }
-
   // Everything a marquee dragged across the whole board would pick up: cards,
   // zones, and notes. Wires are left out for the same reason hitMarquee leaves
   // them out — a wire has no position of its own, so nothing a multi-selection
@@ -153,7 +124,7 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
 
   // Arrow keys move the selection by a pixel, or a grid step with Shift.
   function nudgeSelection(dx, dy) {
-    const { orig } = movableSelection();
+    const { orig } = movableSelection(store.doc, store.selection);
     if (!orig.size) return;
     store.apply((doc) => {
       for (const [id, o] of orig) {
@@ -166,66 +137,16 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
   }
 
   // ---- Align, distribute, tidy ----
-  // The rectangles the alignment math works on: every selected card, note, and
-  // zone, measured the way the canvas draws it. A card's width follows its
-  // content, so a right-align has to read nodeRect(), not a constant, or two
-  // cards of different widths would keep two different right edges.
-  function selectionRects() {
-    const rects = [];
-    for (const id of store.selection) {
-      const found = findItem(store.doc, id);
-      if (!found || found.type === 'wire') continue;
-      const it = found.item;
-      const box = found.type === 'node' ? nodeRect(it)
-        : found.type === 'note' ? { x: it.x, y: it.y, w: NOTE_W, h: noteHeight(it.text) }
-          : { x: it.x, y: it.y, w: it.w, h: it.h };
-      rects.push({ id, ...box, locked: isLocked(it) });
-    }
-    return rects;
-  }
-
-  // Apply computed positions as one undo step. A zone that moves carries the
-  // unlocked cards and notes inside it, exactly as dragging it does; a
-  // passenger that is itself in the selection keeps its own aligned position
-  // instead of the ride. Memberships are read before anything moves, so two
-  // zones travelling at once cannot steal each other's cards.
-  // `own` is every item the alignment considered, not merely the ones it moved:
-  // an item already on the target edge emits no move, and it is precisely the
-  // one the user must find still on that edge afterwards — riding a zone would
-  // carry the one item that was already right off the line.
-  // Results are never snapped to the grid: snapping each item on its own would
-  // undo the alignment it was just given (a centered card's left edge is its
-  // center minus half its own width, which is rarely a grid multiple), and an
-  // even gap is not generally a whole number of grid steps.
-  function applyMoves(moves, own) {
-    if (!moves.length) return;
-    store.apply((doc) => {
-      const rides = new Map();
-      for (const m of moves) {
-        const found = findItem(doc, m.id);
-        if (found?.type !== 'zone') continue;
-        for (const mid of zoneMembers(doc, found.item)) {
-          if (own.has(mid) || rides.has(mid)) continue;
-          const p = findItem(doc, mid);
-          if (p && !isLocked(p.item)) rides.set(mid, { item: p.item, dx: m.x - found.item.x, dy: m.y - found.item.y });
-        }
-      }
-      for (const m of moves) {
-        const found = findItem(doc, m.id);
-        if (found) Object.assign(found.item, { x: m.x, y: m.y });
-      }
-      for (const r of rides.values()) {
-        r.item.x += r.dx;
-        r.item.y += r.dy;
-      }
-    });
+  // The layout math and zone passengers commit in one undo step.
+  function applySelectionMoves(moves, own) {
+    if (moves.length) store.apply((doc) => applyMoves(doc, moves, own));
   }
 
   // One measurement feeds both the arithmetic and the set of items that hold
   // their own position, so the two can never disagree about who took part.
   function layoutSelection(compute) {
-    const rects = selectionRects();
-    applyMoves(compute(rects), new Set(rects.map((r) => r.id)));
+    const rects = selectionRects(store.doc, store.selection);
+    applySelectionMoves(compute(rects), new Set(rects.map((r) => r.id)));
   }
 
   function alignSelection(mode) {
@@ -241,18 +162,7 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
   }
 
   function alignState() {
-    return alignAbility(selectionRects());
-  }
-
-  function hitMarquee(doc, m) {
-    const ids = [];
-    for (const n of doc.nodes) if (rectsIntersect(m, nodeRect(n))) ids.push(n.id);
-    for (const t of doc.notes) if (rectsIntersect(m, { x: t.x, y: t.y, w: NOTE_W, h: noteHeight(t.text) })) ids.push(t.id);
-    for (const z of doc.zones) {
-      const inside = z.x >= m.x && z.y >= m.y && z.x + z.w <= m.x + m.w && z.y + z.h <= m.y + m.h;
-      if (inside) ids.push(z.id);
-    }
-    return ids;
+    return alignAbility(selectionRects(store.doc, store.selection));
   }
 
   function portUnder(e) {
@@ -381,7 +291,7 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
       if (found && found.type !== 'wire') {
         // A shift-click that toggled off the last selected item leaves
         // nothing to move; a drag with an empty orig map has no anchor.
-        const movable = movableSelection();
+        const movable = movableSelection(store.doc, store.selection);
         if (movable.orig.size) {
           drag = { mode: 'move', start: pt, anchor: id, ...movable };
           store.beginDrag();

@@ -9,6 +9,8 @@
   "scripts": {
     "start": "node server/index.js",
     "test": "node --test",
+    "check:source": "node scripts/check-source.mjs",
+    "lint": "npm run check:source",
     "e2e": "node tests/e2e/smoke.mjs",
     "acceptance": "node tests/acceptance/run.mjs",
     "check:board": "node scripts/check-board.mjs",

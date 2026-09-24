@@ -11,6 +11,10 @@ spec = importlib.util.spec_from_file_location('release', Path(__file__).parents[
 release = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(release)
 SHA = 'a' * 40
+requires_data_filter = unittest.skipUnless(
+    hasattr(tarfile, 'data_filter'),
+    'Deployment requires Python 3.12+ tarfile data-filter support',
+)
 
 
 class ReleaseTests(unittest.TestCase):
@@ -33,6 +37,7 @@ class ReleaseTests(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         release.eligible(SHA)
 
+    @requires_data_filter
     def test_bad_input_never_reaches_deployment(self):
         with patch.object(release.sys, 'argv', ['deploy']), patch.object(release.sys, 'stdin', io.StringIO('main; shell\n')), patch.object(release, 'deploy') as deploy:
             with self.assertRaises(ValueError):
@@ -84,15 +89,19 @@ class ReleaseTests(unittest.TestCase):
                     self.assertIn('--no-build', rollback[0][1])
                     self.assertIsNotNone(rollback[0][2]['override'])
 
+    @requires_data_filter
     def test_success_switches_current_only_after_health(self):
         self.simulate()
 
+    @requires_data_filter
     def test_activation_failure_restores_previous_image(self):
         self.simulate('activation')
 
+    @requires_data_filter
     def test_public_health_failure_restores_previous_image(self):
         self.simulate('health')
 
+    @requires_data_filter
     def test_test_failure_leaves_live_release_untouched(self):
         self.simulate('tests')
 
