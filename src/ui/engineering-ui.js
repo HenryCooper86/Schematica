@@ -1,7 +1,9 @@
 import { requirementFingerprint } from '../workflows.js';
 import { renderWorkflow } from './workflow-ui.js';
 import { architectureScopes } from '../architecture-scopes.js';
-import { normalizeCapability, resolveInterfaceEndpoint } from '../interface-checks.js';
+import { interfaceCompatibility, missingInterfaceDeclarations, normalizeCapability, resolveInterfaceEndpoint } from '../interface-checks.js';
+import { reuseInterfaceFields } from '../interface-workbench.js';
+import { coverageSummary } from '../validation-coverage.js';
 import { impactAnalysis, proposePartChange } from '../impact.js';
 import { impactSummary } from './impact-summary.js';
 import { nodePart } from '../rdk/profiles.js';
@@ -22,7 +24,7 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
   document.getElementById('btn-bom').after(button);
   const dialog = document.createElement('dialog'); dialog.id = 'engineering-dialog';
   dialog.setAttribute('aria-labelledby', 'engineering-heading'); document.body.append(dialog);
-  let tab = 'revisions', selected = null, baseline = null;
+  let tab = 'revisions', selected = null, baseline = null, reuseTargets = new Set(), reusePreview = null;
   const labels = () => ({ revisions: tr('Revisions'), interfaces: tr('Interfaces'), requirements: tr('Requirements'), decisions: tr('Decisions'),
     impact: tr('Change impact'), budgets: tr('Budget assumptions'), subsystems: tr('Subsystems'), review: tr('Review package'), interchange: tr('Interchange'), views: tr('Saved views'), comments: tr('Review comments'), matrix: tr('Verification matrix') });
   const input = (name, label, value = '', type = 'text') => `<label>${esc(label)}<input name="${name}" type="${type}" value="${esc(value)}" maxlength="20000"></label>`;
@@ -32,9 +34,11 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
   const items = () => [...store.doc.nodes, ...store.doc.wires].map(i => [i.id, i.label || `${i.id} (${i.bus})`]);
   const act = (id, label) => `<button type="button" data-action="${id}">${esc(label)}</button>`;
   const safe = fn => async event => { event?.preventDefault(); try { await fn(event); } catch (error) { toast(error.message); } };
-  const edit = fn => { store.apply(fn); paint(); };
+  const edit = fn => { store.apply(fn); reusePreview = null; paint(); };
   const eng = doc => (doc.engineering ||= {});
   function paint() {
+    const sectionScroll = dialog.dataset.section === tab ? dialog.querySelector('#engineering-body')?.scrollTop || 0 : 0;
+    const worklistScroll = dialog.dataset.section === tab ? dialog.querySelector('#interface-worklist > ul')?.scrollTop || 0 : 0;
     labelButton();
     const names = labels();
     dialog.dataset.section = tab;
@@ -59,17 +63,35 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
     } else if (tab === 'interfaces') {
       const rows = interfaceRows(store.doc); selected = rows.some(r => r.id === selected) ? selected : rows.find(r => store.selection.has(r.id))?.id || rows[0]?.id;
       const row = rows.find(r => r.id === selected), wire = store.doc.wires.find(w=>w.id===selected);
+      const errors = new Set(interfaceCompatibility(store.doc).filter(f => f.level === 'error').map(f => f.ids[0]));
+      const statuses = rows.map(r => { const w = store.doc.wires.find(w => w.id === r.id); const missing = ['flow','link'].includes(w.bus) ? [] : missingInterfaceDeclarations(store.doc,w);
+        const code = ['flow','link'].includes(w.bus) ? 'excluded' : errors.has(w.id) ? 'failed' : missing.length ? 'unassessed' : 'checked';
+        const status = code === 'checked' ? tr('Checked') : code === 'failed' ? tr('Failed') : code === 'unassessed' ? tr('Unassessed') : tr('Not applicable');
+        return { ...r, missing, code, status }; });
+      const count = code => statuses.filter(r => r.code === code).length;
       const limits = [['voltageMinV',tr('Minimum voltage (V)')],['voltageMaxV',tr('Maximum voltage (V)')],['rateBps',tr('Bandwidth (bit/s)')]];
       const capabilityFields = end => { const cap=resolveInterfaceEndpoint(store.doc,wire[end]).capability||{}; return `<fieldset><legend>${esc((end==='from'?tr('From endpoint capabilities'):tr('To endpoint capabilities')))}</legend>
         ${select(end+'_direction',tr('Endpoint direction'),[['',tr('Unspecified')],['input',tr('Input')],['output',tr('Output')],['bidirectional',tr('Bidirectional')],['passive',tr('Passive')]],cap.direction)}
         ${limits.map(([key,label])=>input(end+'_'+key,label,cap[key]??'','number')).join('')}${input(end+'_protocols',tr('Supported protocols (comma separated)'),cap.protocols?.join(', ')||'')}${input(end+'_source',tr('Source reference'),cap.source)}</fieldset>`; };
-      body.innerHTML = `<label><input type="checkbox" id="require-interfaces"${store.doc.engineering?.interfacesRequired ? ' checked' : ''}>${esc(tr('Check required interface details'))}</label>`
+      body.innerHTML = `<div id="interface-worklist"><h3>${esc(tr('Interface worklist'))}</h3><p>${esc(coverageSummary({ checked: count('checked'), failed: count('failed'), unassessed: count('unassessed'), excluded: count('excluded') }))}</p><p>${esc(tr('Choose a connection to edit. Reuse fills blank connection fields on selected wires of the same bus; endpoint capabilities stay with each part.'))}</p>
+        <ul>${statuses.map(r => `<li><button type="button" data-worklist-wire="${esc(r.id)}" aria-current="${r.id===selected}">${esc(`${r.from} → ${r.to} (${r.bus})`)}</button> <strong>${esc(r.status)}</strong>${r.missing.length ? `<span> · ${esc(r.missing.join(', '))}</span>` : ''}
+          ${r.id!==selected && r.bus===wire?.bus && !['flow','link'].includes(r.bus) ? `<label><input type="checkbox" data-reuse-target="${esc(r.id)}" aria-label="${esc(`${tr('Reuse target')}: ${r.from} → ${r.to}`)}"${reuseTargets.has(r.id) ? ' checked' : ''}>${esc(tr('Reuse target'))}</label>` : ''}</li>`).join('')}</ul>
+        ${act('preview-reuse', tr('Preview reuse from selected connection'))}<div id="reuse-preview" role="status">${reusePreview ? `<p>${esc(tr('Only these blank connection fields will be filled:'))}</p><ul>${reusePreview.changes.map(c => `<li>${esc(c.id)}: ${esc(c.fields.join(', '))}</li>`).join('')}</ul>${act('apply-reuse',tr('Apply reuse'))}` : ''}</div></div>
+        <label><input type="checkbox" id="require-interfaces"${store.doc.engineering?.interfacesRequired ? ' checked' : ''}>${esc(tr('Check required interface details'))}</label>`
         + (row ? `<form>${select('wire', tr('Connection'), rows.map(r => [r.id, `${r.from} → ${r.to} (${r.bus})`]), selected)}
           ${select('direction', tr('Direction'), [['', tr('Unspecified')], ['from-to', tr('From → To')], ['to-from', tr('To → From')], ['bidirectional', tr('Bidirectional')]], row.direction)}
           ${input('voltage', tr('Voltage domain'), row.voltage)}${input('protocol', tr('Protocol version'), row.protocol)}${input('rate', tr('Rate / bandwidth'), row.rate)}${input('source', tr('Source reference'), row.source)}<fieldset><legend>${esc(tr('Connection limits'))}</legend>${limits.map(([key,label])=>input(key,label,row[key]??'','number')).join('')}</fieldset>${capabilityFields('from')}${capabilityFields('to')}<p>${esc(tr('Numeric declarations are optional. Blank values mean unknown; protocol names are matched exactly, ignoring case.'))}</p>${submit(tr('Save interface'))}</form>` : `<p>${esc(tr('Draw a connection to specify its interface.'))}</p>`)
         + act('csv', tr('Export ICD CSV'));
       body.querySelector('#require-interfaces').onchange = e => edit(doc => { eng(doc).interfacesRequired = e.target.checked; });
-      body.querySelector('[name=wire]')?.addEventListener('change', e => { selected = e.target.value; paint(); });
+      body.querySelectorAll('[data-worklist-wire]').forEach(b => b.onclick = () => { selected = b.dataset.worklistWire; reuseTargets.clear(); reusePreview = null; paint(); });
+      body.querySelectorAll('[data-reuse-target]').forEach(b => b.onchange = () => { if (b.checked) reuseTargets.add(b.dataset.reuseTarget); else reuseTargets.delete(b.dataset.reuseTarget); reusePreview = null; body.querySelector('#reuse-preview').replaceChildren(); });
+      body.querySelector('[name=wire]')?.addEventListener('change', e => { selected = e.target.value; reuseTargets.clear(); reusePreview = null; paint(); });
+      actions['preview-reuse'] = () => { const draft = structuredClone(store.doc); const changes = reuseInterfaceFields(draft, selected, [...reuseTargets]);
+        if (!changes.length) throw new Error(tr('The selected connections have no blank fields to reuse.'));
+        reusePreview = { generation: store.generation, snapshot: JSON.stringify(store.doc), source: selected, targets: [...reuseTargets], changes }; paint(); };
+      actions['apply-reuse'] = () => { if (!reusePreview || store.generation !== reusePreview.generation || JSON.stringify(store.doc) !== reusePreview.snapshot)
+        throw new Error(tr('The board changed. Preview again before applying.'));
+        const { source, targets } = reusePreview; store.apply(doc => reuseInterfaceFields(doc, source, targets)); reusePreview = null; reuseTargets.clear(); paint(); };
       body.querySelectorAll('input[type=number]').forEach(el=>{el.step='any';if(el.name.endsWith('rateBps'))el.min='0';});
       formHandler = data => {
         const numbers = prefix => Object.fromEntries(limits.filter(([key])=>data.get(prefix+key)!=='').map(([key])=>[key,Number(data.get(prefix+key))]));
@@ -177,14 +199,16 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
       importFile('#engineering-csv', csv => edit(doc => importInterfaces(doc, csv)));
       importFile('#engineering-kicad', xml => store.replaceDoc(importKiCad(xml)));
     }
-    dialog.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; selected = null; paint(); });
+    dialog.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; selected = null; reuseTargets.clear(); reusePreview = null; paint(); });
     dialog.querySelectorAll('[data-action]').forEach(b => b.onclick = safe(actions[b.dataset.action] || (() => {})));
     body.querySelectorAll('[data-impact-id]').forEach(b=>b.onclick=()=>{const id=b.dataset.impactId;if(tab==='review')while(navigation.depth())navigation.up();store.setSelection([id]);paint();});
     body.querySelector('form')?.addEventListener('submit', safe(e => formHandler?.(new FormData(e.currentTarget))));
+    body.scrollTop = sectionScroll;
+    if (tab === 'interfaces') body.querySelector('#interface-worklist > ul').scrollTop = worklistScroll;
   }
   revisions.subscribe?.(() => { if (dialog.open && tab === 'revisions' && !dialog.querySelector('input:focus')) paint(); });
-  button.onclick = () => { paint(); openModal(dialog); };
+  button.onclick = () => { reuseTargets.clear(); reusePreview = null; paint(); openModal(dialog); };
   onLanguageChange(() => { labelButton(); if (dialog.open) paint(); });
   labelButton();
-  return { openTab(next) { tab = next; selected = null; paint(); openModal(dialog); }, openRevisions() { tab = 'revisions'; paint(); openModal(dialog); } };
+  return { openTab(next) { tab = next; selected = null; reuseTargets.clear(); reusePreview = null; paint(); openModal(dialog); }, openRevisions() { tab = 'revisions'; paint(); openModal(dialog); } };
 }

@@ -1645,6 +1645,16 @@ html[data-theme="light"] .ai-result.warn { color: #92400e; }
 #engineering-dialog fieldset label + label { margin-top: 12px; }
 #engineering-dialog[data-section=interfaces] fieldset:first-of-type { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 #engineering-dialog[data-section=interfaces] fieldset:first-of-type label { margin: 0; }
+#interface-worklist { margin: 0 0 20px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg0); }
+#interface-worklist h3 { margin: 0 0 8px; }
+#interface-worklist > ul { max-height: 230px; overflow: auto; }
+#interface-worklist li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+#interface-worklist li button { text-align: left; }
+#interface-worklist li button[aria-current=true] { border-color: var(--accent); color: var(--text); }
+#interface-worklist li strong { color: var(--text); }
+#interface-worklist li span { flex-basis: 100%; color: var(--muted); }
+#interface-worklist li label { margin: 0 0 0 auto; }
+#reuse-preview:not(:empty) { margin-top: 12px; padding: 12px; border: 1px solid var(--accent); border-radius: 8px; }
 #engineering-dialog[data-section=revisions] form { grid-template-columns: minmax(0, 1fr) auto; max-width: 660px; align-items: end; }
 #engineering-dialog[data-section=interchange] #engineering-body > label { margin: 16px 0; }
 #engineering-dialog:is([data-section=requirements], [data-section=decisions]) #engineering-body > div { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }

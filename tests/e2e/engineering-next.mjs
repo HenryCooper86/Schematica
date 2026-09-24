@@ -119,6 +119,15 @@ export async function runEngineeringNextChecks({ js, key, check, sleep }) {
   await js(`(async()=>{const {setLang}=await import('/src/i18n.js');setLang('zh')})()`);
   check('readiness coverage is translated in the open dialog', await js(`document.getElementById('drc-list').textContent.includes('4 条已检查')&&document.querySelector('[data-check-mode=readiness]').textContent.includes('审查')`));
   await js(`(async()=>{const {setLang}=await import('/src/i18n.js');setLang('en');document.querySelector('[data-check-mode=design]').click();document.getElementById('drc-close').click()})()`);
+  await js(`(async()=>{const {EXAMPLES}=await import('/src/examples.js');const d=structuredClone(EXAMPLES.find(e=>e.id==='declared-uart-reference').doc);d.wires[1].spec=undefined;const dt=new DataTransfer();dt.items.add(new File([JSON.stringify(d)],'reuse.json'));const f=document.getElementById('file-input');f.files=dt.files;f.dispatchEvent(new Event('change'));})()`);
+  await sleep(200);
+  await js(`document.getElementById('btn-engineering').click();document.querySelector('[data-tab=interfaces]').click();true`);
+  check('interface worklist shows every connection and its declaration status', await js(`document.querySelectorAll('#interface-worklist [data-worklist-wire]').length===4&&document.getElementById('interface-worklist').textContent.includes('Unassessed')`));
+  await js(`document.querySelector('#interface-worklist [data-reuse-target="w2"]').click();document.querySelector('[data-action=preview-reuse]').click();window.dispatchEvent(new Event('pagehide'));true`);
+  check('reuse previews only missing fields before changing the board', await js(`document.getElementById('reuse-preview').textContent.includes('w2')&&!JSON.parse(localStorage.getItem('schematica.autosave')).wires[1].spec`));
+  await js(`document.querySelector('[data-action=apply-reuse]').click();window.dispatchEvent(new Event('pagehide'));true`);
+  check('reuse applies selected connection fields in one board edit', await js(`(()=>{const w=JSON.parse(localStorage.getItem('schematica.autosave')).wires[1];return w.spec.protocol==='UART'&&w.spec.source&&document.getElementById('interface-worklist').textContent.includes('Checked')})()`));
+  await js(`document.querySelector('#engineering-dialog [data-action=close]').click();true`);
   await js(
     `(()=>{const dt=new DataTransfer();dt.items.add(new File([${JSON.stringify(original)}],'restore.json'));const f=document.getElementById('file-input');f.files=dt.files;f.dispatchEvent(new Event('change'));return true})()`,
   );

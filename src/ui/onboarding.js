@@ -1,6 +1,6 @@
 import { EXAMPLES, localizedExample } from "../examples.js";
 import { deserialize, serialize } from "../serialize.js";
-import { designFingerprint } from "../workflows.js";
+import { firstProjectProgress } from "../onboarding-progress.js";
 import { checkDoc } from "../drc.js";
 import { reviewHTML } from "../review.js";
 import { download } from "../export.js";
@@ -24,35 +24,19 @@ export function initOnboarding({
   let checked = "",
     exported = "";
   const report = () => {
-    const doc = navigation.rootDoc(),
-      mark = designFingerprint(doc);
-    return {
-      doc,
-      mark,
-      checks: [
-        doc.nodes.length > 0,
-        doc.wires.length > 0,
-        doc.wires.length > 0 &&
-          doc.wires.every((w) =>
-            ["direction", "voltage", "protocol", "rate", "source"].every((k) =>
-              w.spec?.[k]?.trim(),
-            ),
-          ),
-        checked === mark,
-        exported === mark,
-      ],
-    };
+    const doc = navigation.rootDoc();
+    return { doc, ...firstProjectProgress(doc, { checked, exported }) };
   };
   function paint() {
     button.textContent = tr("First project");
     button.setAttribute("aria-expanded", String(!panel.hidden));
     if (panel.hidden) return;
-    const { checks } = report();
+    const { checks, ready } = report();
     panel.innerHTML = `<header><h2 id="guide-heading">${esc(tr("Your first architecture"))}</h2><button id="guide-close" aria-label="${esc(tr("Close"))}">×</button></header>
       <p>${esc(tr("Work on this board or load a starter. Follow the steps to make a reviewable design."))}</p><button id="guide-starter">${esc(tr("Load sensor starter"))}</button>
       <ol>${[tr("Place parts from the palette."), tr("Drag between ports to connect parts."), tr("Declare direction, voltage, protocol, rate, and source."), tr("Run checks and inspect the findings."), tr("Export a review package for a colleague.")].map((label, i) => `<li>${checks[i] ? "✓ " : ""}${esc(label)}</li>`).join("")}</ol>
       <div class="guide-actions"><button id="guide-interfaces">${esc(tr("Edit interfaces"))}</button><button id="guide-check">${esc(tr("Run checks"))}</button><button id="guide-export">${esc(tr("Export review package"))}</button></div>
-      <p role="status">${checks.filter(Boolean).length}/5 ${esc(tr("steps complete"))}${checks.every(Boolean) ? " · " + esc(tr("First-project steps complete; check review readiness before handoff.")) : ""}</p>`;
+      <p role="status">${checks.filter(Boolean).length}/5 ${esc(tr("steps complete"))} · ${esc(ready ? tr("Ready for interface review") : tr("Not ready for interface review"))}</p>`;
     panel.querySelector("#guide-close").onclick = () => {
       panel.hidden = true;
       paint();

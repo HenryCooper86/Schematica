@@ -31,6 +31,16 @@ wire arrowheads. Enable **Check required interface details** to flag missing
 information without adding warnings to older boards by default. Text such as
 “N/A — optical link” can explicitly document a non-applicable voltage domain.
 
+The **Interface worklist** shows checked, failed, and unassessed connections in
+the current board or expanded subsystem. Select a row to edit it. To reuse an
+existing connection declaration, select that connection as the source, check
+one or more same-bus targets, and preview the fields before applying. Reuse fills
+only blank connection fields, preserves existing target values, and rejects
+incompatible results as a group. Endpoint capabilities remain specific to each
+part and port; inspect and declare them separately. The First project guide now
+counts declaration and handoff steps only when current review readiness supports
+them. It still permits exporting a draft package before the board is ready.
+
 **Export ICD CSV** produces stable, language-independent columns:
 
 ```text
