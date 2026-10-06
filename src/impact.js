@@ -2,6 +2,7 @@ import { partChangePatch } from './part-change.js';
 import { architectureScopes, scopedId } from './architecture-scopes.js';
 import { checkDoc } from './drc.js';
 import { powerSummary } from './power.js';
+import { verificationRows } from './workflows.js';
 const cosmetic = new Set(['x', 'y', 'w', 'h', 'view', 'label', 'color']);
 const canonical = (v) =>
   Array.isArray(v)
@@ -122,7 +123,7 @@ export function impactAnalysis(before, after) {
         const recordData = (r) =>
           r &&
           Object.fromEntries(
-            ['id', 'text', 'rationale', 'owner', 'evidence', 'status', 'targets'].map((k) => [
+            ['id', 'text', 'rationale', 'owner', 'evidence', 'method', 'status', 'targets', 'verifiedFingerprint'].map((k) => [
               k,
               r[k],
             ]),
@@ -148,11 +149,15 @@ export function impactAnalysis(before, after) {
   const oldFindings = new Set(previousFindings.map(signature));
   const oldPower = powerSummary(before),
     newPower = powerSummary(after);
+  const reviewRequirements = new Set(records.requirements.map(r => r.key));
+  const verification = verificationRows(after, before).filter(r =>
+    reviewRequirements.has(scopedId(JSON.parse(r.scope), r.id)));
   return {
     version: 1,
     changed,
     affected,
     ...records,
+    verification,
     budgets: { before: oldPower, after: newPower, changed: !equal(oldPower, newPower) },
     newFindings: findings.filter((f) => !oldFindings.has(signature(f))),
     note: 'Connected items are a conservative review scope, not proof of functional impact. Missing declarations may hide incompatibilities.',

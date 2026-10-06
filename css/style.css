@@ -1481,7 +1481,8 @@ html {
 #canvas .node.story-match .card { stroke: var(--accent); stroke-width: 2; }
 
 .review-card { width: min(1000px, 90vw); max-height: 85vh; overflow: auto; padding: 22px; background: var(--bg1); color: var(--text); }
-.compare-previews { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.compare-previews { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.compare-previews section { min-width: 0; }
 .compare-previews svg { width: 100%; height: 260px; background: var(--bg0); border: 1px solid var(--line2); }
 #compare-changes details { border-bottom: 1px solid var(--line); padding: 10px 0; }
 #compare-changes summary { cursor: pointer; }
@@ -1492,6 +1493,18 @@ html {
 .compare-previews :is(.delta-changed, .delta-rewired) { filter: drop-shadow(0 0 5px #fbbf24); }
 .compare-previews .delta-moved { filter: drop-shadow(0 0 5px #a78bfa); }
 .compare-previews .delta-focus { filter: drop-shadow(0 0 8px #38bdf8); }
+.compare-previews .delta-muted { opacity: .22; }
+.change-legend { display: flex; flex-wrap: wrap; gap: 8px; }
+.change-legend span { border-left: 4px solid; padding-left: 6px; color: var(--text); }
+.change-legend .legend-added { border-color: #34d399; }
+.change-legend .legend-removed { border-color: #f87171; }
+.change-legend :is(.legend-changed, .legend-rewired) { border-color: #fbbf24; }
+.change-legend .legend-moved { border-color: #a78bfa; }
+#ai-visual-preview label { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+[data-change-focus] { min-width: 0; max-width: 100%; font: inherit; padding: 7px 10px; color: var(--text); background: var(--bg2); border: 1px solid var(--line); border-radius: 6px; }
+#interface-guide { border: 1px solid var(--line2); border-radius: 8px; padding: 12px; margin: 12px 0; }
+#interface-guide li { margin: 8px 0; }
+#interface-guide small { display: block; margin: 4px 0; }
 @media (max-width: 650px) { .compare-previews { grid-template-columns: 1fr; } }
 
 .check-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }

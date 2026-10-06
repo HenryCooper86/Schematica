@@ -19,6 +19,7 @@ export function createEditPreview(store) {
     stale,
     changed: () => JSON.stringify(draft.doc) !== original,
     summary: () => ({
+      boards: { before: JSON.parse(original), after: structuredClone(draft.doc) },
       comparison: compareBoards(JSON.parse(original), draft.doc),
       impact: impactAnalysis(JSON.parse(original), draft.doc),
       before: checkDoc(JSON.parse(original)),

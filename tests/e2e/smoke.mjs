@@ -1,4 +1,5 @@
 import { runLayoutChecks } from './layout.mjs';
+import { runEnhancementChecks } from './enhancements.mjs';
 import { runWebChecks } from './web.mjs';
 import { runSkillChecks } from './assistant-skills.mjs';
 import { runWorkflowChecks } from './workflows.mjs';
@@ -15,7 +16,7 @@ import { runExploreChecks } from './explore.mjs';
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EXAMPLES } from '../../src/examples.js';
@@ -24,6 +25,9 @@ import { encodeShare } from '../../src/share.js';
 import { runDocumentChecks } from './documents.mjs';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
+const suite = Object.keys(process.env).find(key => key.endsWith('_E2E_ONLY') && process.env[key]) || 'full';
+const artifactDir = process.env.E2E_ARTIFACT_DIR || join(ROOT, '.acceptance', 'chrome', suite.toLowerCase());
+mkdirSync(artifactDir, { recursive: true });
 const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css',
   '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon',
@@ -254,8 +258,11 @@ await send('Page.enable');
 await sleep(1500);
 
 // Watchdog: a hung browser must fail the run, not stall CI.
-const watchdog = setTimeout(() => {
+const watchdog = setTimeout(async () => {
   console.log('FAIL watchdog — the smoke test did not finish within 180s');
+  failed++;
+  results.push('FAIL watchdog — the smoke test did not finish within 180s');
+  await retainArtifacts();
   chrome.kill();
   server.close();
   process.exit(1);
@@ -268,9 +275,24 @@ function check(name, ok, detail = '') {
   results.push(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`);
 }
 
+async function retainArtifacts() {
+  writeFileSync(join(artifactDir, 'report.json'), JSON.stringify({ suite, failed, results, problems }, null, 2));
+  writeFileSync(join(artifactDir, 'results.log'), [...results, ...problems].join('\n'));
+  writeFileSync(join(artifactDir, 'chrome.log'), chromeErr);
+  if (failed || problems.length) {
+    try {
+      const shot = await send('Page.captureScreenshot', { format: 'png' });
+      if (shot.result?.data) writeFileSync(join(artifactDir, 'failure.png'), Buffer.from(shot.result.data, 'base64'));
+    } catch (error) { writeFileSync(join(artifactDir, 'screenshot-error.log'), String(error)); }
+  }
+}
+
 try {
+  if (process.env.E2E_FORCE_FAILURE === '1') throw new Error('Requested artifact verification failure');
   if (!process.env.WORKFLOW_E2E_ONLY) await js(`(()=>{const p=document.getElementById('ai-preview-enabled');p.checked=false;p.dispatchEvent(new Event('change'));return true;})()`);
-  if (process.env.LAYOUT_E2E_ONLY) {
+  if (process.env.ENHANCEMENTS_E2E_ONLY) {
+    await runEnhancementChecks({js,check});
+  } else if (process.env.LAYOUT_E2E_ONLY) {
     await runLayoutChecks({ js, send, check, sleep, screenshot: async path => {
       const shot = await send('Page.captureScreenshot', { format: 'png' });
       writeFileSync(path, Buffer.from(shot.result.data, 'base64'));
@@ -282,7 +304,10 @@ try {
     const shot = await send('Page.captureScreenshot', {format:'png'});
     writeFileSync('/tmp/schematica-skills.png', Buffer.from(shot.result.data,'base64'));
   } else if (process.env.WORKFLOW_E2E_ONLY) {
-    await runWorkflowChecks({js,check,sleep,origin});
+    await runWorkflowChecks({js,check,sleep,origin,screenshot:async name=>{
+      const shot=await send('Page.captureScreenshot',{format:'png'});
+      writeFileSync(join(artifactDir,name+'.png'),Buffer.from(shot.result.data,'base64'));
+    }});
   } else if (process.env.BENCHMARK_ONLY) {
     const report = await runPerformance({ js });
     writeFileSync(process.env.BENCHMARK_OUTPUT || 'docs/benchmark-latest.json', JSON.stringify(report, null, 2));
@@ -1371,6 +1396,7 @@ try {
   failed += 1;
   results.push(`FAIL script error — ${err.message}`);
 } finally {
+  await retainArtifacts();
   ws.close();
   // Let Chrome exit before removing its profile, or the delete races its
   // shutdown writes.

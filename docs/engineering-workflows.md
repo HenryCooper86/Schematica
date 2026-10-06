@@ -48,6 +48,26 @@ The First project guide now
 counts declaration and handoff steps only when current review readiness supports
 them. It still permits exporting a draft package before the board is ready.
 
+**Guided interface completion** lists individual missing declarations with
+explanations. Each entry focuses its exact form field. **Next connection needing
+review** selects another incomplete or incompatible connection in this scope.
+Save edits before advancing; the guide never fills unknown values automatically.
+Power and ground omit protocol/rate questions, and flow/relationship links are
+not applicable. Present declarations can still conflict; those errors appear
+separately in the guide.
+
+Change previews now include read-only before/after diagrams at a shared scale,
+with labeled colors for additions, removals, rewiring, other edits, and movement.
+Use **Focus change** to highlight an item. The same diagrams appear in assistant
+previews and part-replacement previews; the comparison dialog uses the shared
+renderer. Previewing does not modify the board, and apply keeps its existing
+stale-document check and undo behavior.
+
+Impact reviews include the affected requirements' owners, verification methods,
+evidence, missing allocations, and stale-evidence status. Scope names distinguish
+repeated IDs in subsystems. Method-only edits also count as record changes.
+Baseline review packages include this evidence table in their impact section.
+
 **Export ICD CSV** produces stable, language-independent columns:
 
 ```text

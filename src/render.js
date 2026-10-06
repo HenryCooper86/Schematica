@@ -475,18 +475,23 @@ function noteMarkup(note, selected) {
 // ui: { selection, animate, now, ports }. With `animate`, flowing wires and
 // flagged cards carry their animation classes; with a finite `now` the frame
 // is also baked into attributes (exports). Live rendering passes no `now`.
-export function diagramMarkup(doc, ui = {}) {
+function diagramLayers(doc, ui = {}) {
   const sel = ui.selection || new Set();
   const animating = !!ui.animate;
   const now = Number.isFinite(ui.now) ? ui.now : null;
   const index = sceneIndex(doc);
   const { lanes, incident } = index;
-  const zones = doc.zones.map((z) => zoneMarkup(z, sel.has(z.id))).join('');
-  const wires = doc.wires.map((w) => wireMarkup(index, w, lanes.get(w.id) || 0, sel.has(w.id), ui, animating, now)).join('');
-  const nodes = doc.nodes.map((n) => nodeMarkup(n, sel.has(n.id), ui, animating, now, incident.get(n.id))).join('');
-  const notes = doc.notes.map((n) => noteMarkup(n, sel.has(n.id))).join('');
-  return `<g class="layer-zones">${zones}</g><g class="layer-wires">${wires}</g>`
-    + `<g class="layer-nodes">${nodes}</g><g class="layer-notes">${notes}</g>`;
+  return {
+    zones: doc.zones.map(z => [z.id, zoneMarkup(z, sel.has(z.id))]),
+    wires: doc.wires.map(w => [w.id, wireMarkup(index, w, lanes.get(w.id) || 0, sel.has(w.id), ui, animating, now)]),
+    nodes: doc.nodes.map(n => [n.id, nodeMarkup(n, sel.has(n.id), ui, animating, now, incident.get(n.id))]),
+    notes: doc.notes.map(n => [n.id, noteMarkup(n, sel.has(n.id))]),
+  };
+}
+
+export function diagramMarkup(doc, ui = {}) {
+  return Object.entries(diagramLayers(doc, ui)).map(([kind, rows]) =>
+    `<g class="layer-${kind}">${rows.map(([, markup]) => markup).join('')}</g>`).join('');
 }
 
 // Transient editor feedback (marquee, zone preview, wire being dragged) lives
@@ -548,6 +553,14 @@ export function createRenderer(svg) {
   })) grid.setAttribute(k, v);
   const diagram = document.createElementNS(NS, 'g');
   diagram.setAttribute('class', 'layer-diagram');
+  const layers = new Map();
+  for (const kind of ['zones', 'wires', 'nodes', 'notes']) {
+    const element = document.createElementNS(NS, 'g');
+    element.setAttribute('class', `layer-${kind}`);
+    diagram.append(element);
+    layers.set(kind, { element, items: new Map() });
+  }
+  const parser = document.createElementNS(NS, 'g');
   const overlay = document.createElementNS(NS, 'g');
   overlay.setAttribute('class', 'layer-overlay');
   overlay.setAttribute('pointer-events', 'none');
@@ -586,7 +599,31 @@ export function createRenderer(svg) {
       }
     },
     renderDiagram(doc, ui = {}) {
-      diagram.innerHTML = diagramMarkup(doc, ui);
+      // Recompute geometry and markup so mutation, undo, language and endpoint
+      // changes remain correct; avoid reparsing/replacing unchanged SVG items.
+      for (const [kind, rows] of Object.entries(diagramLayers(doc, ui))) {
+        const { element, items } = layers.get(kind);
+        const present = new Set(rows.filter(([, markup]) => markup).map(([id]) => id));
+        for (const [id, cached] of items) if (!present.has(id)) {
+          cached.element.remove(); items.delete(id);
+        }
+        let cursor = element.firstElementChild;
+        for (const [id, markup] of rows) {
+          if (!markup) continue;
+          let cached = items.get(id);
+          if (cached?.markup !== markup) {
+            parser.innerHTML = markup;
+            const next = parser.firstElementChild;
+            if (cached) {
+              if (cursor === cached.element) cursor = next;
+              cached.element.replaceWith(next);
+            }
+            cached = { markup, element: next }; items.set(id, cached);
+          }
+          if (cached.element === cursor) cursor = cursor.nextElementSibling;
+          else element.insertBefore(cached.element, cursor);
+        }
+      }
     },
     renderOverlay(doc, ui = {}) {
       overlay.innerHTML = overlayMarkup(doc, ui);

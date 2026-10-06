@@ -1,6 +1,7 @@
 import { compareBoards } from '../compare.js';
 import { deserialize } from '../serialize.js';
-import { buildExportSVG, download } from '../export.js';
+import { download } from '../export.js';
+import { paintComparison } from './change-preview.js';
 import { tr, onLanguageChange } from '../i18n.js';
 import { openModal } from './press.js';
 
@@ -20,14 +21,7 @@ export function initCompare({ store }) {
     report = compareBoards(baseline, store.doc);
     const labels = names();
     status.textContent = report.changes.length ? Object.entries(report.counts).map(([k, n]) => `${labels[k]}: ${n}`).join(' · ') : tr('No differences.');
-    beforeView.innerHTML = buildExportSVG(baseline);
-    afterView.innerHTML = buildExportSVG(store.doc);
-    for (const [pane, excluded] of [[beforeView, 'added'], [afterView, 'removed']]) {
-      for (const el of pane.querySelectorAll('[data-id]')) {
-        const types = report.changes.filter(c => c.id === el.dataset.id && c.type !== excluded).map(c => c.type);
-        for (const type of types) el.classList.add(`delta-${type}`);
-      }
-    }
+    paintComparison(beforeView, afterView, baseline, store.doc, report.changes);
     list.replaceChildren();
     for (const change of report.changes) {
       const item = document.createElement('details');

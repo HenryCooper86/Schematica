@@ -1,4 +1,4 @@
-export async function runWorkflowChecks({ js, check, sleep, origin }) {
+export async function runWorkflowChecks({ js, check, sleep, origin, screenshot }) {
   const wait = async (expression) => {
     for (let i = 0; i < 100; i++) {
       if (await js(expression)) return;
@@ -137,6 +137,8 @@ export async function runWorkflowChecks({ js, check, sleep, origin }) {
     );
   await send();
   await wait(`!!document.querySelector('#ai-preview-dialog[open]')`);
+  check('assistant preview includes read-only before and after diagrams', await js(`document.querySelectorAll('#ai-visual-preview svg').length===2&&!!document.querySelector('#ai-visual-preview .delta-added')`));
+  await screenshot?.('visual-preview');
   check(
     "real assistant flow leaves the board unchanged while previewing",
     await js(

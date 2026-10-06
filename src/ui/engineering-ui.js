@@ -3,6 +3,8 @@ import { renderWorkflow } from './workflow-ui.js';
 import { architectureScopes } from '../architecture-scopes.js';
 import { interfaceCompatibility, missingInterfaceDeclarations, normalizeCapability, resolveInterfaceEndpoint } from '../interface-checks.js';
 import { reuseInterfaceFields } from '../interface-workbench.js';
+import { mountInterfaceGuide } from './interface-guide.js';
+import { renderChangePreview } from './change-preview.js';
 import { coverageSummary } from '../validation-coverage.js';
 import { impactAnalysis, proposePartChange } from '../impact.js';
 import { impactSummary } from './impact-summary.js';
@@ -107,6 +109,11 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
         });
       };
       actions.csv = () => download('interfaces.csv', interfaceCSV(store.doc), 'text/csv');
+      mountInterfaceGuide(body, store.doc, wire, statuses, id => {
+        selected = id; reuseTargets.clear(); reusePreview = null;
+        store.setSelection([id]); paint();
+        dialog.querySelector('[data-guide-field]')?.focus();
+      });
     } else if (tab === 'requirements' || tab === 'decisions') {
       const records = store.doc.engineering?.[tab] || [], record = records.find(r => r.id === selected);
       const targets = record?.targets || [...store.selection];
@@ -136,7 +143,8 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
       body.querySelector('[name=node]')?.addEventListener('change',e=>{selected=e.target.value;paint();});
       formHandler=data=>{
         const snapshot=JSON.stringify(store.doc),generation=store.generation,proposal=proposePartChange(store.doc,{id:selected,partNumber:data.get('partNumber'),rail:data.get('rail')});
-        const target=body.querySelector('#impact-preview');target.innerHTML=`<p><strong>${esc(data.get('partNumber'))}</strong> · ${esc(data.get('rail'))}</p>`+impactSummary(impactAnalysis(store.doc,proposal))+act('apply-preview',tr('Apply previewed change'));
+        const target=body.querySelector('#impact-preview');target.innerHTML=`<p><strong>${esc(data.get('partNumber'))}</strong> · ${esc(data.get('rail'))}</p><div data-part-visual></div>`+impactSummary(impactAnalysis(store.doc,proposal))+act('apply-preview',tr('Apply previewed change'));
+        renderChangePreview(target.querySelector('[data-part-visual]'), store.doc, proposal);
         target.querySelector('[data-action=apply-preview]').onclick=safe(()=>{if(store.generation!==generation||JSON.stringify(store.doc)!==snapshot)throw new Error(tr('The board changed. Preview again before applying.'));store.apply(doc=>{doc.nodes=proposal.nodes;});paint();});
         target.querySelectorAll('[data-impact-id]').forEach(b=>b.onclick=()=>{store.setSelection([b.dataset.impactId]);});
       };

@@ -44,6 +44,10 @@ export async function runLayoutChecks({ js, send, check, sleep, screenshot }) {
         check(`engineering ${tab} fits at ${width}x${height} (${lang})`,result.fits&&result.scrollWidth<=result.width+1&&result.height>0,JSON.stringify(result));
       }
       await js(`document.querySelector('#engineering-dialog [data-action=close]').click();true`);
+      await js(`(async()=>{const {Store}=await import('/src/state.js');const {EXAMPLES}=await import('/src/examples.js');const {createEditPreview}=await import('/src/ai/preview.js');const {showEditPreview}=await import('/src/ui/ai-preview.js');const s=new Store(structuredClone(EXAMPLES.find(e=>e.id==='declared-uart-reference').doc));const p=createEditPreview(s);p.draft.doc.nodes[0].x+=100;showEditPreview(p,()=>{});})()`);
+      const preview = await js(`(()=>{const d=document.getElementById('ai-preview-dialog'),r=d.getBoundingClientRect(),b=d.querySelector('#ai-preview-apply');b.scrollIntoView({block:'nearest'});const a=b.getBoundingClientRect();return {fits:r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight,width:d.clientWidth,scrollWidth:d.scrollWidth,reachable:a.top>=0&&a.bottom<=innerHeight}})()`);
+      check(`visual change preview fits and apply is reachable at ${width}x${height} (${lang})`,preview.fits&&preview.scrollWidth<=preview.width+1&&preview.reachable,JSON.stringify(preview));
+      await js(`document.getElementById('ai-preview-discard').click();true`);
     }
   }
   await send('Emulation.clearDeviceMetricsOverride');

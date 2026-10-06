@@ -8,6 +8,7 @@ import { runEngineeringChecks } from './engineering.mjs';
 import { runPresentationChecks } from './presentation.mjs';
 import { runExploreChecks } from './explore.mjs';
 import { runPerformance } from './performance.mjs';
+import { runEnhancementChecks } from './enhancements.mjs';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const browser = process.argv[2] || 'firefox';
@@ -103,6 +104,7 @@ try {
   await runExploreChecks({ js, key, check, sleep });
   await load();
   await runEngineeringChecks({ js, key, check, sleep });
+  await runEnhancementChecks({ js, check });
   await screenshot('engineering-board');
   await js(`window.dispatchEvent(new Event('pagehide'));true`);
   const saved = await js(`localStorage.getItem('schematica.autosave')`);

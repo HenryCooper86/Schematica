@@ -427,8 +427,13 @@ npm run e2e   # headless Chrome smoke test over the DevTools Protocol (set CHROM
 
 All three run in GitHub Actions on every push and pull request (`.github/workflows/ci.yml`).
 
-See the [6 October validation report](docs/validation-2026-10-06.md) for the latest
+See the [6 October validation report](docs/validation-2026-10-06.md) for the baseline
 local browser, recovery, assistant, layout, and deployment-tooling results and limits.
+
+The [review and responsiveness enhancements](docs/enhancements-2026-10-06.md)
+add visual edit previews, guided interface completion, evidence-focused impact
+reviews, and incremental SVG updates. CI also runs native Firefox workflows and
+retains browser failure reports and screenshots for 14 days.
 
 Layout: `src/state.js` owns the document model + undo; `src/render.js` draws
 it into layered SVG, with frame timing in `src/render-animation.js`;

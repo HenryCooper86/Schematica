@@ -117,7 +117,8 @@ export function renderReviewHTML(report, files, viewers) {
             (r) => `<tr>${cell(kind)}${cell(r.scopeTitle)}${cell(r.id)}${cell(r.text)}</tr>`,
           ),
         ),
-      )}</section>`,
+      )}<h3>Verification evidence to review</h3>${table(['Scope','ID','Owner','Method','Evidence','Allocated','Needs review'],
+        (report.impact.verification || []).map(r => `<tr>${[r.scopeTitle,r.id,r.owner,r.method,r.evidence,r.allocated,r.needsReview].map(cell).join('')}</tr>`))}</section>`,
     );
   sections.push(`<section id="verification"><h2>Verification matrix</h2>${table(['Scope','ID','Owner','Method','Evidence','Allocated','Needs review','Changed since baseline'],
     (report.verification || []).map(r => `<tr>${[r.scopeTitle,r.id,r.owner,r.method,r.evidence,r.allocated,r.needsReview,r.changed].map(cell).join('')}</tr>`))}</section>`);

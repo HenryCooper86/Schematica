@@ -1,9 +1,32 @@
 import { normalizeSpec } from './engineering.js';
-import { interfaceCompatibility, interfaceDirection } from './interface-checks.js';
+import { interfaceCompatibility, interfaceDirection, resolveInterfaceEndpoint } from './interface-checks.js';
 import { tr } from './i18n.js';
 
 const FIELDS = ['direction', 'voltage', 'protocol', 'rate', 'source', 'voltageMinV', 'voltageMaxV', 'rateBps'];
 const hasValue = value => typeof value === 'number' ? Number.isFinite(value) : typeof value === 'string' && !!value.trim();
+
+export function interfaceChecklist(doc, wire) {
+  if (!wire || ['flow', 'link'].includes(wire.bus)) return [];
+  const steps = [], signal = !['power', 'gnd'].includes(wire.bus);
+  const add = (prefix, value, endpoint) => {
+    const missing = (key, label, explanation, present = hasValue(value[key])) => {
+      if (!present) steps.push({ field: prefix + key, label, explanation, endpoint });
+    };
+    missing('direction', tr('Direction'), tr('Declare the direction supported by this connection or endpoint.'));
+    missing('voltageMinV', tr('Minimum voltage (V)'), tr('Use a documented lower voltage limit; leave unknown values blank.'));
+    missing('voltageMaxV', tr('Maximum voltage (V)'), tr('Use a documented upper voltage limit; do not substitute a nominal voltage.'));
+    if (signal) {
+      missing(prefix ? 'protocols' : 'protocol', tr('Protocol version'), tr('Name the supported protocol and revision from your evidence.'),
+        prefix ? !!value.protocols?.length : hasValue(value.protocol));
+      missing('rateBps', tr('Bandwidth (bit/s)'), tr('Declare the connection requirement or endpoint capacity in bits per second.'));
+    }
+    missing('source', tr('Source reference'), tr('Record the datasheet, test result, or explicit design assumption behind these values.'));
+  };
+  add('', { ...wire.spec, direction: interfaceDirection(wire) }, tr('Connection limits'));
+  for (const end of ['from', 'to']) add(end + '_', resolveInterfaceEndpoint(doc, wire[end]).capability || {},
+    end === 'from' ? tr('From endpoint capabilities') : tr('To endpoint capabilities'));
+  return steps;
+}
 
 // Copy only explicitly declared connection fields. Endpoint capabilities belong
 // to each physical part and are never inferred from another connection.

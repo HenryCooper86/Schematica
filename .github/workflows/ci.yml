@@ -52,3 +52,44 @@ jobs:
         env:
           CHROME_PATH: /usr/bin/google-chrome
           LAYOUT_E2E_ONLY: '1'
+      - name: Visual previews and incremental rendering
+        run: npm run e2e
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          ENHANCEMENTS_E2E_ONLY: '1'
+      - name: Retain Chrome failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chrome-failure-evidence
+          path: .acceptance/chrome/
+          include-hidden-files: true
+          retention-days: 14
+
+  firefox:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: browser-actions/setup-firefox@v1
+        id: firefox
+        with:
+          firefox-version: latest
+      - uses: browser-actions/setup-geckodriver@latest
+        with:
+          token: ${{ github.token }}
+      - name: Native Firefox workflows
+        run: npm run e2e:firefox
+        env:
+          FIREFOX_PATH: ${{ steps.firefox.outputs.firefox-path }}
+      - name: Retain Firefox failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firefox-failure-evidence
+          path: .acceptance/firefox/
+          include-hidden-files: true
+          retention-days: 14

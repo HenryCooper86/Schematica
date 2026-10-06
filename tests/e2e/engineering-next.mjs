@@ -121,10 +121,17 @@ export async function runEngineeringNextChecks({ js, key, check, sleep }) {
   await js(`document.getElementById('btn-lang').click();true`);
   check('readiness coverage is translated in the open dialog', await js(`document.getElementById('drc-list').textContent.includes('4 条已检查')&&document.querySelector('[data-check-mode=readiness]').textContent.includes('审查')`));
   await js(`document.getElementById('btn-lang').click();document.querySelector('[data-check-mode=design]').click();document.getElementById('drc-close').click();true`);
-  await js(`(async()=>{const {EXAMPLES}=await import('/src/examples.js');const d=structuredClone(EXAMPLES.find(e=>e.id==='declared-uart-reference').doc);d.wires[1].spec=undefined;const dt=new DataTransfer();dt.items.add(new File([JSON.stringify(d)],'reuse.json'));const f=document.getElementById('file-input');f.files=dt.files;f.dispatchEvent(new Event('change'));})()`);
+  await js(`(async()=>{const {EXAMPLES}=await import('/src/examples.js');const d=structuredClone(EXAMPLES.find(e=>e.id==='declared-uart-reference').doc);d.wires[1].spec=undefined;d.wires[2].spec=undefined;const dt=new DataTransfer();dt.items.add(new File([JSON.stringify(d)],'reuse.json'));const f=document.getElementById('file-input');f.files=dt.files;f.dispatchEvent(new Event('change'));})()`);
   await sleep(200);
   await js(`document.getElementById('btn-engineering').click();document.querySelector('[data-tab=interfaces]').click();true`);
   check('interface worklist shows every connection and its declaration status', await js(`document.querySelectorAll('#interface-worklist [data-worklist-wire]').length===4&&document.getElementById('interface-worklist').textContent.includes('Unassessed')`));
+  await js(`document.querySelector('[data-guide-next]').click();true`);
+  check('guide moves to the next incomplete connection without inventing declarations', await js(`document.querySelector('[name=wire]').value==='w2'&&!!document.querySelector('[data-guide-field="protocol"]')`));
+  await js(`document.querySelector('[data-guide-field="protocol"]').click();true`);
+  check('guide focuses the exact missing field', await js(`document.activeElement.name==='protocol'`));
+  await js(`document.querySelector('[name=protocol]').value='Draft only';document.querySelector('[name=protocol]').dispatchEvent(new Event('input',{bubbles:true}));true`);
+  check('guide requires saving edits before advancing', await js(`document.querySelector('[data-guide-next]').disabled&&document.querySelector('[data-guide-status]').textContent.includes('Save your edits')`));
+  await js(`document.querySelector('[data-worklist-wire="w1"]').click();true`);
   await js(`document.querySelector('#interface-worklist [data-reuse-target="w2"]').click();document.querySelector('[data-action=preview-reuse]').click();window.dispatchEvent(new Event('pagehide'));true`);
   check('reuse previews only missing fields before changing the board', await js(`document.getElementById('reuse-preview').textContent.includes('w2')&&!JSON.parse(localStorage.getItem('schematica.autosave')).wires[1].spec`));
   await js(`document.querySelector('[data-action=apply-reuse]').click();window.dispatchEvent(new Event('pagehide'));true`);
