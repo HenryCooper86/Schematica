@@ -97,3 +97,15 @@ replacement. CI does not enforce hardware-dependent timing thresholds.
 
 Live provider acceptance, hosted CI execution, participant studies, and physical
 hardware validation remain outside these local results.
+
+## Subsequent release verification
+
+Commit `f165df7cecc1a32b51930ad09e23c90e33f4ff77` subsequently passed
+[hosted CI](https://github.com/HenryCooper86/Schematica/actions/runs/37488226508),
+including Firefox, and deployed successfully to
+[GitHub Pages](https://github.com/HenryCooper86/Schematica/actions/runs/37488831067)
+and [Lightsail](https://github.com/HenryCooper86/Schematica/actions/runs/37488831189).
+Public application files matched the commit on both sites; Pages' revision marker
+matched, and Lightsail passed its health check. The server also passed all 919
+tests before activation. This supersedes the hosted-CI/deployment limitations
+above; other validation boundaries remain.

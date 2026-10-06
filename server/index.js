@@ -1,3 +1,4 @@
+import { createTeamService } from './team-api.js';
 import { fetchPublicSource, WEB_TIMEOUT_MS } from './web.js';
 import { createServer } from 'node:http';
 import { realpath, stat } from 'node:fs/promises';
@@ -97,7 +98,7 @@ function readBody(req, limit, signal) {
 }
 
 export function createAppServer({
-  root = ROOT, fetchImpl = globalThis.fetch, baseUrls = DEFAULT_BASE_URLS, webFetch = fetchPublicSource,
+  teamService = null, root = ROOT, fetchImpl = globalThis.fetch, baseUrls = DEFAULT_BASE_URLS, webFetch = fetchPublicSource,
   publicOrigin = '', maxBodyBytes = 8 * 1024 * 1024, timeoutMs = 120_000, idleTimeoutMs = 120_000, maxConcurrent = 16,
 } = {}) {
   const allowed = baseUrls.map(parseBase);
@@ -118,6 +119,15 @@ export function createAppServer({
       if (publicUrl ? host !== publicUrl.host : !localHosts.includes(host)) throw error(421, 'This host is not configured. Set PUBLIC_ORIGIN for public deployments.');
       const origin = publicUrl?.origin || `http://${host}`;
       const url = new URL(req.url, origin);
+
+      if (url.pathname === '/api/team' || url.pathname.startsWith('/api/team/')) {
+        if (!teamService) {
+          if (url.pathname !== '/api/team/status' || req.method !== 'GET') throw error(404, 'Not found.');
+          res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+          res.end('{"enabled":false}');
+        } else await teamService.handle(req, res, url, origin);
+        return;
+      }
 
       if (url.pathname === '/api/web') {
         if (req.method !== 'POST') throw error(405, 'Only POST is supported.');
@@ -246,13 +256,18 @@ export function createAppServer({
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const port = Number(process.env.PORT || 3000);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be between 1 and 65535.');
+  const teamDirectory = process.env.SCHEMATICA_TEAM_DIR;
+  const teamIdentities = process.env.SCHEMATICA_TEAM_IDENTITIES;
+  if (Boolean(teamDirectory) !== Boolean(teamIdentities)) throw new Error('Both team configuration paths are required.');
+  const teamService = teamDirectory ? await createTeamService({ directory: teamDirectory, identitiesFile: teamIdentities, root: ROOT }) : null;
   const server = createAppServer({
+    teamService,
     publicOrigin: process.env.PUBLIC_ORIGIN || '',
     baseUrls: [...DEFAULT_BASE_URLS, ...(process.env.AI_BASE_URLS || '').split(',').map((s) => s.trim()).filter(Boolean)],
   });
   const host = process.env.HOST || '127.0.0.1';
   server.listen(port, host, () => console.log(`Schematica listening at ${process.env.PUBLIC_ORIGIN || `http://localhost:${port}`}`));
-  const shutdown = () => { server.close(); setTimeout(() => process.exit(0), 10_000).unref(); };
+  const shutdown = () => { server.close(() => teamService?.close()); setTimeout(() => process.exit(0), 10_000).unref(); };
   process.once('SIGTERM', shutdown);
   process.once('SIGINT', shutdown);
 }

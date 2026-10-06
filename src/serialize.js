@@ -1,3 +1,4 @@
+import { validateKiCadProvenance } from './kicad.js';
 import { validateBlueprint } from './blueprint.js';
 import { normalizeInterfacePorts } from './interface-checks.js';
 import { normalizeSpec, normalizeBudget, normalizeEngineering } from './engineering.js';
@@ -336,5 +337,9 @@ export function deserialize(text, { depth = 0 } = {}) {
   }
   const engineering = normalizeEngineering(raw.engineering, warnings);
   if (engineering) doc.engineering = engineering;
+  if (raw.kicad !== undefined) {
+    try { doc.kicad = validateKiCadProvenance(raw.kicad); }
+    catch { warnings.push(tr('Ignored invalid KiCad provenance. Import a new board before updating.')); }
+  }
   return { doc, warnings };
 }

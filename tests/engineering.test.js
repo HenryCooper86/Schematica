@@ -130,13 +130,13 @@ test('KiCad imports 64-pin parts without dropping pins and rejects overflow', as
   const first=nodeRect(doc.nodes[0]),nextRow=nodeRect(doc.nodes[8]);
   assert.ok(nextRow.y>=first.y+first.h,'tall components do not overlap the next row');
   assert.throws(()=>fromKiCadData({components,nets:[...nets,{name:'overflow',nodes:[{ref:'U0',pin:'65'}]}]}),/64 connected pins/);
-  assert.throws(()=>fromKiCadData({components,nets:[{nodes:[{ref:'U0',pin:'pin-name-too-long'}]}]}),/truncation/);
+  assert.throws(()=>fromKiCadData({components,nets:[{name:'N',nodes:[{ref:'U0',pin:'pin-name-too-long'}]}]}),/truncation/);
 });
 
 test('subsystem boundaries beyond the old 24-port cap survive serialization', async () => {
   const source=fromKiCadData({components:[{ref:'U1',value:'MCU'}],nets:Array.from({length:40},(_,i)=>({name:'N'+i,nodes:[{ref:'U1',pin:String(i+1)}]}))});
   const store=new Store();store.replaceDoc(source);
-  const id=groupSubsystem(store,['k0'],'Controller');
+  const id=groupSubsystem(store,[source.nodes.find(n=>n.label==='U1').id],'Controller');
   const restored=deserialize(serialize(store.doc));
   assert.deepEqual(restored.warnings,[]);
   const wrapper=restored.doc.nodes.find(n=>n.id===id);

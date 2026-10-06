@@ -1,3 +1,6 @@
+import { runTeamReviewChecks } from './team-review.mjs';
+import { runKiCadUpdateChecks } from './kicad-update.mjs';
+import { runGuidedReviewChecks } from './guided-review.mjs';
 // Native Safari/Firefox regression checks using W3C WebDriver, with no npm dependencies.
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -115,9 +118,13 @@ try {
     report.kicad = await runKiCadChecks({ js, check, manifest: JSON.parse(await readFile(process.env.KICAD_MANIFEST, 'utf8')) });
   }
   await load();
+  await runGuidedReviewChecks({js,key,check,sleep});
+  await runKiCadUpdateChecks({js,check,sleep});
+  await load();
   report.performance = await runPerformance({ js });
   await runPresentationChecks({ js, key, check, sleep });
   await screenshot('presentation');
+  await runTeamReviewChecks({js,check,sleep,capture:screenshot,navigate:async url=>{errors.push(...await js('window.__validationErrors || []').catch(()=>[]));await command('/url',{url});if(url!=='about:blank')await js(`(()=>{window.__validationErrors=[];addEventListener('error',e=>window.__validationErrors.push(e.message||'Resource error'));addEventListener('unhandledrejection',e=>window.__validationErrors.push(String(e.reason)));return true})()`);}});
   errors.push(...await js('window.__validationErrors || []'));
   check('no captured browser errors or unhandled rejections', errors.length === 0, errors);
   report.passed = true;

@@ -1,3 +1,4 @@
+import { captureKiCadUpdate, assertKiCadUpdateCurrent, prepareKiCadUpdate, applyKiCadUpdate } from '../kicad-update.js';
 import { requirementFingerprint } from '../workflows.js';
 import { renderWorkflow } from './workflow-ui.js';
 import { architectureScopes } from '../architecture-scopes.js';
@@ -201,11 +202,29 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
     } else {
       body.innerHTML = `<p>${esc(tr('ICD CSV updates existing connections by ID and checks endpoint names and bus before applying. KiCad XML netlists import as a new architecture board; review the result before use.'))}</p>
         <label>${esc(tr('Import ICD CSV'))}<input type="file" id="engineering-csv" accept=".csv"></label>
-        <label>${esc(tr('Import KiCad XML netlist'))}<input type="file" id="engineering-kicad" accept=".xml,.net"></label>${act('icd', tr('Export ICD CSV'))}`;
+        <label>${esc(tr('Import KiCad XML netlist'))}<input type="file" id="engineering-kicad" accept=".xml,.net"></label>
+        <p>${esc(tr('KiCad updates preserve authored layout and annotations. Removed allocations remain missing; unsafe removals must be resolved before updating.'))}</p>
+        <label>${esc(tr('Preview KiCad update'))}<input type="file" id="engineering-kicad-update" accept=".xml,.net"></label><div id="kicad-update-preview" role="status"></div>${act('icd', tr('Export ICD CSV'))}`;
       actions.icd = () => download('interfaces.csv', interfaceCSV(store.doc), 'text/csv');
-      const importFile = (id, fn) => { body.querySelector(id).onchange = safe(async e => { const file = e.target.files[0]; if (!file) return; if (file.size > 16 * 1024 * 1024) throw new Error(tr('Board file exceeds 16 MiB.')); fn(await file.text()); paint(); }); };
+      const importFile = (id, fn) => { body.querySelector(id).onchange = safe(async e => { const file = e.target.files[0]; if (!file) return; if (file.size > 16 * 1024 * 1024) throw new Error(tr('Board file exceeds 16 MiB.')); const stamp = captureKiCadUpdate(store); const text = await file.text(); assertKiCadUpdateCurrent(store, stamp); fn(text); paint(); }); };
       importFile('#engineering-csv', csv => edit(doc => importInterfaces(doc, csv)));
       importFile('#engineering-kicad', xml => store.replaceDoc(importKiCad(xml)));
+      let updateRequest = 0;
+      body.querySelector('#engineering-kicad-update').onchange = safe(async e => {
+        const request = ++updateRequest, file = e.target.files[0], target = body.querySelector('#kicad-update-preview');
+        target.replaceChildren();
+        if (!file) return;
+        if (file.size > 16 * 1024 * 1024) throw new Error(tr('Board file exceeds 16 MiB.'));
+        const stamp = captureKiCadUpdate(store), xml = await file.text();
+        assertKiCadUpdateCurrent(store, stamp);
+        if (request !== updateRequest || !target.isConnected || !dialog.open) return;
+        const preview = prepareKiCadUpdate(store, importKiCad(xml), stamp);
+        target.innerHTML = `<p>${esc(tr('KiCad source'))}: ${esc(preview.proposal.kicad.source)}</p><div data-kicad-visual></div>`
+          + impactSummary(impactAnalysis(store.doc, preview.proposal)) + act('apply-kicad-update', tr('Apply KiCad update'));
+        renderChangePreview(target.querySelector('[data-kicad-visual]'), store.doc, preview.proposal);
+        target.querySelector('[data-action=apply-kicad-update]').onclick = safe(() => { applyKiCadUpdate(store, preview); paint(); });
+        target.querySelectorAll('[data-impact-id]').forEach(b => b.onclick = () => store.setSelection([b.dataset.impactId]));
+      });
     }
     dialog.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; selected = null; reuseTargets.clear(); reusePreview = null; paint(); });
     dialog.querySelectorAll('[data-action]').forEach(b => b.onclick = safe(actions[b.dataset.action] || (() => {})));

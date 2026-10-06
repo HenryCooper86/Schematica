@@ -9,9 +9,9 @@ export async function runKiCadChecks({ js, check, manifest }) {
       const xml=await response.text();let doc;
       try{doc=importKiCad(xml)}catch(error){return {rejected:true,message:error.message}}
       const {doc:restored,warnings}=deserialize(serialize(doc));
-      const components=restored.nodes.filter(n=>!n.id.startsWith('net'));
+      const components=restored.nodes.filter(n=>n.part.category!=='connectivity');
       const byId=new Map(restored.nodes.map(n=>[n.id,n]));
-      const nets=restored.nodes.filter(n=>n.id.startsWith('net')).map(n=>({name:n.label,pins:restored.wires.filter(w=>w.to.node===n.id).map(w=>{const part=byId.get(w.from.node);return [part.label,part.part.ports.find(p=>p.id===w.from.port).name]}).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)))})).sort((a,b)=>a.name.localeCompare(b.name));
+      const nets=restored.nodes.filter(n=>n.part.category==='connectivity').map(n=>({name:n.label,pins:restored.wires.filter(w=>w.to.node===n.id).map(w=>{const part=byId.get(w.from.node);return [part.label,part.part.ports.find(p=>p.id===w.from.port).name]}).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)))})).sort((a,b)=>a.name.localeCompare(b.name));
       const transfer=new DataTransfer();transfer.items.add(new File([serialize(restored)],'kicad.json'));const input=document.getElementById('file-input');input.files=transfer.files;input.dispatchEvent(new Event('change'));
       return {components:components.map(n=>n.label).sort(),nets,warnings,wires:restored.wires.length,nodes:restored.nodes.length};
     })()`);

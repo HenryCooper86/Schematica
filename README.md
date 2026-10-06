@@ -11,7 +11,7 @@ review.
 The UI defaults to a dark, high-contrast canvas (Explore → Appearance also offers light and system themes): shaded cards with tinted icon badges, slate wires that leave each card toward the other, and a label pill on every wire naming its bus. Cards size themselves to their content: the part number, interface address, and voltage rail appear as mono lines under the name. Beyond hardware, the palette carries Network, Security & Edge, Process Flow (real flowchart shapes), and Threats parts, from threat actors, malware, and C2 servers to vulnerabilities, misconfigurations, exploits, supply-chain compromise, DDoS, on-path attackers, sensor spoofing, stolen credentials, data exfiltration, and physical tampering, so a board can put a firewall, a decision diamond, and a threat actor next to an MCU.
 
 No build step: HTML + ES modules + SVG, with an optional Node.js backend
-for server-side AI connections. PDF.js
+for server-side AI connections and optional authenticated team reviews. PDF.js
 and Mammoth are pinned and bundled for local document extraction, then loaded
 only when a PDF or DOCX needs them.
 
@@ -70,6 +70,9 @@ duty cycles, and voltage/efficiency conversion.
 
 See the [quality review and product roadmap](docs/quality-review-2026-09-15.md)
 for verified fixes, architectural follow-ups, and proposed engineer workflows.
+The [October category-readiness review](docs/category-readiness-2026-10-07.md)
+compares the current product with adjacent tools and prioritizes the remaining
+onboarding, interchange, team-review, and validation gaps. The [implementation report](docs/category-release-2026-10-07.md) tracks delivered software separately from participant, hardware, and live-provider evidence.
 
 
 ## Review and onboarding improvements
@@ -77,9 +80,13 @@ for verified fixes, architectural follow-ups, and proposed engineer workflows.
 The assistant now previews edits before applying them. **Engineering** also
 includes **Saved views**, **Review comments**, and a **Verification matrix**;
 **First project** in the palette guides the path to a shareable design.
+**First project → Start UART review walkthrough** starts a short UART mismatch-and-repair walkthrough, with a durable recovery snapshot before switching boards. The declared power, I2C, UART and CAN examples use explicit teaching assumptions, not verified component ratings. **Connect ports** supports keyboard selection of both endpoints; Ctrl/Command+Enter submits the connection form.
+
 Revision history uses transactional IndexedDB storage and shows whether each
 snapshot is durable. See [engineering workflows](docs/engineering-workflows.md)
 for scope rules, review exchange, and verification evidence tracking.
+
+**Team reviews** connects to an optionally configured same-origin server. Published snapshots, discussions and decisions are separate from the local board. See [operator setup and limits](docs/team-reviews.md) and [validation evidence tools](docs/validation/README.md).
 
 ## Assistant skills and Blueprints
 
@@ -98,7 +105,7 @@ indicators; replies can link to sources. See [web source support and limits](doc
 
 The **Engineering** toolbar button opens revisions and recovery, interface
 specifications, requirements and decisions, budget assumptions, reusable
-subsystems, review packages, and experimental KiCad XML netlist import.
+subsystems, review packages, and experimental KiCad XML netlist import. Newly imported boards retain stable source identities; **Preview KiCad update** compares a later netlist before applying it in one undo step. Updates preserve surviving layout and review notes, and reject conflicts with authored electrical declarations. Legacy imports without source provenance require a fresh import.
 Change-impact previews, declared interface compatibility checks, and readable
 subsystem review reports support daily design reviews.
 See [the architecture release notes](docs/architecture-release-2026-09-15.md) and
@@ -111,7 +118,7 @@ See [the architecture release notes](docs/architecture-release-2026-09-15.md) an
 | Action | How |
 |--------|-----|
 | Add a part | Drag it from the palette, or click it |
-| Wire two parts | Drag from a port to another port (any tool) |
+| Wire two parts | Drag from a port to another port (any tool), or use **Connect ports** for keyboard endpoint selection |
 | Pick the bus type | Automatic when both ports agree; popover otherwise |
 | Re-attach a wire | Select it, then drag either end handle onto another port (the bus follows the new ports, or asks) |
 | Select / move | `V`, click or drag; marquee on empty canvas; shift-click adds |

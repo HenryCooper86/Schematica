@@ -1,3 +1,6 @@
+import { runTeamReviewChecks } from './team-review.mjs';
+import { runKiCadUpdateChecks } from './kicad-update.mjs';
+import { runGuidedReviewChecks } from './guided-review.mjs';
 import { runLayoutChecks } from './layout.mjs';
 import { runEnhancementChecks } from './enhancements.mjs';
 import { runWebChecks } from './web.mjs';
@@ -287,10 +290,19 @@ async function retainArtifacts() {
   }
 }
 
+const teamTools={js,check,sleep,navigate:url=>send('Page.navigate',{url}),resize:(width,height)=>send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false}),restoreViewport:()=>send('Emulation.clearDeviceMetricsOverride'),capture:async name=>{const shot=await send('Page.captureScreenshot',{format:'png'});writeFileSync(join(artifactDir,name+'.png'),Buffer.from(shot.result.data,'base64'));}};
+
 try {
   if (process.env.E2E_FORCE_FAILURE === '1') throw new Error('Requested artifact verification failure');
   if (!process.env.WORKFLOW_E2E_ONLY) await js(`(()=>{const p=document.getElementById('ai-preview-enabled');p.checked=false;p.dispatchEvent(new Event('change'));return true;})()`);
-  if (process.env.ENHANCEMENTS_E2E_ONLY) {
+  if (process.env.TEAM_REVIEW_E2E_ONLY) {
+    await runTeamReviewChecks(teamTools);
+  } else if (process.env.KICAD_UPDATE_E2E_ONLY) {
+    await runKiCadUpdateChecks({js,check,sleep});
+  await runTeamReviewChecks(teamTools);
+  } else if (process.env.GUIDED_REVIEW_E2E_ONLY) {
+    await runGuidedReviewChecks({js,key,check,sleep});
+  } else if (process.env.ENHANCEMENTS_E2E_ONLY) {
     await runEnhancementChecks({js,check});
   } else if (process.env.LAYOUT_E2E_ONLY) {
     await runLayoutChecks({ js, send, check, sleep, screenshot: async path => {
@@ -1391,6 +1403,12 @@ try {
   }
   await loadBoard(weather);
   await runAdoptionChecks({ js, key, check, sleep });
+  // Adoption ends in an exported offline viewer; return to the editor for subsequent workflows.
+  await send('Page.navigate',{url:origin+'/'});
+  await waitFor(`!!document.getElementById('btn-guide')`);
+  await runGuidedReviewChecks({js,key,check,sleep});
+  await runKiCadUpdateChecks({js,check,sleep});
+  await runTeamReviewChecks(teamTools);
   }
 } catch (err) {
   failed += 1;

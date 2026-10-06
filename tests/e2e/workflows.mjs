@@ -125,7 +125,7 @@ export async function runWorkflowChecks({ js, check, sleep, origin, screenshot }
   check(
     "first-project guidance is accessible with actionable steps",
     await js(
-      `!document.getElementById('first-project').hidden&&document.querySelectorAll('#first-project li').length===5&&!!document.getElementById('guide-interfaces')`,
+      `!document.getElementById('first-project').hidden&&document.querySelectorAll('#first-project > ol > li').length===5&&!!document.getElementById('guide-interfaces')`,
     ),
   );
   await js(

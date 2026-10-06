@@ -1,4 +1,6 @@
+import { initTeamReview } from './ui/team-review.js';
 import { initOnboarding } from './ui/onboarding.js';
+import { initConnections } from './ui/connections.js';
 import { createRevisions, conflictStorage } from './revisions.js';
 import { createSubsystemNavigation } from './subsystems.js';
 import { initEngineering } from './ui/engineering-ui.js';
@@ -259,7 +261,9 @@ initCompare({ store });
 explorer = initExplore({ store, tools, svg, render });
 dialogs = initDialogs({ store, getRootDoc: () => navigation.rootDoc() });
 engineeringUI = initEngineering({ store, revisions, navigation, persistence, flush: () => autosave.flush(), importKiCad, explorer, tools });
-initOnboarding({ store, navigation, revisions, engineering: engineeringUI, tools });
+const connections = initConnections({ store });
+initTeamReview({navigation});
+initOnboarding({ store, navigation, revisions, engineering: engineeringUI, tools, connections });
 const recorder = initRecording({ svg, store });
 const journeyUI = initJourney({ svg, store, tools, render, recorder, propsPanel });
 initExamplesMenu({ store });

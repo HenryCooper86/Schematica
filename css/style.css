@@ -1705,6 +1705,12 @@ html[data-theme="light"] .ai-result.warn { color: #92400e; }
 #first-project header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 #first-project h2 { font-size: 16px; margin: 0; }
 #first-project li { margin: 10px 0; line-height: 1.5; }
+#first-project button:disabled { opacity: .5; cursor: default; }
+#first-project summary { cursor: pointer; margin-top: 12px; }
+#connection-dialog { width: min(560px, calc(100vw - 32px)); }
+#connection-dialog form { display: grid; gap: 8px; }
+#connection-dialog select { width: 100%; min-width: 0; padding: 8px; color: var(--text); background: var(--bg2); border: 1px solid var(--line); border-radius: 6px; }
+#connect-error:empty { display: none; }
 #recovery-status { font-size: 11px; max-width: 150px; white-space: normal; }
 #recovery-status[data-state=error] { color: var(--warn, #f59e0b); }
 .ai-preview-option { display: flex; gap: 6px; align-items: center; font-size: 12px; margin: 4px 0 8px; }
@@ -1714,8 +1720,8 @@ html[data-theme="light"] .ai-result.warn { color: #92400e; }
 #recovery-status[data-state=error] { color: #f59e0b; }
 #app.presenting :is(#recovery-status, #first-project) { display: none; }
 
-#btn-guide { display: block; width: calc(100% - 24px); margin: 0 12px 12px; padding: 8px; color: var(--text); background: var(--bg2); border: 1px solid var(--line); border-radius: 7px; cursor: pointer; }
-#btn-guide:focus-visible { outline: 2px solid var(--accent); }
+#btn-guide, #btn-connect, #btn-team { display: block; width: calc(100% - 24px); margin: 0 12px 12px; padding: 8px; color: var(--text); background: var(--bg2); border: 1px solid var(--line); border-radius: 7px; cursor: pointer; }
+#btn-guide:focus-visible, #btn-connect:focus-visible, #btn-team:focus-visible { outline: 2px solid var(--accent); }
 .workflow-dialog button, #first-project button { font: inherit; padding: 7px 10px; color: var(--text); background: var(--bg2); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
 .workflow-dialog button:disabled { opacity: .5; cursor: default; }
 .workflow-dialog button:focus-visible, #first-project button:focus-visible { outline: 2px solid var(--accent); }
@@ -1762,3 +1768,23 @@ html[data-theme="light"] .ai-result.warn { color: #92400e; }
   .pe-grid { grid-template-columns: minmax(0, 1fr); }
   .rec-card { padding: 16px; }
 }
+
+#btn-team { width: calc(100% - 32px); margin: 0 16px 10px; }
+#team-dialog { width: min(1050px, 94vw); max-height: 90vh; overflow: auto; }
+#team-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+#team-dialog form { display: grid; gap: 8px; margin: 14px 0; }
+#team-dialog label { display: grid; gap: 4px; }
+#team-dialog input, #team-dialog select, #team-dialog textarea { width: 100%; max-width: 100%; min-width: 0; padding: 8px; color: var(--text); background: var(--bg2); border: 1px solid var(--line); border-radius: 6px; font: inherit; }
+#team-dialog textarea { min-height: 80px; resize: vertical; }
+#team-dialog label, #team-dialog p, #team-dialog li { font-size: 13px; line-height: 1.5; }
+#team-dialog h2 { margin-top: 0; }
+#team-dialog h3, #team-dialog h4 { margin: 16px 0 10px; }
+#team-dialog [aria-current=true] { border-color: var(--accent); }
+#team-dialog .team-hash { font-family: monospace; font-size: 11px; color: var(--muted); }
+#team-error:empty { display: none; }
+#team-error { color: var(--danger, #f87171); }
+.team-columns { display: grid; grid-template-columns: minmax(170px, 1fr) minmax(0, 3fr); gap: 20px; }
+.team-columns section, .team-columns li, .team-hash { min-width: 0; overflow-wrap: anywhere; }
+.team-diagram { max-height: 350px; overflow: auto; }
+.team-diagram svg { display: block; width: 100%; height: auto; max-height: 350px; }
+@media (max-width: 700px) { .team-columns { grid-template-columns: minmax(0, 1fr); } }

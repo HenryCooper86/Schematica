@@ -1,0 +1,221 @@
+{
+  "version": 2,
+  "measurement": {
+    "samples": 30,
+    "warmup": 3,
+    "synchronous": "JavaScript renderer/analysis work, excluding event transport and paint",
+    "scheduledFrame": "Programmatic edit through two animation frames; scheduling proxy, not native input-to-paint latency"
+  },
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+  "hardwareConcurrency": 18,
+  "deviceMemoryGiB": 32,
+  "results": [
+    {
+      "scheduledFrame": {
+        "samples": 30,
+        "medianMs": 33.35000000009313,
+        "p95Ms": 34.200000000186265,
+        "minMs": 32.299999999813735,
+        "maxMs": 34.5
+      },
+      "nodes": 100,
+      "wires": 99,
+      "render": {
+        "samples": 30,
+        "medianMs": 0.6000000005587935,
+        "p95Ms": 1.099999999627471,
+        "minMs": 0.5,
+        "maxMs": 1.1000000005587935
+      },
+      "markup": {
+        "samples": 30,
+        "medianMs": 0.5,
+        "p95Ms": 0.7000000001862645,
+        "minMs": 0.39999999944120646,
+        "maxMs": 0.7000000001862645
+      },
+      "drag": {
+        "samples": 30,
+        "medianMs": 0.5,
+        "p95Ms": 0.7000000001862645,
+        "minMs": 0.39999999944120646,
+        "maxMs": 0.7000000001862645
+      },
+      "selection": {
+        "samples": 30,
+        "medianMs": 0.5,
+        "p95Ms": 0.7999999998137355,
+        "minMs": 0.39999999944120646,
+        "maxMs": 0.7999999998137355
+      },
+      "search": {
+        "samples": 30,
+        "medianMs": 0.09999999962747097,
+        "p95Ms": 0.20000000018626451,
+        "minMs": 0,
+        "maxMs": 0.20000000018626451
+      },
+      "checks": {
+        "samples": 30,
+        "medianMs": 0.20000000018626451,
+        "p95Ms": 0.2999999998137355,
+        "minMs": 0.09999999962747097,
+        "maxMs": 0.40000000037252903
+      },
+      "layout": {
+        "samples": 30,
+        "medianMs": 1.6000000005587935,
+        "p95Ms": 2.2999999998137355,
+        "minMs": 1.2999999998137355,
+        "maxMs": 2.5
+      },
+      "export": {
+        "samples": 30,
+        "medianMs": 0.2999999998137355,
+        "p95Ms": 0.5,
+        "minMs": 0.20000000018626451,
+        "maxMs": 0.5
+      },
+      "svgElements": 2414,
+      "heapBytes": 13774949
+    },
+    {
+      "scheduledFrame": {
+        "samples": 30,
+        "medianMs": 33.299999999813735,
+        "p95Ms": 34.200000000186265,
+        "minMs": 32.5,
+        "maxMs": 34.200000000186265
+      },
+      "nodes": 500,
+      "wires": 499,
+      "render": {
+        "samples": 30,
+        "medianMs": 2.1000000005587935,
+        "p95Ms": 4,
+        "minMs": 1.699999999254942,
+        "maxMs": 7.2999999998137355
+      },
+      "markup": {
+        "samples": 30,
+        "medianMs": 1.8500000000931323,
+        "p95Ms": 2.400000000372529,
+        "minMs": 1.699999999254942,
+        "maxMs": 2.5
+      },
+      "drag": {
+        "samples": 30,
+        "medianMs": 1.900000000372529,
+        "p95Ms": 2.099999999627471,
+        "minMs": 1.699999999254942,
+        "maxMs": 2.400000000372529
+      },
+      "selection": {
+        "samples": 30,
+        "medianMs": 2,
+        "p95Ms": 2.300000000745058,
+        "minMs": 1.7999999998137355,
+        "maxMs": 2.300000000745058
+      },
+      "search": {
+        "samples": 30,
+        "medianMs": 0.39999999944120646,
+        "p95Ms": 0.5,
+        "minMs": 0.19999999925494194,
+        "maxMs": 0.5
+      },
+      "checks": {
+        "samples": 30,
+        "medianMs": 0.599999999627471,
+        "p95Ms": 1.599999999627471,
+        "minMs": 0.40000000037252903,
+        "maxMs": 1.6000000005587935
+      },
+      "layout": {
+        "samples": 30,
+        "medianMs": 19.950000000186265,
+        "p95Ms": 20.40000000037253,
+        "minMs": 19.5,
+        "maxMs": 20.5
+      },
+      "export": {
+        "samples": 30,
+        "medianMs": 1.2000000001862645,
+        "p95Ms": 1.5,
+        "minMs": 1.099999999627471,
+        "maxMs": 1.5
+      },
+      "svgElements": 12014,
+      "heapBytes": 29407697
+    },
+    {
+      "scheduledFrame": {
+        "samples": 30,
+        "medianMs": 33.299999999813735,
+        "p95Ms": 34.299999999813735,
+        "minMs": 32.5,
+        "maxMs": 34.299999999813735
+      },
+      "nodes": 1000,
+      "wires": 999,
+      "render": {
+        "samples": 30,
+        "medianMs": 3.5,
+        "p95Ms": 4.2000000001862645,
+        "minMs": 3.199999999254942,
+        "maxMs": 4.300000000745058
+      },
+      "markup": {
+        "samples": 30,
+        "medianMs": 3.900000000372529,
+        "p95Ms": 4.7999999998137355,
+        "minMs": 3.2999999998137355,
+        "maxMs": 4.7999999998137355
+      },
+      "drag": {
+        "samples": 30,
+        "medianMs": 3.7999999998137355,
+        "p95Ms": 4.5,
+        "minMs": 3.5,
+        "maxMs": 4.7999999998137355
+      },
+      "selection": {
+        "samples": 30,
+        "medianMs": 3.7000000001862645,
+        "p95Ms": 4.7000000001862645,
+        "minMs": 3.5,
+        "maxMs": 8.299999999813735
+      },
+      "search": {
+        "samples": 30,
+        "medianMs": 0.599999999627471,
+        "p95Ms": 0.7000000001862645,
+        "minMs": 0.5,
+        "maxMs": 0.7000000001862645
+      },
+      "checks": {
+        "samples": 30,
+        "medianMs": 1.2000000001862645,
+        "p95Ms": 1.3999999994412065,
+        "minMs": 1,
+        "maxMs": 1.400000000372529
+      },
+      "layout": {
+        "samples": 30,
+        "medianMs": 39.700000000186265,
+        "p95Ms": 40.5,
+        "minMs": 39.299999999813735,
+        "maxMs": 40.69999999925494
+      },
+      "export": {
+        "samples": 30,
+        "medianMs": 2.400000000372529,
+        "p95Ms": 2.7000000001862645,
+        "minMs": 2.2999999998137355,
+        "maxMs": 2.7999999998137355
+      },
+      "svgElements": 24014,
+      "heapBytes": 81520337
+    }
+  ]
+}

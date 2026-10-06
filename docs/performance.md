@@ -1,5 +1,9 @@
 # Large-board benchmark
 
+This is the September baseline. The [October incremental-rendering results](enhancements-2026-10-06.md#measured-responsiveness)
+supersede its full-redraw behavior and timings: the renderer now retains unchanged
+SVG items. Keep this report for the earlier geometry-indexing comparison.
+
 Run `npm run benchmark -- docs/benchmark-latest.json` with Chrome installed.
 
 Recorded in headless Chrome 153 on this Mac (18 logical processors reported by the browser). Five samples per workload; values below are medians in milliseconds. Fixtures use a grid of generic parts and a chain of labeled connections. These are controlled renderer/analysis measurements, not a complete pointer-to-screen latency or GPU-paint measurement.
