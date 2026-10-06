@@ -61,4 +61,5 @@ stop captions have Chinese translations.
 Run `npm test`, `npm run e2e`, and `PRESENTATION_E2E_ONLY=1 npm run e2e`.
 CI runs both browser suites. The focused suite covers legacy navigation, editing,
 timed advancement, exact connections, shared-board restoration and offline HTML
-playback/sharing. GitHub Pages publishes the repository root from `main`.
+playback/sharing. GitHub Pages packages the static application from the exact
+`main` revision that passed CI, using GitHub Actions as the Pages source.

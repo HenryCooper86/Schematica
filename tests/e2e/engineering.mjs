@@ -37,10 +37,17 @@ export async function runEngineeringChecks({ js, key, check, sleep }) {
   check('KiCad XML parsing preserves a net and rejects malformed input',await js(`(async()=>{const {importKiCad}=await import('/src/kicad.js');const d=importKiCad('<export><components><comp ref="U1"><value>MCU</value></comp><comp ref="J1"><value>Header</value></comp></components><nets><net name="N"><node ref="U1" pin="1"/><node ref="J1" pin="2"/></net></nets></export>');let failed=false;try{importKiCad('<bad>')}catch{failed=true}return d.nodes.length===3&&d.wires.length===2&&failed;})()`));
   // Simulate an actual second writer and its browser storage notification.
   await js(`(()=>{const key='schematica.autosave',oldValue=localStorage.getItem(key),d=JSON.parse(oldValue);d.title='Other tab';const newValue=JSON.stringify(d);localStorage.setItem(key,newValue);window.dispatchEvent(new StorageEvent('storage',{key,oldValue,newValue,storageArea:localStorage}));return true;})()`);
+  check('a remote autosave change immediately marks local recovery as unsaved',await js(`document.getElementById('recovery-status').dataset.state==='error'`));
   await open('revisions');
   check('cross-tab conflict exposes an explicit choice',await js(`!!document.querySelector('[data-action=keep]')&&!!document.querySelector('[data-action=remote]')`));
   await js(`document.querySelector('[data-action=keep]').click();true`);
   check('keeping local version restores its autosave without losing the other snapshot',await js(`JSON.parse(localStorage.getItem('schematica.autosave')).title==='Engineering test'&&[...document.querySelectorAll('#engineering-body li')].some(li=>li.textContent.includes('Other tab'))`));
+  check('resolving a remote conflict restores the saved indicator',await js(`document.getElementById('recovery-status').dataset.state==='saved'`));
   await js(`document.querySelector('[data-action=close]').click();true`);
+  await js(`localStorage.clear();window.dispatchEvent(new StorageEvent('storage',{key:null,storageArea:localStorage}));true`);
+  check('clearing storage in another tab immediately marks recovery as unsaved',await js(`document.getElementById('recovery-status').dataset.state==='error'`));
+  await open('revisions');
+  check('a remote storage clear offers local recovery',await js(`!!document.querySelector('[data-action=keep]')&&!document.querySelector('[data-action=remote]')`));
+  await js(`document.querySelector('[data-action=keep]').click();document.querySelector('[data-action=close]').click();true`);
   await runEngineeringNextChecks({js,key,check,sleep});
 }

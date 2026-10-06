@@ -19,6 +19,10 @@ recovery storage and autosave. Export important milestones.
 
 If another tab writes the autosave, the editor retains both versions and pauses
 its writes until **Keep this version** or **Open other version** is chosen.
+The canvas status also marks the board as unsaved when another tab changes or
+clears storage. If a newer remote version arrives before a choice is applied,
+it is retained for review and the choice must be made again. A failed storage
+read leaves the pending conflict intact.
 This is conflict detection, not collaborative merging or a transactional lock
 across processes. Unexpected browser termination and device failure still require
 an exported backup.
@@ -37,7 +41,10 @@ existing connection declaration, select that connection as the source, check
 one or more same-bus targets, and preview the fields before applying. Reuse fills
 only blank connection fields, preserves existing target values, and rejects
 incompatible results as a group. Endpoint capabilities remain specific to each
-part and port; inspect and declare them separately. The First project guide now
+part and port; inspect and declare them separately. An existing wire arrow counts
+as a declared direction: reuse preserves it and ICD export includes it when the
+specification has no direction. An explicit specification direction takes precedence.
+The First project guide now
 counts declaration and handoff steps only when current review readiness supports
 them. It still permits exporting a draft package before the board is ready.
 

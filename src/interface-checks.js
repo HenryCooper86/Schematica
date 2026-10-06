@@ -1,6 +1,10 @@
 // Optional declared interface limits. Missing data never becomes a compatibility claim.
 import { tr } from './i18n.js';
 const object = (value) => value && typeof value === 'object' && !Array.isArray(value);
+export function interfaceDirection(wire) {
+  return wire.spec?.direction ||
+    (wire.arrow === 'fwd' ? 'from-to' : wire.arrow === 'back' ? 'to-from' : wire.arrow === 'both' ? 'bidirectional' : '');
+}
 export function normalizeConstraints(raw) {
   const out = {};
   for (const key of ['voltageMinV', 'voltageMaxV', 'rateBps']) {
@@ -73,8 +77,7 @@ export function interfaceCompatibility(doc) {
       add('interface-invalid', 'error', tr('Declared interface limits are invalid.'));
       continue;
     }
-    const direction =
-      spec.direction || { fwd: 'from-to', back: 'to-from', both: 'bidirectional' }[wire.arrow];
+    const direction = interfaceDirection(wire);
     const required =
       direction === 'from-to'
         ? ['output', 'input']
@@ -162,7 +165,7 @@ export function missingInterfaceDeclarations(doc, wire) {
   const spec = wire.spec || {};
   const a = resolveInterfaceEndpoint(doc, wire.from).capability;
   const b = resolveInterfaceEndpoint(doc, wire.to).capability;
-  const direction = spec.direction || { fwd: 'from-to', back: 'to-from', both: 'bidirectional' }[wire.arrow];
+  const direction = interfaceDirection(wire);
   const signal = !['power', 'gnd'].includes(wire.bus);
   const missing = [];
   if (!direction) missing.push(tr('connection direction'));

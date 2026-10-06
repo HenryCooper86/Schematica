@@ -27,8 +27,10 @@ Base URL, `https://ollama.com/v1`, in assistant settings; requests go through
 your own server to Ollama. See [backend and Lightsail deployment](docs/backend.md).
 
 For the static edition, any static file server works (for example,
-`python3 -m http.server 8000`). To publish that edition on GitHub Pages: push this repo,
-then Settings → Pages → deploy from branch `main`, root folder.
+`python3 -m http.server 8000`). To publish that edition on GitHub Pages, select
+Settings → Pages → Source → GitHub Actions, then push to `main`. The Pages
+workflow publishes the exact revision that passed CI and records it in
+`revision.json`.
 
 ### Check saved boards from the command line
 
@@ -424,6 +426,9 @@ npm run e2e   # headless Chrome smoke test over the DevTools Protocol (set CHROM
 ```
 
 All three run in GitHub Actions on every push and pull request (`.github/workflows/ci.yml`).
+
+See the [6 October validation report](docs/validation-2026-10-06.md) for the latest
+local browser, recovery, assistant, layout, and deployment-tooling results and limits.
 
 Layout: `src/state.js` owns the document model + undo; `src/render.js` draws
 it into layered SVG, with frame timing in `src/render-animation.js`;

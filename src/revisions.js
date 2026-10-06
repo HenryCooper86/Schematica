@@ -206,8 +206,12 @@ export function conflictStorage(storage, { getDoc, revisions, onConflict }) {
     },
     observe,
     resolve() {
+      const current = storage?.getItem(key) ?? null;
+      if (current !== observed) {
+        observe(current);
+        throw new Error("Another tab changed this board");
+      }
       conflict = null;
-      observed = storage?.getItem(key) ?? null;
     },
     pending: () => conflict,
   };

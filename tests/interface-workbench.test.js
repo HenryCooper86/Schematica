@@ -3,8 +3,48 @@ import assert from 'node:assert/strict';
 import { EXAMPLES } from '../src/examples.js';
 import { reuseInterfaceFields } from '../src/interface-workbench.js';
 import { validationCoverage } from '../src/validation-coverage.js';
+import { interfaceRows, interfaceCSV, importInterfaces } from '../src/engineering.js';
 
 const reference = () => structuredClone(EXAMPLES.find(e => e.id === 'declared-uart-reference').doc);
+
+test('reuse preserves a target direction declared by its arrow', () => {
+  for (const [arrow, direction] of [['fwd', 'from-to'], ['back', 'to-from'], ['both', 'bidirectional']]) {
+    const doc = reference();
+    const [source, target] = doc.wires;
+    source.spec.direction = arrow === 'both' ? 'from-to' : 'bidirectional';
+    target.spec = { source: 'Target evidence' };
+    target.arrow = arrow;
+    const changes = reuseInterfaceFields(doc, source.id, [target.id]);
+    assert.equal(target.arrow, arrow);
+    assert.equal(interfaceRows(doc).find(row => row.id === target.id).direction, direction);
+    assert.ok(!changes[0].fields.includes('direction'));
+    assert.equal(target.spec.source, 'Target evidence');
+  }
+});
+
+test('reuse accepts an arrow-only source direction for an undirected target', () => {
+  const doc = reference();
+  const [source, target] = doc.wires;
+  delete source.spec.direction;
+  source.arrow = 'back';
+  target.spec = undefined;
+  target.arrow = null;
+  const changes = reuseInterfaceFields(doc, source.id, [target.id]);
+  assert.ok(changes[0].fields.includes('direction'));
+  assert.equal(target.spec.direction, 'to-from');
+  assert.equal(target.arrow, 'back');
+});
+
+test('ICD export and reimport retain arrow directions alongside partial specifications', () => {
+  const doc = reference();
+  const wire = doc.wires[0];
+  wire.spec = { source: 'Partial declaration' };
+  wire.arrow = 'back';
+  assert.equal(interfaceRows(doc).find(row => row.id === wire.id).direction, 'to-from');
+  importInterfaces(doc, interfaceCSV(doc));
+  assert.equal(wire.arrow, 'back');
+  assert.equal(wire.spec.direction, 'to-from');
+});
 
 test('reuse copies only missing connection declarations on explicitly selected same-bus targets', () => {
   const doc = reference();

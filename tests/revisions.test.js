@@ -22,3 +22,29 @@ test('another tab cannot be overwritten silently and both versions are recoverab
   p.resolve();p.setItem('schematica.autosave',JSON.stringify(newDoc('Mine')));
   assert.equal(JSON.parse(storage.getItem('schematica.autosave')).title,'Mine');
 });
+
+test('resolving a conflict refuses a newer remote version and preserves it for review', () => {
+  const storage = memory(), key = 'schematica.autosave';
+  storage.setItem(key, JSON.stringify(newDoc('Original')));
+  const revisions = createRevisions(storage);
+  const p = conflictStorage(storage, { getDoc: () => newDoc('Mine'), revisions, onConflict() {} });
+  storage.setItem(key, JSON.stringify(newDoc('First remote')));
+  p.observe(storage.getItem(key));
+  storage.setItem(key, JSON.stringify(newDoc('Newer remote')));
+  assert.throws(() => p.resolve(), /Another tab/);
+  assert.equal(p.pending().doc.title, 'Newer remote');
+  assert.equal(JSON.parse(storage.getItem(key)).title, 'Newer remote');
+  assert.ok(revisions.list().some(r => revisions.restore(r.id).title === 'Newer remote'));
+  p.resolve();
+  assert.equal(p.pending(), null);
+});
+
+test('a failed storage read while resolving retains the pending conflict', () => {
+  const storage = memory(), key = 'schematica.autosave';
+  const p = conflictStorage(storage, { getDoc: () => newDoc('Mine'), revisions: createRevisions(storage), onConflict() {} });
+  storage.setItem(key, JSON.stringify(newDoc('Remote')));
+  p.observe(storage.getItem(key));
+  storage.getItem = () => { throw new Error('Storage blocked'); };
+  assert.throws(() => p.resolve(), /Storage blocked/);
+  assert.equal(p.pending()?.doc.title, 'Remote');
+});

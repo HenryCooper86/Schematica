@@ -1,9 +1,10 @@
 name: Deploy Pages
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,7 +17,11 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     environment:
@@ -24,6 +29,8 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
       - uses: actions/configure-pages@v5
       - name: Package the static application
         shell: bash
@@ -31,7 +38,7 @@ jobs:
           set -euo pipefail
           mkdir _site
           git archive HEAD index.html src css vendor docs README.md LICENSE THIRD_PARTY_NOTICES.md | tar -x -C _site
-          printf '{"commit":"%s"}\n' "$GITHUB_SHA" > _site/revision.json
+          printf '{"commit":"%s"}\n' "$(git rev-parse HEAD)" > _site/revision.json
       - uses: actions/upload-pages-artifact@v4
         with:
           path: _site

@@ -74,12 +74,16 @@ window.addEventListener('focus', () => revisions.refresh().catch(() => {}));
 let persistence;
 try {
   persistence = conflictStorage(storage, { getDoc: () => navigation.rootDoc(), revisions,
-    onConflict: () => toast(tr('Another tab changed this board. Open Engineering to choose which version to keep.'), {
+    onConflict: () => { showSaveState(); toast(tr('Another tab changed this board. Open Engineering to choose which version to keep.'), {
       action: { label: tr('Review versions'), run: () => engineeringUI?.openRevisions() },
-    }) });
+    }); } });
 } catch { persistence = conflictStorage(null, { getDoc: () => navigation.rootDoc(), revisions, onConflict: () => {} }); }
 window.addEventListener('storage', event => {
-  if (event.key === 'schematica.autosave') persistence.observe(event.newValue);
+  if (event.storageArea !== storage) return;
+  if (event.key === 'schematica.autosave' || event.key === null) {
+    persistence.observe(event.newValue);
+    showSaveState();
+  }
 });
 
 // tools reads the library to recognise a pasted custom card's template.
@@ -193,7 +197,7 @@ let autosaveState = 'saved';
 const recoveryStatus = document.createElement('button'); recoveryStatus.id = 'recovery-status'; recoveryStatus.setAttribute('aria-live', 'polite');
 document.getElementById('canvas-wrap').append(recoveryStatus);
 const showSaveState = () => {
-  const pending = revisions.list().some(r => !r.durable);
+  const pending = persistence.pending() || revisions.list().some(r => !r.durable);
   recoveryStatus.textContent = autosaveState === 'error' || pending ? tr('Unsaved changes — recovery') : autosaveState === 'pending' ? tr('Saving…') : tr('Saved on this device');
   recoveryStatus.dataset.state = autosaveState === 'error' || pending ? 'error' : autosaveState;
 };

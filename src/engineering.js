@@ -1,5 +1,5 @@
 import { normalizeViews, normalizeReviews } from './workflows.js';
-import { normalizeConstraints, interfaceCompatibility } from './interface-checks.js';
+import { normalizeConstraints, interfaceCompatibility, interfaceDirection } from './interface-checks.js';
 // Portable engineering records. These live in the document, never in settings.
 import { nodePart } from './rdk/profiles.js';
 import { toCSV, parseCSV } from './tabular.js';
@@ -60,7 +60,7 @@ export function interfaceRows(doc) {
   };
   return [...doc.wires].sort((a, b) => a.id.localeCompare(b.id)).map(w => ({
     id: w.id, from: endpoint(w.from), to: endpoint(w.to), bus: w.bus,
-    ...(normalizeSpec(w.spec) || { direction: w.arrow === 'both' ? 'bidirectional' : w.arrow === 'fwd' ? 'from-to' : w.arrow === 'back' ? 'to-from' : '', voltage: '', protocol: '', rate: '', source: '' }),
+    ...normalizeSpec(w.spec || {}), direction: interfaceDirection(w),
   }));
 }
 export const ICD_COLUMNS = ['id', 'from', 'to', 'bus', 'direction', 'voltage', 'protocol', 'rate', 'source'];

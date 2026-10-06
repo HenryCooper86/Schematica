@@ -116,9 +116,11 @@ export async function runEngineeringNextChecks({ js, key, check, sleep }) {
   await sleep(200);
   await js(`document.getElementById('btn-check').click();document.querySelector('[data-check-mode=readiness]').click();true`);
   check('fully declared reference is ready with four checked connections', await js(`(()=>{const t=document.getElementById('drc-list').textContent;return t.includes('4 checked')&&t.includes('Ready for interface review')&&t.includes('not hardware validation')})()`));
-  await js(`(async()=>{const {setLang}=await import('/src/i18n.js');setLang('zh')})()`);
+  // Use the app's listener: WebDriver imports can have a separate module
+  // instance from the page and therefore miss its language subscribers.
+  await js(`document.getElementById('btn-lang').click();true`);
   check('readiness coverage is translated in the open dialog', await js(`document.getElementById('drc-list').textContent.includes('4 条已检查')&&document.querySelector('[data-check-mode=readiness]').textContent.includes('审查')`));
-  await js(`(async()=>{const {setLang}=await import('/src/i18n.js');setLang('en');document.querySelector('[data-check-mode=design]').click();document.getElementById('drc-close').click()})()`);
+  await js(`document.getElementById('btn-lang').click();document.querySelector('[data-check-mode=design]').click();document.getElementById('drc-close').click();true`);
   await js(`(async()=>{const {EXAMPLES}=await import('/src/examples.js');const d=structuredClone(EXAMPLES.find(e=>e.id==='declared-uart-reference').doc);d.wires[1].spec=undefined;const dt=new DataTransfer();dt.items.add(new File([JSON.stringify(d)],'reuse.json'));const f=document.getElementById('file-input');f.files=dt.files;f.dispatchEvent(new Event('change'));})()`);
   await sleep(200);
   await js(`document.getElementById('btn-engineering').click();document.querySelector('[data-tab=interfaces]').click();true`);

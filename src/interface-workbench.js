@@ -1,5 +1,5 @@
 import { normalizeSpec } from './engineering.js';
-import { interfaceCompatibility } from './interface-checks.js';
+import { interfaceCompatibility, interfaceDirection } from './interface-checks.js';
 import { tr } from './i18n.js';
 
 const FIELDS = ['direction', 'voltage', 'protocol', 'rate', 'source', 'voltageMinV', 'voltageMaxV', 'rateBps'];
@@ -16,11 +16,13 @@ export function reuseInterfaceFields(doc, sourceId, targetIds) {
   if (targets.some(w => !w || w.id === sourceId || w.bus !== source.bus))
     throw new Error(tr('Targets must be different connections on the same bus.'));
   const supplied = normalizeSpec(source.spec) || {};
+  supplied.direction = interfaceDirection(source);
   const draft = structuredClone(doc);
   const changes = [];
   for (const target of targets) {
     const wire = draft.wires.find(w => w.id === target.id);
     const current = normalizeSpec(wire.spec) || {};
+    current.direction = interfaceDirection(wire);
     const fields = FIELDS.filter(key => hasValue(supplied[key]) && !hasValue(current[key]));
     if (!fields.length) continue;
     wire.spec = normalizeSpec({ ...current, ...Object.fromEntries(fields.map(key => [key, supplied[key]])) });
