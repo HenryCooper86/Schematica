@@ -1,5 +1,7 @@
 # Website with its own AI backend
 
+[Documentation home](README.md) · [Local setup](development.md#run-the-application) · [Assistant user guide](user-guide.md#use-the-assistant)
+
 Run the website and its AI API together. The browser sends same-origin
 requests to `/api/ai`; the Node server connects directly to the official
 provider URL and streams the response. Cloudflare is not involved.

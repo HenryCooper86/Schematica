@@ -1,5 +1,10 @@
 # Engineering workflows
 
+[Documentation home](README.md) · [User guide](user-guide.md#review-the-design)
+
+This reference explains storage, interface rules and engineering records. For a
+walkthrough with expected results, start with [Getting started](getting-started.md).
+
 Open **Engineering** in the toolbar. The editor remains local-first and requires
 no account for these workflows. New board files use schema 4; schema 1, 2, and 3
 files migrate automatically. Older application builds cannot preserve the new
@@ -181,6 +186,19 @@ unknown endpoints, and a pin assigned to multiple nets are rejected.
 
 This follows the documented XML `components/comp` and `nets/net/node` structure:
 [KiCad's official netlist format documentation](https://github.com/KiCad/kicad-doc/blob/master/src/eeschema/eeschema_creating_customized_netlists_and_bom_files.adoc).
+New imports retain source provenance and stable component/net/pin identities in
+board JSON. To update one, open **Interchange → Preview KiCad update** and select
+a later XML netlist from the same source. Review the before/after diagrams, then
+apply the proposal in one undo step. Surviving positions, notes and authored pin
+ordering are preserved. Removed requirement allocations remain visible as missing.
+
+Updates reject incompatible source identity, conflicting local topology, unsafe
+pin removals and part replacements that would inherit old electrical declarations.
+Merged pin definitions must survive normalization without loss. Source identities
+that exceed supported reference lengths are rejected rather than truncated.
+If you change the board after previewing, preview again. Legacy imports without
+source provenance require a fresh import; this is not bidirectional KiCad sync.
+
 Synthetic multi-drop fixtures and browser XML parsing are tested. A real-team
 fixture trial is still needed before claiming production interchange compatibility.
 
@@ -270,7 +288,9 @@ versions are kept separately rather than overwriting local decisions. The file
 contains comments and revision references, so exchange the corresponding board
 or review package too. Reviewer names and decisions are local records, not
 identity-verified signatures or server permissions. Recent revision snapshots
-remain subject to recovery retention; export important review milestones.
+remain subject to recovery retention; export important review milestones. For
+operator-issued credentials and server-backed memberships instead, use the
+[separate Team reviews workflow](user-guide.md#review-with-a-team).
 
 ## Verification matrix
 
@@ -286,12 +306,17 @@ validated by the application.
 
 ## First project
 
-The palette's **First project** button opens five actionable steps: place parts,
-connect ports, declare interface details, inspect checks, and export a review.
-It can guide work on an existing board or load the Sensor Node example. Loading
-a starter first requires a durable recovery snapshot of existing work. Completed
-checks and export steps become incomplete again if the design changes. Progress
-is session-local; the actual board and engineering data use normal persistence.
+The palette's **First project** button offers an existing-board checklist, a
+sensor starter and **Start UART review walkthrough**. The walkthrough loads a
+declared teaching contract, introduces a receiver bandwidth mismatch, opens the
+existing interface editor for repair, and guides checks, export and Undo. See the
+[step-by-step tutorial](getting-started.md).
+
+Loading a starter requires a durable recovery snapshot of the root board first.
+A failed save or concurrent edit prevents replacement. Completed checks and export
+steps become incomplete again when relevant design content changes. Progress is
+session-local; board data uses normal persistence. The teaching examples are not
+vendor specifications or hardware-test results.
 
 ## Subsystem power semantics
 

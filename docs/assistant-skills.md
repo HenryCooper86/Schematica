@@ -1,5 +1,12 @@
 # Assistant skills and Blueprints
 
+[Documentation home](README.md) · [Assistant basics](user-guide.md#use-the-assistant)
+
+Configure and test a provider in **Assistant** before sending requests. Keep
+**Preview changes before applying** enabled to inspect proposed edits. A useful
+first request is: “Review this board for missing interface declarations. Explain
+what evidence is needed and leave unknown values blank.”
+
 Open **Assistant → Blueprint** to write or edit the project's goal, audience,
 components, relationships, constraints, assumptions, open questions, and
 presentation outline. Lists use one entry per line. Saving is local and undoable;

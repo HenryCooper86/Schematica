@@ -1,12 +1,9 @@
 # Presentation stories
 
-Completed in five phases, each committed and pushed separately:
+[Documentation home](README.md) · [Make a presentation](user-guide.md#present-your-board)
 
-1. Chapter rail, play/pause, speed, restart, show all; bounded and cancellable playback.
-2. Ordered part stops, stop captions, reordering and undo; legacy journeys remain valid.
-3. Exact direct-wire focus with endpoint ports, bus labels and authored arrow direction.
-4. Self-contained HTML playback and stable chapter/stop moment links.
-5. English/Chinese examples, regression checks and deployment verification.
+Use Journey to turn a board into chapters and ordered stops. This reference
+explains how playback, connection highlighting and offline sharing behave.
 
 ## Authoring and playback
 

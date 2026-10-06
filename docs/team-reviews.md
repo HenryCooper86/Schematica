@@ -1,5 +1,10 @@
 # Optional private team reviews
 
+[Documentation home](README.md) · [Team-review user guide](user-guide.md#review-with-a-team)
+
+This page is for the server operator. If you already have a team token, follow
+the linked user guide to connect, publish a snapshot, comment and record a decision.
+
 Team reviews require the Node server. Static hosting returns no shared projects. They are disabled by default; `/api/team/status` returns `{enabled:false}` and other team routes return 404. This implementation does not enable or change production configuration.
 
 An operator supplies both `SCHEMATICA_TEAM_DIR` (writable persistent private directory) and `SCHEMATICA_TEAM_IDENTITIES` (private JSON file). Both must resolve outside the repository, including through symlinks. Mount a persistent writable directory when using the read-only production container. Restrict filesystem access to the service operator. Do not place identity files or review storage in public assets. Invalid or incomplete configuration prevents startup; invalid identity configuration during operation denies authenticated requests.
