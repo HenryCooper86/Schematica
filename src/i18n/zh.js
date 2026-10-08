@@ -164,6 +164,7 @@ export default {
   "Choose an unlocked part to preview a change.": "选择未锁定的部件以预览变更。",
   "Apply previewed change": "应用已预览的变更",
   "The board changed. Preview again before applying.": "板图已变化。请重新预览后再应用。",
+  "The board changed while the file was loading. Open the file again.": "文件加载期间板图已更改。请重新打开该文件。",
   "Direct change": "直接变更",
   "Connected review scope": "关联审核范围",
   "{changed} direct changes; {affected} items in the review scope.": "{changed} 项直接变更；审核范围涉及 {affected} 个对象。",

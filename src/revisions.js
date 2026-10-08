@@ -108,6 +108,38 @@ export function createRevisions(
       (a, b) => b.at - a.at || b.id.localeCompare(a.id),
     );
   }
+  function persistLocal(entries) {
+    if (!entries.length) return;
+    let wrote = false;
+    for (const entry of entries) {
+      try {
+        if (!storage) throw new Error("Revision storage unavailable");
+        storage.setItem(REVISION_PREFIX + entry.id, JSON.stringify(entry));
+        entry.durable = true;
+        // Memory holds pending writes only; other writers can rotate storage.
+        memory.delete(entry.id);
+        wrote = true;
+      } catch (error) {
+        onError(error);
+      }
+    }
+    // Keep the newest snapshot even if unusually large. Pending snapshots
+    // must survive failed writes and never displace older durable snapshots.
+    if (wrote) {
+      let bytes = 0;
+      list().filter(item => item.durable).forEach((item, index) => {
+        bytes += item.text.length * 2;
+        if (index && (index >= MAX_REVISIONS || bytes > MAX_BYTES)) {
+          try {
+            storage.removeItem(REVISION_PREFIX + item.id);
+          } catch (error) {
+            onError(error);
+          }
+        }
+      });
+    }
+    notify();
+  }
   function save(doc, label = doc.title, reason = "manual") {
     const text = JSON.stringify(doc);
     const entry = {
@@ -124,30 +156,7 @@ export function createRevisions(
       persist();
       return entry;
     }
-    try {
-      if (!storage) throw new Error("Revision storage unavailable");
-      storage.setItem(REVISION_PREFIX + entry.id, JSON.stringify(entry));
-      entry.durable = true;
-    } catch (error) {
-      onError(error);
-    }
-    // Keep the newest snapshot even if unusually large. Never delete older
-    // durable snapshots to make room for a write that did not succeed.
-    const entries = list();
-    let bytes = 0;
-    entries.forEach((item, index) => {
-      bytes += item.text.length * 2;
-      if (index && (index >= MAX_REVISIONS || bytes > MAX_BYTES)) {
-        memory.delete(item.id);
-        try {
-          if (storage?.getItem(REVISION_PREFIX + entry.id))
-            storage.removeItem(REVISION_PREFIX + item.id);
-        } catch (error) {
-          onError(error);
-        }
-      }
-    });
-    notify();
+    persistLocal([entry]);
     return entry;
   }
   const restore = (id) => {
@@ -161,7 +170,7 @@ export function createRevisions(
     restore,
     ready,
     flush: () => queue,
-    retry: () => (useDB ? persist() : Promise.resolve()),
+    retry: () => (useDB ? persist() : Promise.resolve(persistLocal([...memory.values()]))),
     subscribe(fn) {
       listeners.add(fn);
       return () => listeners.delete(fn);

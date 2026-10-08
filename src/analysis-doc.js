@@ -25,7 +25,10 @@ export function analysisDoc(source) {
           out.nodes.push({ ...n, id, subsystem: undefined, selectionId });
         }
       } else {
-        out.nodes.push({ ...n, id, selectionId, analysisScope: JSON.stringify(path), analysisBudget: doc.engineering?.budget || { mode: 'active', peaks: 'simultaneous' }, x: n.x + offset.x, y: n.y + offset.y, label: [...labels, n.label].join(' / ') });
+        // Software targets are local node references, including when unresolved.
+        const fields = n.kind === 'rdksoftware' && n.fields?.target
+          ? { ...n.fields, target: idAt(path, n.fields.target) } : n.fields;
+        out.nodes.push({ ...n, ...(fields ? { fields } : {}), id, selectionId, analysisScope: JSON.stringify(path), analysisBudget: doc.engineering?.budget || { mode: 'active', peaks: 'simultaneous' }, x: n.x + offset.x, y: n.y + offset.y, label: [...labels, n.label].join(' / ') });
         mapped.set(n.id, [id]);
       }
     }

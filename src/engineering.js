@@ -1,5 +1,5 @@
 import { normalizeViews, normalizeReviews } from './workflows.js';
-import { normalizeConstraints, interfaceCompatibility, interfaceDirection } from './interface-checks.js';
+import { normalizeConstraints, interfaceCompatibility, interfaceDirection, missingInterfaceDeclarations } from './interface-checks.js';
 // Portable engineering records. These live in the document, never in settings.
 import { nodePart } from './rdk/profiles.js';
 import { toCSV, parseCSV } from './tabular.js';
@@ -91,12 +91,12 @@ export function importInterfaces(doc, csv) {
 export function engineeringChecks(doc) {
   const findings = interfaceCompatibility(doc);
   const ids = new Set([...doc.nodes, ...doc.wires, ...(doc.zones || []), ...(doc.notes || [])].map(i => i.id));
-  const requiredInterfaces = new Set(doc.wires.filter(w => w.interfacesRequired).map(w => w.id));
-  for (const row of interfaceRows(doc)) {
-    if (!doc.engineering?.interfacesRequired && !requiredInterfaces.has(row.id)) continue;
-    const missing = ['direction', 'voltage', 'protocol', 'rate', 'source'].filter(key => !row[key].trim());
-    if (missing.length) findings.push({ rule: 'interface-incomplete', level: 'warning', ids: [row.id],
-      message: tr('Interface {id} is missing: {fields}.', { id: row.id, fields: missing.join(', ') }) });
+  for (const wire of [...doc.wires].sort((a, b) => a.id.localeCompare(b.id))) {
+    if (!doc.engineering?.interfacesRequired && !wire.interfacesRequired) continue;
+    if (['flow', 'link'].includes(wire.bus)) continue;
+    const missing = missingInterfaceDeclarations(doc, wire);
+    if (missing.length) findings.push({ rule: 'interface-incomplete', level: 'warning', ids: [wire.id],
+      message: tr('Interface {id} is missing: {fields}.', { id: wire.id, fields: missing.join(', ') }) });
   }
   for (const req of doc.engineering?.requirements || []) {
     if (!req.targets.length) findings.push({ rule: 'requirement-unallocated', level: 'warning', ids: [],

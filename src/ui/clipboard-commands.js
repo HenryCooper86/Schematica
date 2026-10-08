@@ -23,6 +23,7 @@ export function createClipboardCommands({ store, library, canEditNow, notify, cl
   async function copySelection({ cut = false } = {}) {
     const copiedIds = [...store.selection];
     const copiedGeneration = store.generation;
+    const copiedSnapshot = cut ? JSON.stringify(store.doc) : null;
     const clip = buildClip(store.doc, copiedIds);
     if (!clip) {
       notify(tr('Select a part, zone, or note to copy.'));
@@ -47,7 +48,9 @@ export function createClipboardCommands({ store, library, canEditNow, notify, cl
     // A locked item is copied but never removed, and is counted the way Delete
     // counts it. A dialog or an assistant request that took the board over
     // while the write was in flight removes nothing, so the notice says copied.
-    const removed = cut && canEditNow() && store.generation === copiedGeneration;
+    // Newer edits must also survive: the clipboard holds the earlier snapshot.
+    const removed = cut && canEditNow() && store.generation === copiedGeneration
+      && JSON.stringify(store.doc) === copiedSnapshot;
     const kept = removed ? lockedKeptMessage(deleteItems(store, copiedIds).kept) : null;
     notify([
       copiedMessage(n, { cut: removed }),

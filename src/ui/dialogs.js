@@ -330,18 +330,26 @@ export function initDialogs({ store, getRootDoc = () => store.doc }) {
   });
 
   // ---- Open a file ----
+  // A delayed read must preserve newer edits, newer file choices and live drags.
   const fileInput = document.getElementById('file-input');
+  let openRequest = 0;
   document.getElementById('btn-open').addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', async () => {
+    const request = ++openRequest;
     const file = fileInput.files[0];
     fileInput.value = '';
     if (!file) return;
+    const generation = store.generation, snapshot = JSON.stringify(getRootDoc());
     try {
+      if (store.inBatch()) throw new Error(tr('The board changed while the file was loading. Open the file again.'));
       const { doc, warnings } = await deserializeFile(file);
+      if (request !== openRequest) return;
+      if (store.inBatch() || store.generation !== generation || JSON.stringify(getRootDoc()) !== snapshot)
+        throw new Error(tr('The board changed while the file was loading. Open the file again.'));
       store.replaceDoc(doc);
       if (warnings.length) toast(tr('Opened with warnings:\n\n{list}', { list: warnings.join('\n') }));
     } catch (err) {
-      toast(err.message);
+      if (request === openRequest) toast(err.message);
     }
   });
 

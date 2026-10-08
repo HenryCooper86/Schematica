@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { checkDoc } from '../src/drc.js';
 import { initI18n, setLang } from '../src/i18n.js';
+import { Store, newDoc } from '../src/state.js';
+import { groupSubsystem } from '../src/subsystems.js';
 const n = (id, kind, sublabel = '', extra = {}) => ({
   id,
   kind,
@@ -209,6 +211,87 @@ test('S100P omitted software support is unverified, not excluded', () => {
         f.message.includes('unverified') && !f.message.includes('unsupported'),
     ),
   );
+});
+
+const softwareDoc = (board = 'RDK X5', target = 'board') => ({
+  ...newDoc(),
+  nodes: [
+    n('board', 'aisbc', board, { x: 0, y: 0 }),
+    n('sw', 'rdksoftware', '', {
+      x: 400, y: 0, fields: { package: 'hobot_dnn', target },
+    }),
+  ],
+});
+const subsystem = (id, doc) => n(id, 'custom', '', {
+  x: 0, y: 0, subsystem: { doc, exposed: [] },
+});
+
+test('software target survives grouping without changing the document', () => {
+  const store = new Store(softwareDoc());
+  assert.deepEqual(rule(store.doc, 'rdk-software'), []);
+  groupSubsystem(store, ['board', 'sw'], 'RDK subsystem');
+  const grouped = structuredClone(store.doc);
+  assert.deepEqual(rule(store.doc, 'rdk-software'), []);
+  assert.deepEqual(store.doc, grouped);
+});
+
+test('software target survives nested subsystem scopes without changing the document', () => {
+  const store = new Store(softwareDoc());
+  const inner = groupSubsystem(store, ['board', 'sw'], 'RDK subsystem');
+  groupSubsystem(store, [inner], 'Outer subsystem');
+  const nested = structuredClone(store.doc);
+  assert.deepEqual(rule(store.doc, 'rdk-software'), []);
+  assert.deepEqual(store.doc, nested);
+});
+
+test('unrelated subsystem does not break root software target', () => {
+  const store = new Store(softwareDoc());
+  store.doc.nodes.push(n('sensor', 'imu', '', { x: 800, y: 0 }));
+  groupSubsystem(store, ['sensor'], 'Sensors');
+  const before = structuredClone(store.doc);
+  assert.deepEqual(rule(store.doc, 'rdk-software'), []);
+  assert.deepEqual(store.doc, before);
+});
+
+test('software resolves repeated local board IDs within each sibling subsystem', () => {
+  const doc = {
+    ...newDoc(),
+    nodes: [
+      subsystem('supported', softwareDoc('RDK X5')),
+      subsystem('unverified', softwareDoc('RDK S100P')),
+    ],
+  };
+  const found = rule(doc, 'rdk-software');
+  assert.equal(found.length, 1);
+  assert.deepEqual(found[0].ids, ['unverified']);
+  assert.match(found[0].message, /compatibility is unverified/);
+});
+
+test('missing software targets never bind to root or sibling boards', () => {
+  for (const target of ['board', '["sibling","board"]']) {
+    const missing = softwareDoc('RDK X5', target);
+    missing.nodes = missing.nodes.filter(node => node.id === 'sw');
+    const doc = {
+      ...newDoc(),
+      nodes: [
+        n('board', 'aisbc', 'RDK X5'),
+        subsystem('missing', missing),
+        subsystem('sibling', softwareDoc()),
+      ],
+    };
+    const found = rule(doc, 'rdk-software');
+    assert.equal(found.length, 1);
+    assert.deepEqual(found[0].ids, ['missing']);
+    assert.match(found[0].message, /Target board is missing/);
+  }
+});
+
+test('empty software target inside a subsystem still requests a board selection', () => {
+  const doc = { ...newDoc(), nodes: [subsystem('system', softwareDoc('RDK X5', ''))] };
+  const found = rule(doc, 'rdk-software');
+  assert.equal(found.length, 1);
+  assert.deepEqual(found[0].ids, ['system']);
+  assert.match(found[0].message, /Select a target RDK board/);
 });
 test('a pairing with no vendor-profiled side is not an RDK compatibility question', () => {
   const pair = (board, kind, cam) => ({
