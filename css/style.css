@@ -103,6 +103,13 @@ html, body {
 #toolbar :is(button, a):focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 #zoom-label { font-family: var(--mono); font-size: 11.5px; min-width: 36px; text-align: center; }
 
+/* Keep the editor's complete toolbar on one row at ordinary desktop widths.
+   Narrower windows wrap the groups; wider ones retain the roomier spacing. */
+@media (min-width: 1366px) and (max-width: 1699px) {
+  #app #toolbar { gap: 4px; }
+  #app #toolbar :is(button, a) { padding-inline: 5px; }
+}
+
 /* ---- Palette ---- */
 #palette {
   grid-area: palette;
