@@ -46,3 +46,21 @@ test('source lint flags trailing whitespace', async () => {
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test('source check follows a separate website page entrypoint while still detecting unused modules', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'schematica-check-'));
+  try {
+    await mkdir(join(root, 'src'));
+    await writeFile(join(root, 'src', 'main.js'), 'export const editor = true;\n');
+    await writeFile(join(root, 'guide.html'), '<script type="module" src="src/guide.js"></script>');
+    await writeFile(join(root, 'src', 'guide.js'), "import './guide-content.js';\n");
+    await writeFile(join(root, 'src', 'guide-content.js'), 'export const content = true;\n');
+    await writeFile(join(root, 'src', 'orphan.js'), 'export const orphan = true;\n');
+    const { checkSource } = await import('../scripts/check-source.mjs');
+    const issues = await checkSource(root, ['src']);
+    assert.ok(!issues.some(issue => issue.includes('guide.js') || issue.includes('guide-content.js')));
+    assert.ok(issues.some(issue => issue.includes('orphan.js') && issue.includes('unreachable')));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

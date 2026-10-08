@@ -6,6 +6,10 @@ record interface requirements and export a design review.
 
 **[Open Schematica](https://bionicloud.net/)** · **[Static edition](https://henrycooper86.github.io/Schematica/)** · **[Getting started](docs/getting-started.md)** · **[User guide](docs/user-guide.md)**
 
+Choose **How to use** in the editor toolbar to open the website's user guide.
+It covers your first board, drawing tools, layout, reviews, saving, exports and
+shortcuts, and follows your English/Chinese and appearance preferences.
+
 No account is needed to draw, save or export a board. Your working board is saved
 in this browser; download a `.schematica.json` file to keep a portable copy.
 The assistant needs a separately configured model provider. Shared team reviews

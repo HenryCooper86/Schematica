@@ -79,7 +79,7 @@ html, body {
 }
 .push-right { margin-left: auto; }
 
-#toolbar button {
+#toolbar :is(button, a) {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -95,11 +95,12 @@ html, body {
   white-space: nowrap;
   flex: none;
 }
-#toolbar button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-#toolbar button:hover:not(:disabled) { color: var(--text); background: var(--bg3); }
+#toolbar a { gap: 6px; text-decoration: none; }
+#toolbar :is(button, a) svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+#toolbar :is(button, a):hover:not(:disabled) { color: var(--text); background: var(--bg3); }
 #toolbar button:disabled { opacity: 0.35; cursor: default; }
 #toolbar button.active { background: var(--accent-dim); color: #7dd3fc; }
-#toolbar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+#toolbar :is(button, a):focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 #zoom-label { font-family: var(--mono); font-size: 11.5px; min-width: 36px; text-align: center; }
 
 /* ---- Palette ---- */

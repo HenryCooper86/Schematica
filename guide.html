@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Learn to draw, connect, review, save and share a board in Schematica.">
+  <title>How to use Schematica</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/guide.css">
+</head>
+<body class="guide-page">
+  <header id="toolbar" class="guide-header">
+    <a href="./" class="guide-brand" aria-label="Schematica editor">
+      <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="2"/><path d="M6 1v3 M10 1v3 M6 12v3 M10 12v3 M1 6h3 M1 10h3 M12 6h3 M12 10h3"/></svg>
+      <span class="brand-name">Schematica</span>
+    </a>
+    <span class="guide-header-label">User guide</span>
+    <div class="group push-right">
+      <button id="appearance" type="button" title="Appearance" aria-label="Appearance" data-i18n-attrs="off" data-theme-mode="system">
+        <svg viewBox="0 0 18 18" width="16" height="16" aria-hidden="true"><rect x="2.5" y="3" width="13" height="9" rx="1.5"/><path d="M9 12v3 M6 15h6"/></svg>
+      </button>
+      <button id="btn-lang" type="button" data-i18n="off" title="Switch language" aria-label="Switch language">中文</button>
+      <a href="./" class="guide-open-editor">Open editor</a>
+    </div>
+  </header>
+  <div id="user-guide">
+    <a href="#guide-content" class="guide-skip">Skip to guide</a>
+    <div class="guide-layout">
+      <nav class="guide-nav" aria-label="Guide sections">
+        <h2>On this page</h2>
+        <a href="#quick-start">Your first board</a>
+        <a href="#editor-map">Find your way around</a>
+        <a href="#draw-connect">Draw and connect</a>
+        <a href="#tidy-layout">Tidy the layout</a>
+        <a href="#review">Review the design</a>
+        <a href="#save-export">Save, recover and export</a>
+        <a href="#present">Present and record</a>
+        <a href="#guide-assistant">Use the assistant</a>
+        <a href="#appearance-language">Appearance and language</a>
+        <a href="#keyboard">Keyboard shortcuts</a>
+        <a href="#troubleshooting">Common questions</a>
+        <a href="#more-guides">More guides</a>
+      </nav>
+      <main id="guide-content" class="guide-content" tabindex="-1">
+        <div class="guide-intro">
+          <h1>How to use Schematica</h1>
+          <p class="guide-lead">Turn an idea into a clear architecture: place parts, connect their ports, review the design and share it.</p>
+          <p>No account is needed to draw, save or export. Start with a small board, then add detail as your design develops.</p>
+        </div>
+
+        <section id="quick-start">
+          <h2>Your first board</h2>
+          <p>Build a simple controller-and-sensor sketch in a few steps.</p>
+          <ol class="guide-steps">
+            <li><h3>Name your board</h3><p>Open the editor and enter a title in the top-left field. If a board is already open, use Save to download a copy before choosing New.</p></li>
+            <li><h3>Add two parts</h3><p>Search the left palette for MCU and add it to the canvas. Search for Temp sensor and place it beside the controller. Click or drag a palette item to add it.</p></li>
+            <li><h3>Connect their ports</h3><p>Hover over a card to reveal its ports. Drag from the MCU's I2C port to the sensor's I2C port. The wire follows the parts when you move them.</p></li>
+            <li><h3>Add the details</h3><p>Select a card or wire to edit it in Properties. Set labels, part numbers, rails and connection information that you know. Add the power and ground connections your design needs.</p></li>
+            <li><h3>Review and save</h3><p>Press F to fit the diagram. Use Check to inspect findings, then Save to download an editable .schematica.json file. Export prepares an image or a handoff.</p></li>
+          </ol>
+          <aside class="guide-tip"><h3>Prefer a guided example?</h3><p>Open First project in the left palette and choose Start UART review walkthrough. The guide helps you introduce an interface mismatch, find it, repair it and export a review. Examples also contains complete boards to explore.</p></aside>
+        </section>
+
+        <section id="editor-map">
+          <h2>Find your way around</h2>
+          <p>Hover over a toolbar icon to see its name and shortcut.</p>
+          <dl class="guide-map">
+            <div><dt>Top toolbar</dt><dd>Name the board, choose drawing tools, zoom, open examples, run checks, save and export.</dd></div>
+            <div><dt>Left palette</dt><dd>Search for parts, open First project, connect ports with a form and create custom parts under My parts.</dd></div>
+            <div><dt>Canvas</dt><dd>Arrange cards and connections. Scroll to zoom; hold Space and drag to pan. F fits the whole drawing.</dd></div>
+            <div><dt>Properties</dt><dd>Select something on the canvas to edit its details. Select several items to reveal alignment and spacing controls.</dd></div>
+            <div><dt>Engineering</dt><dd>The connected-boxes icon beside BOM opens interfaces, requirements, revisions, saved views and review packages.</dd></div>
+          </dl>
+          <p>Press B to show or hide the parts palette, and P to show or hide the right panels. Click outside a text field before using editor shortcuts.</p>
+        </section>
+
+        <section id="draw-connect">
+          <h2>Draw and connect</h2>
+          <h3>Parts and labels</h3>
+          <p>Use the Select tool (V) to move cards. Double-click text to rename it, or edit the selected item in Properties. Use My parts → + New to define a reusable part with its own ports and fields.</p>
+          <h3>Wires and buses</h3>
+          <p>Drag between ports to connect them, or choose Draw wire (C). To connect with the keyboard, open Connect ports in the palette, choose both parts and ports, then Create connection.</p>
+          <p>Select a wire to change its bus, label, arrowheads, line style or traffic flow. Drag a selected endpoint handle to another port to reconnect it. Unlock a part if it is missing from the Connect ports form.</p>
+          <h3>Zones, swimlanes and notes</h3>
+          <p>Use Z to draw a zone around related parts, L to draw a swimlane, and N to add a note. Zones group an area; swimlanes organize stages or layers; notes explain assumptions and decisions.</p>
+        </section>
+
+        <section id="tidy-layout">
+          <h2>Tidy the layout</h2>
+          <p>Shift-click to select several items, then use Align, Distribute or Tidy spacing in Properties. Leave enough room between cards for ports and labels. Connections route around nearby cards and notes automatically.</p>
+          <p>Press K to lock or unlock selected items. Locked items keep their positions during dragging, alignment and deletion. Their other properties remain editable.</p>
+          <p>Open Check → Layout quality to find overlaps, obscured labels and wires crossing unrelated cards. Move the affected cards or adjust their spacing, then check again.</p>
+          <p>For a large board, open Explore (/) to search placed parts, filter by bus and change the reading detail. Reset exploration restores the view. These filters do not remove parts from the board.</p>
+        </section>
+
+        <section id="review">
+          <h2>Review the design</h2>
+          <p>Check examines the information you have declared, including bus mismatches, address conflicts, missing connections and power estimates. Select a finding to locate the affected items.</p>
+          <p>Open Engineering → Interfaces to record a connection's limits and both endpoints' capabilities. Enter known direction, voltage, protocol, bandwidth and source references. Leave unknown values blank, and save the interface before moving on.</p>
+          <dl class="guide-statuses">
+            <div><dt>Checked</dt><dd>The supplied declarations pass the applicable comparisons.</dd></div>
+            <div><dt>Failed</dt><dd>The supplied declarations conflict. Inspect the finding and resolve it.</dd></div>
+            <div><dt>Unassessed</dt><dd>Information needed for assessment is missing.</dd></div>
+            <div><dt>Not applicable</dt><dd>The connection is excluded from interface assessment, such as a flow link.</dd></div>
+          </dl>
+          <p>Use Engineering → Requirements to allocate requirements and record verification methods and evidence. Save a named revision before a major change so you have a useful comparison baseline.</p>
+          <aside class="guide-tip"><p>A connected drawing is an architecture sketch. Checks compare declared information; they do not simulate a circuit, inspect your evidence or certify hardware.</p></aside>
+        </section>
+
+        <section id="save-export">
+          <h2>Save, recover and export</h2>
+          <p>The working board is autosaved in this browser for this website. Use Save for a portable backup. The production website, static edition and localhost have separate browser storage.</p>
+          <div class="guide-table-wrap"><table>
+            <caption>Choose the right file for the task</caption>
+            <thead><tr><th scope="col">Action</th><th scope="col">What you get</th></tr></thead>
+            <tbody>
+              <tr><td>Save</td><td>An editable .schematica.json board. Use Open to continue editing a saved file.</td></tr>
+              <tr><td>Export → PNG, SVG or PDF</td><td>A picture for a document, slide or printout.</td></tr>
+              <tr><td>Export → Interactive HTML</td><td>An offline diagram with exploration and presentation controls.</td></tr>
+              <tr><td>Engineering → Review package</td><td>An HTML report containing the diagram, findings, interfaces, requirements and design data.</td></tr>
+              <tr><td>BOM</td><td>A grouped parts list with CSV and Markdown options.</td></tr>
+              <tr><td>Share</td><td>A URL carrying a copy of the board. Later edits are not synchronized.</td></tr>
+            </tbody>
+          </table></div>
+          <p>Engineering → Revisions saves and restores named snapshots on this device. Export important revisions to keep them outside browser storage. Save current work before loading a different board.</p>
+          <p>A share link contains the board's content. Give it only to people who should see that content. For a team discussion, use Team reviews in the palette when your server has that service configured.</p>
+        </section>
+
+        <section id="present">
+          <h2>Present and record</h2>
+          <p>Open Journey from the toolbar, frame an area and choose + Add step from current view. Select parts and use Link selection to keep the chapter linked to them. Add captions and reorder the steps.</p>
+          <p>Choose Present to start the tour. Arrow keys navigate, Space plays or pauses, and Escape exits. Interactive HTML exports keep the tour available offline.</p>
+          <p>Use Rec to record the canvas as video or GIF. Export → Loop GIF creates a short, seamless animation of the current board.</p>
+        </section>
+
+        <section id="guide-assistant">
+          <h2>Use the assistant</h2>
+          <p>Press A to open the assistant. Configure a provider, model, Base URL and API key, then Save and Test connection. Drawing, checks and exports work without the assistant.</p>
+          <p>Ask for a concrete change, review its preview and findings, then Apply changes or Discard draft. Applied changes can be undone. Keep Preview changes before applying enabled while learning.</p>
+          <blockquote>Review this controller-and-sensor board. Identify missing interface declarations and explain what evidence I need. Leave unknown values blank.</blockquote>
+          <p>You can attach text, PDF or DOCX sources. Selected extracted text is sent to your configured provider when you send a message. Remember the key on this device only when you want browser persistence. Provider use may be billed by that provider.</p>
+        </section>
+
+        <section id="appearance-language">
+          <h2>Appearance and language</h2>
+          <p>Click the appearance icon to cycle Light → Dark → System. A sun, moon or monitor shows the current mode. System follows your operating system, and your choice is remembered on this device.</p>
+          <p>The 中文 / EN button switches the interface and this guide between English and Simplified Chinese. It does not translate text you wrote on your own board.</p>
+          <p>Export theme lets you choose a separate appearance for downloads. Automatic SVG follows the reader's system appearance; other automatic exports use your current appearance.</p>
+        </section>
+
+        <section id="keyboard">
+          <h2>Keyboard shortcuts</h2>
+          <p>Click outside text fields to use these shortcuts. The ? button in the editor opens the same reference. Ctrl is shown on Windows and Linux; ⌘ is shown on macOS.</p>
+          <div id="guide-shortcuts" class="guide-shortcuts" data-i18n="off"><p>Open the editor's ? menu for the complete shortcut list.</p></div>
+        </section>
+
+        <section id="troubleshooting">
+          <h2>Common questions</h2>
+          <details open><summary>I cannot see the whole board or a panel.</summary><p>Press F to fit the board, B to show the palette, or P to show the right panels. If parts are filtered out, use Explore → Reset exploration.</p></details>
+          <details><summary>My board does not move or delete.</summary><p>Select the item and press K to unlock it. Press V to return to Select. Click outside a text field before using a shortcut.</p></details>
+          <details><summary>How do I keep my work safe?</summary><p>Use Save to download the editable board. If you see a storage failure, download a copy immediately. Revisions can recover earlier snapshots; Open can restore a saved board file.</p></details>
+          <details><summary>Why is an interface Unassessed?</summary><p>The check needs declarations that are still missing. Open Engineering → Interfaces and use Guided interface completion to find them. Unknown information is not treated as a passing result.</p></details>
+          <details><summary>The assistant cannot connect.</summary><p>Check the provider, model, Base URL and key, then use Test connection. The static edition depends on provider CORS support or a configured relay. Public URL reading needs the Node-backed edition.</p></details>
+        </section>
+
+        <section id="more-guides">
+          <h2>More guides</h2>
+          <p>For detailed workflows and limits, continue with the documentation in the project repository.</p>
+          <ul class="guide-resource-links">
+            <li><a href="https://github.com/HenryCooper86/Schematica/blob/main/docs/getting-started.md" target="_blank" rel="noopener">Guided first-review tutorial</a></li>
+            <li><a href="https://github.com/HenryCooper86/Schematica/blob/main/docs/user-guide.md" target="_blank" rel="noopener">Full user guide: imports, comparisons and team reviews</a></li>
+            <li><a href="https://github.com/HenryCooper86/Schematica/blob/main/docs/editor-reference.md" target="_blank" rel="noopener">Editor reference and detailed limits</a></li>
+            <li><a href="https://github.com/HenryCooper86/Schematica/blob/main/docs/troubleshooting.md" target="_blank" rel="noopener">Troubleshooting and recovery</a></li>
+          </ul>
+        </section>
+        <footer class="guide-footer"><a href="./">Open editor</a><a href="#guide-content">Back to top</a></footer>
+      </main>
+    </div>
+  </div>
+  <script type="module" src="src/guide.js"></script>
+</body>
+</html>

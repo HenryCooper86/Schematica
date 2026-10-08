@@ -46,18 +46,19 @@ export async function checkSource(root, dirs = SOURCE_DIRS) {
     }
   }
   const browserRoot = join(root, 'src');
-  const entrypoint = join(browserRoot, 'main.js');
-  if (dirs.includes('src') && dependencies.has(entrypoint)) {
+  // The editor and the public user guide each boot their own page.
+  const entrypoints = ['main.js', 'guide.js'].map(name => join(browserRoot, name));
+  if (dirs.includes('src') && entrypoints.some(file => dependencies.has(file))) {
     const reachable = new Set();
     const visit = file => {
       if (reachable.has(file) || !dependencies.has(file)) return;
       reachable.add(file);
       for (const ref of dependencies.get(file)) visit(ref);
     };
-    visit(entrypoint);
+    for (const file of entrypoints) visit(file);
     for (const file of dependencies.keys()) {
       if (file.startsWith(browserRoot + sep) && !reachable.has(file)) {
-        issues.push(`${relative(root, file)}: unreachable from src/main.js`);
+        issues.push(`${relative(root, file)}: unreachable from the browser entrypoints`);
       }
     }
   }

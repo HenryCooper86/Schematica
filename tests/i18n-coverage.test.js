@@ -52,9 +52,9 @@ for (const f of files) {
   }
 }
 
-// index.html: strip scripts, styles, svg bodies (keep svg attributes) and
+// Website pages: strip scripts, styles, svg bodies (keep svg attributes) and
 // keyboard keys; then take letter-bearing text nodes and the three attributes.
-const html = readFileSync(join(ROOT, 'index.html'), 'utf8')
+const html = ['index.html', 'guide.html'].map(name => readFileSync(join(ROOT, name), 'utf8')).join('\n')
   .replace(/<script[\s\S]*?<\/script>/g, '')
   .replace(/<style[\s\S]*?<\/style>/g, '')
   .replace(/(<svg[^>]*>)[\s\S]*?<\/svg>/g, '$1')

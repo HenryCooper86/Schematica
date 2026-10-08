@@ -33,6 +33,7 @@ start with [Getting started](getting-started.md).
 | Lock | `K`, or the Lock toggle in the properties panel (Lock all / Unlock all for a multi-selection) — a locked node, zone, or note cannot be dragged, nudged, resized, or deleted, and wears a small padlock |
 | Delete | `Delete` / `Backspace` — a mixed selection loses its unlocked items and a notice says how many locked ones were kept |
 | Keyboard shortcuts | `?` or the **?** button in the zoom group — every shortcut, grouped, with ⌘ or Ctrl to match the platform |
+| How to use | Book icon and **How to use** in the toolbar — opens the website guide in another tab, with a quick start, common tasks, troubleshooting and the same shortcut reference |
 | Save / open | Toolbar — downloads/reads `*.schematica.json` |
 | Export | Export button — PNG at any pixel size, SVG, single-page PDF, or a seamless loop GIF, cropped to content |
 | Record | Rec button — WebM/MP4 video (optional mic or music audio) or animated GIF |
@@ -56,6 +57,19 @@ start with [Getting started](getting-started.md).
 Work is autosaved to the browser's localStorage and restored on reload.
 Pending edits are flushed when the page is hidden or closed. Storage failures
 are reported; save a board file for a portable copy.
+
+## Connection geometry
+
+Connections follow smooth curves with straight departures from card edges.
+They try to take a clear path around nearby cards and notes. Parallel wires
+keep their order and spread across the available edge space. Labels slide
+along the curve to avoid cards and other labels; on short or crowded
+connections, a small leader links the label to its wire.
+
+Moving a part updates its connections and labels automatically. Routing leaves
+your part positions intact. Fit and exports include the detours and labels,
+and Layout quality checks inspect the paths you see. A crowded board can still
+need manual spacing adjustments; remaining collisions appear in those checks.
 
 
 ## Locks and layout
@@ -194,8 +208,12 @@ calculations](engineering-workflows.md#budget-assumptions).
 
 ## Appearance and export theme
 
-**Explore → Appearance** selects a dark, light, or system theme, remembered on
-this device. **Export theme** can override it for downloads; Automatic (SVG)
+The toolbar's **Appearance** icon cycles **Light → Dark → System → Light** on
+each click. A sun, moon, or monitor shows the current mode; its tooltip names
+the current and next modes. The choice is remembered on this device.
+New devices default to System, which follows operating
+system appearance changes while the editor is open. A saved Light or Dark choice
+overrides the system setting. **Export theme** can override it for downloads; Automatic (SVG)
 creates one SVG that follows the reader’s system appearance. Other formats
 use the current appearance when Automatic is selected. **Copy PNG** copies at
 the chosen dimensions and transparency, with PNG download available if the
@@ -315,4 +333,3 @@ hardware/accessory guides separately from maintained product and software
 pages. Exact revisions, cable orientation, adapters, power sizing and package
 setup still need verification against those sources and the physical hardware;
 a clean RDK check does not certify operation.
-

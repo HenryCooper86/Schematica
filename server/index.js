@@ -233,7 +233,7 @@ export function createAppServer({
       if (pathname === '/') pathname = '/index.html';
       // Serve public assets only, never repository metadata, server source,
       // deployment configuration, credentials, tests, or directory listings.
-      if ((pathname !== '/index.html' && !/^\/(src|css|vendor)\//.test(pathname))
+      if ((!['/index.html', '/guide.html'].includes(pathname) && !/^\/(src|css|vendor)\//.test(pathname))
         || pathname.includes('\\') || pathname.includes('\0') || pathname.split('/').some((p) => p.startsWith('.'))
         || !MIME[extname(pathname)]) throw error(404, 'Not found.');
       const base = await publicRoot;

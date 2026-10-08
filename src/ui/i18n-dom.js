@@ -13,7 +13,7 @@ import { trd, getLang, setLang, onLanguageChange } from '../i18n.js';
 
 // #hintbar is not here: it is built from the shortcut table and redrawn on a
 // language switch, so it has nothing for the static walk to remember.
-const ROOTS = ['#toolbar', '#explore-panel', '#canvas', '#palette-search', '#present-overlay', 'dialog'];
+const ROOTS = ['#toolbar', '#user-guide', '#explore-panel', '#canvas', '#palette-search', '#present-overlay', 'dialog'];
 const ATTRS = ['title', 'placeholder', 'aria-label'];
 const LETTER = /[A-Za-z]/;
 const originals = new WeakMap(); // node -> { text, lead, tail } | { attrs: { name: original } }

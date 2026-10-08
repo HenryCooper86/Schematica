@@ -77,6 +77,16 @@
           <svg viewBox="0 0 18 18" aria-hidden="true"><rect x="2.5" y="3.5" width="13" height="11" rx="2"/><path d="M11 3.5v11 M13 7h.01 M13 9.5h.01"/></svg>
         </button>
       </div>
+      <div class="group">
+        <button id="appearance" type="button" title="Appearance" aria-label="Appearance" data-i18n-attrs="off" data-theme-mode="system">
+          <svg viewBox="0 0 18 18" width="16" height="16" aria-hidden="true"><rect x="2.5" y="3" width="13" height="9" rx="1.5"/><path d="M9 12v3 M6 15h6"/></svg>
+        </button>
+      </div>
+      <div class="group">
+        <a id="btn-help" href="guide.html" target="_blank" rel="noopener" title="How to use (opens in a new tab)">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 4c-2-1.5-4-1.5-6-1v11c2-.5 4-.5 6 1 2-1.5 4-1.5 6-1V3c-2-.5-4-.5-6 1z M9 4v11"/></svg><span>How to use</span>
+        </a>
+      </div>
       <div class="group push-right">
         <button id="btn-rec" title="Record the canvas"><span class="rec-dot"></span>Rec</button>
         <button id="btn-export" title="Export PNG, SVG, PDF, or a seamless loop GIF">Export</button>
@@ -118,7 +128,6 @@
             <option value="overview">Overview</option>
             <option value="auto">Automatic with zoom</option>
           </select></label>
-          <label><span>Appearance</span><select id="appearance"><option value="dark">Dark</option><option value="light">Light</option><option value="system">System</option></select></label>
         </div>
         <p id="explore-summary" role="status"></p>
         <button id="explore-reset">Reset exploration</button>

@@ -1,12 +1,13 @@
 import { getTheme, exportThemeStyles, themeBackground } from './theme.js';
 import { diagramMarkup, defsMarkup, CANVAS_BG } from './render.js';
 import { contentBounds } from './geometry.js';
+import { sceneIndex } from './scene-index.js';
 import { buildPDF } from './pdf.js';
 
 const MARGIN = 24;
 
-export function exportBounds(doc) {
-  const b = contentBounds(doc) || { x: 0, y: 0, w: 400, h: 300 };
+export function exportBounds(doc, scene = null) {
+  const b = contentBounds(doc, scene) || { x: 0, y: 0, w: 400, h: 300 };
   return {
     x: b.x - MARGIN,
     y: b.y - MARGIN,
@@ -16,7 +17,8 @@ export function exportBounds(doc) {
 }
 
 export function buildExportSVG(doc, { transparent = false, now = null, theme = getTheme() } = {}) {
-  const { x, y, w, h } = exportBounds(doc);
+  const scene = sceneIndex(doc);
+  const { x, y, w, h } = exportBounds(doc, scene);
   const styles = exportThemeStyles(theme);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${x} ${y} ${w} ${h}"`
     + (styles ? ` data-export-theme="${theme}"` : '')
@@ -24,7 +26,7 @@ export function buildExportSVG(doc, { transparent = false, now = null, theme = g
     + `<defs>${defsMarkup()}</defs>`
     + (styles ? `<style>${styles}</style>` : '')
     + (transparent ? '' : `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${CANVAS_BG}"/>`)
-    + diagramMarkup(doc, { ports: false, ...(now != null ? { animate: true, now } : {}) })
+    + diagramMarkup(doc, { ports: false, scene, ...(now != null ? { animate: true, now } : {}) })
     + '</svg>';
 }
 

@@ -22,14 +22,14 @@ export const EXAMPLES = [
       schema: 4,
       title: 'Weather Station',
       nodes: [
-        { id: 'n1', kind: 'solar', x: 77, y: 135.8, label: 'Solar panel', sublabel: '6V 2W', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
-        { id: 'n2', kind: 'charger', x: 82, y: 271.8, label: 'Charger', sublabel: 'TP4056', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
-        { id: 'n3', kind: 'battery', x: 77, y: 407.8, label: 'Battery', sublabel: 'LiPo 3.7V', color: null, addr: '', rail: '', notes: '', status: null, flags: [], fields: { capacity: '2000mAh' } },
-        { id: 'n4', kind: 'regulator', x: 306, y: 271.8, label: 'Regulator', sublabel: '3.3V LDO', color: null, addr: '', rail: '', notes: '', status: null, flags: [], fields: { imax: '600mA' } },
-        { id: 'n5', kind: 'mcu', x: 532, y: 256.5, label: 'MCU', sublabel: 'ESP32-S3', color: null, addr: '', rail: '3.3V', notes: 'Deep sleep between readings; wake every 10 min.', status: 'production', flags: [], fields: { ityp: '100mA', ipeak: '355mA' } },
-        { id: 'n6', kind: 'temp', x: 797, y: 131.3, label: 'Temp sensor', sublabel: 'BME280', color: null, addr: '0x76', rail: '3.3V', notes: '', status: 'production', flags: [], fields: { ityp: '3.6uA', ipeak: '0.72mA' } },
-        { id: 'n7', kind: 'adcin', x: 797, y: 279.8, label: 'Soil probe', sublabel: 'capacitive', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
-        { id: 'n8', kind: 'wifi', x: 802, y: 418.3, label: 'WiFi / BLE', sublabel: 'uplink', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
+        { id: 'n1', kind: 'solar', x: 80, y: 136, label: 'Solar panel', sublabel: '6V 2W', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
+        { id: 'n2', kind: 'charger', x: 80, y: 272, label: 'Charger', sublabel: 'TP4056', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
+        { id: 'n3', kind: 'battery', x: 80, y: 408, label: 'Battery', sublabel: 'LiPo 3.7V', color: null, addr: '', rail: '', notes: '', status: null, flags: [], fields: { capacity: '2000mAh' } },
+        { id: 'n4', kind: 'regulator', x: 304, y: 272, label: 'Regulator', sublabel: '3.3V LDO', color: null, addr: '', rail: '', notes: '', status: null, flags: [], fields: { imax: '600mA' } },
+        { id: 'n5', kind: 'mcu', x: 528, y: 265.75, label: 'MCU', sublabel: 'ESP32-S3', color: null, addr: '', rail: '3.3V', notes: 'Deep sleep between readings; wake every 10 min.', status: 'production', flags: [], fields: { ityp: '100mA', ipeak: '355mA' } },
+        { id: 'n6', kind: 'temp', x: 800, y: 123.5, label: 'Temp sensor', sublabel: 'BME280', color: null, addr: '0x76', rail: '3.3V', notes: '', status: 'production', flags: [], fields: { ityp: '3.6uA', ipeak: '0.72mA' } },
+        { id: 'n7', kind: 'adcin', x: 800, y: 272, label: 'Soil probe', sublabel: 'capacitive', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
+        { id: 'n8', kind: 'wifi', x: 800, y: 408, label: 'WiFi / BLE', sublabel: 'uplink', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
       ],
       wires: [
         { id: 'w1', bus: 'power', from: { node: 'n1', port: 'out' }, to: { node: 'n2', port: 'in' }, label: '', arrow: null, style: null, flow: null },
@@ -42,11 +42,11 @@ export const EXAMPLES = [
         { id: 'w8', bus: 'spi', from: { node: 'n5', port: 'spi' }, to: { node: 'n8', port: 'spi' }, label: '', arrow: null, style: null, flow: null },
       ],
       zones: [
-        { id: 'z1', x: 40, y: 112, w: 408, h: 408, label: 'Power', color: '#f87171' },
-        { id: 'z2', x: 760, y: 104, w: 190, h: 280, label: 'Sensor pod', color: '#22d3ee' },
+        { id: 'z1', x: 48, y: 104, w: 384, h: 424, label: 'Power', color: '#f87171' },
+        { id: 'z2', x: 768, y: 96, w: 168, h: 296, label: 'Sensor pod', color: '#22d3ee' },
       ],
       notes: [
-        { id: 't1', x: 504, y: 120, text: 'All logic runs on the 3.3V rail' },
+        { id: 't1', x: 528, y: 120, text: 'All logic runs on the 3.3V rail' },
       ],
       journey: [
         {
@@ -74,7 +74,7 @@ export const EXAMPLES = [
       nodes: [
         { id: 'n1', kind: 'battery', x: 77, y: 295.8, label: 'Battery', sublabel: 'LiPo 4S', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },
         { id: 'n2', kind: 'regulator', x: 306, y: 295.8, label: 'BEC', sublabel: '5V 3A', color: null, addr: '', rail: '', notes: '', status: null, flags: [], fields: { imax: '3A' } },
-        { id: 'n3', kind: 'mcu', x: 514.2, y: 264.5, label: 'Flight controller', sublabel: 'STM32F405', color: null, addr: '', rail: '3.3V', notes: 'Loop timing is safety critical - do not block the PID task.', status: 'tested', flags: ['safety'], fields: { ityp: '87mA' } },
+        { id: 'n3', kind: 'mcu', x: 528, y: 360, label: 'Flight controller', sublabel: 'STM32F405', color: null, addr: '', rail: '3.3V', notes: 'Loop timing is safety critical - do not block the PID task.', status: 'tested', flags: ['safety'], fields: { ityp: '87mA' } },
         { id: 'n4', kind: 'imu', x: 797, y: 135.8, label: 'IMU', sublabel: 'MPU-6050', color: null, addr: '', rail: '', notes: '', status: null, flags: [], fields: { ityp: '3.8mA' } },
         { id: 'n5', kind: 'gps', x: 797, y: 255.8, label: 'GPS', sublabel: 'NEO-M8N', color: null, addr: '', rail: '', notes: '', status: null, flags: [], fields: { ityp: '23mA', ipeak: '67mA' } },
         { id: 'n6', kind: 'motor', x: 799.4, y: 404.8, label: 'Motor + driver', sublabel: 'ESC 30A', color: null, addr: '', rail: '', notes: '', status: null, flags: [] },

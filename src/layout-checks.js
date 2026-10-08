@@ -1,32 +1,15 @@
-import { nodeRect, wireGeom, wireLanes, wireLabelRect, rectsIntersect } from './geometry.js';
+import { nodeRect, wireScene, curveIntersectsRect, rectsIntersect } from './geometry.js';
 import { tr } from './i18n.js';
 
-// Conservative cubic/rectangle intersection with a half-pixel tolerance. The
-// convex hull rejects most branches before subdivision, including curved detours.
-export function curveIntersectsRect(geo, rect) {
-  const inside = p => p.x > rect.x && p.x < rect.x + rect.w && p.y > rect.y && p.y < rect.y + rect.h;
-  const mid = (a,b) => ({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
-  function hit(p, depth) {
-    const x = Math.min(...p.map(v=>v.x)), y = Math.min(...p.map(v=>v.y));
-    const w = Math.max(...p.map(v=>v.x))-x, h = Math.max(...p.map(v=>v.y))-y;
-    if (x + w <= rect.x || x >= rect.x + rect.w || y + h <= rect.y || y >= rect.y + rect.h) return false;
-    if (inside(p[0]) || inside(p[3])) return true;
-    if (Math.max(w,h) < .5 || depth === 24) return true;
-    const a=mid(p[0],p[1]),b=mid(p[1],p[2]),c=mid(p[2],p[3]);
-    const d=mid(a,b),e=mid(b,c),f=mid(d,e);
-    return hit([p[0],a,d,f],depth+1)||hit([f,e,c,p[3]],depth+1);
-  }
-  return hit([geo.p1,geo.c1,geo.c2,geo.p2],0);
-}
+export { curveIntersectsRect } from './geometry.js';
 
 export function checkLayout(doc, limit = 200) {
   const findings = [];
   const byId = new Map(doc.nodes.map(n => [n.id,n]));
   const nodes = doc.nodes.map(n=>({node:n,rect:nodeRect(n)}));
-  const lanes = wireLanes(doc.wires);
+  const { routes, labels } = wireScene(doc);
   const wires = doc.wires.filter(w=>byId.has(w.from.node)&&byId.has(w.to.node)).map(w=> {
-    const geo=wireGeom(nodeRect(byId.get(w.from.node)),nodeRect(byId.get(w.to.node)),lanes.get(w.id)||0);
-    return {wire:w,geo,label:wireLabelRect(w,geo,lanes.get(w.id)||0)};
+    return {wire:w,geo:routes.get(w.id),label:labels.get(w.id)};
   });
   const add = (rule,ids,message,evidence,suggestion,supportedFixes=[]) => {
     findings.push({level:'warning',rule,ids,message,evidence,suggestion,supportedFixes});

@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { request as httpRequest } from 'node:http';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createAppServer, POLICY_CODE } from '../server/index.js';
 import { providerFetch } from '../src/ai/providers/transport.js';
 import { mapHttpError, POLICY_CODE as CLIENT_POLICY_CODE } from '../src/ai/providers/errors.js';
@@ -51,6 +54,22 @@ test('backend serves the app and runtime but never deployment files or repositor
   assert.equal((await fetch(`${origin}/src/main.js`)).headers.get('content-type'), 'text/javascript; charset=utf-8');
   assert.equal((await fetch(`${origin}/src/main.js`, { method: 'HEAD' })).status, 200);
   assert.deepEqual(await (await fetch(`${origin}/healthz`)).json(), { status: 'ok' });
+});
+
+test('the website serves its guide for GET and HEAD without exposing other repository HTML', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'schematica-guide-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(root, 'guide.html'), '<!doctype html><h1>How to use Schematica</h1>');
+  await writeFile(join(root, 'private.html'), 'internal document');
+  const { origin } = await start(t, { root });
+  const page = await fetch(`${origin}/guide.html`);
+  assert.equal(page.status, 200);
+  assert.equal(page.headers.get('content-type'), 'text/html; charset=utf-8');
+  assert.match(await page.text(), /How to use Schematica/);
+  const head = await fetch(`${origin}/guide.html`, { method: 'HEAD' });
+  assert.equal(head.status, 200);
+  assert.equal(await head.text(), '');
+  assert.equal((await fetch(`${origin}/private.html`)).status, 404);
 });
 
 test('same-origin transport uses the official Ollama URL and forwards only provider headers', async (t) => {

@@ -34,7 +34,7 @@ export async function runAdoptionChecks({ js, key, check, sleep }) {
   await js(`document.querySelector('#drc-list [data-drc]').click(); true`);
   check('layout finding selects the involved items on the board', await js(`!document.getElementById('drc-dialog').open && document.querySelectorAll('#canvas .node[data-reading-focus]').length === 2`));
 
-  await js(`document.getElementById('appearance').value = 'light'; document.getElementById('appearance').dispatchEvent(new Event('change')); true`);
+  await js(`const appearance = document.getElementById('appearance'); for (let i = 0; i < 3 && appearance.dataset.themeMode !== 'light'; i++) appearance.click(); true`);
   check('light appearance updates the canvas and persists only the preference', await js(`document.documentElement.dataset.theme === 'light' && getComputedStyle(document.getElementById('canvas')).backgroundColor === 'rgb(248, 250, 252)' && localStorage.getItem('schematica.theme') === 'light'`));
   await js(`window.__clipboardWrite = navigator.clipboard.write; navigator.clipboard.write = async items => { const blob = await items[0].getType('image/png'); const image = await createImageBitmap(blob); const canvas = document.createElement('canvas'); canvas.width=image.width;canvas.height=image.height;const ctx=canvas.getContext('2d');ctx.drawImage(image,0,0); window.__copiedPNG = {width:image.width,height:image.height,size:blob.size,pixel:[...ctx.getImageData(0,0,1,1).data]}; image.close(); }; document.getElementById('btn-export').click(); document.getElementById('export-w').value = '64'; document.getElementById('export-h').value = '32'; document.getElementById('export-png-copy').click(); true`);
   await sleep(300);

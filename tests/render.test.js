@@ -71,7 +71,7 @@ test('wires are net_draw edges: one 2px slate stroke, round caps, 14px hit area'
   const g = wireGroup(diagramMarkup(sampleDoc()), 'w1');
   assert.ok(g.includes('stroke="transparent" stroke-width="14"'), 'wide invisible hit path');
   const vis = visPath(g);
-  assert.ok(vis.includes('stroke="#526180"'), 'slate stroke regardless of bus');
+  assert.ok(vis.includes('stroke="#64748b"'), 'slate stroke regardless of bus');
   assert.ok(vis.includes('stroke-width="2"'));
   assert.ok(vis.includes('stroke-linecap="round"'));
   assert.ok(!g.includes('#38bdf8'), 'the I2C bus color never reaches the canvas');
@@ -83,7 +83,7 @@ test('a selected wire turns sky blue and slightly heavier', () => {
   const sel = wireGroup(m, 'w1');
   assert.ok(sel.startsWith('<g class="wire sel"'));
   assert.ok(visPath(sel).includes('stroke="#7dd3fc"') && visPath(sel).includes('stroke-width="2.4"'));
-  assert.ok(visPath(wireGroup(m, 'w2')).includes('stroke="#526180"'), 'others stay slate');
+  assert.ok(visPath(wireGroup(m, 'w2')).includes('stroke="#64748b"'), 'others stay slate');
   assert.ok(!m.includes('stroke-opacity="0.3"'), 'no translucent glow halo');
 });
 
@@ -116,8 +116,8 @@ test('wire label is a neutral pill inside the wire group; blank label shows the 
   const m = diagramMarkup(sampleDoc());
   assert.ok(!m.includes('layer-wire-chips'), 'no separate chip layer');
   const g = wireGroup(m, 'w1');
-  assert.ok(g.includes('fill="#0c1424" stroke="#24304d" stroke-width="1"'), 'net_draw pill');
-  assert.ok(g.includes('font-size="10.5" fill="#8fa3c0"'), 'net_draw label text');
+  assert.ok(g.includes('fill="#0c1424" stroke="#334155" stroke-width="1"'), 'net_draw pill');
+  assert.ok(g.includes('font-size="10.5" fill="#b0bed4"'), 'net_draw label text');
   assert.ok(g.includes('data-edit="label">I2C</text>'), 'bus short code by default');
   const doc = sampleDoc();
   doc.wires[0].label = '3V3 rail';

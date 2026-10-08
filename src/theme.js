@@ -1,9 +1,12 @@
 const THEME_KEY = 'schematica.theme';
-let preference = 'dark';
+let preference = 'system';
 let storage = null;
 let media = null;
 const listeners = new Set();
+const MODES = ['light', 'dark', 'system'];
 export const getThemePreference = () => preference;
+export const nextThemePreference = (value = preference) => MODES[(MODES.indexOf(value) + 1) % MODES.length];
+export function cycleThemePreference() { setThemePreference(nextThemePreference()); }
 export const getTheme = () => preference === 'system' ? (media?.matches ? 'light' : 'dark') : preference;
 export const themeBackground = (theme = getTheme()) => theme === 'light' ? '#f8fafc' : '#0a0e17';
 export const onThemeChange = fn => { listeners.add(fn); return () => listeners.delete(fn); };
@@ -16,7 +19,7 @@ export function setThemePreference(value) {
 }
 export function initTheme({ storage: target = null, media: query = null } = {}) {
   media?.removeEventListener?.('change', notify);
-  storage = target; media = query; preference = 'dark';
+  storage = target; media = query; preference = 'system';
   try { const saved = storage?.getItem(THEME_KEY); if (['dark','light','system'].includes(saved)) preference = saved; } catch { /* default */ }
   media?.addEventListener?.('change', notify);
   notify();
@@ -37,10 +40,10 @@ export function lightSVGStyles(scope) {
     ['text[fill="#dbe4f0"]','fill:#1e293b'],
     ['text[fill="#7d8fae"]','fill:#52617a'],
     ['[fill="#0d1526"]','fill:#eef2f7'],
-    ['.vis[stroke="#526180"]','stroke:#64748b'],
+    ['.vis[stroke="#64748b"]','stroke:#64748b'],
     ['[fill="#0c1424"]','fill:#f1f5f9'],
-    ['[stroke="#24304d"]','stroke:#cbd5e1'],
-    ['text[fill="#8fa3c0"]','fill:#334155'],
+    ['[stroke="#334155"]','stroke:#cbd5e1'],
+    ['text[fill="#b0bed4"]','fill:#334155'],
     ['text[fill="#7dd3fc"]','fill:#0369a1'],
     ['text[fill="#34d399"]','fill:#047857'],
     ['text[fill="#38bdf8"]','fill:#0369a1'],

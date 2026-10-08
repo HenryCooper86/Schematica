@@ -7,6 +7,10 @@ share the result. Start with the tutorial, then use the guides below for a
 specific task. The application supports English and Simplified Chinese; these
 guides use the English control names.
 
+The website also includes a [How to use guide](../guide.html), available from
+the editor toolbar. It provides a quick start and common tasks in English and
+Simplified Chinese while keeping your board open in its original tab.
+
 ## New to Schematica
 
 | Start here | You will learn |

@@ -7,8 +7,8 @@ import { tr, trd } from './i18n.js';
 import { BUSES } from './buses.js';
 import { CATEGORY_COLORS, DISPOSITIONS, SEVERITY_COLORS } from './palette.js';
 import {
-  portPosition, wireGeom, wireGeomToPoint, wireLanes, wrapText, noteHeight,
-  nodeRect, nodeSize, nodeMeta, NOTE_W, LANE_TITLE_H, textUnits, wireLabelRect,
+  portPosition, wireGeomToPoint, wrapText, noteHeight,
+  nodeRect, nodeSize, nodeMeta, NOTE_W, LANE_TITLE_H, textUnits,
 } from './geometry.js';
 
 // The canvas mirrors net_draw's look one to one: gradient cards with a drop
@@ -26,12 +26,12 @@ const MONO = 'ui-monospace, Consolas, monospace';
 
 const LOCK = '#7d8fae';
 
-const WIRE = '#526180';
+const WIRE = '#64748b';
 const WIRE_SEL = '#7dd3fc';
 const WIRE_SNEAK = '#6b6242';
 const LABEL_BG = '#0c1424';
-const LABEL_LINE = '#24304d';
-const LABEL_TEXT = '#8fa3c0';
+const LABEL_LINE = '#334155';
+const LABEL_TEXT = '#b0bed4';
 
 const DASH = { dashed: '8 6', dotted: '2 5', sneakernet: '1 9', flow: '6 8' };
 
@@ -49,8 +49,8 @@ export function defsMarkup() {
     + '<linearGradient id="cardGrad" x1="0" y1="0" x2="0" y2="1">'
     + '<stop offset="0" stop-color="#1c2537"/><stop offset="1" stop-color="#141b2b"/></linearGradient>'
     + '<filter id="nodeShadow" x="-40%" y="-40%" width="180%" height="180%">'
-    + '<feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#000000" flood-opacity="0.42"/></filter>'
-    + '<marker id="arrow" viewBox="0 0 10 10" refX="7.5" refY="5" markerWidth="6.5" markerHeight="6.5"'
+    + '<feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.3"/></filter>'
+    + '<marker id="arrow" viewBox="0 0 10 10" refX="7.5" refY="5" markerWidth="5.5" markerHeight="5.5"'
     + ' orient="auto-start-reverse"><path d="M0.5 1.2 L8.5 5 L0.5 8.8 z" fill="context-stroke"/></marker>';
 }
 
@@ -298,15 +298,15 @@ function nodeMarkup(node, selected, ui, animating, now, wires) {
 
 const geoData = (geo) => [geo.p1, geo.c1, geo.c2, geo.p2].map((p) => `${p.x},${p.y}`).join(',');
 
-function wireMarkup(index, wire, lane, selected, ui, animating, now) {
-  const { byId, rects } = index;
+function wireMarkup(index, wire, selected, ui, animating, now) {
+  const { byId } = index;
   const a = byId.get(wire.from.node);
   const b = byId.get(wire.to.node);
   if (!a || !b) return '';
   const invalid = !nodePart(a).ports.some((p) => p.id === wire.from.port)
     || !nodePart(b).ports.some((p) => p.id === wire.to.port);
   const bus = BUSES[wire.bus] || BUSES.gpio;
-  const geo = wireGeom(rects.get(a.id), rects.get(b.id), lane);
+  const geo = index.routes.get(wire.id);
   const sneak = wire.style === 'sneakernet';
   // Per-wire override: 'on' animates even with the global toggle off, 'off'
   // never animates, null follows the toggle. Traffic on an air gap is a pair
@@ -334,8 +334,10 @@ function wireMarkup(index, wire, lane, selected, ui, animating, now) {
         + ' pointer-events="none">\u{1F463}</text>';
     }
   }
-  const { label, x, y, w, h, at } = wireLabelRect(wire, geo, lane);
+  const { label, x, y, w, h, at, anchor } = index.labels.get(wire.id);
   if (label) {
+    if (anchor) s += `<path class="label-leader" data-detail="context" d="M ${anchor.x} ${anchor.y} L ${at.x} ${at.y}"`
+      + ` fill="none" stroke="${LABEL_LINE}" stroke-width="1" pointer-events="none"/>`;
     s += `<rect data-detail="context" x="${x}" y="${y}" width="${w}" height="${h}" rx="9"`
       + ` fill="${LABEL_BG}" stroke="${LABEL_LINE}" stroke-width="1"/>`;
     s += `<text x="${at.x}" y="${Math.round((at.y + 3.6) * 100) / 100}" text-anchor="middle" font-size="10.5" fill="${LABEL_TEXT}" data-detail="context"`
@@ -479,11 +481,11 @@ function diagramLayers(doc, ui = {}) {
   const sel = ui.selection || new Set();
   const animating = !!ui.animate;
   const now = Number.isFinite(ui.now) ? ui.now : null;
-  const index = sceneIndex(doc);
-  const { lanes, incident } = index;
+  const index = ui.scene || sceneIndex(doc);
+  const { incident } = index;
   return {
     zones: doc.zones.map(z => [z.id, zoneMarkup(z, sel.has(z.id))]),
-    wires: doc.wires.map(w => [w.id, wireMarkup(index, w, lanes.get(w.id) || 0, sel.has(w.id), ui, animating, now)]),
+    wires: doc.wires.map(w => [w.id, wireMarkup(index, w, sel.has(w.id), ui, animating, now)]),
     nodes: doc.nodes.map(n => [n.id, nodeMarkup(n, sel.has(n.id), ui, animating, now, incident.get(n.id))]),
     notes: doc.notes.map(n => [n.id, noteMarkup(n, sel.has(n.id))]),
   };
@@ -519,8 +521,7 @@ export function overlayMarkup(doc, ui) {
   // Items the assistant just touched: a ring on cards, zones, and notes, a
   // glow along wires. Cleared by the next pointerdown on the canvas.
   if (ui.highlight && ui.highlight.size) {
-    const byId = new Map(doc.nodes.map((n) => [n.id, n]));
-    const lanes = wireLanes(doc.wires);
+    const { byId, routes } = sceneIndex(doc);
     const ring = (r, rx) => `<rect class="hl anim" x="${r.x - 6}" y="${r.y - 6}" width="${r.w + 12}" height="${r.h + 12}"`
       + ` rx="${rx}" fill="none" stroke="${ACCENT}" stroke-width="2" stroke-opacity="0.8" pointer-events="none"/>`;
     for (const id of ui.highlight) {
@@ -535,7 +536,7 @@ export function overlayMarkup(doc, ui) {
       const a = byId.get(wire.from.node);
       const b = byId.get(wire.to.node);
       if (!a || !b) continue;
-      const geo = wireGeom(nodeRect(a), nodeRect(b), lanes.get(wire.id) || 0);
+      const geo = routes.get(wire.id);
       s += `<path class="hl-wire anim" d="${geo.d}" fill="none" stroke="${ACCENT}" stroke-width="8"`
         + ' stroke-opacity="0.35" stroke-linecap="round" pointer-events="none"/>';
     }
