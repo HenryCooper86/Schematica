@@ -181,6 +181,8 @@ html, body {
   display: block;
   background: var(--bg0);
   touch-action: none;
+  /* Keep canvas focus for shortcuts without the browser's full-frame ring. */
+  outline: none;
 }
 #canvas.panning { cursor: grabbing !important; }
 #canvas.tool-pan { cursor: grab; }
