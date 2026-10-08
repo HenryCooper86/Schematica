@@ -113,7 +113,7 @@ function updateZoomLabel() {
 }
 
 // kind: 'all' rebuilds the diagram; 'view' only moves the camera (pan, zoom,
-// journey tweens); 'overlay' only redraws transient drag feedback. Hover is
+// journey tweens); 'selection' patches changed items; 'overlay' redraws drag feedback. Hover is
 // pure CSS and flow animation runs in CSS, so neither ever rebuilds the SVG.
 function render(kind = 'all') {
   if (kind === 'view') {
@@ -126,7 +126,8 @@ function render(kind = 'all') {
     renderer.renderOverlay(store.doc, uiState());
     return;
   }
-  renderer.render(store.doc, tools.view, uiState());
+  if (kind === 'selection') renderer.renderSelection(store.doc, uiState());
+  else renderer.render(store.doc, tools.view, uiState());
   renderer.setExploration(store.doc, tools.ui.story || tools.ui.presenting ? {} : explorer?.state(), store.selection);
   renderer.setStory(tools.ui.story, tools.ui.storyCurrent, store.doc);
   renderer.setReadingDepth(tools.ui.presenting ? 'full' : explorer?.state().depth, tools.view.zoom);
@@ -139,7 +140,7 @@ function render(kind = 'all') {
   if (!store.isDragging()) propsPanel.render();
 }
 
-store.subscribe(() => render());
+store.subscribe(change => render(change === 'selection' ? 'selection' : 'all'));
 
 // ---- Animation ticker ----
 // Flow dashes and pulses animate in CSS; only the air-gap footprints need a
@@ -176,7 +177,7 @@ function syncAnimation() {
   if (needsTicker() && !animRaf) animRaf = requestAnimationFrame(animTick);
 }
 
-store.subscribe(syncAnimation);
+store.subscribe(syncAnimation, { documentOnly: true });
 
 document.getElementById('btn-animate').addEventListener('click', () => {
   tools.ui.animate = !tools.ui.animate;
@@ -252,7 +253,7 @@ titleInput.addEventListener('change', () => {
 });
 store.subscribe(() => {
   if (document.activeElement !== titleInput) titleInput.value = store.doc.title;
-});
+}, { documentOnly: true });
 
 // ---- Panels, dialogs, menus ----
 initPalette({ svg, store, tools, library, editor });

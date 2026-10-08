@@ -122,7 +122,7 @@ export function initOnboarding({
   };
   store.subscribe(() => {
     if (!store.isDragging()) paint();
-  });
+  }, { documentOnly: true });
   onLanguageChange(paint);
   paint();
 }

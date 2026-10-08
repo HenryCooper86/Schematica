@@ -5,6 +5,20 @@ import {
   rectContains, rectsIntersect, normRect, wrapText, noteHeight, NOTE_W, contentBounds, textUnits,
 } from '../src/geometry.js';
 import { EXAMPLE_OVERLAYS_ZH } from '../src/examples.js';
+import { normalizePart, partOf } from '../src/custom.js';
+
+for (const side of ['top', 'bottom']) {
+  test(`64 supported ${side} ports remain individually spaced on a custom card`, () => {
+    const { part } = normalizePart({ name: 'Connector', category: 'system',
+      ports: Array.from({ length: 64 }, (_, i) => ({ id: `p${i}`, name: `P${i}`, side, bus: 'gpio' })) });
+    const node = { kind: 'custom', part, x: 0, y: 0, label: 'Connector' };
+    const rect = nodeRect(node);
+    const positions = partOf(node).ports.map(p => portPosition(rect, p).x);
+    for (let i = 1; i < positions.length; i++) {
+      assert.ok(positions[i] - positions[i - 1] >= 20, 'ports need room around their 10px circles');
+    }
+  });
+}
 
 const CLOSING_PUNCT = new Set([...'。，、；：？！）」』》']);
 
@@ -415,7 +429,7 @@ test('custom cards grow with the ports on their busiest sides; built-in cards do
   assert.deepEqual(nodeSize({ kind: 'custom', label: 'C', part: def(side(4, 'left')) }), { w: 104, h: 75 });
   assert.deepEqual(nodeSize({ kind: 'custom', label: 'C', part: def(side(8, 'right')) }), { w: 104, h: 135 });
   assert.deepEqual(nodeSize({ kind: 'custom', label: 'C', part: def(side(6, 'top')) }), { w: 154, h: 74 });
-  assert.equal(nodeSize({ kind: 'custom', label: 'C', part: def(side(24, 'bottom')) }).w, 240, 'width stays capped');
+  assert.equal(nodeSize({ kind: 'custom', label: 'C', part: def(side(24, 'bottom')) }).w, 550, 'ports retain their spacing beyond the text width cap');
   assert.deepEqual(nodeSize({ kind: 'mcu', label: 'MCU' }), { w: 104, h: 74 }, 'an MCU with nine ports keeps its size');
 });
 

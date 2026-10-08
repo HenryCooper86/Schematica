@@ -42,13 +42,14 @@ export class Store {
     this.generation = 0;
   }
 
-  subscribe(fn) {
-    this.listeners.add(fn);
-    return () => this.listeners.delete(fn);
+  subscribe(fn, { documentOnly = false } = {}) {
+    const listener = documentOnly ? change => { if (change === 'document') fn(change); } : fn;
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
   }
 
-  emit() {
-    for (const fn of this.listeners) fn();
+  emit(change = 'document') {
+    for (const fn of this.listeners) fn(change);
   }
 
   _push(snap) {
@@ -142,19 +143,19 @@ export class Store {
 
   setSelection(ids) {
     this.selection = new Set(ids);
-    this.emit();
+    this.emit('selection');
   }
 
   toggleSelection(id) {
     if (this.selection.has(id)) this.selection.delete(id);
     else this.selection.add(id);
-    this.emit();
+    this.emit('selection');
   }
 
   clearSelection() {
     if (this.selection.size) {
       this.selection.clear();
-      this.emit();
+      this.emit('selection');
     }
   }
 

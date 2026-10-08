@@ -3,12 +3,59 @@ import { uid, newDoc } from './state.js';
 import { partOf, normalizePart, LIMITS } from './custom.js';
 import { selectedEngineering } from './engineering.js';
 
-export function groupSubsystem(store, ids, name) {
+// Existing scope IDs survive grouping; new wrappers only add path segments.
+// Search newly introduced wrappers, never unrelated existing scopes that may
+// legitimately contain the same local IDs in a reusable subsystem.
+function relocatedScope(before, after, path) {
+  if (!path.length) return { scope: [], before, after };
+  const old = before.nodes.find(n => n.id === path[0]);
+  if (!old?.subsystem) return null;
+  const direct = after.nodes.find(n => n.id === old.id);
+  if (direct?.subsystem) {
+    const rest = relocatedScope(old.subsystem.doc, direct.subsystem.doc, path.slice(1));
+    return rest && { ...rest, scope: [direct.id, ...rest.scope] };
+  }
+  const existing = new Set(before.nodes.map(n => n.id));
+  for (const wrapper of after.nodes) {
+    if (!wrapper.subsystem || existing.has(wrapper.id)) continue;
+    const rest = relocatedScope(before, wrapper.subsystem.doc, path);
+    if (rest) return { ...rest, scope: [wrapper.id, ...rest.scope] };
+  }
+  return null;
+}
+
+function relocatedSelection(before, after, selection) {
+  const existingScopes = new Set(before.nodes.map(n => n.id));
+  const original = new Set([...before.nodes, ...before.wires].map(item => item.id));
+  const remaining = new Set([...after.nodes, ...after.wires].map(item => item.id));
+  const wrappers = after.nodes.filter(n => n.subsystem && !existingScopes.has(n.id));
+  // Only descend through newly added wrappers: existing subsystem scopes may
+  // reuse local IDs and must not steal a selection from this scope.
+  const contains = (doc, id) => [...doc.nodes, ...doc.wires].some(item => item.id === id)
+    || doc.nodes.some(n => n.subsystem && !existingScopes.has(n.id) && contains(n.subsystem.doc, id));
+  return [...new Set(selection.map(id => {
+    if (!original.has(id) || remaining.has(id)) return id;
+    return wrappers.find(n => contains(n.subsystem.doc, id))?.id || id;
+  }))];
+}
+
+function relocateViews(views = [], before, after, prefix = []) {
+  for (const view of views) {
+    if (!view.scope || !prefix.every((id, i) => view.scope[i] === id)) continue;
+    const moved = relocatedScope(before, after, view.scope.slice(prefix.length));
+    if (moved) {
+      view.scope = [...prefix, ...moved.scope];
+      if (view.selection) view.selection = relocatedSelection(moved.before, moved.after, view.selection);
+    }
+  }
+}
+
+export function groupSubsystem(store, ids, name, { depth: parentDepth = 0 } = {}) {
   const selected = new Set(ids), doc = store.doc;
   const nodes = doc.nodes.filter(n => selected.has(n.id));
   if (!nodes.length || nodes.some(n => n.locked)) throw new Error('Select unlocked parts to create a subsystem');
   const depth = n => n.subsystem ? 1 + Math.max(0, ...n.subsystem.doc.nodes.map(depth)) : 0;
-  if (Math.max(...nodes.map(depth)) >= 8) throw new Error('Subsystem nesting is limited to eight levels');
+  if (parentDepth + Math.max(...nodes.map(depth)) + 1 > 8) throw new Error('Subsystem nesting is limited to eight levels');
   const members = new Set(nodes.map(n => n.id));
   const inside = doc.wires.filter(w => members.has(w.from.node) && members.has(w.to.node));
   const boundary = doc.wires.filter(w => members.has(w.from.node) !== members.has(w.to.node));
@@ -33,6 +80,7 @@ export function groupSubsystem(store, ids, name) {
   if (engineering || doc.engineering?.budget) child.engineering = { ...engineering, ...(doc.engineering?.budget ? { budget: structuredClone(doc.engineering.budget) } : {}) };
   const part = normalizePart({ name, category: 'system', icon: { text: 'SYS' }, ports, fields: [] }).part;
   if (!part) throw new Error('Invalid subsystem name');
+  const before = { nodes: doc.nodes, wires: doc.wires };
   store.apply(d => {
     d.nodes = d.nodes.filter(n => !members.has(n.id));
     d.wires = d.wires.filter(w => !inside.some(i => i.id === w.id));
@@ -41,6 +89,7 @@ export function groupSubsystem(store, ids, name) {
     }
     d.nodes.push({ id, kind: 'custom', x, y, label: name, sublabel: '', color: null, addr: '', rail: '', notes: '', status: null, flags: [],
       part, subsystem: { doc: child, exposed } });
+    relocateViews(d.engineering?.savedViews, before, d);
     const replaced = new Set([...members, ...inside.map(w => w.id)]);
     for (const key of ['requirements', 'decisions']) for (const r of d.engineering?.[key] || []) r.targets = [...new Set(r.targets.map(t => replaced.has(t) ? id : t))];
     for (const step of d.journey || []) {
@@ -74,7 +123,10 @@ export function createSubsystemNavigation(store) {
     let doc = structuredClone(store.doc);
     for (let i = stack.length - 1; i >= 0; i--) {
       const parent = structuredClone(stack[i].doc);
-      parent.nodes.find(n => n.id === stack[i].id).subsystem.doc = doc;
+      const wrapper = parent.nodes.find(n => n.id === stack[i].id);
+      const before = wrapper.subsystem.doc;
+      wrapper.subsystem.doc = doc;
+      relocateViews(parent.engineering?.savedViews, before, doc, [wrapper.id]);
       doc = parent;
     }
     return doc;
@@ -82,6 +134,7 @@ export function createSubsystemNavigation(store) {
   return {
     path: () => stack.map(entry => entry.id),
     depth: () => stack.length, rootDoc, navigating: () => navigating, reset: () => { stack.length = 0; },
+    group: (ids, name) => groupSubsystem(store, ids, name, { depth: stack.length }),
     enter(id) {
       const node = store.doc.nodes.find(n => n.id === id);
       if (!node?.subsystem) throw new Error('Select a subsystem');
@@ -95,7 +148,12 @@ export function createSubsystemNavigation(store) {
       replace(entry.doc);
       store.undoStack = entry.undo;
       store.redoStack = entry.redo;
-      store.apply(doc => { doc.nodes.find(n => n.id === entry.id).subsystem.doc = child; });
+      store.apply(doc => {
+        const wrapper = doc.nodes.find(n => n.id === entry.id);
+        const before = wrapper.subsystem.doc;
+        wrapper.subsystem.doc = child;
+        relocateViews(doc.engineering?.savedViews, before, child, [entry.id]);
+      });
       store.setSelection([entry.id]);
     },
   };

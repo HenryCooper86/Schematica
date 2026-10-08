@@ -478,16 +478,45 @@ function noteMarkup(note, selected) {
 // flagged cards carry their animation classes; with a finite `now` the frame
 // is also baked into attributes (exports). Live rendering passes no `now`.
 function diagramLayers(doc, ui = {}) {
-  const sel = ui.selection || new Set();
+  const index = ui.scene || sceneIndex(doc);
+  return Object.fromEntries(['zones', 'wires', 'nodes', 'notes'].map(kind =>
+    [kind, doc[kind].map(item => [item.id, itemMarkup(kind, item, index, ui)])]));
+}
+
+function itemMarkup(kind, item, index, ui) {
+  const selected = ui.selection?.has(item.id) || false;
   const animating = !!ui.animate;
   const now = Number.isFinite(ui.now) ? ui.now : null;
-  const index = ui.scene || sceneIndex(doc);
-  const { incident } = index;
+  if (kind === 'zones') return zoneMarkup(item, selected);
+  if (kind === 'wires') return wireMarkup(index, item, selected, ui, animating, now);
+  if (kind === 'nodes') return nodeMarkup(item, selected, ui, animating, now, index.incident.get(item.id));
+  return noteMarkup(item, selected);
+}
+
+// Document changes rebuild geometry. Selection changes reuse that scene and
+// generate markup only for items whose selection changed.
+export function createDiagramScene() {
+  let document = null, index = null, selected = new Set(), items = new Map();
   return {
-    zones: doc.zones.map(z => [z.id, zoneMarkup(z, sel.has(z.id))]),
-    wires: doc.wires.map(w => [w.id, wireMarkup(index, w, sel.has(w.id), ui, animating, now)]),
-    nodes: doc.nodes.map(n => [n.id, nodeMarkup(n, sel.has(n.id), ui, animating, now, incident.get(n.id))]),
-    notes: doc.notes.map(n => [n.id, noteMarkup(n, sel.has(n.id))]),
+    render(doc, ui = {}) {
+      document = doc;
+      index = sceneIndex(doc);
+      selected = new Set(ui.selection || []);
+      items = new Map(['zones', 'wires', 'nodes', 'notes'].flatMap(kind => doc[kind].map(item => [item.id, { kind, item }])));
+      return diagramLayers(doc, { ...ui, scene: index });
+    },
+    select(doc, ui = {}) {
+      if (document !== doc) return this.render(doc, ui);
+      const next = new Set(ui.selection || []);
+      const changed = new Set([...selected, ...next].filter(id => selected.has(id) !== next.has(id)));
+      const rows = { zones: [], wires: [], nodes: [], notes: [] };
+      for (const id of changed) {
+        const found = items.get(id);
+        if (found) rows[found.kind].push([id, itemMarkup(found.kind, found.item, index, ui)]);
+      }
+      selected = next;
+      return rows;
+    },
   };
 }
 
@@ -567,6 +596,20 @@ export function createRenderer(svg) {
   overlay.setAttribute('pointer-events', 'none');
   root.append(grid, diagram, overlay);
   svg.appendChild(root);
+  const scene = createDiagramScene();
+  let renderedDoc = null;
+
+  function patchItem(layer, id, markup) {
+    let cached = layer.items.get(id);
+    if (cached?.markup !== markup) {
+      parser.innerHTML = markup;
+      const next = parser.firstElementChild;
+      if (cached) cached.element.replaceWith(next);
+      cached = { markup, element: next };
+      layer.items.set(id, cached);
+    }
+    return cached.element;
+  }
   return {
     setView(view, showGrid = true) {
       root.setAttribute('transform', `translate(${view.x} ${view.y}) scale(${view.zoom})`);
@@ -602,8 +645,9 @@ export function createRenderer(svg) {
     renderDiagram(doc, ui = {}) {
       // Recompute geometry and markup so mutation, undo, language and endpoint
       // changes remain correct; avoid reparsing/replacing unchanged SVG items.
-      for (const [kind, rows] of Object.entries(diagramLayers(doc, ui))) {
-        const { element, items } = layers.get(kind);
+      renderedDoc = doc;
+      for (const [kind, rows] of Object.entries(scene.render(doc, ui))) {
+        const layer = layers.get(kind), { element, items } = layer;
         const present = new Set(rows.filter(([, markup]) => markup).map(([id]) => id));
         for (const [id, cached] of items) if (!present.has(id)) {
           cached.element.remove(); items.delete(id);
@@ -611,19 +655,18 @@ export function createRenderer(svg) {
         let cursor = element.firstElementChild;
         for (const [id, markup] of rows) {
           if (!markup) continue;
-          let cached = items.get(id);
-          if (cached?.markup !== markup) {
-            parser.innerHTML = markup;
-            const next = parser.firstElementChild;
-            if (cached) {
-              if (cursor === cached.element) cursor = next;
-              cached.element.replaceWith(next);
-            }
-            cached = { markup, element: next }; items.set(id, cached);
-          }
-          if (cached.element === cursor) cursor = cursor.nextElementSibling;
-          else element.insertBefore(cached.element, cursor);
+          const replacesCursor = items.get(id)?.element === cursor;
+          const item = patchItem(layer, id, markup);
+          if (replacesCursor || item === cursor) cursor = item.nextElementSibling;
+          else element.insertBefore(item, cursor);
         }
+      }
+    },
+    renderSelection(doc, ui = {}) {
+      if (renderedDoc !== doc) { this.renderDiagram(doc, ui); return; }
+      for (const [kind, rows] of Object.entries(scene.select(doc, ui))) {
+        const layer = layers.get(kind);
+        for (const [id, markup] of rows) if (markup) patchItem(layer, id, markup);
       }
     },
     renderOverlay(doc, ui = {}) {

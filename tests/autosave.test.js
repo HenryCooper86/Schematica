@@ -30,6 +30,23 @@ test('selection does not save or postpone a document edit', () => {
   assert.equal(writes.length, 1);
 });
 
+test('selection changes never reconstruct the root document for autosave', () => {
+  const store = new Store(newDoc('Root'));
+  let rootReads = 0;
+  const autosave = createAutosave({ store, storage: { setItem() {} },
+    getDoc: () => { rootReads++; return structuredClone(store.doc); },
+    schedule: () => 1, cancel() {},
+  });
+  const initialReads = rootReads;
+  store.setSelection(['n1']);
+  store.toggleSelection('n2');
+  store.clearSelection();
+  assert.equal(rootReads, initialReads);
+  store.apply(doc => { doc.title = 'Edited'; });
+  assert.ok(rootReads > initialReads);
+  autosave.flush();
+});
+
 test('lifecycle flush persists the latest edit without waiting for debounce', () => {
   const { store, writes, timers, autosave } = setup();
   store.apply(doc => { doc.title = 'First'; });

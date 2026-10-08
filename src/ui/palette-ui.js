@@ -158,7 +158,7 @@ export function initPalette({ svg, store, tools, library, editor }) {
     if (!changed) return;
     prevParts = parts;
     renderMine();
-  });
+  }, { documentOnly: true });
 
   mine.querySelector('#parts-new').addEventListener('click', () => {
     editor.open({ def: { name: '', category: 'misc', ports: [], fields: [] }, mode: 'new' });

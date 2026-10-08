@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { TOOLS, createExecutor, statusLine } from '../src/ai/tools.js';
-import { newDoc } from '../src/state.js';
+import { newDoc, Store } from '../src/state.js';
+import { groupSubsystem } from '../src/subsystems.js';
 import { EXAMPLES } from '../src/examples.js';
 import { initI18n, setLang } from '../src/i18n.js';
 
@@ -77,6 +78,35 @@ test('a rejected batch changes nothing and returns the errors as a tool error', 
   assert.match(res.text, /Batch rejected, nothing applied:\n#0: unknown kind "nope"/);
   assert.equal(doc.nodes.length, 0);
   assert.equal(ex.run('apply_edits', {}).isError, true, 'missing ops');
+});
+
+test('replace_part rejects subsystem wrappers without changing the document or history', () => {
+  const store = new Store(structuredClone(EXAMPLES.find((e) => e.id === 'weather-station').doc));
+  const wrapperId = groupSubsystem(store, ['n5', 'n6'], 'Controller subsystem');
+  const wrapper = store.doc.nodes.find(n => n.id === wrapperId);
+  assert.ok(wrapper.subsystem.exposed.length > 0, 'the subsystem has exposed boundary ports');
+  assert.ok(store.doc.wires.some(w => w.from.node === wrapperId || w.to.node === wrapperId), 'external wires use the boundary ports');
+  store.apply(doc => { doc.title = 'Later title'; });
+  store.undo();
+  const before = structuredClone({ doc: store.doc, undo: store.undoStack, redo: store.redoStack, selection: [...store.selection] });
+  const executor = createExecutor({ getDoc: () => store.doc, commit: fn => store.mutate(fn) });
+
+  store.beginBatch();
+  const result = executor.run('apply_edits', { ops: [
+    { op: 'set_title', title: 'Rejected title' },
+    { op: 'replace_part', id: wrapperId, kind: 'sbc' },
+  ] });
+  store.endBatch();
+
+  assert.equal(result.isError, true, result.text);
+  assert.match(result.text, /#1:.*subsystem/);
+  assert.match(result.text, /replace_part/);
+  assert.match(result.text, /open.*subsystem|edit.*parts/i, 'the error explains how to edit internal parts');
+  assert.deepEqual(store.doc, before.doc);
+  assert.deepEqual(store.undoStack, before.undo);
+  assert.deepEqual(store.redoStack, before.redo);
+  assert.deepEqual([...store.selection], before.selection);
+  assert.equal(executor.touched.size, 0);
 });
 
 test('arrange lays the board out and refuses swimlane boards', () => {

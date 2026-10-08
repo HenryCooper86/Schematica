@@ -31,12 +31,25 @@ test('different known buses require an explicit existing bus choice', () => {
   assert.equal(store.doc.wires.at(-1).bus, 'spi');
 });
 
-for (const change of ['locked', 'missing node', 'missing port', 'unsupported port', 'unsupported bus', 'self-loop', 'stale edit', 'stale replace']) {
+test('locked positions still allow a connection, matching pointer editing', () => {
+  const store = setup();
+  store.doc.nodes[0].locked = true;
+  store.doc.nodes[4].locked = true;
+  const positions = store.doc.nodes.map(n => ({ id: n.id, x: n.x, y: n.y }));
+  assert.deepEqual(connectionOptions(store.doc, from, to), ['uart']);
+  connectPorts(store, { from, to, bus: 'uart' }, connectionSnapshot(store));
+  assert.equal(store.doc.wires.length, 5);
+  assert.deepEqual(store.doc.nodes.map(n => ({ id: n.id, x: n.x, y: n.y })), positions);
+  store.undo();
+  assert.equal(store.doc.wires.length, 4);
+  assert.equal(store.doc.nodes[0].locked, true);
+});
+
+for (const change of ['missing node', 'missing port', 'unsupported port', 'unsupported bus', 'self-loop', 'stale edit', 'stale replace']) {
   test(`keyboard connection rejects ${change} without mutation`, () => {
     const store = setup();
     let snapshot = connectionSnapshot(store);
     const draft = { from: { ...from }, to: { ...to }, bus: 'uart' };
-    if (change === 'locked') store.doc.nodes[0].locked = true;
     if (change === 'missing node') draft.from.node = 'missing';
     if (change === 'missing port') draft.from.port = 'missing';
     if (change === 'unsupported port') store.doc.nodes[0].part.ports[0].bus = 'unsupported';

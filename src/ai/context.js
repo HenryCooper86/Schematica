@@ -45,7 +45,7 @@ export function nodeLine(doc, node) {
 }
 
 function wireLine(w) {
-  const arrow = w.arrow === 'fwd' ? '->' : (w.arrow === 'both' ? '<->' : '--');
+  const arrow = w.arrow === 'fwd' ? '->' : (w.arrow === 'back' ? '<-' : (w.arrow === 'both' ? '<->' : '--'));
   let s = `wire ${w.id} ${w.bus} ${w.from.node}.${w.from.port} ${arrow} ${w.to.node}.${w.to.port}`;
   if (w.label) s += ` ${quote(w.label)}`;
   if (w.style) s += ` style=${w.style}`;

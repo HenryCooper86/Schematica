@@ -57,6 +57,36 @@ test('settings persist as JSON and survive a corrupt entry', () => {
   assert.equal(createSettings(st).get().effort, 'medium');
 });
 
+for (const [field, value] of [
+  ['model', 'recovered-model'],
+  ['provider', 'openrouter'],
+  ['baseUrl', 'https://recovered.example/v1'],
+]) {
+  test(`settings recover ${field} changes after a temporary storage write failure`, () => {
+    const storage = fakeStorage();
+    let failWrite = true;
+    const settings = createSettings({
+      ...storage,
+      setItem(key, value) {
+        if (failWrite) throw new Error('Storage temporarily unavailable');
+        storage.setItem(key, value);
+      },
+    });
+    settings.set({ provider: 'openai', model: 'session-model', baseUrl: 'https://session.example/v1', effort: 'high' });
+    assert.equal(settings.get().model, 'session-model', 'a failed save still updates the session');
+    assert.equal(storage.getItem(SETTINGS_KEY), null);
+
+    failWrite = false;
+    settings.set({ [field]: value });
+    assert.equal(settings.get()[field], value, 'the recovered save must replace the fallback value');
+    assert.equal(settings.get().effort, 'high', 'recovery preserves the other session changes');
+    assert.deepEqual(settings.get(), createSettings(storage).get(), 'the current session agrees with a reload');
+
+    createSettings(storage).set({ model: 'other-tab-model' });
+    assert.equal(settings.get().model, 'other-tab-model', 'recovered settings read later storage updates');
+  });
+}
+
 test('a browser with storage blocked still boots the assistant', () => {
   const s = createSettings(null);
   assert.equal(s.get().provider, 'anthropic');

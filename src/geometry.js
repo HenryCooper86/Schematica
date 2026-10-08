@@ -87,7 +87,8 @@ export function nodeSize(node) {
   if (part.custom) {
     const on = (side) => part.ports.filter((p) => p.side === side).length;
     h = Math.max(h, PORT_GAP_Y * (Math.max(on('left'), on('right')) + 1));
-    w = Math.max(w, Math.min(NODE_MAX_W, PORT_GAP_X * (Math.max(on('top'), on('bottom')) + 1)));
+    // Text width is capped, but supported ports need their full spacing.
+    w = Math.max(w, PORT_GAP_X * (Math.max(on('top'), on('bottom')) + 1));
   }
   return { w, h };
 }

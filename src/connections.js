@@ -1,6 +1,6 @@
 import { BUSES, BUS_ORDER } from './buses.js';
 import { nodePart } from './rdk/profiles.js';
-import { addWire, isLocked } from './state.js';
+import { addWire } from './state.js';
 import { tr } from './i18n.js';
 
 export const connectionSnapshot = store => ({ generation: store.generation, snapshot: JSON.stringify(store.doc) });
@@ -10,7 +10,6 @@ function endpoint(doc, ref) {
   const port = node && nodePart(node).ports.find(p => p.id === ref?.port);
   if (!node || !port || !Object.hasOwn(BUSES, port.bus))
     throw new Error(tr('Choose existing endpoints with supported ports.'));
-  if (isLocked(node)) throw new Error(tr('Unlock both parts before connecting them.'));
   return port;
 }
 

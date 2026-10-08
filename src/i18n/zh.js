@@ -147,7 +147,6 @@ export default {
   "KiCad source": "KiCad 源",
   "review requirements met": "项评审要求已满足",
   "Choose existing endpoints with supported ports.": "请选择具有受支持端口的现有端点。",
-  "Unlock both parts before connecting them.": "请先解锁两端部件再连接。",
   "Choose ports on two different parts.": "请选择两个不同部件上的端口。",
   "The board changed. Reopen the connection dialog.": "画板已更改。请重新打开连接对话框。",
   "Choose a supported bus for these ports.": "请为这些端口选择受支持的总线。",

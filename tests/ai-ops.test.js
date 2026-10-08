@@ -300,6 +300,31 @@ test('update_wire sets bus, label, arrow, style, and flow', () => {
   assert.match(res.errors[0].message, /unknown bus/);
 });
 
+for (const [arrow, direction] of [
+  ['fwd', 'from-to'],
+  ['back', 'to-from'],
+  ['both', 'bidirectional'],
+  [null, ''],
+]) {
+  test(`connect and update_wire accept the advertised ${arrow ?? 'undirected'} direction`, () => {
+    assert.ok(EDIT_SCHEMA.properties.ops.items.properties.arrow.enum.includes(arrow), 'providers can request this supported direction');
+    const doc = newDoc('Directions');
+    doc.nodes.push(node('m', 'mcu'), node('t', 'temp'));
+    let res = applyEdits(doc, [{ op: 'connect', from: { node: 'm' }, to: { node: 't' }, bus: 'i2c', arrow }]);
+    assert.equal(res.ok, true, JSON.stringify(res));
+    const w = doc.wires[0];
+    assert.equal(w.arrow, arrow);
+    w.arrow = arrow === null ? 'fwd' : null;
+    w.spec = { direction: w.arrow === 'fwd' ? 'from-to' : '' };
+    res = applyEdits(doc, [{ op: 'update_wire', id: w.id, arrow }]);
+    assert.equal(res.ok, true, JSON.stringify(res));
+    assert.equal(doc.wires[0].arrow, arrow);
+    assert.equal(doc.wires[0].spec.direction, direction);
+    assert.deepEqual(doc.wires[0].from, { node: 'm', port: 'i2c' });
+    assert.deepEqual(doc.wires[0].to, { node: 't', port: 'i2c' });
+  });
+}
+
 test('pickPort and pickPorts are usable on their own', () => {
   const doc = newDoc('T');
   doc.nodes.push(node('m', 'mcu'), node('t', 'temp'));

@@ -168,7 +168,7 @@ export function initJourney({ svg, store, tools, render, recorder, propsPanel })
   store.subscribe(renderJourney);
   svg.addEventListener('pointerdown', () => { if (!presentState.active && tools.ui.story) { tools.ui.story = null; render(); } });
   let generation = store.generation;
-  store.subscribe(() => { if (generation !== store.generation) { generation = store.generation; tools.ui.story = null; if (presentState.active) presentExit(); else render(); } });
+  store.subscribe(() => { if (generation !== store.generation) { generation = store.generation; tools.ui.story = null; if (presentState.active) presentExit(); else render(); } }, { documentOnly: true });
   onLanguageChange(() => { renderJourney(); if (presentState.active) presentShow(); });
 
   // ---- Present mode ----
@@ -324,7 +324,7 @@ export function initJourney({ svg, store, tools, render, recorder, propsPanel })
     }
     if (store.doc.journey?.[presentState.index]?.targets || store.doc.journey?.[presentState.index]?.stops) { presentShow(); return; }
     if (j !== presentedJourney) presentShow();
-  });
+  }, { documentOnly: true });
   return { openMoment(params) {
     const moment = readStoryMoment(store.doc.journey || [], params);
     if (!moment) return;

@@ -102,8 +102,8 @@ export function createSettings(storage) {
 
   // Read on every call: a test may seed storage after the page loaded, and
   // another tab may have changed it. Without storage (site data blocked) the
-  // patches live in `memory` for the session; with storage, `memory` stays
-  // empty so a seeded value is never shadowed.
+  // patches live in `memory` for the session; after a successful write,
+  // `memory` is cleared so later storage changes are never shadowed.
   let memory = {};
   const readStored = () => { try { return migrateSettings({ ...(JSON.parse(read(SETTINGS_KEY) || '{}') || {}), ...memory }); } catch { return migrateSettings({ ...memory }); } };
   const memoryKeys = {};
@@ -130,7 +130,7 @@ export function createSettings(storage) {
     if (connectionChanged || (Object.hasOwn(patch, 'tools') && patch.tools === null)) next.connected = false;
     let stored = false;
     try { if (storage) { storage.setItem(SETTINGS_KEY, JSON.stringify(next)); stored = true; } } catch { /* blocked or full */ }
-    if (!stored) memory = next;
+    memory = stored ? {} : next;
   }
 
   function keyProvider() {

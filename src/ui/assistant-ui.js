@@ -448,7 +448,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
       return;
     }
     refreshChips();
-  });
+  }, { documentOnly: true });
 
   // ---- Canvas feedback ----
   function highlight(ids) {

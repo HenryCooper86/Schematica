@@ -1,7 +1,6 @@
 import { connectionOptions, connectionSnapshot, connectPorts } from '../connections.js';
 import { nodePart } from '../rdk/profiles.js';
 import { BUSES } from '../buses.js';
-import { isLocked } from '../state.js';
 import { tr, trd, onLanguageChange } from '../i18n.js';
 import { escAttr as esc, openModal, toast } from './press.js';
 
@@ -48,7 +47,7 @@ export function initConnections({ store }) {
       <p>${esc(tr('Choose two parts and their ports. A bus label does not verify electrical compatibility; declare and check the interface afterward.'))}</p>
       <form>${select('connect-from-node', tr('From part'))}${select('connect-from-port', tr('From port'))}${select('connect-to-node', tr('To part'))}${select('connect-to-port', tr('To port'))}${select('connect-bus', tr('Bus type'))}
       <p>${esc(tr('Press Ctrl+Enter or Command+Enter to create the connection.'))}</p><p id="connect-error" role="alert"></p><footer><button type="submit">${esc(tr('Create connection'))}</button><button type="button" id="connect-cancel">${esc(tr('Cancel'))}</button></footer></form>`;
-    const nodes = store.doc.nodes.filter(n => !isLocked(n) && nodePart(n).ports.some(p => Object.hasOwn(BUSES, p.bus)));
+    const nodes = store.doc.nodes.filter(n => nodePart(n).ports.some(p => Object.hasOwn(BUSES, p.bus)));
     const selected = nodes.filter(n => store.selection.has(n.id));
     for (const [i, end] of ['from', 'to'].entries()) {
       const control = dialog.querySelector(`#connect-${end}-node`);

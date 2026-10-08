@@ -7,6 +7,7 @@ import { PARTS } from '../src/palette.js';
 import { BUSES } from '../src/buses.js';
 import { stableSystem, perRequestSystem, ROLE_RULES, SINGLE_SHOT_RULES, LANGUAGE_RULES } from '../src/ai/prompt.js';
 import { initI18n, setLang } from '../src/i18n.js';
+import { newDoc } from '../src/state.js';
 
 const example = (id) => structuredClone(EXAMPLES.find((e) => e.id === id).doc);
 
@@ -40,6 +41,19 @@ test('arrows, styles, flow, schema fields, and disposition are rendered', () => 
   assert.match(text, /severity=high|severity=critical/);
   assert.match(text, / style=dashed/);
 });
+
+for (const [arrow, expected] of [
+  ['fwd', 'wire w1 i2c m.i2c -> t.i2c'],
+  ['back', 'wire w1 i2c m.i2c <- t.i2c'],
+  ['both', 'wire w1 i2c m.i2c <-> t.i2c'],
+  [null, 'wire w1 i2c m.i2c -- t.i2c'],
+]) {
+  test(`board text preserves ${arrow ?? 'undirected'} wire direction`, () => {
+    const doc = newDoc('Directions');
+    doc.wires.push({ id: 'w1', bus: 'i2c', from: { node: 'm', port: 'i2c' }, to: { node: 't', port: 'i2c' }, arrow });
+    assert.equal(boardText(doc).split('\n')[1], expected);
+  });
+}
 
 test('selection and findings lines appear only when there is something to say', () => {
   const doc = example('weather-station');

@@ -29,6 +29,6 @@ export function createAutosave({ store, storage, onError = () => {}, onStatus = 
     pending = next; onStatus('pending');
     if (timer !== null) cancel(timer);
     timer = schedule(flush, delay);
-  });
+  }, { documentOnly: true });
   return { flush, dispose() { unsubscribe(); flush(); } };
 }

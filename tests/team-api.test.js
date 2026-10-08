@@ -13,6 +13,36 @@ test('HTTP membership, discussion, immutable approval, concurrent versions, rest
 test('directory locking, validation and failed persistence preserve state',async t=>{const f=await fixture(t);await assert.rejects(createTeamService({directory:join(f.dir,'data'),identitiesFile:f.identities,root:process.cwd()}));assert.equal((await f.call('/projects',{title:'bad',board:{nodes:'bad'}})).status,400);assert.equal((await f.call('/projects',{title:'x'.repeat(201),board})).status,400);const p=(await f.call('/projects',{title:'ok',board})).project;const {rename,mkdir}=await import('node:fs/promises');const data=join(f.dir,'data');await rename(data,data+'-away');await writeFile(data,'blocked');assert.equal((await f.call('/projects/'+p.id+'/comments',{version:p.version,revisionId:p.latestRevisionId,text:'not persisted'})).status,500);assert.deepEqual((await f.call('/projects/'+p.id)).project,p);await rm(data);await rename(data+'-away',data);await mkdir(join(data,'unused'));});
 test('disabled service exposes status only',async t=>{const server=createAppServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>server.close(r)));const base=`http://127.0.0.1:${server.address().port}`;assert.deepEqual(await (await fetch(base+'/api/team/status')).json(),{enabled:false});assert.equal((await fetch(base+'/api/team/me')).status,404);});
 test('caps, invalid path, membership removal and invalid identity fail closed',async t=>{const f=await fixture(t);assert.equal((await f.call('/projects/../../server/index.js')).status,404);assert.equal((await f.call('/projects',{title:'large',board:{...board,title:'x'.repeat(17*1024*1024)}})).status,413);let p=(await f.call('/projects',{title:'scope',board})).project;const path='/projects/'+p.id;p=(await f.call(path+'/members',{version:p.version,userId:'bob',role:'editor'})).project;assert.equal((await f.call(path+'/members',{version:p.version,userId:'alice',role:null},'b'.repeat(48))).status,403);p=(await f.call(path+'/members',{version:p.version,userId:'bob',role:null})).project;assert.equal((await f.call(path,undefined,'b'.repeat(48))).status,404);await writeFile(f.identities,'invalid');assert.equal((await f.call('/me')).status,503);});
+for (const identityState of ['disabled', 'missing']) {
+ test(`owner removes ${identityState} identity membership before identity is restored`, async t => {
+  const f = await fixture(t);
+  let p = (await f.call('/projects', {title: 'Revocation', board})).project;
+  const path = '/projects/' + p.id;
+  p = (await f.call(path + '/members', {version: p.version, userId: 'bob', role: 'editor'})).project;
+  const users = identityState === 'disabled'
+   ? f.users.map(user => ({...user, disabled: user.id === 'bob'}))
+   : f.users.filter(user => user.id !== 'bob');
+  await writeFile(f.identities, JSON.stringify({version: 1, users}));
+
+  assert.equal((await f.call(path + '/members', {version: p.version, userId: 'alice', role: null})).status, 400);
+  assert.equal((await f.call(path + '/members', {version: p.version, userId: 'bob', role: 'reviewer'})).status, 400);
+  const removed = await f.call(path + '/members', {version: p.version, userId: 'bob', role: null});
+  assert.equal(removed.status, 200);
+  assert.equal(Object.hasOwn(removed.project.members, 'bob'), false);
+  assert.equal(removed.project.version, p.version + 1);
+
+  await f.restart();
+  await writeFile(f.identities, JSON.stringify({version: 1, users: f.users}));
+  assert.equal((await f.call('/me', undefined, 'b'.repeat(48))).status, 200);
+  assert.equal((await f.call(path, undefined, 'b'.repeat(48))).status, 404);
+  assert.deepEqual((await f.call('/projects', undefined, 'b'.repeat(48))).projects, []);
+  assert.equal((await f.call(path + '/comments', {
+   version: removed.project.version,
+   revisionId: removed.project.latestRevisionId,
+   text: 'Access must remain revoked',
+  }, 'b'.repeat(48))).status, 404);
+ });
+}
 test('private configuration is refused inside repository',async()=>{await assert.rejects(createTeamService({directory:process.cwd(),identitiesFile:join(process.cwd(),'package.json'),root:process.cwd()}),/outside/);});
 test('restart refuses damaged snapshot identity and releases acquired lock',async t=>{const dir=await mkdtemp(join(tmpdir(),'schematica-corrupt-'));t.after(()=>rm(dir,{recursive:true,force:true}));const identities=join(dir,'identities.json'),data=join(dir,'data');await writeFile(identities,JSON.stringify({version:1,users:[]}));const service=await createTeamService({directory:data,identitiesFile:identities,root:process.cwd()});await Promise.all([service.close(),service.close()]);await writeFile(join(data,'projects.json'),JSON.stringify({version:1,projects:[{id:'bad'}]}));await assert.rejects(createTeamService({directory:data,identitiesFile:identities,root:process.cwd()}));await rm(join(data,'projects.json'));const replacement=await createTeamService({directory:data,identitiesFile:identities,root:process.cwd()});await replacement.close();});
 test('concurrent body uploads are bounded before mutation queue',async t=>{const {request}=await import('node:http');const dir=await mkdtemp(join(tmpdir(),'schematica-upload-'));const identities=join(dir,'identities.json');await writeFile(identities,JSON.stringify({version:1,users:[{id:'alice',name:'Alice',tokenHash:hash('a'.repeat(48))}]}));const service=await createTeamService({directory:join(dir,'data'),identitiesFile:identities,root:process.cwd()});const server=createAppServer({teamService:service});await new Promise(r=>server.listen(0,'127.0.0.1',r));const base=`http://127.0.0.1:${server.address().port}`;const uploads=[];t.after(async()=>{uploads.forEach(r=>r.destroy());server.closeAllConnections();await new Promise(r=>server.close(r));await service.close();await rm(dir,{recursive:true,force:true});});for(let i=0;i<16;i++){const req=request(base+'/api/team/projects',{method:'POST',headers:{'x-schematica-client':'1',authorization:'Bearer '+'a'.repeat(48),'content-type':'application/json'}},()=>{});req.on('error',()=>{});req.write('{');uploads.push(req);}await new Promise(r=>setTimeout(r,50));const res=await fetch(base+'/api/team/me',{headers:{'x-schematica-client':'1',authorization:'Bearer '+'a'.repeat(48)}});assert.equal(res.status,429);});

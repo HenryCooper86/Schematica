@@ -14,7 +14,7 @@ import { uid } from '../state.js';
 import { interfaceRows, interfaceCSV, importInterfaces, normalizeSpec, normalizeBudget } from '../engineering.js';
 import { reviewFindings, reviewHTML } from '../review.js';
 import { powerSummary, formatCurrent } from '../power.js';
-import { groupSubsystem, exposePort } from '../subsystems.js';
+import { exposePort } from '../subsystems.js';
 import { download } from '../export.js';
 import { serialize } from '../serialize.js';
 import { escAttr as esc, openModal, toast } from './press.js';
@@ -183,7 +183,7 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
         actions.expose = () => { const value = body.querySelector('[name=internal-port]').value;
           if (!value) return; exposePort(store, container.id, JSON.parse(value), body.querySelector('[name=port-name]').value); paint(); };
       }
-      formHandler = data => { selected = groupSubsystem(store, store.selection, data.get('name').trim() || tr('Subsystem')); paint(); };
+      formHandler = data => { selected = navigation.group(store.selection, data.get('name').trim() || tr('Subsystem')); paint(); };
       actions.up = () => { navigation.up(); dialog.close(); };
       body.querySelectorAll('[data-enter]').forEach(b => b.onclick = safe(() => { revisions.save(navigation.rootDoc(), navigation.rootDoc().title, 'subsystem-edit'); navigation.enter(b.dataset.enter); dialog.close(); }));
     } else if (tab === 'review') {

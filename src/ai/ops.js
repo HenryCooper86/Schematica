@@ -63,7 +63,7 @@ export const EDIT_SCHEMA = {
           from: { type: 'object', properties: { node: { type: 'string' }, port: { type: 'string' } }, required: ['node'] },
           to: { type: 'object', properties: { node: { type: 'string' }, port: { type: 'string' } }, required: ['node'] },
           bus: { type: 'string', enum: Object.keys(BUSES) },
-          arrow: { type: ['string', 'null'], enum: ['fwd', 'both', null] },
+          arrow: { type: ['string', 'null'], enum: ['fwd', 'back', 'both', null] },
           style: { type: ['string', 'null'], enum: [...WIRE_STYLES, null] },
           flow: { type: ['string', 'null'], enum: ['on', 'off', null] },
           color: { type: 'string', description: 'Zone colour as #rrggbb' },
@@ -557,6 +557,7 @@ function customDefinition(ctx, raw, what) {
 
 HANDLERS.replace_part = (ctx, op) => {
   const node = findNode(ctx, op.id);
+  if (node.subsystem) fail(`${node.id} is a subsystem; replace_part cannot replace a subsystem wrapper. Open the subsystem to edit its parts.`);
   if (op.kind === 'custom') fail('replace_part cannot make a custom part; use add_part with kind custom, or the editor\'s Customize');
   const part = Object.hasOwn(PARTS, op.kind) ? PARTS[op.kind] : null;
   if (!part) fail(`unknown kind "${op.kind}"; use search_parts to find kinds`);

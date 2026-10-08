@@ -7,6 +7,26 @@ import {
 } from '../src/state.js';
 import { initI18n, setLang } from '../src/i18n.js';
 
+test('document subscribers ignore selection while ordinary subscribers identify both change types', () => {
+  const store = new Store();
+  const changes = [], documents = [];
+  store.subscribe(change => changes.push(change));
+  const unsubscribe = store.subscribe(change => documents.push(change), { documentOnly: true });
+  store.setSelection(['n1']);
+  store.toggleSelection('n2');
+  store.clearSelection();
+  assert.deepEqual(changes, ['selection', 'selection', 'selection']);
+  assert.deepEqual(documents, []);
+  store.apply(doc => { doc.title = 'Edited'; });
+  store.undo();
+  store.redo();
+  store.replaceDoc(newDoc('Replacement'));
+  assert.deepEqual(documents, ['document', 'document', 'document', 'document']);
+  unsubscribe();
+  store.apply(doc => { doc.title = 'After unsubscribe'; });
+  assert.equal(documents.length, 4);
+});
+
 test('uid is unique and prefixed', () => {
   const a = uid('n');
   const b = uid('n');
