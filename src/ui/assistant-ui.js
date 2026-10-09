@@ -4,11 +4,13 @@ import { SKILLS } from '../ai/skills.js';
 import { showBlueprint } from './blueprint-ui.js';
 import { createEditPreview } from '../ai/preview.js';
 import { showEditPreview } from './ai-preview.js';
-import { trimHistory, encodeThread, decodeThread } from '../ai/session.js';
+import { trimHistory } from '../ai/session.js';
+import { createConversationStore, conversationContext } from '../ai/conversations.js';
+import { conversationListMarkup } from './assistant-history.js';
 // The assistant panel: settings, a message thread, quick actions, and the
 // composer. One reply is one undo step: the agent owns the store batch, the
 // panel only shows what happened and points the camera at it.
-import { createSettings, PROVIDERS, EFFORTS, estimateCost, THREAD_KEY } from '../ai/settings.js';
+import { createSettings, PROVIDERS, EFFORTS, estimateCost } from '../ai/settings.js';
 import { makeProvider, probeTools } from '../ai/providers/index.js';
 import { listOpenAIModels } from '../ai/providers/openai.js';
 import { BACKEND } from '../ai/runtime.js';
@@ -33,6 +35,9 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
   let storage = null;
   try { storage = window.localStorage; } catch { storage = null; }
   const settings = createSettings(storage);
+  const conversations = createConversationStore(storage);
+  let sessionId = null, sessionBoardTitle = store.doc.title, resumedConversation = false;
+  let sessionsOpen = false, persistTimer = null;
   let activeSkill = 'auto';
   let settingsOpen = false;
   let pendingPreview = false;
@@ -52,9 +57,13 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     // A rebuild must not swallow what the user has already typed.
     const draft = input ? input.value : '';
     const optionsOpen = el('ai-options')?.open;
+    const historyQuery = el('ai-history-search')?.value || '';
     panel.innerHTML = panelHeader(tr('Assistant'), 'assistant')
       + `<button id="ai-meta" type="button" data-state="unset" title="${escAttr(tr('Provider settings'))}"><i class="ai-dot"></i><span></span><em class="ai-state"></em></button>`
+      + `<p id="ai-history-warning" class="ai-history-notice" role="status" hidden>${escAttr(tr('Conversation history could not be saved on this device. Keep this tab open to retain unsaved messages.'))}</p>`
       + '<div id="ai-body">'
+      + `<section id="ai-history" aria-label="${escAttr(tr('Conversation history'))}" hidden><div class="ai-history-heading"><h4>${escAttr(tr('Conversations'))}</h4><button id="ai-history-back" type="button">${escAttr(tr('Back to conversation'))}</button></div><p>${escAttr(tr('Saved in this browser only. Clearing site data removes this history. Reopening a conversation does not restore its board or attached files.'))}</p><input id="ai-history-search" type="search" placeholder="${escAttr(tr('Search conversations'))}" aria-label="${escAttr(tr('Search conversations'))}" autocomplete="off"><ul id="ai-history-list"></ul></section>`
+      + `<p id="ai-resumed-note" class="ai-history-notice" hidden>${escAttr(tr('Reopened conversation. New requests use the board currently open. Add source files again if needed.'))}</p>`
       + '<form id="ai-settings" hidden>'
       + `<label><span>${escAttr(tr('Provider'))}</span><select id="ai-provider">${Object.entries(PROVIDERS).map(([id, p]) => `<option value="${id}">${escAttr(p.name)}</option>`).join('')}</select></label>`
       + `<label><span>${escAttr(tr('Model'))}</span><input id="ai-model" type="text" list="ai-models" spellcheck="false" autocomplete="off"><datalist id="ai-models"></datalist></label>`
@@ -85,6 +94,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     const h3 = panel.querySelector('h3');
     h3.insertAdjacentHTML('afterbegin', `<span class="ai-badge">${icon('sparkles')}</span>`);
     h3.querySelector('.panel-toggle').insertAdjacentHTML('beforebegin', '<span class="ai-tools">'
+      + `<button id="ai-history-toggle" class="ai-icon-btn" type="button" title="${escAttr(tr('Conversation history'))}" aria-label="${escAttr(tr('Conversation history'))}" aria-expanded="${sessionsOpen}">${icon('history')}</button>`
       + `<button id="ai-new" class="ai-icon-btn" type="button" title="${escAttr(tr('New thread'))}" aria-label="${escAttr(tr('New thread'))}">${icon('newThread')}</button>`
       + `<button id="ai-gear" class="ai-icon-btn" type="button" title="${escAttr(tr('Settings'))}" aria-label="${escAttr(tr('Assistant settings'))}">${icon('settings')}</button></span>`);
     h3.querySelector('.panel-toggle').insertAdjacentHTML('afterend', `<button id="ai-close" class="ai-icon-btn" type="button" title="${escAttr(tr('Close (A)'))}" aria-label="${escAttr(tr('Close the assistant'))}">${icon('close')}</button>`);
@@ -92,6 +102,8 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     bindChrome();
     if (draft) { input.value = draft; grow(); }
     if (optionsOpen !== undefined) el('ai-options').open = optionsOpen;
+    el('ai-history-search').value = historyQuery;
+    renderHistory();
   }
 
   // Everything the fresh markup needs: the references, and the listeners on
@@ -131,8 +143,24 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     el('ai-gear').addEventListener('click', () => showSettings(!settingsOpen));
     meta.addEventListener('click', () => showSettings(true));
     el('ai-close').addEventListener('click', close);
-    el('ai-new').addEventListener('click', () => { if (!busy) { clearThread(); showSettings(false); } });
-    input.addEventListener('input', grow);
+    el('ai-new').addEventListener('click', () => { if (!busy && !pendingPreview) { clearThread(); showHistory(false); showSettings(false); } });
+    el('ai-history-toggle').addEventListener('click', () => { if (!busy && !pendingPreview) showHistory(!sessionsOpen); });
+    el('ai-history-back').addEventListener('click', () => showHistory(false));
+    el('ai-history-search').addEventListener('input', renderHistory);
+    el('ai-history-list').addEventListener('click', event => {
+      const openButton = event.target.closest('[data-conversation]');
+      const deleteButton = event.target.closest('[data-delete-conversation]');
+      if (busy || pendingPreview) return;
+      if (openButton) openConversation(openButton.dataset.conversation);
+      if (deleteButton && window.confirm(tr('Delete this conversation from this browser? This cannot be undone.'))) {
+        const id = deleteButton.dataset.deleteConversation;
+        if (conversations.remove(id)) {
+          if (id === sessionId) clearThread(false);
+        }
+        renderHistory();
+      }
+    });
+    input.addEventListener('input', () => { grow(); scheduleSave(); });
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -149,6 +177,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     form.hidden = !settingsOpen;
     el('ai-gear').classList.toggle('active', settingsOpen);
     if (busy) setBusy(true);
+    el('ai-new').disabled = el('ai-history-toggle').disabled = !!busy || pendingPreview;
   }
 
   renderChrome();
@@ -222,6 +251,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
   // step aside while it is open so the form has the whole height to scroll in.
   function showSettings(on) {
     settingsOpen = on;
+    if (on) showHistory(false);
     form.hidden = !on;
     panel.classList.toggle('settings', on);
     el('ai-gear').classList.toggle('active', on);
@@ -412,38 +442,88 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     composer.classList.toggle('has-text', hasText);
   }
 
+  function scheduleSave() {
+    if (persistTimer !== null) return;
+    persistTimer = setTimeout(() => { persistTimer = null; saveThread(); }, 400);
+  }
   function saveThread() {
-    try {
-      localStorage.setItem(THREAD_KEY, encodeThread(history, visible, totals));
-    } catch { /* storage may be blocked; the thread lives for this session */ }
+    clearTimeout(persistTimer); persistTimer = null;
+    if (!visible.length && !input.value.trim()) {
+      if (sessionId && conversations.remove(sessionId)) sessionId = null;
+      el('ai-history-warning').hidden = !conversations.failed();
+      return;
+    }
+    if (!sessionId) sessionBoardTitle = store.doc.title;
+    const record = conversations.save({ id: sessionId, boardTitle: sessionBoardTitle, visible, draft: input.value, totals });
+    if (record) sessionId = record.id;
+    el('ai-history-warning').hidden = !conversations.failed();
+  }
+  function restoreConversation(record) {
+    attachments.clear();
+    sessionId = record.id; sessionBoardTitle = record.boardTitle;
+    visible = record.visible;
+    history = conversationContext(visible);
+    input.value = record.draft;
+    Object.assign(totals, record.totals);
+    lastUsage = Object.values(totals).some(Boolean) ? { usage: null, lastCost: null, threadCost: null } : null;
+    resumedConversation = true;
+    repaintUsage(); renderThread();
   }
   function loadThread() {
-    try {
-      const t = decodeThread(localStorage.getItem(THREAD_KEY));
-      if (t) {
-        history = t.history;
-        visible = t.visible;
-        Object.assign(totals, t.totals || {});
-      }
-    } catch { /* corrupt thread: start fresh */ }
+    const record = conversations.current();
+    if (record) restoreConversation(record);
+    el('ai-history-warning').hidden = !conversations.failed();
   }
-  function clearThread() {
+  function clearThread(archive = true) {
+    if (archive) saveThread();
+    clearTimeout(persistTimer); persistTimer = null;
+    conversations.clearActive();
+    sessionId = null; sessionBoardTitle = store.doc.title; resumedConversation = false;
     attachments.clear();
-    history = [];
-    visible = [];
-    input.value = '';
+    history = []; visible = []; input.value = '';
     for (const k of Object.keys(totals)) totals[k] = 0;
-    try { localStorage.removeItem(THREAD_KEY); } catch { /* fine */ }
-    renderThread();
     lastUsage = null;
-    repaintUsage();
+    renderThread(); repaintUsage(); renderHistory();
   }
+  function renderHistory() {
+    el('ai-history').hidden = !sessionsOpen;
+    panel.classList.toggle('history-open', sessionsOpen);
+    el('ai-history-toggle').setAttribute('aria-expanded', String(sessionsOpen));
+    el('ai-history-toggle').classList.toggle('active', sessionsOpen);
+    el('ai-history-list').innerHTML = conversationListMarkup(conversations.list(), sessionId, el('ai-history-search').value);
+    el('ai-history-warning').hidden = !conversations.failed();
+    el('ai-resumed-note').hidden = !resumedConversation;
+  }
+  function showHistory(on) {
+    if (on) {
+      saveThread();
+      settingsOpen = false; form.hidden = true; panel.classList.remove('settings');
+      el('ai-gear').classList.remove('active');
+    }
+    sessionsOpen = on;
+    renderHistory();
+    if (on) el('ai-history-search').focus(); else { grow(); input.focus(); }
+  }
+  function openConversation(id) {
+    if (id !== sessionId) {
+      saveThread();
+      const record = conversations.get(id);
+      if (!record) { renderHistory(); return; }
+      conversations.activate(id);
+      restoreConversation(record);
+      tools.ui.highlight.clear(); render('overlay');
+    }
+    showHistory(false); showSettings(false);
+  }
+  window.addEventListener('pagehide', saveThread);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveThread(); });
 
   function renderThread() {
     thread.innerHTML = threadMarkup(visible, { busy: !!busy, undoTop: store.undoStack.at(-1) });
     thread.querySelectorAll('[data-undo]').forEach((button) => onPress(button, () => { if (!button.disabled && !busy) store.undo(); }));
     thread.querySelectorAll('[data-show]').forEach((button) => onPress(button, () => highlight(visible[Number(button.dataset.show)].touched || [])));
     grow();
+    el('ai-resumed-note').hidden = !resumedConversation;
     thread.scrollTop = thread.scrollHeight;
   }
 
@@ -536,6 +616,8 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     sendBtn.hidden = on;
     stopBtn.hidden = !on;
     input.disabled = on;
+    el('ai-new').disabled = on || pendingPreview;
+    el('ai-history-toggle').disabled = on || pendingPreview;
     el('ai-skill').disabled = on;
     el('ai-blueprint').disabled = on;
     actions.querySelectorAll('button').forEach((b) => { b.disabled = on; });
@@ -574,6 +656,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     const userText = String(text ?? '').trim();
     if (!userText || busy || pendingPreview || attachments.isImporting()) return;
     if (!settings.configured()) { open(); showSettings(true); toast(tr('Add a provider and key first.')); return; }
+    if (sessionsOpen) showHistory(false);
     const gen = store.generation;
     const s = settings.get();
     const requestKey = settings.getKey();
@@ -604,6 +687,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     input.value = '';
     grow();
     renderThread();
+    saveThread();
     const run = s.tools === false ? runSingleShot : runRequest;
     // The lock is released in a finally: a throw inside the busy window must
     // not leave the canvas read-only. It reaches the user as an error bubble
@@ -613,8 +697,8 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
       res = await run({
         provider: makeProvider(s, requestKey),
         executor, store: requestStore, system, history, userText, boardText: board, documentText: sources.text, signal: busy.signal,
-        onText: (t) => { reply.text += t; renderThread(); },
-        onStatus: (line) => { visible.splice(visible.length - 1, 0, { role: 'status', text: line }); renderThread(); },
+        onText: (t) => { if (store.generation === gen) { reply.text += t; renderThread(); scheduleSave(); } },
+        onStatus: (line) => { if (store.generation === gen) { visible.splice(visible.length - 1, 0, { role: 'status', text: line }); renderThread(); scheduleSave(); } },
       });
     } catch (err) {
       res = { text: '', messages: history, touched: new Set(), usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, stop: 'end', rounds: 0, applied: 0, cutOff: false, error: err };
@@ -659,8 +743,11 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
         history = [];
       } else {
         pendingPreview = true;
+        el('ai-new').disabled = el('ai-history-toggle').disabled = true;
         showEditPreview(preview, applied => {
           pendingPreview = false;
+          el('ai-new').disabled = el('ai-history-toggle').disabled = false;
+          if (store.generation !== gen) return;
           if (applied) { reply.touched = [...res.touched]; reply.undoSnap = store.undoStack.at(-1); highlight(res.touched); showTouched([...res.touched], wasEmpty); }
           else history = [];
           visible.push({ role: 'status', text: applied ? tr('Draft applied.') : tr('The draft was discarded; the board is unchanged.') });
@@ -679,7 +766,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     activeSkill = skill;
     el('ai-skill').value = skill;
     input.value = text;
-    grow(); input.focus();
+    grow(); scheduleSave(); input.focus();
   }
 
   const ACTIONS = {
@@ -692,6 +779,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
       activeSkill = 'auto'; el('ai-skill').value = activeSkill;
       input.value = 'Build a board for: \nMust have: \nPower: \nConnectivity: ';
       grow();
+      scheduleSave();
       input.focus();
       input.setSelectionRange(19, 19);
     },

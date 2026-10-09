@@ -60,6 +60,29 @@ the website server on backend hosting), and are excluded from boards and exports
 Switching providers clears model-facing conversation history so provider-specific
 reasoning and signatures are not replayed to another vendor.
 
+## Conversation history
+
+The clock-arrow button in the assistant header opens **Conversation history**.
+Search titles, board names, drafts, or message text; select a session to continue it.
+**New thread** saves the current conversation and draft before opening an empty
+session. Replacing the board also archives the conversation. Reloading restores
+the active session, including an unsent draft and accumulated token counts.
+
+History is saved only in this browser for this website. It is not synced across
+devices or between the production, static, and localhost editions. Delete a
+conversation with its remove button; confirmation is required. Clearing site
+data also removes history. If browser storage is blocked or full, a notice asks
+you to keep the tab open: unsaved sessions remain in memory, and older saved
+conversations are not automatically evicted.
+
+Reopening a session does not restore a board snapshot or its attached files.
+New requests use the board currently open; attach sources again when needed.
+The full visible transcript remains available, while a resumed request uses up
+to 40 recent user/assistant text messages. Old tool calls, provider-specific
+reasoning, undo actions, credentials, and raw attachment data are excluded from
+the archive. Ordinary messages may still contain quoted source text. The former
+single saved conversation is migrated automatically when present.
+
 Effort currently applies only to Anthropic. Other presets use their provider's
 defaults. Gemini tool-call thought signatures and DeepSeek/MiniMax reasoning are
 retained for subsequent tool rounds without displaying them as assistant replies.

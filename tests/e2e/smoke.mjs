@@ -4,7 +4,9 @@ import { runGuidedReviewChecks } from './guided-review.mjs';
 import { runLayoutChecks } from './layout.mjs';
 import { runEnhancementChecks } from './enhancements.mjs';
 import { runWebChecks } from './web.mjs';
+import { runGuideChecks } from './guide.mjs';
 import { runAssistantFocusChecks } from './assistant-focus.mjs';
+import { runAssistantHistoryChecks } from './assistant-history.mjs';
 import { runSkillChecks } from './assistant-skills.mjs';
 import { runWorkflowChecks } from './workflows.mjs';
 import { runPerformance } from './performance.mjs';
@@ -296,13 +298,17 @@ const teamTools={js,check,sleep,navigate:url=>send('Page.navigate',{url}),resize
 try {
   if (process.env.E2E_FORCE_FAILURE === '1') throw new Error('Requested artifact verification failure');
   if (!process.env.WORKFLOW_E2E_ONLY) await js(`(()=>{const p=document.getElementById('ai-preview-enabled');p.checked=false;p.dispatchEvent(new Event('change'));return true;})()`);
-  if (process.env.FOCUS_E2E_ONLY) {
+  if (process.env.GUIDE_E2E_ONLY) {
+    await runGuideChecks({ send, js, check, origin, sleep });
+  } else if (process.env.HISTORY_E2E_ONLY) {
+    await send('Page.navigate', { url: 'about:blank' });
+    await runAssistantHistoryChecks({ send, js, check, sleep, fakeSeen, capture: teamTools.capture, origin });
+  } else if (process.env.FOCUS_E2E_ONLY) {
     await runAssistantFocusChecks({ js, check, sleep, request: true });
   } else if (process.env.TEAM_REVIEW_E2E_ONLY) {
     await runTeamReviewChecks(teamTools);
   } else if (process.env.KICAD_UPDATE_E2E_ONLY) {
     await runKiCadUpdateChecks({js,check,sleep});
-  await runTeamReviewChecks(teamTools);
   } else if (process.env.GUIDED_REVIEW_E2E_ONLY) {
     await runGuidedReviewChecks({js,key,check,sleep});
   } else if (process.env.ENHANCEMENTS_E2E_ONLY) {
@@ -1427,6 +1433,8 @@ try {
   await runGuidedReviewChecks({js,key,check,sleep});
   await runKiCadUpdateChecks({js,check,sleep});
   await runTeamReviewChecks(teamTools);
+  await runAssistantHistoryChecks({ send, js, check, sleep, fakeSeen, capture: teamTools.capture, origin });
+  await runGuideChecks({ send, js, check, origin, sleep });
   }
 } catch (err) {
   failed += 1;

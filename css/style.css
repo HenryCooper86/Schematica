@@ -1809,3 +1809,26 @@ html[data-theme="light"] .ai-result.warn { color: #92400e; }
 .team-diagram { max-height: 350px; overflow: auto; }
 .team-diagram svg { display: block; width: 100%; height: auto; max-height: 350px; }
 @media (max-width: 700px) { .team-columns { grid-template-columns: minmax(0, 1fr); } }
+
+/* Conversation history replaces the message area without covering the canvas. */
+#assistant.history-open:not(.collapsed) { height: clamp(420px, 78%, 800px); }
+#assistant.history-open :is(#ai-thread, #ai-actions, #ai-foot, #ai-settings, #ai-resumed-note),
+#assistant.settings #ai-resumed-note { display: none; }
+#ai-history[hidden], #ai-history-warning[hidden], #ai-resumed-note[hidden] { display: none; }
+#ai-history { min-width: 0; }
+.ai-history-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ai-history-heading h4 { margin: 0; font-size: 14px; }
+#ai-history-back { font: inherit; font-size: 11px; padding: 5px 7px; color: var(--muted); background: var(--bg2); border: 1px solid var(--line2); border-radius: 6px; }
+#ai-history > p, .ai-history-empty, .ai-history-notice { font-size: 11px; line-height: 1.5; color: var(--muted); }
+.ai-history-notice { flex: none; margin: 0; padding: 7px 14px; background: var(--bg1); border-bottom: 1px solid var(--line); }
+#ai-resumed-note { padding: 0 0 8px; background: transparent; }
+#ai-history-warning { color: var(--text); border-color: #b45309; }
+#ai-history-search { width: 100%; min-width: 0; box-sizing: border-box; font: inherit; font-size: 12px; padding: 8px; border: 1px solid var(--line2); border-radius: 7px; color: var(--text); background: var(--bg0); }
+#ai-history-search:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+#ai-history-list { list-style: none; padding: 0; margin: 10px 0 0; }
+.ai-history-row { display: flex; align-items: flex-start; gap: 5px; margin: 7px 0; }
+.ai-history-row > button[data-conversation] { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; text-align: left; padding: 10px; background: var(--bg1); border: 1px solid var(--line); border-radius: 8px; color: var(--text); font: inherit; font-size: 12px; cursor: pointer; }
+.ai-history-row > button[data-conversation]:hover, .ai-history-row > button[aria-current] { border-color: var(--accent); background: var(--accent-dim); }
+.ai-history-row :is(strong, span, small) { overflow-wrap: anywhere; }
+.ai-history-row :is(span, time, small) { color: var(--muted); font-size: 10.5px; line-height: 1.4; }
+.ai-history-row > .ai-icon-btn { margin-top: 6px; }

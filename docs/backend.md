@@ -151,7 +151,8 @@ source downloads. Stop cancels active URL fetching and PDF extraction.
 Tool-capable models use `read_url` when needed. Single-shot models receive up to
 four explicitly supplied message URLs as temporary source context before their
 response. Source text is available throughout that request, then replaced with a
-URL/time summary in saved tool history. Ordinary assistant summaries or quotes
+URL/time summary in the active session's in-memory tool history. Conversation
+archives omit tool history. Ordinary assistant summaries or quotes
 remain part of the conversation, and authored Blueprint content is saved normally.
 
 This is URL reading, not a search engine or an interactive browser. It does not
