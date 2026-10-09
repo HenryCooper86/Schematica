@@ -37,6 +37,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
   let settingsOpen = false;
   let pendingPreview = false;
   let previewEnabled = true;
+  let visible = [];          // messages shown in the conversation
   let busy = null;           // AbortController while a request runs
 
   const el = (id) => document.getElementById(id);
@@ -50,6 +51,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
   function renderChrome() {
     // A rebuild must not swallow what the user has already typed.
     const draft = input ? input.value : '';
+    const optionsOpen = el('ai-options')?.open;
     panel.innerHTML = panelHeader(tr('Assistant'), 'assistant')
       + `<button id="ai-meta" type="button" data-state="unset" title="${escAttr(tr('Provider settings'))}"><i class="ai-dot"></i><span></span><em class="ai-state"></em></button>`
       + '<div id="ai-body">'
@@ -70,8 +72,9 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
       + actionCards().map((c) => `<button type="button" data-act="${c.act}" title="${escAttr(c.desc)}"><i class="ai-act-ic">${icon(c.icon)}</i><span><b>${escAttr(c.title)}</b><small>${escAttr(c.desc)}</small></span></button>`).join('')
       + '</div>'
       + '</div>'
-       + `<div id="ai-foot"><label class="ai-preview-option"><input id="ai-preview-enabled" type="checkbox"${previewEnabled ? ' checked' : ''}>${escAttr(tr('Preview changes before applying'))}</label><p class="ai-web-state">${escAttr(BACKEND ? tr('Web sources available — paste a public URL in your message.') : tr('Web sources need the Node-backed site. You can attach downloaded documents here.'))}</p><div id="ai-documents"></div><div id="ai-composer">`
-      + `<div class="ai-composer-row"><label>${escAttr(tr('Skill'))} <select id="ai-skill"><option value="auto">${escAttr(tr('Automatic'))}</option>${SKILLS.map(s => `<option value="${s.id}"${activeSkill === s.id ? ' selected' : ''}>${escAttr(trd(s.name))}</option>`).join('')}</select></label><button id="ai-blueprint" type="button">${escAttr(tr('Blueprint'))}</button></div>`
+       + `<div id="ai-foot"><details id="ai-options" open><summary>${escAttr(tr('Options & sources'))}<span id="ai-source-count"></span></summary><div class="ai-options-content"><label class="ai-preview-option"><input id="ai-preview-enabled" type="checkbox"${previewEnabled ? ' checked' : ''}>${escAttr(tr('Preview changes before applying'))}</label><p class="ai-web-state">${escAttr(BACKEND ? tr('Web sources available — paste a public URL in your message.') : tr('Web sources need the Node-backed site. You can attach downloaded documents here.'))}</p><div id="ai-documents"></div>`
+      + `<div class="ai-composer-row ai-skill-row"><label>${escAttr(tr('Skill'))} <select id="ai-skill"><option value="auto">${escAttr(tr('Automatic'))}</option>${SKILLS.map(s => `<option value="${s.id}"${activeSkill === s.id ? ' selected' : ''}>${escAttr(trd(s.name))}</option>`).join('')}</select></label><button id="ai-blueprint" type="button">${escAttr(tr('Blueprint'))}</button></div>`
+      + '</div></details><div id="ai-composer">'
       + `<textarea id="ai-input" rows="1" placeholder="${escAttr(tr('Describe a board, or ask for a change'))}" aria-label="${escAttr(tr('Message the assistant'))}"></textarea>`
       + `<div class="ai-composer-row"><span class="ai-hint"><kbd>Enter</kbd> ${escAttr(tr('send'))} &middot; <kbd>Shift</kbd>+<kbd>Enter</kbd> ${escAttr(tr('new line'))}</span>`
       + `<button id="ai-send" type="button" title="${escAttr(tr('Send (Enter)'))}" aria-label="${escAttr(tr('Send'))}">${icon('send')}</button>`
@@ -88,6 +91,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     bindCollapsible(panel, 'assistant');
     bindChrome();
     if (draft) { input.value = draft; grow(); }
+    if (optionsOpen !== undefined) el('ai-options').open = optionsOpen;
   }
 
   // Everything the fresh markup needs: the references, and the listeners on
@@ -221,7 +225,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     form.hidden = !on;
     panel.classList.toggle('settings', on);
     el('ai-gear').classList.toggle('active', on);
-    if (on) { invalidateDraft(); fillForm(); } else el('ai-input').focus();
+    if (on) { invalidateDraft(); fillForm(); } else { grow(); input.focus(); }
     refreshMeta();
   }
 
@@ -324,6 +328,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     const app = document.getElementById('app');
     if (app.classList.contains('panels-hidden')) document.getElementById('btn-panels').click();
     panel.hidden = false;
+    grow();
     btn.classList.add('active');
     btn.setAttribute('aria-pressed', 'true');
     // Settings are read from storage on every call, so a seed written after
@@ -378,7 +383,6 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
 
   // ---- Thread ----
   let history = [];          // provider-facing messages
-  let visible = [];          // what the thread shows: { role, text, undoSnap?, touched? }
   let generation = store.generation;
   // What the usage line last said, as arguments rather than text, so a
   // language change can render the same numbers in the new language.
@@ -387,15 +391,25 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
   const stable = stableSystem();
   // Initialization calls onChange before the controller is assigned.
   let attachments;
-  function refreshSend() { sendBtn.disabled = !!busy || !!attachments?.isImporting(); }
+  function refreshSend() {
+    sendBtn.disabled = !!busy || !!attachments?.isImporting();
+    const count = attachments?.context().entries.length || 0;
+    el('ai-source-count').textContent = count ? tr(' · {n} sources', { n: count }) : '';
+  }
   attachments = initAssistantDocuments({ container: documentsEl, onChange: refreshSend });
 
   // The composer grows with its text up to a few lines, then scrolls; the
   // send button lights up once there is something to send.
   function grow() {
+    const hasText = input.value.trim().length > 0;
+    const focused = hasText || visible.length > 0 || !!busy;
+    if (panel.classList.contains('focused') !== focused) el('ai-options').open = !focused;
+    panel.classList.toggle('focused', focused);
+    panel.classList.toggle('responding', !!busy);
+    actions.hidden = focused;
     input.style.height = 'auto';
-    input.style.height = `${Math.min(input.scrollHeight, 132)}px`;
-    composer.classList.toggle('has-text', input.value.trim().length > 0);
+    input.style.height = `${Math.min(input.scrollHeight, focused ? 220 : 132)}px`;
+    composer.classList.toggle('has-text', hasText);
   }
 
   function saveThread() {
@@ -417,6 +431,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     attachments.clear();
     history = [];
     visible = [];
+    input.value = '';
     for (const k of Object.keys(totals)) totals[k] = 0;
     try { localStorage.removeItem(THREAD_KEY); } catch { /* fine */ }
     renderThread();
@@ -428,10 +443,8 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     thread.innerHTML = threadMarkup(visible, { busy: !!busy, undoTop: store.undoStack.at(-1) });
     thread.querySelectorAll('[data-undo]').forEach((button) => onPress(button, () => { if (!button.disabled && !busy) store.undo(); }));
     thread.querySelectorAll('[data-show]').forEach((button) => onPress(button, () => highlight(visible[Number(button.dataset.show)].touched || [])));
+    grow();
     thread.scrollTop = thread.scrollHeight;
-    const empty = visible.length === 0;
-    actions.classList.toggle('cards', empty);
-    actions.classList.toggle('chips', !empty);
   }
 
   // A chip is live only while the exact snapshot its reply pushed is still on
@@ -516,6 +529,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
   // toolbar edit aliases the same store batch and would cut the reply's
   // single undo step in half.
   function setBusy(on) {
+    if (on) el('ai-options').open = false;
     attachments.setBusy(on);
     refreshSend();
     form.inert = on;
@@ -532,6 +546,7 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     document.querySelectorAll('#toolbar button, #toolbar input').forEach((node) => { if (node.id !== 'btn-assistant') node.inert = on; });
     document.getElementById('app').classList.toggle('ai-busy', on);
     refreshChips();
+    grow();
   }
 
   function usageText(u, cost) {

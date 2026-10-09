@@ -4,6 +4,7 @@ import { runGuidedReviewChecks } from './guided-review.mjs';
 import { runLayoutChecks } from './layout.mjs';
 import { runEnhancementChecks } from './enhancements.mjs';
 import { runWebChecks } from './web.mjs';
+import { runAssistantFocusChecks } from './assistant-focus.mjs';
 import { runSkillChecks } from './assistant-skills.mjs';
 import { runWorkflowChecks } from './workflows.mjs';
 import { runPerformance } from './performance.mjs';
@@ -295,7 +296,9 @@ const teamTools={js,check,sleep,navigate:url=>send('Page.navigate',{url}),resize
 try {
   if (process.env.E2E_FORCE_FAILURE === '1') throw new Error('Requested artifact verification failure');
   if (!process.env.WORKFLOW_E2E_ONLY) await js(`(()=>{const p=document.getElementById('ai-preview-enabled');p.checked=false;p.dispatchEvent(new Event('change'));return true;})()`);
-  if (process.env.TEAM_REVIEW_E2E_ONLY) {
+  if (process.env.FOCUS_E2E_ONLY) {
+    await runAssistantFocusChecks({ js, check, sleep, request: true });
+  } else if (process.env.TEAM_REVIEW_E2E_ONLY) {
     await runTeamReviewChecks(teamTools);
   } else if (process.env.KICAD_UPDATE_E2E_ONLY) {
     await runKiCadUpdateChecks({js,check,sleep});
@@ -775,6 +778,7 @@ try {
   // shows the quick actions as cards with a description each.
   const fresh = await js(`(() => ({ state: document.getElementById('ai-meta').dataset.state, mode: document.getElementById('ai-actions').classList.contains('cards'), acts: [...document.querySelectorAll('#ai-actions [data-act]')].map((b) => b.dataset.act), descs: document.querySelectorAll('#ai-actions [data-act] small').length }))()`);
   check('an untested provider shows a grey dot and the empty thread shows skill and editing action cards', fresh.state === 'untested' && fresh.mode && JSON.stringify(fresh.acts) === JSON.stringify(['blueprint', 'flow', 'presentation', 'simplify', 'review', 'build', 'fix', 'fill']) && fresh.descs === 8, JSON.stringify(fresh));
+  await runAssistantFocusChecks({ js, check });
   // The settings sheet scrolls inside the panel: Save is reachable however
   // long the provider's help text is (it used to overflow and clip).
   await js(`document.getElementById('ai-gear').click(); true`);
@@ -1011,7 +1015,8 @@ try {
   check('the board is empty before the build', (await js(`document.querySelectorAll('#canvas g.node').length`)) === 0);
   await key('a', 'KeyA', 65);
   await sleep(100);
-  await js(`(() => { const i = document.getElementById('ai-input'); i.value = 'build a small sensor node'; i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true; })()`);
+  const responding = await js(`(() => { const i = document.getElementById('ai-input'); i.value = 'build a small sensor node'; i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return { stop: !document.getElementById('ai-stop').hidden, starters: document.getElementById('ai-actions').hidden, options: document.getElementById('ai-options').open, thread: document.getElementById('ai-thread').offsetHeight, panel: document.getElementById('assistant').offsetHeight }; })()`);
+  check('a running request gives most of the panel to the conversation and keeps Stop accessible', responding.stop && responding.starters && !responding.options && responding.thread > responding.panel / 2, JSON.stringify(responding));
   let built = null;
   for (let i = 0; i < 40; i++) {
     built = await js(`(() => ({ nodes: document.querySelectorAll('#canvas g.node').length, wires: document.querySelectorAll('#canvas g.wire').length, zones: document.querySelectorAll('#canvas g.zone').length, title: document.getElementById('title').value, done: !!document.querySelector('#ai-thread .ai-msg.assistant') && /Done\\./.test(document.querySelector('#ai-thread .ai-msg.assistant:last-of-type').textContent), sending: !document.getElementById('ai-stop').hidden }))()`);
@@ -1025,8 +1030,8 @@ try {
   check('everything the assistant touched is highlighted', highlighted === 6, String(highlighted));
   const statusLines = await js(`[...document.querySelectorAll('#ai-thread .ai-status')].map((s) => s.textContent)`);
   check('tool activity shows as status lines', statusLines.some((s) => /applying 7 edits/.test(s)), JSON.stringify(statusLines));
-  const afterBuild = await js(`(() => { const i = document.getElementById('ai-input'); const one = i.offsetHeight; i.value = 'one\\ntwo\\nthree\\nfour'; i.dispatchEvent(new Event('input', { bubbles: true })); const four = i.offsetHeight; i.value = ''; i.dispatchEvent(new Event('input', { bubbles: true })); return { state: document.getElementById('ai-meta').dataset.state, chips: document.getElementById('ai-actions').classList.contains('chips'), grouped: document.querySelectorAll('#ai-thread .ai-activity .ai-status').length, one, four, reset: i.offsetHeight }; })()`);
-  check('after a reply the dot is green, the actions fold to chips, activity is grouped, and the composer grows with its text', afterBuild.state === 'ready' && afterBuild.chips && afterBuild.grouped >= 1 && afterBuild.four > afterBuild.one && afterBuild.reset === afterBuild.one, JSON.stringify(afterBuild));
+  const afterBuild = await js(`(() => { const i = document.getElementById('ai-input'); const one = i.offsetHeight; i.value = 'one\\ntwo\\nthree\\nfour'; i.dispatchEvent(new Event('input', { bubbles: true })); const four = i.offsetHeight; i.value = ''; i.dispatchEvent(new Event('input', { bubbles: true })); return { state: document.getElementById('ai-meta').dataset.state, actionsHidden: document.getElementById('ai-actions').getBoundingClientRect().height === 0, grouped: document.querySelectorAll('#ai-thread .ai-activity .ai-status').length, one, four, reset: i.offsetHeight }; })()`);
+  check('after a reply the dot is green, the starter actions stay hidden, activity is grouped, and the composer grows with its text', afterBuild.state === 'ready' && afterBuild.actionsHidden && afterBuild.grouped >= 1 && afterBuild.four > afterBuild.one && afterBuild.reset === afterBuild.one, JSON.stringify(afterBuild));
   const chip = await js(`(() => { const b = document.querySelector('#ai-thread .ai-chips button[data-undo]'); return { exists: !!b, disabled: b && b.disabled, undoEnabled: !document.getElementById('undo').disabled }; })()`);
   check('the reply carries a live "Undo this" chip', chip.exists && chip.disabled === false && chip.undoEnabled, JSON.stringify(chip));
   await js(`document.querySelector('#ai-thread .ai-chips button[data-undo]').click(); true`);
@@ -1097,6 +1102,7 @@ try {
   await sleep(1200);
   const restored2 = await js(`document.querySelectorAll('#ai-thread .ai-msg').length`);
   check('the thread is restored after a reload', restored2 === threadCount && restored2 > 0, `${restored2} vs ${threadCount}`);
+  check('restored conversations keep starter actions hidden and options folded', await js(`document.getElementById('ai-actions').hidden && !document.getElementById('ai-options').open`));
   await send('Page.navigate', { url: 'about:blank' });
   await sleep(200);
   await send('Page.navigate', { url: `${origin}/#${await encodeShare(drone)}` });

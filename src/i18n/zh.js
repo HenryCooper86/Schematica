@@ -1274,6 +1274,8 @@ export default {
   'Cancel import': '取消导入',
   'Add source files': '添加源文件',
   'Add source folder': '添加源文件夹',
+  'Options & sources': '选项与来源',
+  ' · {n} sources': ' · {n} 个来源',
   'Sources · drop files here': '来源 · 将文件拖到此处',
   'Files stay in this tab’s memory until reload, New thread, or board replacement. On Send, selected extracted text goes to your chosen AI endpoint, through a relay when configured. Imports stay local.': '文件仅保存在此标签页内存中，直到刷新、新对话或更换板图。发送时，所选的提取文本会发送到您选择的 AI 端点（配置了中继时经中继转发）。导入过程全部在本地完成。',
   'Source preview: {name}': '来源预览：{name}',

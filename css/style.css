@@ -623,6 +623,7 @@ g.node:hover .ports,
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
   overflow: hidden;
 }
+#assistant.focused:not(.collapsed):not(.settings) { height: clamp(420px, 78%, 800px); }
 #assistant[hidden] { display: none; }
 #assistant h3 {
   margin: 0;
@@ -792,8 +793,7 @@ g.node:hover .ports,
 .ai-chips button:disabled { opacity: 0.4; cursor: default; }
 .ai-chips .ai-ic { width: 12px; height: 12px; }
 
-/* Quick actions: cards under an intro while the thread is empty, a chip row
-   above the composer once there is a conversation. Same buttons both ways. */
+/* Starter actions are shown only with an empty conversation and draft. */
 #ai-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; flex: none; }
 #ai-actions .ai-intro { display: none; }
 #ai-actions button {
@@ -819,6 +819,7 @@ g.node:hover .ports,
 #ai-actions button small { display: none; }
 #ai-actions .ai-act-ic { display: inline-flex; align-items: center; justify-content: center; color: var(--accent); flex: none; }
 #ai-actions .ai-act-ic .ai-ic { width: 13px; height: 13px; }
+#ai-actions[hidden] { display: none; }
 #ai-actions.cards { order: -1; }
 #ai-actions.cards .ai-intro { grid-column: 1 / -1; display: block; margin: 2px 0 6px; font-size: 12px; line-height: 1.5; color: var(--muted); }
 #ai-actions button span { min-width: 0; }
@@ -834,7 +835,14 @@ g.node:hover .ports,
   border-top: 1px solid var(--line);
   background: var(--bg1);
 }
+#ai-options { flex: 0 1 auto; min-height: 0; overflow-y: auto; margin-bottom: 8px; }
+#ai-options > summary { display: none; cursor: pointer; color: var(--muted); font-size: 11px; padding: 3px 0; }
+#assistant.focused #ai-options > summary { display: list-item; list-style-position: inside; }
+#ai-options > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+#assistant.focused #ai-options[open] { max-height: min(240px, 28vh); }
+.ai-options-content { padding: 2px 0; }
 #ai-composer, #ai-usage { flex: none; }
+#ai-usage:empty { display: none; }
 #ai-composer {
   display: flex;
   flex-direction: column;
@@ -861,6 +869,8 @@ g.node:hover .ports,
   outline: none;
   overflow-y: auto;
 }
+#assistant.focused #ai-input { min-height: 60px; max-height: min(220px, 24vh); }
+#assistant.responding #ai-input { min-height: 20px; }
 #ai-input::placeholder { color: var(--faint); }
 #ai-input:disabled { color: var(--muted); }
 .ai-composer-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -1750,8 +1760,8 @@ html[data-theme="light"] .ai-result.warn { color: #92400e; }
 #ai-skill { width: 132px; min-width: 0; }
 #ai-blueprint { cursor: pointer; }
 #ai-blueprint:hover:not(:disabled), #ai-skill:hover:not(:disabled) { color: var(--text); border-color: var(--accent); }
-#ai-composer > .ai-composer-row:first-child label { display: flex; align-items: center; gap: 6px; min-width: 0; }
-#ai-composer > .ai-composer-row:first-child { flex-wrap: wrap; margin-bottom: 2px; color: var(--muted); font-size: 10.5px; }
+.ai-skill-row label { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ai-skill-row { flex-wrap: wrap; margin-bottom: 2px; color: var(--muted); font-size: 10.5px; }
 #ai-actions.cards { max-height: 230px; overflow-y: auto; }
 #ai-actions.cards button { flex-shrink: 0; }
 @media (max-width: 650px) { .blueprint-fields { grid-template-columns: 1fr; } }

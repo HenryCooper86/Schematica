@@ -13,6 +13,7 @@ export async function runSkillChecks({ js, check, sleep, fakeSeen }) {
   for(let i=0;i<80;i++){ if(await js(`!!document.querySelector('#ai-preview-dialog[open]')`))break; await sleep(75); }
   check('AI preview shows readable Blueprint and chapter content',await js(`(()=>{const d=document.getElementById('ai-preview-dialog');return d?.open && d.textContent.includes('Explain a sensor node') && d.textContent.includes('Process measurements');})()`));
   check('successful replies turn an untested connection green', await js(`document.getElementById('ai-meta').dataset.state==='ready' && getComputedStyle(document.querySelector('#ai-meta .ai-dot')).backgroundColor==='rgb(74, 222, 128)'`));
+  await js(`document.getElementById('ai-options').open = true; true`);
   check('skill and Blueprint controls share compact sizing', await js(`['ai-skill','ai-blueprint'].every(id=>document.getElementById(id).getBoundingClientRect().height===24) && [...document.querySelectorAll('#ai-actions button')].every(b=>b.getBoundingClientRect().height<=28)`));
   check('selected skill guidance reached the provider',fakeSeen.some(f=>JSON.stringify(f.system).includes('Skill: Presentation storytelling')));
   check('draft parts are absent before apply',await js(`![...document.querySelectorAll('#canvas .node')].some(n=>n.textContent.includes('Story controller'))`));
