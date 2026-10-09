@@ -7,8 +7,8 @@ import { tr, trd } from './i18n.js';
 import { BUSES } from './buses.js';
 import { CATEGORY_COLORS, DISPOSITIONS, SEVERITY_COLORS } from './palette.js';
 import {
-  portPosition, wireGeomToPoint, wrapText, noteHeight,
-  nodeRect, nodeSize, nodeMeta, NOTE_W, LANE_TITLE_H, textUnits,
+  portPosition, wireGeomToPoint, noteLines, noteHeight,
+  nodeRect, nodeSize, nodeMeta, NOTE_W, NOTE_FONT_SIZE, NOTE_FONT_FAMILY, LANE_TITLE_H, textUnits,
 } from './geometry.js';
 
 // The canvas mirrors net_draw's look one to one: gradient cards with a drop
@@ -460,13 +460,13 @@ function zoneMarkup(zone, selected) {
 }
 
 function noteMarkup(note, selected) {
-  const lines = wrapText(note.text);
+  const lines = noteLines(note.text);
   const h = noteHeight(note.text);
   let s = `<g class="note" data-id="${esc(note.id)}" data-type="note">`;
   s += `<rect x="${note.x}" y="${note.y}" width="${NOTE_W}" height="${h}" rx="8"`
     + ` fill="#1c1710" stroke="${selected ? ACCENT : '#8a6d3b'}" stroke-width="${selected ? 2 : 1}"/>`;
   lines.forEach((line, i) => {
-    s += `<text x="${note.x + 10}" y="${note.y + 20 + i * 16}" font-size="11.5" fill="#e8c884"`
+    s += `<text x="${note.x + 10}" y="${note.y + 20 + i * 16}" font-size="${NOTE_FONT_SIZE}" font-family="${esc(NOTE_FONT_FAMILY)}" font-weight="400" fill="#e8c884"`
       + `${i === 0 ? ' data-edit="text"' : ''}>${esc(line)}</text>`;
   });
   if (note.locked) s += lockMarkup(note.x + NOTE_W - 16, note.y + 4);

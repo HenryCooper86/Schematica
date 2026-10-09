@@ -151,6 +151,21 @@ test('wrapText wraps at maxChars and never returns empty', () => {
   assert.deepEqual(wrapText(''), ['']);
 });
 
+test('long URLs and identifiers wrap within the budget without losing characters', () => {
+  for (const text of [
+    'https://d-robotics.github.io/rdk_doc/en/Quick_start/accessory/overview/',
+    'SUPERCALIFRAGILISTICEXPIALIDOCIOUS'.repeat(3),
+    '👩🏽‍🔧'.repeat(15),
+  ]) {
+    const lines = wrapText(text);
+    assert.ok(lines.length > 1);
+    assert.equal(lines.join(''), text);
+    assert.ok(lines.every(line => textUnits(line) <= 22), JSON.stringify(lines));
+    const graphemes = value => [...new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(value)].map(s => s.segment);
+    assert.deepEqual(lines.flatMap(graphemes), graphemes(text), 'wrapping preserves grapheme clusters');
+  }
+});
+
 test('wrapText breaks CJK text per character, ASCII output unchanged', () => {
   // An English sentence must wrap into exactly the lines the old,
   // whitespace-only-split algorithm produced.

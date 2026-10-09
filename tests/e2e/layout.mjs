@@ -1,5 +1,35 @@
 // Real browser geometry catches controls that render outside their modal card.
 export async function runLayoutChecks({ js, send, check, sleep, screenshot }) {
+  const noteResults = await js(`(async()=>{
+    const {diagramMarkup}=await import('/src/render.js');
+    const {buildExportSVG}=await import('/src/export.js');
+    const texts=[
+      'Check camera compatibility against https://d-robotics.github.io/rdk_doc/en/Quick_start/accessory/overview/',
+      'W'.repeat(70),
+      '接口说明：ESP32-S3、CSI、UART。'+'👩🏽‍🔧'.repeat(18)
+    ];
+    const doc={schema:1,title:'Note wrapping',nodes:[],wires:[],zones:[],journey:[],notes:texts.map((text,i)=>({id:'note-wrap-'+i,x:20+i*180,y:20,text}))};
+    const fixture=document.createElement('div');document.body.append(fixture);
+    const results=[];
+    try {
+      for(const exported of [false,true]) for(const zoom of [0.53,1,2]) {
+        fixture.innerHTML=exported?buildExportSVG(doc):'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900">'+diagramMarkup(doc)+'</svg>';
+        fixture.style.transform='scale('+zoom+')';
+        const notes=[...fixture.querySelectorAll('.note')];
+        const failures=[];
+        for(const [i,note] of notes.entries()) {
+          const box=note.querySelector('rect').getBoundingClientRect();
+          const lines=[...note.querySelectorAll('text')];
+          // Fractional zoom introduces subpixel rounding in DOM rectangles.
+          for(const line of lines) {const r=line.getBoundingClientRect();if(r.left<box.left+9*zoom-0.1||r.right>box.right-9*zoom+0.1||r.top<box.top-0.1||r.bottom>box.bottom+0.1) failures.push({text:line.textContent,line:r.toJSON(),box:box.toJSON()});}
+          if(lines.map(t=>t.textContent).join('').replace(/\\s/g,'')!==texts[i].replace(/\\s/g,'')) failures.push('lost text');
+        }
+        results.push({exported,zoom,notes:notes.length,failures});
+      }
+    } finally {fixture.remove();}
+    return results;
+  })()`);
+  for (const result of noteResults) check(`note text stays within its border at ${result.zoom}x in ${result.exported ? 'SVG export' : 'canvas markup'}`, result.notes===3&&!result.failures.length, JSON.stringify(result));
   const cases = [
     ['export-dialog', "document.getElementById('btn-export').click()"],
     ['drc-dialog', "document.getElementById('btn-check').click()"],

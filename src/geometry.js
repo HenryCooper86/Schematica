@@ -360,8 +360,24 @@ function joinTokens(toks) {
   return s;
 }
 
-export function wrapText(text, maxChars = 22) {
-  const tokens = tokenizeForWrap(String(text));
+const wrapGraphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+
+// Preserve ordinary words, but a URL/identifier wider than the whole line must
+// break. Graphemes keep combining marks and joined emoji with their base text.
+function splitWideToken(token, limit, measure) {
+  if (measure(token.text) <= limit) return [token];
+  const pieces = [];
+  let text = '';
+  for (const { segment } of wrapGraphemes.segment(token.text)) {
+    if (text && measure(text + segment) > limit) { pieces.push(text); text = ''; }
+    text += segment;
+  }
+  if (text) pieces.push(text);
+  return pieces.map((text, i) => ({ text, space: i === 0 && token.space }));
+}
+
+export function wrapText(text, maxChars = 22, measure = textUnits) {
+  const tokens = tokenizeForWrap(String(text)).flatMap(tok => splitWideToken(tok, maxChars, measure));
   if (!tokens.length) return [''];
   const lines = [];
   // A line is built as its token list, so the carry below can move whole
@@ -371,7 +387,7 @@ export function wrapText(text, maxChars = 22) {
   let rendered = '';
   for (const tok of tokens) {
     const candidate = rendered + (line.length && tok.space ? ' ' : '') + tok.text;
-    if (line.length && textUnits(candidate) > maxChars) {
+    if (line.length && measure(candidate) > maxChars) {
       // Don't start the new line with closing punctuation: carry the run of
       // marks already stuck to the finished line's end, plus exactly one
       // token before it (a whole Latin word or a single CJK character), down
@@ -455,9 +471,38 @@ export function zoneMembers(doc, zone) {
 }
 
 export const NOTE_W = 160;
+export const NOTE_FONT_SIZE = 11.5;
+export const NOTE_FONT_FAMILY = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+const NOTE_TEXT_W = NOTE_W - 20 - 2; // 10px padding and a little room for glyph overhang.
+let noteMeasureContext;
+const noteLineCache = new Map();
+
+function measureNoteText(text) {
+  if (noteMeasureContext === undefined) {
+    try { noteMeasureContext = typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d'); }
+    catch { noteMeasureContext = null; }
+    if (noteMeasureContext) noteMeasureContext.font = `${NOTE_FONT_SIZE}px ${NOTE_FONT_FAMILY}`;
+  }
+  // Non-browser geometry/export callers use a conservative glyph-width bound.
+  if (!noteMeasureContext) return textUnits(text) * NOTE_FONT_SIZE;
+  const metrics = noteMeasureContext.measureText(text);
+  return Math.max(metrics.width, (metrics.actualBoundingBoxLeft || 0) + (metrics.actualBoundingBoxRight || 0));
+}
+
+export function noteLines(text) {
+  const key = String(text);
+  if (noteLineCache.has(key)) return noteLineCache.get(key);
+  const lines = wrapText(key, NOTE_TEXT_W, measureNoteText)
+    // A punctuation carry can itself exceed the width when attached to a long
+    // token. Containment takes priority over that typographic preference.
+    .flatMap(text => splitWideToken({ text, space: false }, NOTE_TEXT_W, measureNoteText).map(t => t.text));
+  if (noteLineCache.size >= 128) noteLineCache.delete(noteLineCache.keys().next().value);
+  noteLineCache.set(key, lines);
+  return lines;
+}
 
 export function noteHeight(text) {
-  return 16 + wrapText(text).length * 16;
+  return 16 + noteLines(text).length * 16;
 }
 
 // Include routed detours and label pills so Fit, snapshots and exports agree.
