@@ -42,6 +42,12 @@ export async function runEngineeringChecks({ js, key, check, sleep }) {
   check('cross-tab conflict exposes an explicit choice',await js(`!!document.querySelector('[data-action=keep]')&&!!document.querySelector('[data-action=remote]')`));
   await js(`document.querySelector('[data-action=keep]').click();true`);
   check('keeping local version restores its autosave without losing the other snapshot',await js(`JSON.parse(localStorage.getItem('schematica.autosave')).title==='Engineering test'&&[...document.querySelectorAll('#engineering-body li')].some(li=>li.textContent.includes('Other tab'))`));
+  // Conflict snapshots become durable asynchronously in IndexedDB. The saved
+  // indicator intentionally stays unsaved until those transactions complete.
+  for (let attempt=0;attempt<50;attempt++) {
+    if (await js(`document.getElementById('recovery-status').dataset.state==='saved'`)) break;
+    await sleep(100);
+  }
   check('resolving a remote conflict restores the saved indicator',await js(`document.getElementById('recovery-status').dataset.state==='saved'`));
   await js(`document.querySelector('[data-action=close]').click();true`);
   await js(`localStorage.clear();window.dispatchEvent(new StorageEvent('storage',{key:null,storageArea:localStorage}));true`);
