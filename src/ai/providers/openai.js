@@ -13,7 +13,13 @@ export function toOpenAIRequest({ model, system, messages, tools }) {
     if (m.role === 'assistant') {
       const text = m.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
       const calls = m.content.filter((b) => b.type === 'tool_use')
-        .map((b) => ({ id: b.id, type: 'function', function: { name: b.name, arguments: JSON.stringify(b.input ?? {}) } }));
+        .map((b) => {
+          const call = { id: b.id, type: 'function', function: { name: b.name, arguments: JSON.stringify(b.input ?? {}) } };
+          // Gemini requires the opaque signature from its original tool call.
+          const signature = m.raw?.tool_signatures?.find((s) => s.id === b.id)?.signature;
+          if (typeof signature === 'string') call.extra_content = { google: { thought_signature: signature } };
+          return call;
+        });
       // An assistant turn with neither text nor calls would go out as
       // content: null, which these endpoints answer with a 400. Drop it, as
       // the Anthropic adapter drops an empty turn.
@@ -44,6 +50,7 @@ export function toOpenAIRequest({ model, system, messages, tools }) {
 export function createOpenAIAccumulator(onText) {
   let text = '';
   let reasoning = '';
+  let signatureSize = 0;
   const calls = [];
   const usage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
   let finish = null;
@@ -82,6 +89,12 @@ export function createOpenAIAccumulator(onText) {
         if (tc.id) calls[i].id = tc.id;
         if (tc.function?.name) calls[i].name = tc.function.name;
         if (tc.function?.arguments) calls[i].args += tc.function.arguments;
+        const signature = tc.extra_content?.google?.thought_signature;
+        if (typeof signature === 'string') {
+          signatureSize += signature.length - (calls[i].signature?.length || 0);
+          if (signatureSize > MAX_STREAM_TEXT) overflow(tr('The reply exceeded 2 MB of text; ask for a shorter answer.'));
+          calls[i].signature = signature;
+        }
         if (calls[i].args.length > MAX_TOOL_INPUT) overflow(tr('A tool call input exceeded 256 KB; split the work into smaller batches.'));
       }
       if (choice.finish_reason) finish = choice.finish_reason;
@@ -101,7 +114,12 @@ export function createOpenAIAccumulator(onText) {
       });
       let stop = STOP[finish] || 'end';
       if (toolCalls.length && stop === 'end') stop = 'tool_use';
-      return { text, toolCalls, usage, stop, ...(reasoning ? { raw: { reasoning_content: reasoning } } : {}) };
+      const raw = {};
+      if (reasoning) raw.reasoning_content = reasoning;
+      const signatures = calls.filter(Boolean).flatMap((c, i) => typeof c.signature === 'string' && toolCalls.some(t => t.id === (c.id || `call_${i}`))
+        ? [{ id: c.id || `call_${i}`, signature: c.signature }] : []);
+      if (signatures.length) raw.tool_signatures = signatures;
+      return { text, toolCalls, usage, stop, ...(Object.keys(raw).length ? { raw } : {}) };
     },
   };
 }
@@ -112,7 +130,7 @@ function headers(apiKey) {
   return h;
 }
 
-export function openaiProvider({ baseUrl, apiKey, model, fetchImpl = globalThis.fetch }) {
+export function openaiProvider({ baseUrl, apiKey, model, requestOptions, fetchImpl = globalThis.fetch }) {
   const base = String(baseUrl).replace(/\/+$/, '');
   return {
     async chat({ system, messages, tools, signal, onText }) {
@@ -120,7 +138,8 @@ export function openaiProvider({ baseUrl, apiKey, model, fetchImpl = globalThis.
       try {
         res = await providerFetch(`${base}/chat/completions`, {
           method: 'POST', headers: headers(apiKey), signal,
-          body: JSON.stringify(toOpenAIRequest({ model, system, messages, tools })),
+          body: JSON.stringify({ ...toOpenAIRequest({ model, system, messages, tools }),
+            ...(requestOptions?.reasoning_split ? { reasoning_split: true } : {}) }),
         }, fetchImpl);
       } catch (err) {
         if (err?.name === 'AbortError') throw err;

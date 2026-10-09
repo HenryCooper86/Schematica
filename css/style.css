@@ -918,7 +918,7 @@ g.node:hover .ports,
 }
 #ai-model, #ai-base, #ai-key { font-family: var(--mono) !important; font-size: 12px !important; }
 #ai-settings input:focus, #ai-settings select:focus { outline: none; border-color: var(--accent); }
-#ai-settings input:disabled { opacity: 0.5; }
+#ai-settings input:disabled, #ai-settings select:disabled { opacity: 0.5; }
 #ai-settings input::placeholder { color: var(--faint); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 .ai-keywrap { position: relative; display: flex; }
 .ai-keywrap input { flex: 1; padding-right: 34px !important; }
@@ -961,6 +961,7 @@ g.node:hover .ports,
 .ai-result.wait { color: var(--muted); }
 .ai-result.wait .ai-ic { display: none; }
 .ai-note { font-size: 11.5px; color: var(--faint); line-height: 1.5; }
+.ai-note a { color: var(--accent); text-decoration: underline; }
 .ai-privacy { padding-top: 10px; border-top: 1px solid var(--line); }
 @media (prefers-reduced-motion: reduce) {
   .ai-status.live::before, .ai-typing i { animation: none; }

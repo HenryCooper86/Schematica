@@ -13,7 +13,7 @@ export function makeProvider(settings, key, fetchImpl = globalThis.fetch) {
   // A provider that needs no key never gets one on the wire.
   const apiKey = entry?.needsKey ? key : '';
   if (adapter === 'anthropic') return anthropicProvider({ baseUrl, apiKey, model, effort, fetchImpl });
-  if (adapter === 'openai') return openaiProvider({ baseUrl, apiKey, model, fetchImpl });
+  if (adapter === 'openai') return openaiProvider({ baseUrl, apiKey, model, requestOptions: entry.requestOptions, fetchImpl });
   throw new Error(tr('unknown provider "{provider}"', { provider }));
 }
 

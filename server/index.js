@@ -13,6 +13,20 @@ export const DEFAULT_BASE_URLS = [
   'https://ollama.com/v1', 'https://api.moonshot.ai/v1',
   'https://api.openai.com/v1', 'https://openrouter.ai/api/v1',
   'https://api.z.ai/api/paas/v4', 'https://api.anthropic.com/v1',
+  'https://api.deepseek.com',
+  'https://open.bigmodel.cn/api/paas/v4',
+  'https://open.bigmodel.cn/api/coding/paas/v4',
+  'https://api.z.ai/api/coding/paas/v4',
+  'https://api.kimi.com/coding/v1',
+  'https://api.kimi.ai/coding/v1',
+  'https://api.minimax.io/v1',
+  'https://api.minimaxi.com/v1',
+  'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+  'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  'https://dashscope-us.aliyuncs.com/compatible-mode/v1',
+  'https://generativelanguage.googleapis.com/v1beta/openai',
+  'https://api.groq.com/openai/v1',
+  'https://api.mistral.ai/v1',
 ];
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -184,7 +198,7 @@ export function createAppServer({
         res.on('close', disconnected);
         try {
           const body = req.method === 'POST' ? await readBody(req, maxBodyBytes, controller.signal) : undefined;
-          const headers = new Headers();
+          const headers = new Headers({ 'user-agent': 'Schematica' });
           for (const name of FORWARD_HEADERS) if (req.headers[name]) headers.set(name, req.headers[name]);
           const upstream = await fetchImpl(target, { method: req.method, headers, body, redirect: 'manual', signal: controller.signal });
           if (upstream.status >= 300 && upstream.status < 400) {

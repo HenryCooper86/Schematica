@@ -794,7 +794,19 @@ try {
   // Switching providers fills the endpoint, default model, suggestions, and help.
   const pick = (id) => js(`(() => { const sel = document.getElementById('ai-provider'); sel.value = ${JSON.stringify(id)}; sel.dispatchEvent(new Event('change', { bubbles: true })); return { base: document.getElementById('ai-base').value, model: document.getElementById('ai-model').value, options: [...document.querySelectorAll('#ai-models option')].map((o) => o.value), keyOff: document.getElementById('ai-key').disabled, listHidden: document.getElementById('ai-models-btn').hidden, help: document.getElementById('ai-help').textContent }; })()`);
   const providerIds = await js(`[...document.querySelectorAll('#ai-provider option')].map((o) => o.value)`);
-  check('the provider menu lists Anthropic, OpenAI-compatible, OpenRouter, Z.AI, and Kimi', JSON.stringify(providerIds) === JSON.stringify(['anthropic', 'openai', 'openrouter', 'zai', 'kimi']), JSON.stringify(providerIds));
+  check('the provider menu includes the original providers and the new API and plan presets', ['anthropic', 'openai', 'openrouter', 'zai', 'kimi', 'deepseek', 'bigmodel', 'bigmodel-coding', 'zai-coding', 'kimi-code', 'minimax', 'minimax-token', 'qwen', 'gemini', 'groq', 'mistral'].every(id => providerIds.includes(id)), JSON.stringify(providerIds));
+  const kimiCode = await pick('kimi-code');
+  check('Kimi Code uses its own endpoint and membership guidance', kimiCode.base === 'https://api.kimi.com/coding/v1' && kimiCode.model === 'kimi-for-coding' && kimiCode.help.includes('membership'), JSON.stringify(kimiCode));
+  const kimiRegions = await js(`({ urls: [...document.querySelectorAll('#ai-base-urls option')].map(o => o.value), docs: document.getElementById('ai-provider-docs').href, effortDisabled: document.getElementById('ai-effort').disabled })`);
+  check('Kimi Code offers both regions and a setup guide', kimiRegions.urls.includes('https://api.kimi.ai/coding/v1') && kimiRegions.docs === 'https://www.kimi.com/code/docs/en/' && kimiRegions.effortDisabled, JSON.stringify(kimiRegions));
+  const bigmodelPlan = await pick('bigmodel-coding');
+  check('GLM plan explains eligibility and keeps model suggestions without discovery', bigmodelPlan.base === 'https://open.bigmodel.cn/api/coding/paas/v4' && bigmodelPlan.listHidden && bigmodelPlan.options.length > 0 && bigmodelPlan.help.includes('not on the published list'), JSON.stringify(bigmodelPlan));
+  const deepseek = await pick('deepseek');
+  await js(`(() => { window.__modelFetch = window.fetch; window.fetch = async () => Response.json({ data: [] }); document.getElementById('ai-models-btn').click(); return true; })()`);
+  await sleep(50);
+  const emptyModels = await js(`({ options: [...document.querySelectorAll('#ai-models option')].map(o => o.value), message: document.getElementById('ai-test-result').textContent })`);
+  await js(`window.fetch = window.__modelFetch; delete window.__modelFetch; true`);
+  check('an empty model catalogue preserves useful suggestions', emptyModels.options.includes(deepseek.model) && emptyModels.message.includes('enter a model ID'), JSON.stringify(emptyModels));
   const kimi = await pick('kimi');
   check('picking Kimi fills the relayed Moonshot base URL, the kimi-k3 default, and model suggestions', kimi.base === `${RELAY}/api.moonshot.ai/v1` && kimi.model === 'kimi-k3' && kimi.options.includes('kimi-k3') && kimi.keyOff === false && kimi.listHidden === false, JSON.stringify(kimi));
   const compatible = await pick('openai');

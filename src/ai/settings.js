@@ -7,7 +7,7 @@ import { BACKEND } from './runtime.js';
 // Each provider names the adapter that speaks its wire format (`anthropic`,
 // `openai` for every chat-completions endpoint), its public base URL,
 // whether a key is needed, a default model, and a few suggested model ids for the settings form. Endpoints and
-// model names were taken from the vendors' documentation in September 2026;
+// model names were checked against vendor documentation on 2026-10-09;
 // "List models" fetches the live catalogue where the endpoint offers one.
 // ollama.com answers a CORS preflight with 405 and api.moonshot.ai sends no
 // allow-origin header (both verified 2026-09-06), so no browser page can call
@@ -61,6 +61,89 @@ export const PROVIDERS = {
     help: BACKEND
       ? BACKEND_HELP.kimi
       : 'Moonshot\'s Kimi models over their OpenAI-compatible endpoint, through the relay because api.moonshot.ai does not answer browser requests. Keys come from platform.kimi.ai.',
+  },
+  deepseek: {
+    name: 'DeepSeek', adapter: 'openai', baseUrl: 'https://api.deepseek.com', model: 'deepseek-flash', needsKey: true,
+    models: ['deepseek-flash', 'deepseek-v4-pro'],
+    modelList: true,
+    docsUrl: 'https://api-docs.deepseek.com/',
+    help: 'Use a DeepSeek API key from platform.deepseek.com. Select a suggested model or use List models for your account.',
+  },
+  bigmodel: {
+    name: 'BigModel (GLM API)', adapter: 'openai', baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.3', needsKey: true,
+    models: ['glm-5.3', 'glm-5.3-flash'],
+    modelList: false,
+    docsUrl: 'https://docs.bigmodel.cn/',
+    help: 'BigModel pay-as-you-go API. Use a key from bigmodel.cn. Coding Plan subscriptions use the separate BigModel Coding Plan option.',
+  },
+  'bigmodel-coding': {
+    name: 'BigModel Coding Plan', adapter: 'openai', baseUrl: 'https://open.bigmodel.cn/api/coding/paas/v4', model: 'glm-5.3', needsKey: true,
+    models: ['glm-5.3', 'glm-5.3-flash'],
+    modelList: false,
+    docsUrl: 'https://docs.bigmodel.cn/cn/coding-plan/overview',
+    help: 'Use your BigModel Coding Plan key. Subscription quota is restricted to officially supported tools; Schematica is not on the published list. Provider approval is required for plan use here. For general use, choose BigModel (GLM API).',
+  },
+  'zai-coding': {
+    name: 'Z.AI Coding Plan', adapter: 'openai', baseUrl: 'https://api.z.ai/api/coding/paas/v4', model: 'glm-5.3', needsKey: true,
+    models: ['glm-5.3', 'glm-5.3-flash'],
+    modelList: false,
+    docsUrl: 'https://docs.z.ai/devpack/tool/others',
+    help: 'Use your Z.AI Coding Plan key. Subscription quota is restricted to officially supported tools; Schematica is not on the published list. Provider approval is required for plan use here. For general use, choose Z.AI (GLM).',
+  },
+  'kimi-code': {
+    name: 'Kimi Code (Coding Plan)', adapter: 'openai', baseUrl: 'https://api.kimi.com/coding/v1', model: 'kimi-for-coding', needsKey: true,
+    models: ['kimi-for-coding', 'k3', 'k3-256k', 'kimi-for-coding-highspeed'],
+    baseUrls: ['https://api.kimi.ai/coding/v1'],
+    modelList: true,
+    docsUrl: 'https://www.kimi.com/code/docs/en/',
+    help: 'Use a key from the Kimi Code console with active membership benefits, not a Moonshot API key. Choose the China (.com) or international (.ai) Base URL for your account. Model access depends on your plan and supported-tool policy.',
+  },
+  minimax: {
+    name: 'MiniMax API', adapter: 'openai', baseUrl: 'https://api.minimax.io/v1', model: 'MiniMax-M3', needsKey: true,
+    models: ['MiniMax-M3', 'MiniMax-M2.7', 'MiniMax-M2.7-highspeed'],
+    baseUrls: ['https://api.minimaxi.com/v1'],
+    modelList: false,
+    docsUrl: 'https://platform.minimax.io/docs/api-reference/text-openai-api',
+    help: 'MiniMax pay-as-you-go API. Use a standard API key and the endpoint for your account: minimax.io (international) or minimaxi.com (China). Subscription keys belong in MiniMax Token Plan / M Plan.',
+    requestOptions: { reasoning_split: true },
+  },
+  'minimax-token': {
+    name: 'MiniMax Token Plan / M Plan', adapter: 'openai', baseUrl: 'https://api.minimax.io/v1', model: 'MiniMax-M3', needsKey: true,
+    models: ['MiniMax-M3', 'MiniMax-M3.1-Flash-Preview', 'MiniMax-M2.7'],
+    baseUrls: ['https://api.minimaxi.com/v1'],
+    modelList: false,
+    docsUrl: 'https://platform.minimax.io/docs/m-plan/quickstart',
+    help: 'Use your MiniMax subscription key (Token Plan / M Plan), not a pay-as-you-go key. Choose the endpoint for your account region. Available models and quotas depend on your subscription.',
+    requestOptions: { reasoning_split: true },
+  },
+  qwen: {
+    name: 'Qwen (DashScope)', adapter: 'openai', baseUrl: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus', needsKey: true,
+    models: ['qwen-plus', 'qwen3.8-max'],
+    baseUrls: ['https://dashscope.aliyuncs.com/compatible-mode/v1', 'https://dashscope-us.aliyuncs.com/compatible-mode/v1'],
+    modelList: true,
+    docsUrl: 'https://www.alibabacloud.com/help/en/model-studio/get-api-key',
+    help: 'Use an Alibaba Cloud Model Studio API key. The suggested Base URLs are Singapore, China, and US; match the region where your key was created. Workspace-specific URLs require server operator configuration. This preset uses the regular API, not a Coding Plan key.',
+  },
+  gemini: {
+    name: 'Google Gemini', adapter: 'openai', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-3.8-flash', needsKey: true,
+    models: ['gemini-3.8-flash'],
+    modelList: true,
+    docsUrl: 'https://ai.google.dev/gemini-api/docs/openai',
+    help: 'Use a Gemini API key from Google AI Studio. List models shows the models available to your key through the OpenAI-compatible endpoint.',
+  },
+  groq: {
+    name: 'Groq', adapter: 'openai', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-120b', needsKey: true,
+    models: ['openai/gpt-oss-120b', 'llama-3.3-70b-versatile'],
+    modelList: true,
+    docsUrl: 'https://console.groq.com/docs/openai',
+    help: 'Use a Groq API key from console.groq.com. Use List models to refresh the catalogue, then Test connection to check tool calling for the selected model.',
+  },
+  mistral: {
+    name: 'Mistral AI', adapter: 'openai', baseUrl: 'https://api.mistral.ai/v1', model: 'mistral-small-latest', needsKey: true,
+    models: ['mistral-small-latest', 'mistral-large-latest', 'codestral-latest'],
+    modelList: true,
+    docsUrl: 'https://docs.mistral.ai/resources/migration-guides',
+    help: 'Use a Mistral API key from console.mistral.ai. Choose a chat model with function calling; Test connection checks whether the selected model supports assistant tools.',
   },
 };
 export const EFFORTS = ['low', 'medium', 'high'];

@@ -128,3 +128,39 @@ test('migrated Ollama history replays its reasoning through chat completions', (
   assert.equal(body.messages[1].reasoning_content, 'Inspect the board.');
   assert.equal(body.messages[2].tool_call_id, 'call_0');
 });
+
+test('Gemini thought signatures survive a streamed tool round trip without leaking into visible text', () => {
+  const acc = createOpenAIAccumulator();
+  acc.push({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'call_sig', function: { name: 'get_board', arguments: '{}' }, extra_content: { google: { thought_signature: 'opaque-signed-content' } } }] } }] });
+  acc.push({ choices: [{ delta: {}, finish_reason: 'tool_calls' }] });
+  const result = acc.result();
+  const body = toOpenAIRequest({ model: 'gemini-3.8-flash', system: SYSTEM, tools: TOOLS, messages: [
+    { role: 'assistant', content: result.toolCalls.map(c => ({ type: 'tool_use', ...c })), raw: result.raw },
+    { role: 'user', content: [{ type: 'tool_result', id: 'call_sig', text: 'Empty board' }] },
+  ] });
+  assert.equal(body.messages[1].tool_calls[0].extra_content.google.thought_signature, 'opaque-signed-content');
+  assert.equal(result.text, '');
+});
+
+test('parallel Gemini calls keep signatures attached to their call IDs', () => {
+  const acc = createOpenAIAccumulator();
+  acc.push({ choices: [{ delta: { tool_calls: [
+    { index: 1, id: 'second', function: { name: 'get_board', arguments: '{}' } },
+    { index: 0, id: 'first', function: { name: 'get_board', arguments: '{' }, extra_content: { google: { thought_signature: 'first-signature' } } },
+  ] } }] });
+  acc.push({ choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: '}' } }] }, finish_reason: 'tool_calls' }] });
+  const result = acc.result();
+  const body = toOpenAIRequest({ model: 'gemini', system: SYSTEM, tools: TOOLS, messages: [
+    { role: 'assistant', content: result.toolCalls.map(c => ({ type: 'tool_use', ...c })).reverse(), raw: result.raw },
+  ] });
+  assert.equal(body.messages[1].tool_calls[0].extra_content, undefined);
+  assert.equal(body.messages[1].tool_calls[1].extra_content.google.thought_signature, 'first-signature');
+});
+
+test('oversized thought signatures abort accumulation and cannot produce a successful result', () => {
+  const acc = createOpenAIAccumulator();
+  assert.throws(() => acc.push({ choices: [{ delta: { tool_calls: [{ index: 0,
+    extra_content: { google: { thought_signature: 'x'.repeat(MAX_STREAM_TEXT + 1) } },
+  }] } }] }), ProviderError);
+  assert.throws(() => acc.result(), ProviderError);
+});

@@ -113,7 +113,7 @@ test('every provider names an adapter, a base url, a key rule, and suggested mod
     assert.ok(Array.isArray(p.models), `${id} models`);
     assert.equal(typeof p.name, 'string');
   }
-  assert.deepEqual(Object.keys(PROVIDERS), ['anthropic', 'openai', 'openrouter', 'zai', 'kimi']);
+  for (const id of ['anthropic', 'openai', 'openrouter', 'zai', 'kimi']) assert.ok(PROVIDERS[id], `${id} remains available`);
   assert.equal(PROVIDERS.zai.adapter, 'openai');
   assert.equal(PROVIDERS.zai.baseUrl, 'https://api.z.ai/api/paas/v4');
   assert.equal(PROVIDERS.zai.model, 'glm-5.3');

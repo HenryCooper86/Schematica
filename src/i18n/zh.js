@@ -2,6 +2,23 @@
 // their English names. Grouped by the surface that shows them. Identity
 // entries mark Latin terms that stay Latin on purpose.
 export default {
+  'Provider setup guide': '提供商设置指南',
+  'Choose a suggested model or enter a model ID from your account.': '选择建议模型，或输入账号中可用的模型 ID。',
+  'If browser access is blocked, use the Node-backed site to connect to this provider.': '如果浏览器连接被阻止，请使用带 Node 后端的网站连接此提供商。',
+  'The endpoint listed no models. Choose a suggestion or enter a model ID from your account.': '接口未列出模型。请选择建议模型，或输入账号中可用的模型 ID。',
+  // Provider setup and subscription plans.
+  "Use a DeepSeek API key from platform.deepseek.com. Select a suggested model or use List models for your account.": "使用 platform.deepseek.com 的 DeepSeek API 密钥。选择建议模型，或点击“列出模型”获取账号可用模型。",
+  "BigModel pay-as-you-go API. Use a key from bigmodel.cn. Coding Plan subscriptions use the separate BigModel Coding Plan option.": "智谱 BigModel 按量付费 API。使用 bigmodel.cn 的密钥。编程套餐请另选 BigModel Coding Plan。",
+  "Use your BigModel Coding Plan key. Subscription quota is restricted to officially supported tools; Schematica is not on the published list. Provider approval is required for plan use here. For general use, choose BigModel (GLM API).": "使用智谱编程套餐密钥。套餐额度仅限官方支持的工具；Schematica 尚未列入公开名单，在此使用套餐须获得提供商许可。通用调用请选择 BigModel (GLM API)。",
+  "Use your Z.AI Coding Plan key. Subscription quota is restricted to officially supported tools; Schematica is not on the published list. Provider approval is required for plan use here. For general use, choose Z.AI (GLM).": "使用 Z.AI 编程套餐密钥。套餐额度仅限官方支持的工具；Schematica 尚未列入公开名单，在此使用套餐须获得提供商许可。通用调用请选择 Z.AI (GLM)。",
+  "Use a key from the Kimi Code console with active membership benefits, not a Moonshot API key. Choose the China (.com) or international (.ai) Base URL for your account. Model access depends on your plan and supported-tool policy.": "使用 Kimi Code 控制台生成且已开通会员权益的密钥，不是 Moonshot API 密钥。按账号选择中国（.com）或国际（.ai）地址。可用模型取决于套餐和支持工具政策。",
+  "MiniMax pay-as-you-go API. Use a standard API key and the endpoint for your account: minimax.io (international) or minimaxi.com (China). Subscription keys belong in MiniMax Token Plan / M Plan.": "MiniMax 按量付费 API。使用普通 API 密钥，并选择对应账号地址：minimax.io（国际）或 minimaxi.com（中国）。订阅密钥请在 MiniMax Token Plan / M Plan 中使用。",
+  "Use your MiniMax subscription key (Token Plan / M Plan), not a pay-as-you-go key. Choose the endpoint for your account region. Available models and quotas depend on your subscription.": "使用 MiniMax 订阅密钥（Token Plan / M Plan），而非按量付费密钥。选择账号所在地区的地址。可用模型和额度取决于订阅套餐。",
+  "Use an Alibaba Cloud Model Studio API key. The suggested Base URLs are Singapore, China, and US; match the region where your key was created. Workspace-specific URLs require server operator configuration. This preset uses the regular API, not a Coding Plan key.": "使用阿里云百炼 API 密钥。建议地址对应新加坡、中国和美国，请与创建密钥的地区一致。业务空间专属地址需由服务器管理员配置。本选项使用普通 API，不使用编程套餐密钥。",
+  "Use a Gemini API key from Google AI Studio. List models shows the models available to your key through the OpenAI-compatible endpoint.": "使用 Google AI Studio 的 Gemini API 密钥。“列出模型”显示该密钥通过 OpenAI 兼容接口可用的模型。",
+  "Use a Groq API key from console.groq.com. Use List models to refresh the catalogue, then Test connection to check tool calling for the selected model.": "使用 console.groq.com 的 Groq API 密钥。点击“列出模型”更新列表，再通过“测试连接”检查所选模型的工具调用能力。",
+  "Use a Mistral API key from console.mistral.ai. Choose a chat model with function calling; Test connection checks whether the selected model supports assistant tools.": "使用 console.mistral.ai 的 Mistral API 密钥。选择支持函数调用的对话模型；“测试连接”将检查所选模型能否使用助手工具。",
+
   // Public website guide.
   "How to use Schematica": "Schematica 使用指南",
   "How to use": "使用指南",
@@ -1224,7 +1241,6 @@ export default {
   'Connected. This model cannot call tools; the assistant will use single-shot mode.': '已连接。该模型无法调用工具；助手将使用单次模式。',
   'Test failed: {error}': '测试失败：{error}',
   '{n} models listed; pick one in the Model field.': '已列出 {n} 个模型；请在“模型”字段中选择。',
-  'The endpoint listed no models.': '该端点未列出任何模型。',
   'Could not list models: {error}': '无法列出模型：{error}',
   'Undo this': '撤销此项',
   'Show changes': '显示更改',

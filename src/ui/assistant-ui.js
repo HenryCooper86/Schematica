@@ -56,14 +56,14 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
       + '<form id="ai-settings" hidden>'
       + `<label><span>${escAttr(tr('Provider'))}</span><select id="ai-provider">${Object.entries(PROVIDERS).map(([id, p]) => `<option value="${id}">${escAttr(p.name)}</option>`).join('')}</select></label>`
       + `<label><span>${escAttr(tr('Model'))}</span><input id="ai-model" type="text" list="ai-models" spellcheck="false" autocomplete="off"><datalist id="ai-models"></datalist></label>`
-      + `<label><span>${escAttr(tr('Base URL'))}</span><input id="ai-base" type="url" spellcheck="false" autocomplete="off"></label>`
+      + `<label><span>${escAttr(tr('Base URL'))}</span><input id="ai-base" type="url" list="ai-base-urls" spellcheck="false" autocomplete="off"><datalist id="ai-base-urls"></datalist></label>`
       + `<label><span>${escAttr(tr('API key'))}</span><span class="ai-keywrap"><input id="ai-key" type="password" autocomplete="off" placeholder="${escAttr(tr('paste your key'))}"><button id="ai-key-eye" class="ai-icon-btn" type="button" title="${escAttr(tr('Show key'))}" aria-label="${escAttr(tr('Show key'))}">${icon('eye')}</button></span></label>`
       + `<label class="row"><input id="ai-remember" type="checkbox"> ${escAttr(tr('Remember the key on this device'))}</label>`
       + `<label><span>${escAttr(tr('Effort'))}</span><select id="ai-effort">${EFFORTS.map((e) => `<option value="${e}">${escAttr(trd(e))}</option>`).join('')}</select></label>`
       + `<div class="ai-buttons"><button id="ai-save" type="submit">${escAttr(tr('Save'))}</button><button id="ai-test" type="button">${escAttr(tr('Test connection'))}</button>`
       + `<button id="ai-models-btn" type="button">${escAttr(tr('List models'))}</button><button id="ai-forget" type="button">${escAttr(tr('Forget key'))}</button></div>`
       + '<div id="ai-test-result" class="ai-result" hidden></div>'
-      + `<div class="ai-note" id="ai-help"></div><div class="ai-note ai-privacy">${escAttr(privacy())}</div>`
+      + `<div class="ai-note" id="ai-help"></div><div class="ai-note"><a id="ai-provider-docs" target="_blank" rel="noopener noreferrer" hidden>${escAttr(tr('Provider setup guide'))}</a></div><div class="ai-note ai-privacy">${escAttr(privacy())}</div>`
       + '</form>'
       + '<div id="ai-thread" role="log" aria-live="polite"></div>'
       + `<div id="ai-actions" class="cards"><p class="ai-intro">${escAttr(intro())}</p>`
@@ -195,9 +195,16 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     el('ai-key').disabled = !p.needsKey;
     el('ai-key-eye').disabled = !p.needsKey;
     el('ai-key').placeholder = p.needsKey ? tr('paste your key') : tr('no key needed');
-    // Anthropic has no model list endpoint the browser may call.
-    el('ai-models-btn').hidden = p.adapter === 'anthropic';
-    el('ai-help').textContent = trd(p.help || '');
+    el('ai-effort').disabled = p.adapter !== 'anthropic';
+    el('ai-models-btn').hidden = p.adapter === 'anthropic' || p.modelList === false;
+    el('ai-base-urls').innerHTML = [p.baseUrl, ...(p.baseUrls || [])].map(url => `<option value="${escAttr(url)}">`).join('');
+    const notes = [trd(p.help || '')];
+    if (p.modelList === false) notes.push(tr('Choose a suggested model or enter a model ID from your account.'));
+    if (!BACKEND && p.docsUrl) notes.push(tr('If browser access is blocked, use the Node-backed site to connect to this provider.'));
+    el('ai-help').textContent = notes.join(' ');
+    el('ai-provider-docs').hidden = !p.docsUrl;
+    if (p.docsUrl) el('ai-provider-docs').href = p.docsUrl;
+    else el('ai-provider-docs').removeAttribute('href');
     suggestModels(p.models);
   }
 
@@ -297,8 +304,8 @@ export function initAssistant({ store, tools, render, svg, library = null }) {
     try {
       const names = await listOpenAIModels({ baseUrl, apiKey });
       if (version !== formVersion) return;
-      suggestModels(names);
-      const msg = names.length ? tr('{n} models listed; pick one in the Model field.', { n: names.length }) : tr('The endpoint listed no models.');
+      if (names.length) suggestModels(names);
+      const msg = names.length ? tr('{n} models listed; pick one in the Model field.', { n: names.length }) : tr('The endpoint listed no models. Choose a suggestion or enter a model ID from your account.');
       showResult(names.length ? 'ok' : 'warn', msg);
       toast(msg);
     } catch (err) {

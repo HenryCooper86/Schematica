@@ -30,7 +30,7 @@ Simplified Chinese while keeping your board open in its original tab.
 | Keep a backup or recover an earlier board | [Save and recover](user-guide.md#save-and-recover) |
 | Choose between JSON, HTML, images and review packages | [Share and export](user-guide.md#share-and-export) |
 | Import a KiCad netlist or compare a change | [Compare and import](user-guide.md#compare-and-import) |
-| Ask the assistant to help with a design | [Assistant basics](user-guide.md#use-the-assistant), [skills and Blueprints](assistant-skills.md) |
+| Ask the assistant to help with a design | [Assistant basics](user-guide.md#use-the-assistant), [providers and coding plans](assistant-providers.md), [skills and Blueprints](assistant-skills.md) |
 | Create a guided tour | [Present your board](user-guide.md#present-your-board), [presentation reference](presentation-stories.md) |
 | Discuss and approve a shared snapshot | [Team-review workflow](user-guide.md#review-with-a-team) |
 | Understand RDK example assumptions | [RDK architecture references](editor-reference.md#rdk-architecture-references) |

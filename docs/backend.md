@@ -88,7 +88,9 @@ and keep its upstream Host header equal to the website hostname. Set:
 | `AI_BASE_URLS` | Empty | Comma-separated additional trusted provider base URLs. |
 
 The built-in allowlist contains Ollama, Moonshot, OpenAI, OpenRouter, Z.AI,
-and Anthropic. Additional entries grant server-side network access, so only
+Anthropic, DeepSeek, BigModel, Kimi Code, MiniMax, Qwen, Gemini, Groq and Mistral,
+including the regional and plan endpoints in the [provider guide](assistant-providers.md).
+Additional entries grant server-side network access, so only
 the operator can configure them. Only `/models` GET and `/chat/completions`
 or `/messages` POST below an enabled base are forwarded. Redirects are
 rejected. For `/api/ai`, arbitrary URLs, credentials in URLs, query strings,

@@ -84,7 +84,7 @@ test('same-origin transport uses the official Ollama URL and forwards only provi
   assert.equal(seen.url, TARGET);
   assert.equal(seen.redirect, 'manual');
   assert.equal(seen.body.toString(), POST.body);
-  assert.deepEqual(Object.fromEntries(seen.headers), { authorization: 'Bearer test-key', 'content-type': 'application/json', accept: '*/*' });
+  assert.deepEqual(Object.fromEntries(seen.headers), { authorization: 'Bearer test-key', 'content-type': 'application/json', accept: '*/*', 'user-agent': 'Schematica' });
   assert.equal(response.headers.get('set-cookie'), null);
   assert.equal(response.headers.get('cache-control'), 'no-store');
   assert.equal(response.headers.get('x-accel-buffering'), 'no');
@@ -264,4 +264,24 @@ test('a stalled request body times out and releases its concurrency slot', { tim
   assert.equal(calls, 0);
   assert.equal((await request(TARGET, POST)).status, 200);
   assert.equal(calls, 1);
+});
+
+test('new provider presets and regional endpoints pass the proxy while lookalike hosts stay blocked', async (t) => {
+  const { PROVIDERS } = await import('../src/ai/settings.js');
+  const { request } = await start(t, { fetchImpl: async (url, init) => {
+    assert.equal(init.headers.get('authorization'), 'Bearer test-key');
+    assert.equal(init.headers.get('user-agent'), 'Schematica');
+    return Response.json({ url });
+  } });
+  for (const id of ['deepseek', 'bigmodel', 'bigmodel-coding', 'zai-coding', 'kimi-code', 'minimax', 'minimax-token', 'qwen', 'gemini', 'groq', 'mistral']) {
+    assert.ok(PROVIDERS[id], id);
+    for (const base of [PROVIDERS[id].baseUrl, ...(PROVIDERS[id].baseUrls || [])]) {
+      const response = await request(base + '/chat/completions', POST);
+      assert.equal(response.status, 200, base);
+      assert.equal((await response.json()).url, base + '/chat/completions');
+    }
+  }
+  for (const url of ['https://api.kimi.com.evil.test/coding/v1/chat/completions', 'https://api.kimi.com/coding/v1/../../admin', 'https://api.deepseek.com/balance', 'http://api.deepseek.com/chat/completions']) {
+    assert.equal((await request(url, POST)).status, 403, url);
+  }
 });
