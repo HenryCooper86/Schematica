@@ -1,6 +1,7 @@
 import { captureKiCadUpdate, assertKiCadUpdateCurrent, prepareKiCadUpdate, applyKiCadUpdate } from '../kicad-update.js';
 import { requirementFingerprint } from '../workflows.js';
 import { renderWorkflow } from './workflow-ui.js';
+import { renderTechnicalReport } from './technical-report.js';
 import { architectureScopes } from '../architecture-scopes.js';
 import { interfaceCompatibility, missingInterfaceDeclarations, normalizeCapability, resolveInterfaceEndpoint } from '../interface-checks.js';
 import { reuseInterfaceFields } from '../interface-workbench.js';
@@ -28,8 +29,9 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
   const dialog = document.createElement('dialog'); dialog.id = 'engineering-dialog';
   dialog.setAttribute('aria-labelledby', 'engineering-heading'); document.body.append(dialog);
   let tab = 'revisions', selected = null, baseline = null, reuseTargets = new Set(), reusePreview = null;
+  let reportDispose = null;
   const labels = () => ({ revisions: tr('Revisions'), interfaces: tr('Interfaces'), requirements: tr('Requirements'), decisions: tr('Decisions'),
-    impact: tr('Change impact'), budgets: tr('Budget assumptions'), subsystems: tr('Subsystems'), review: tr('Review package'), interchange: tr('Interchange'), views: tr('Saved views'), comments: tr('Review comments'), matrix: tr('Verification matrix') });
+    impact: tr('Change impact'), budgets: tr('Budget assumptions'), subsystems: tr('Subsystems'), report: tr('Technical report'), review: tr('Review package'), interchange: tr('Interchange'), views: tr('Saved views'), comments: tr('Review comments'), matrix: tr('Verification matrix') });
   const input = (name, label, value = '', type = 'text') => `<label>${esc(label)}<input name="${name}" type="${type}" value="${esc(value)}" maxlength="20000"></label>`;
   const area = (name, label, value = '') => `<label>${esc(label)}<textarea name="${name}" rows="3" maxlength="20000">${esc(value)}</textarea></label>`;
   const select = (name, label, entries, value = '') => `<label>${esc(label)}<select name="${name}">${entries.map(([id, title]) => `<option value="${esc(id)}"${id === value ? ' selected' : ''}>${esc(title)}</option>`).join('')}</select></label>`;
@@ -40,6 +42,8 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
   const edit = fn => { store.apply(fn); reusePreview = null; paint(); };
   const eng = doc => (doc.engineering ||= {});
   function paint() {
+    reportDispose?.(); reportDispose = null;
+    if (tab === 'report') while (navigation.depth()) navigation.up();
     const sectionScroll = dialog.dataset.section === tab ? dialog.querySelector('#engineering-body')?.scrollTop || 0 : 0;
     const worklistScroll = dialog.dataset.section === tab ? dialog.querySelector('#interface-worklist > ul')?.scrollTop || 0 : 0;
     labelButton();
@@ -186,13 +190,16 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
       formHandler = data => { selected = navigation.group(store.selection, data.get('name').trim() || tr('Subsystem')); paint(); };
       actions.up = () => { navigation.up(); dialog.close(); };
       body.querySelectorAll('[data-enter]').forEach(b => b.onclick = safe(() => { revisions.save(navigation.rootDoc(), navigation.rootDoc().title, 'subsystem-edit'); navigation.enter(b.dataset.enter); dialog.close(); }));
+    } else if (tab === 'report') {
+      reportDispose = renderTechnicalReport({ body, store, baseline });
     } else if (tab === 'review') {
       const findings = reviewFindings(store.doc);
-      body.innerHTML = `<p>${esc(baseline ? tr('Baseline: {title}', { title: baseline.title }) : tr('Choose a revision as the baseline to include a comparison.'))}</p>${act('package', tr('Download review package'))}${baseline ? impactSummary(impactAnalysis(baseline,navigation.rootDoc())) : ''}
+      body.innerHTML = `<p>${esc(baseline ? tr('Baseline: {title}', { title: baseline.title }) : tr('Choose a revision as the baseline to include a comparison.'))}</p>${act('technical-report', tr('Create technical report'))}${act('package', tr('Download review package'))}${baseline ? impactSummary(impactAnalysis(baseline,navigation.rootDoc())) : ''}
         <p>${esc(tr('Reviewed exceptions retain the finding and its rationale. They expire when relevant design data changes.'))}</p>
         <ul>${findings.map(f => `<li><strong>${esc(f.level)} · ${esc(f.rule)}</strong> ${esc(f.message)} ${f.exception ? `<p>${esc(f.exception.owner)}: ${esc(f.exception.rationale)}</p>${act('unreview-' + f.id, tr('Remove exception'))}` : `<button data-finding="${esc(f.id)}">${esc(tr('Review exception'))}</button>`}</li>`).join('')}</ul>
         ${selected && findings.some(f => f.id === selected) ? `<form>${input('owner', tr('Reviewer'))}${area('rationale', tr('Exception rationale'))}${submit(tr('Save reviewed exception'))}</form>` : ''}`;
       actions.package = () => download('architecture-review.html', reviewHTML(navigation.rootDoc(), baseline), 'text/html');
+      actions['technical-report'] = () => { tab = 'report'; selected = null; paint(); };
       body.querySelectorAll('[data-finding]').forEach(b => b.onclick = () => { selected = b.dataset.finding; paint(); });
       for (const f of findings) actions['unreview-' + f.id] = () => edit(doc => { const scope = architectureScopes(doc).find(s => s.key === f.scope).doc; eng(scope).exceptions = (eng(scope).exceptions || []).filter(e => e.id !== f.exceptionId); });
       formHandler = data => {
@@ -235,6 +242,7 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
   }
   revisions.subscribe?.(() => { if (dialog.open && tab === 'revisions' && !dialog.querySelector('input:focus')) paint(); });
   button.onclick = () => { reuseTargets.clear(); reusePreview = null; paint(); openModal(dialog); };
+  dialog.addEventListener('close', () => { reportDispose?.(); reportDispose = null; });
   onLanguageChange(() => { labelButton(); if (dialog.open) paint(); });
   labelButton();
   return { openTab(next) { tab = next; selected = null; reuseTargets.clear(); reusePreview = null; paint(); openModal(dialog); }, openRevisions() { tab = 'revisions'; paint(); openModal(dialog); } };

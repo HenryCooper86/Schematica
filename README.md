@@ -33,6 +33,7 @@ what you should see and how to recover your previous board.
 | Draw parts, connect ports and organize a board | [Build and edit](docs/user-guide.md#build-and-edit-a-board) |
 | Check interface declarations and record requirements | [Review the design](docs/user-guide.md#review-the-design) |
 | Save work, restore a revision and choose an export | [Save and recover](docs/user-guide.md#save-and-recover), [share and export](docs/user-guide.md#share-and-export) |
+| Generate a technical report for a client or manager | [Client technical reports](docs/engineering-workflows.md#client-technical-reports) |
 | Compare changes or import a KiCad netlist | [Compare and import](docs/user-guide.md#compare-and-import) |
 | Present a guided tour of the architecture | [Present your board](docs/user-guide.md#present-your-board) |
 | Use the assistant with your own provider | [Assistant guide](docs/user-guide.md#use-the-assistant) |

@@ -1,0 +1,95 @@
+import { existsSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+export async function runTechnicalReportChecks({ js, check, sleep, send, origin, artifactDir, capture, resize, restoreViewport }) {
+  const wait = async expression => {
+    for (let i = 0; i < 100; i++) { if (await js(expression)) return; await sleep(50); }
+    throw new Error('Technical report did not become ready: ' + expression);
+  };
+  await js(`(async()=>{const {Store,addNode,addWire}=await import('/src/state.js');const {normalizeEngineering}=await import('/src/engineering.js');const s=new Store();s.doc.title='Sensor gateway';const a=addNode(s,'mcu',0,0),b=addNode(s,'temp',400,0);addWire(s,'i2c',{node:a,port:'i2c'},{node:b,port:'i2c'});s.doc.engineering=normalizeEngineering({requirements:Array.from({length:45},(_,i)=>({id:'REQ-'+(i+1),text:'Record temperature and retain the sensor identity for review. '+(i===44?'END-OF-REQUIREMENTS':''),targets:[b],owner:'Integration team',method:'Bench test',evidence:'bench-results-'+(i+1)+'.pdf',status:'draft'})),decisions:[{id:'ADR-1',text:'Use I2C for the sensor connection.',rationale:'Shared controller interface.',targets:[a,b],owner:'Integration team',status:'accepted'}]});const dt=new DataTransfer();dt.items.add(new File([JSON.stringify(s.doc)],'report-test.json'));const input=document.getElementById('file-input');input.files=dt.files;input.dispatchEvent(new Event('change'));})()`);
+  await sleep(150);
+  await js(`document.getElementById('btn-engineering').click();true`);
+  const available = await js(`!!document.querySelector('[data-tab=report]')`);
+  check('a technical report can be opened from Engineering', available);
+  if (!available) return;
+  await js(`(()=>{document.querySelector('[data-tab=revisions]').click();const form=document.querySelector('#engineering-body form');form.elements.namedItem('label').value='Report test baseline';form.requestSubmit();return true;})()`);
+  await wait(`[...document.querySelectorAll('#engineering-body li')].some(li=>li.querySelector('strong')?.textContent==='Report test baseline')`);
+  await js(`(()=>{const row=[...document.querySelectorAll('#engineering-body li')].find(li=>li.querySelector('strong')?.textContent==='Report test baseline');row.querySelector('[data-baseline]').click();document.querySelector('[data-tab=requirements]').click();document.querySelector('[data-record="REQ-1"]').click();const form=document.querySelector('#engineering-body form');form.elements.namedItem('evidence').value='revised-bench-results-1.pdf';form.requestSubmit();return true;})()`);
+  await js(`document.querySelector('[data-tab=report]').click();true`);
+  check('report exports start disabled until a preview exists', await js(`document.querySelector('[data-report-action=html]').disabled&&document.querySelector('[data-report-action=pdf]').disabled`));
+  const fields = { title: 'Sensor gateway - Technical report', organization: 'NORTHSTAR ENGINEERING', author: 'Alex Chen', recipient: 'Client engineering manager', revision: 'B', date: '2026-10-12', status: 'review',
+    summary: 'A sensor gateway captures temperature over I2C and prepares readings for supervisory systems.\n验证中文内容：温度传感器。', scope: 'Controller and sensor architecture, declared interfaces, component selection, and review evidence.',
+    architecture: 'The controller reads the temperature sensor over the I2C connection shown below.', risks: 'Bench validation and complete endpoint declarations are outstanding.', nextSteps: 'Complete the interface declarations and run the bench tests.' };
+  await js(`(()=>{const form=document.getElementById('technical-report-form');for(const[k,v]of Object.entries(${JSON.stringify(fields)}))form.elements.namedItem(k).value=v;form.querySelector('[value=bom]').checked=false;form.requestSubmit();return true;})()`);
+  await wait(`!document.querySelector('[data-report-action=html]').disabled`);
+  check('preview includes client context, architecture, and honest interface coverage', await js(`(()=>{const d=document.getElementById('technical-report-preview').contentDocument;return d.querySelector('h1').textContent==='Sensor gateway - Technical report'&&d.body.textContent.includes('Client engineering manager')&&d.body.textContent.includes('1 unassessed')&&d.querySelectorAll('figure img').length===1&&!d.querySelector('#bom')&&!d.querySelector('script');})()`));
+  check('a saved baseline reports only the edited evidence record with before and after values', await js(`(()=>{const rows=[...document.getElementById('technical-report-preview').contentDocument.querySelectorAll('#changes tbody tr')];return rows.length===1&&rows[0].textContent.includes('REQ-1')&&rows[0].textContent.includes('bench-results-1.pdf')&&rows[0].textContent.includes('revised-bench-results-1.pdf')&&!rows[0].textContent.includes('bench-results-45.pdf');})()`));
+  await js(`window.dispatchEvent(new Event('pagehide'));true`);
+  check('report context and selected sections are saved with the board', await js(`(()=>{const r=JSON.parse(localStorage.getItem('schematica.autosave')).engineering.technicalReport;return r.author==='Alex Chen'&&r.summary.includes('温度传感器')&&!r.sections.includes('bom');})()`));
+  await js(`(()=>{const input=document.querySelector('#technical-report-form [name=summary]');input.value+=' Updated.';input.dispatchEvent(new Event('input',{bubbles:true}));return true;})()`);
+  check('editing the report disables outdated exports', await js(`document.querySelector('[data-report-action=html]').disabled&&document.querySelector('[data-report-action=pdf]').disabled`));
+  await js(`document.getElementById('technical-report-form').requestSubmit();true`);
+  await wait(`!document.querySelector('[data-report-action=html]').disabled`);
+  check('an old frame load cannot enable export while a new preview is loading', await js(`(()=>{const f=document.getElementById('technical-report-form');f.elements.namedItem('summary').value+=' Another revision.';f.requestSubmit();document.getElementById('technical-report-preview').dispatchEvent(new Event('load'));return document.querySelector('[data-report-action=html]').disabled;})()`));
+  await wait(`!document.querySelector('[data-report-action=html]').disabled`);
+  await js(`document.getElementById('title').value='Sensor gateway revision B';document.getElementById('title').dispatchEvent(new Event('change'));true`);
+  check('changing the design disables outdated report exports', await js(`document.querySelector('[data-report-action=html]').disabled&&document.querySelector('[data-report-action=pdf]').disabled`));
+  await js(`document.getElementById('technical-report-form').requestSubmit();true`);
+  await wait(`!document.querySelector('[data-report-action=html]').disabled`);
+  await js(`(()=>{const form=document.getElementById('technical-report-form');form.elements.namedItem('summary').value='Unpreviewed text';document.querySelector('[data-report-action=html]').dispatchEvent(new MouseEvent('click'));return true;})()`);
+  check('programmatic edits also fail the export snapshot guard', await js(`document.querySelector('[data-report-action=html]').disabled&&document.getElementById('toast').textContent.includes('Preview again')`));
+  await js(`document.querySelector('#technical-report-form [name=summary]').value=${JSON.stringify(fields.summary)};document.getElementById('technical-report-form').requestSubmit();true`);
+  await wait(`!document.querySelector('[data-report-action=html]').disabled`);
+  const logo = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jR1kAAAAASUVORK5CYII=';
+  await js(`(()=>{window.reportOriginalFileReader=window.FileReader;window.reportLogoReaders=[];window.reportPreviousPreview=document.getElementById('technical-report-preview').srcdoc;window.FileReader=class{readAsDataURL(file){window.reportLogoReaders.push({reader:this,file});}};const input=document.getElementById('report-logo');for(const name of ['first.png','second.png']){const dt=new DataTransfer();dt.items.add(new File(['logo'],name,{type:'image/png'}));input.files=dt.files;input.dispatchEvent(new Event('change',{bubbles:true}));}const reader=window.reportLogoReaders[0].reader;reader.result='data:image/png;base64,${logo}';reader.onload();return true;})()`);
+  await sleep(30);
+  await js(`document.getElementById('technical-report-form').requestSubmit();true`);
+  check('an obsolete logo read cannot unlock preview while the latest logo is pending', await js(`document.getElementById('technical-report-preview').srcdoc===window.reportPreviousPreview&&document.querySelector('[data-report-action=html]').disabled&&document.getElementById('toast').textContent.includes('Wait for the logo')`));
+  await js(`(()=>{const reader=window.reportLogoReaders[1].reader;reader.result='data:image/png;base64,${logo}';reader.onload();window.FileReader=window.reportOriginalFileReader;delete window.reportOriginalFileReader;delete window.reportLogoReaders;delete window.reportPreviousPreview;return true;})()`);
+  await wait(`!document.querySelector('[data-report-action=remove-logo]').disabled`);
+  await js(`document.querySelector('[data-report-action=remove-logo]').click();true`);
+  await js(`(()=>{const bytes=Uint8Array.from(atob('${logo}'),c=>c.charCodeAt(0)),dt=new DataTransfer();dt.items.add(new File([bytes],'logo.png',{type:'image/png'}));const input=document.getElementById('report-logo');input.files=dt.files;input.dispatchEvent(new Event('change',{bubbles:true}));return true;})()`);
+  await wait(`!document.querySelector('[data-report-action=remove-logo]').disabled`);
+  await js(`document.querySelector('#technical-report-form [value=bom]').checked=true;document.getElementById('technical-report-form').requestSubmit();true`);
+  await wait(`!document.querySelector('[data-report-action=html]').disabled`);
+  check('branding is embedded and selected tables return to the preview', await js(`(()=>{const d=document.getElementById('technical-report-preview').contentDocument;return d.querySelector('.logo').naturalWidth===1&&!!d.querySelector('#bom');})()`));
+  await js(`(()=>{const f=document.getElementById('technical-report-preview');window.reportPrintCalls=0;f.contentWindow.print=()=>{window.reportPrintCalls++};document.querySelector('[data-report-action=pdf]').click();return true;})()`);
+  check('PDF export prints the current report frame', await js(`window.reportPrintCalls===1`));
+  await capture('report-editor');
+  await resize(390, 844);
+  check('the report editor fits a narrow viewport', await js(`(()=>{const d=document.getElementById('engineering-dialog'),f=document.getElementById('technical-report-form');return d.getBoundingClientRect().width<=innerWidth&&f.scrollWidth<=f.clientWidth+1;})()`));
+  await capture('report-editor-mobile'); await restoreViewport();
+  if (!send) { await js(`document.querySelector('[data-action=close]').click();true`); return; }
+  await send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: artifactDir });
+  const htmlPath = join(artifactDir, 'technical-report.html');
+  rmSync(htmlPath, { force: true });
+  await js(`document.querySelector('[data-report-action=html]').click();true`);
+  for (let i = 0; i < 100 && !existsSync(htmlPath); i++) await sleep(50);
+  const html = readFileSync(htmlPath, 'utf8');
+  check('HTML download contains the previewed snapshot and all report assets', html.includes('Sensor gateway revision B') && html.includes('温度传感器') && html.includes('data:image/svg+xml') && !html.includes('<script'));
+  await send('Page.navigate', { url: pathToFileURL(htmlPath).href });
+  await wait(`document.readyState==='complete'&&document.querySelectorAll('figure img').length===1&&[...document.images].every(i=>i.complete&&i.naturalWidth>0)`);
+  check('the downloaded report opens independently offline', await js(`document.querySelector('h1').textContent==='Sensor gateway - Technical report'&&document.querySelectorAll('#requirements tbody tr').length===45`));
+  await capture('report-cover');
+  await send('Emulation.setEmulatedMedia', { media: 'print' });
+  const printed = await send('Page.printToPDF', { printBackground: true, preferCSSPageSize: true });
+  const pdfPath = join(artifactDir, 'technical-report.pdf');
+  writeFileSync(pdfPath, Buffer.from(printed.result.data, 'base64'));
+  await send('Emulation.setEmulatedMedia', { media: '' });
+  await send('Page.navigate', { url: origin + '/' });
+  await wait(`!!document.getElementById('btn-engineering')`);
+  const pdf = await js(`(async()=>{const pdfjs=await import('/vendor/pdfjs/pdf.mjs');pdfjs.GlobalWorkerOptions.workerSrc='/vendor/pdfjs/pdf.worker.mjs';const task=pdfjs.getDocument({data:Uint8Array.from(atob(${JSON.stringify(printed.result.data)}),c=>c.charCodeAt(0))});const d=await task.promise;const pages=[];for(let i=1;i<=d.numPages;i++){const p=await d.getPage(i);const t=await p.getTextContent();pages.push(t.items.map(item=>item.str).join(' '));}const result={count:d.numPages,text:pages.join('\\n'),pages};await task.destroy();return result;})()`);
+  writeFileSync(join(artifactDir, 'technical-report-text.txt'), pdf.text);
+  const compact = pdf.text.replace(/\s+/g, '');
+  check('the paginated PDF preserves Chinese text', pdf.count >= 5 && compact.includes('温度传感器'), `${pdf.count} pages`);
+  check('long PDF tables retain their final rows and evidence', compact.includes('END-OF-REQUIREMENTS') && compact.includes('bench-results-45.pdf'));
+  check('the PDF retains the baseline and record-specific comparison', compact.includes('Comparisonbaseline:') && compact.includes('revised-bench-results-1.pdf') && compact.includes('Before') && compact.includes('After'));
+  check('PDF pages include page numbers', pdf.pages.every((text, i) => text.includes(`${i+1} / ${pdf.count}`)));
+  await js(`document.getElementById('btn-engineering').click();document.querySelector('[data-tab=report]').click();true`);
+  check('report details and branding survive reloading the app', await js(`document.querySelector('#technical-report-form [name=author]').value==='Alex Chen'&&!document.querySelector('[data-report-action=remove-logo]').disabled&&document.querySelector('#technical-report-form [name=summary]').value.includes('温度传感器')`));
+  await js(`document.querySelector('[data-report-action=remove-logo]').click();document.getElementById('technical-report-form').requestSubmit();true`);
+  await wait(`!document.querySelector('[data-report-action=html]').disabled`);
+  check('removing a logo removes it from the generated report', await js(`!document.getElementById('technical-report-preview').contentDocument.querySelector('.logo')`));
+  await js(`document.querySelector('[data-action=close]').click();true`);
+}

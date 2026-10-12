@@ -8,6 +8,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { resolve, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runEngineeringChecks } from './engineering.mjs';
+import { runTechnicalReportChecks } from './technical-report.mjs';
 import { runPresentationChecks } from './presentation.mjs';
 import { runExploreChecks } from './explore.mjs';
 import { runPerformance } from './performance.mjs';
@@ -125,6 +126,10 @@ try {
   await runPresentationChecks({ js, key, check, sleep });
   await screenshot('presentation');
   await runTeamReviewChecks({js,check,sleep,capture:screenshot,navigate:async url=>{errors.push(...await js('window.__validationErrors || []').catch(()=>[]));await command('/url',{url});if(url!=='about:blank')await js(`(()=>{window.__validationErrors=[];addEventListener('error',e=>window.__validationErrors.push(e.message||'Resource error'));addEventListener('unhandledrejection',e=>window.__validationErrors.push(String(e.reason)));return true})()`);}});
+  await load();
+  await runTechnicalReportChecks({ js, check, sleep, capture: screenshot,
+    resize: (width, height) => command('/window/rect', { width, height }),
+    restoreViewport: () => command('/window/rect', { width: 1500, height: 950 }) });
   errors.push(...await js('window.__validationErrors || []'));
   check('no captured browser errors or unhandled rejections', errors.length === 0, errors);
   report.passed = true;

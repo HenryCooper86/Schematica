@@ -19,8 +19,9 @@ const canonical = (v) =>
 export function fingerprint(value) {
   let a = 2166136261,
     b = 5381;
-  for (const ch of JSON.stringify(canonical(value))) {
-    const c = ch.charCodeAt(0);
+  const json = JSON.stringify(canonical(value));
+  for (let i = 0; i < json.length; i++) {
+    const c = json.charCodeAt(i);
     a = Math.imul(a ^ c, 16777619);
     b = Math.imul(b, 33) ^ c;
   }
@@ -29,8 +30,8 @@ export function fingerprint(value) {
     (b >>> 0).toString(16).padStart(8, "0")
   );
 }
-function designValue(value) {
-  if (Array.isArray(value)) return value.map(designValue);
+function designValue(value, container = '') {
+  if (Array.isArray(value)) return value.map(v => designValue(v));
   if (!value || typeof value !== "object") return value;
   return Object.fromEntries(
     Object.entries(value)
@@ -41,9 +42,9 @@ function designValue(value) {
             "savedViews",
             "verifiedFingerprint",
             "verifiedAt",
-          ].includes(k),
+          ].includes(k) && !(container === "engineering" && k === "technicalReport"),
       )
-      .map(([k, v]) => [k, designValue(v)])
+      .map(([k, v]) => [k, designValue(v, k)])
       .filter(([k, v]) => k !== "engineering" || Object.keys(v || {}).length),
   );
 }

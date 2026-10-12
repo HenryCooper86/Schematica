@@ -11,6 +11,7 @@ import { runSkillChecks } from './assistant-skills.mjs';
 import { runWorkflowChecks } from './workflows.mjs';
 import { runPerformance } from './performance.mjs';
 import { runEngineeringChecks } from './engineering.mjs';
+import { runTechnicalReportChecks } from './technical-report.mjs';
 import { runPresentationChecks } from './presentation.mjs';
 import { runAdoptionChecks } from './adoption.mjs';
 import { runExploreChecks } from './explore.mjs';
@@ -333,6 +334,8 @@ try {
     const report = await runPerformance({ js });
     writeFileSync(process.env.BENCHMARK_OUTPUT || 'docs/benchmark-latest.json', JSON.stringify(report, null, 2));
     check('benchmark completed at 100, 500 and 1000 nodes', report.results.length === 3);
+  } else if (process.env.REPORT_E2E_ONLY) {
+    await runTechnicalReportChecks({ ...teamTools, send, origin, artifactDir });
   } else if (process.env.ENGINEERING_E2E_ONLY) {
     await runEngineeringChecks({ js, key, check, sleep });
   } else if (process.env.PRESENTATION_E2E_ONLY) {
@@ -1421,6 +1424,7 @@ try {
   await waitFor(`document.getElementById('title')?.value === 'Lifecycle save regression'`);
   check('the flushed board survives a browser reload', await js(`document.getElementById('title').value === 'Lifecycle save regression'`));
   await runEngineeringChecks({ js, key, check, sleep });
+  await runTechnicalReportChecks({ ...teamTools, send, origin, artifactDir });
   if (process.env.KICAD_MANIFEST) {
     const { runKiCadChecks } = await import('./kicad.mjs');
     await runKiCadChecks({ js, check, manifest: JSON.parse(readFileSync(process.env.KICAD_MANIFEST, 'utf8')) });

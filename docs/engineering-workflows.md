@@ -12,6 +12,11 @@ engineering metadata: use this version when editing these files.
 
 ## Recovery and revisions
 
+Snapshot fingerprints now distinguish supplementary Unicode characters, including
+emoji. Existing local approvals or evidence stamps containing these characters may
+be marked stale and require review again; other saved fingerprints retain their
+previous identity.
+
 **Revisions → Save revision** stores a named snapshot of the entire architecture.
 New/Open/Example and other board replacements first snapshot existing work.
 Restore, export, or select a revision as a comparison baseline. Snapshots use IndexedDB with atomic insertion and retention in one transaction.
@@ -142,6 +147,46 @@ records travel with it. Eight nested levels and 64 exposed ports are supported.
 Checks report broken exposed ports. Engineering analysis expands boundary mappings
 so power budgets and BOM quantities retain the internal components. This is an
 editable nested view, not simultaneous inline expansion of every child.
+
+## Client technical reports
+
+Open **Engineering → Technical report**, or choose **Create technical report**
+from the review package. Reports cover the root project and its embedded
+subsystems; opening the report returns from an expanded subsystem to the root.
+
+Enter the report title, organization, author, recipient, document revision, date,
+and document status. Add a PNG or JPEG company logo up to 256 KiB, then write the
+executive summary, project scope, architecture explanation, risks, and next steps.
+Choose which engineering sections to include. The cover, contents, executive
+summary, and risks remain in every report.
+
+**Save and preview report** saves these details with the board and generates a
+fixed snapshot with numbered architecture figures, engineering tables, and a
+source identifier. The report details travel in saved board files, autosave,
+revisions, and share links. Editing report presentation does not invalidate an
+architecture review. Changing the board or report details disables export until
+you preview again.
+
+**Export report HTML** downloads a standalone document with its diagrams and logo
+embedded. It opens offline without Schematica. Only selected sections are included;
+the HTML does not embed the complete editable project or hidden evidence records.
+**Export report PDF** opens the browser print dialog for the preview. Choose
+**Save as PDF**, A4 paper, and all pages. The print layout repeats table headings,
+keeps diagrams with their captions, and uses page numbers where the browser
+supports page margin boxes. Disable the browser's own headers and footers if they
+duplicate the report footer.
+
+To include a comparison, first choose **Use as baseline** on a saved revision in
+**Engineering → Revisions**, then open the technical report. Report presentation
+changes are excluded from the design comparison. Missing declarations and stale
+requirement evidence remain explicit. A document marked **Issued** describes the
+deliverable's status; it does not establish engineering approval or hardware
+validation. Report headings are English; authored text, including Chinese, is
+preserved. Word export is not included in this version.
+
+For the report's browser regression checks, run
+`REPORT_E2E_ONLY=1 node tests/e2e/smoke.mjs`. The suite exercises real HTML downloads,
+offline reopening, multilingual PDF text, long tables, and stale-preview guards.
 
 ## Review packages and exceptions
 

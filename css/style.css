@@ -1704,6 +1704,16 @@ html[data-theme="light"] .ai-result.warn { color: #92400e; }
 #engineering-dialog td { overflow-wrap: anywhere; }
 #engineering-dialog #impact-preview { border-top: 1px solid var(--line); padding-top: 16px; }
 #engineering-dialog #impact-preview:empty { display: none; }
+#engineering-dialog .report-sections { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 18px; }
+#engineering-dialog .report-sections p { grid-column: 1 / -1; margin: 0 0 8px; }
+#engineering-dialog .report-sections label { margin: 0; }
+#engineering-dialog .report-branding p { margin: 8px 0; }
+#engineering-dialog .report-export-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 12px; }
+#technical-report-preview { width: 100%; height: 700px; border: 1px solid var(--line2); border-radius: 8px; background: white; }
+@media (max-width: 600px) {
+  #engineering-dialog .report-sections { grid-template-columns: minmax(0, 1fr); }
+  #technical-report-preview { height: 560px; }
+}
 @media (max-width: 620px) {
   #engineering-dialog { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); }
   #engineering-dialog header { padding: 14px 14px 10px; }

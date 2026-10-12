@@ -12,6 +12,7 @@ import { createEditPreview } from "../src/ai/preview.js";
 import { createRevisions } from "../src/revisions.js";
 import { serialize, deserialize } from "../src/serialize.js";
 import {
+  fingerprint,
   designFingerprint,
   requirementFingerprint,
   verificationRows,
@@ -20,6 +21,9 @@ import {
   exportReviews,
   importReviews,
 } from "../src/workflows.js";
+test("BMP-only snapshot fingerprints remain compatible with saved review stamps", () => {
+  assert.equal(fingerprint({ title: "传感器 Gateway", value: 42 }), "f0e0cdfd88fb41cd");
+});
 function powered() {
   const store = new Store();
   const a = addNode(store, "battery", 0, 0),

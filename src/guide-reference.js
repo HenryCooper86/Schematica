@@ -74,6 +74,7 @@ export function panelReference() {
     ['Change impact','变更影响','Preview a part-number or rail change before applying it. Replacing a part clears its previous ratings and endpoint declarations.','应用型号或电压变更前先预览影响。替换部件会清除原额定值及端点声明。'],
     ['Budget assumptions','预算假设','Declare operating and peak assumptions for power estimates. Missing inputs remain unknown; estimates do not cover all physical effects.','声明电源估算的工作与峰值假设。缺少输入时保持未知；估算不涵盖全部物理效应。'],
     ['Subsystems','子系统','Group selected parts into a reusable subsystem with boundary ports. Open it for internal editing and Return to commit the expanded view.','将所选部件组合为带边界端口的可复用子系统。打开进行内部编辑，返回时提交展开视图。'],
+    ['Technical report','技术报告','Create a client deliverable with document details, project context, numbered diagrams and selected engineering sections. Save and preview before exporting standalone HTML or using the browser print dialog to save a PDF. Preview again after edits.','填写文档信息和项目说明，选择工程章节，生成含编号图纸的客户交付报告。保存并预览后，可导出独立 HTML 或通过浏览器打印对话框另存为 PDF。修改后请重新预览。'],
     ['Review package','评审包','Download an HTML handoff with diagram, findings and engineering data; choose a revision baseline to include a comparison.','下载包含图纸、检查结果和工程数据的 HTML 交接包；选择修订基线可包含比较。'],
     ['Interchange','交换格式','Import or export supported engineering formats. Preview imports and review identity matching before applying external data.','导入或导出支持的工程格式。应用外部数据前预览导入，并核对标识匹配。'],
     ['Saved views','保存的视图','Save useful viewpoints and exploration settings for returning to a particular part of a large board.','保存常用视野与探索设置，方便返回大型板图的特定区域。'],

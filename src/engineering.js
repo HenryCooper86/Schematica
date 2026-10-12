@@ -1,4 +1,5 @@
 import { normalizeViews, normalizeReviews } from './workflows.js';
+import { normalizeReportSettings } from './report-settings.js';
 import { normalizeConstraints, interfaceCompatibility, interfaceDirection, missingInterfaceDeclarations } from './interface-checks.js';
 // Portable engineering records. These live in the document, never in settings.
 import { nodePart } from './rdk/profiles.js';
@@ -43,6 +44,8 @@ export function normalizeEngineering(raw, warnings = []) {
   }
   if (Array.isArray(raw.savedViews)) out.savedViews = normalizeViews(raw.savedViews);
   if (Array.isArray(raw.reviews)) out.reviews = normalizeReviews(raw.reviews);
+  const technicalReport = normalizeReportSettings(raw.technicalReport);
+  if (technicalReport) out.technicalReport = technicalReport;
   if (raw.interfacesRequired === true) out.interfacesRequired = true;
   if (object(raw.budget)) out.budget = { mode: ['active', 'sleep', 'average'].includes(raw.budget.mode) ? raw.budget.mode : 'active',
     peaks: raw.budget.peaks === 'noncoincident' ? 'noncoincident' : 'simultaneous' };

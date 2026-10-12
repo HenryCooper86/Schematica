@@ -160,11 +160,18 @@ Choose the format for the recipient's task:
 | Continue editing | **Save** | `.schematica.json` board file |
 | Open a copy quickly | **Share** | A URL containing the board; later edits are not synchronized |
 | Read the diagram interactively offline | **Export → Interactive HTML** | One HTML file with exploration and presentation controls |
+| Give a client or manager a technical deliverable | **Engineering → Technical report** | Branded report with project context, diagrams, selected engineering sections, and HTML or PDF export |
 | Review findings, interfaces, requirements and changes | **Engineering → Review package → Download review package** | An HTML report with embedded design data and downloads |
 | Insert a picture into a document | **Export → PNG**, **Copy PNG** or **SVG** | Raster or vector artwork |
 | Print a static diagram | **Export → PDF** | A single-page PDF |
 | Inspect the parts list | **BOM** | Grouped bill of materials with CSV/Markdown options |
 | Watch a tour | **Rec**, or **Export → Loop GIF** for a short animation | A recording or animated image |
+
+For a client report, enter the project context and document details, choose the
+sections, and use **Save and preview report**. HTML opens independently offline.
+PDF opens the browser print dialog; choose **Save as PDF** and all pages. Preview
+again after changing the project or report details. See
+[client technical reports](engineering-workflows.md#client-technical-reports).
 
 A share link carries the board's content: give it only to people who should see
 that content. It is not an access-controlled team workspace. Opening one loads
