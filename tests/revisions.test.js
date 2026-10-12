@@ -12,6 +12,58 @@ test('a failed durable write retains the snapshot in memory and reports the fail
   const saved=r.save(newDoc('Keep'));assert.equal(errors,1);assert.equal(r.restore(saved.id).title,'Keep');
 });
 
+test('a just-saved database revision remains restorable while the durable list refreshes', async () => {
+  const refreshStarted = Promise.withResolvers(), releaseRefresh = Promise.withResolvers();
+  let entries = [], reads = 0;
+  const database = {
+    async read() {
+      if (++reads === 1) return [];
+      refreshStarted.resolve();
+      return releaseRefresh.promise;
+    },
+    async write(saved) { entries = saved; },
+  };
+  const notifications = [];
+  const revisions = createRevisions(null, { database, onChange: () => notifications.push(revisions.list()) });
+  await revisions.ready;
+  const saved = revisions.save(newDoc('Report baseline'));
+  await refreshStarted.promise;
+  try {
+    assert.equal(revisions.restore(saved.id).title, 'Report baseline');
+    assert.equal(revisions.list().find(entry => entry.id === saved.id).durable, false);
+  } finally {
+    releaseRefresh.resolve(entries);
+  }
+  await revisions.flush();
+  assert.equal(revisions.restore(saved.id).title, 'Report baseline');
+  assert.equal(revisions.list()[0].durable, true);
+  assert.equal(notifications.at(-1)[0].durable, true);
+});
+
+test('a failed database refresh retains the pending revision until a successful retry', async () => {
+  let entries = [], reads = 0, blocked = true;
+  const database = {
+    async read() {
+      if (++reads === 1) return [];
+      if (blocked) throw new Error('Refresh unavailable');
+      return entries;
+    },
+    async write(saved) { entries = saved; },
+  };
+  const errors = [];
+  const revisions = createRevisions(null, { database, onError: error => errors.push(error.message) });
+  await revisions.ready;
+  const saved = revisions.save(newDoc('Recoverable baseline'));
+  await revisions.flush();
+  assert.deepEqual(errors, ['Refresh unavailable']);
+  assert.equal(revisions.restore(saved.id).title, 'Recoverable baseline');
+  assert.equal(revisions.list()[0].durable, false);
+  blocked = false;
+  await revisions.retry();
+  assert.equal(revisions.restore(saved.id).title, 'Recoverable baseline');
+  assert.equal(revisions.list()[0].durable, true);
+});
+
 function transientStorage() {
   const storage = memory(), write = storage.setItem;
   storage.blocked = false;

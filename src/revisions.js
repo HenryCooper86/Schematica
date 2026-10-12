@@ -37,10 +37,13 @@ export function createRevisions(
     }
     return entries;
   };
-  const refresh = async () => {
+  const refresh = async (persisted = []) => {
     const entries = await db.read();
     durable.clear();
     for (const e of entries) durable.set(e.id, { ...e, durable: true });
+    // Publish the durable list before retiring pending snapshots, so they
+    // remain restorable throughout the asynchronous database refresh.
+    for (const e of persisted) memory.delete(e.id);
     notify();
   };
   const ready = useDB
@@ -70,8 +73,7 @@ export function createRevisions(
         const entries = [...memory.values()].map(({ durable, ...e }) => e);
         if (entries.length || old.length) await db.write([...old, ...entries]);
         for (const e of old) storage.removeItem(REVISION_PREFIX + e.id);
-        for (const e of entries) memory.delete(e.id);
-        await refresh();
+        await refresh(entries);
       })
       .catch((error) => {
         onError(error);
