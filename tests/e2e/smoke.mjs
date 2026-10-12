@@ -719,7 +719,7 @@ try {
   // itself fits one row at this window width (it wraps below ~1366 px).
   const covering = await js(`(() => { const hit = document.elementFromPoint(${bomBtn.x}, ${bomBtn.y}); return hit && (hit.id || hit.tagName); })()`);
   check('the floating panel never covers a toolbar control', covering === 'btn-bom', String(covering));
-  const toolbarRows = await js(`(() => { const tops = new Set([...document.getElementById('toolbar').children].map((k) => { const r = k.getBoundingClientRect(); return Math.round(r.top + r.height / 2); })); return { rows: tops.size, tagline: !!document.querySelector('.brand-sub') }; })()`);
+  const toolbarRows = await js(`(() => { const centers = [...document.getElementById('toolbar').children].map(k => { const r = k.getBoundingClientRect(); return r.top + r.height / 2; }); return { rows: new Set(centers.map(Math.round)).size, viewport: innerWidth, centerSpan: Math.max(...centers) - Math.min(...centers), tagline: !!document.querySelector('.brand-sub') }; })()`);
   check('the toolbar fits on one row at 1500 px with no tagline beside the name', toolbarRows.rows === 1 && toolbarRows.tagline === false, JSON.stringify(toolbarRows));
   await click(bomBtn.x, bomBtn.y);
   await sleep(100);

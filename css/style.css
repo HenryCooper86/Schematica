@@ -107,7 +107,7 @@ html, body {
    Narrower windows wrap the groups; wider ones retain the roomier spacing. */
 @media (min-width: 1366px) and (max-width: 1699px) {
   #app #toolbar { gap: 4px; }
-  #app #toolbar :is(button, a) { padding-inline: 5px; }
+  #app #toolbar :is(button, a) { padding-inline: 4px; }
 }
 
 /* ---- Palette ---- */
