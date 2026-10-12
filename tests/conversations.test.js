@@ -5,6 +5,23 @@ import { conversationListMarkup } from '../src/ui/assistant-history.js';
 const storage = () => { const data = new Map(); return { get length() { return data.size; }, key: i => [...data.keys()][i], getItem: k => data.get(k) ?? null, setItem: (k, v) => data.set(k, v), removeItem: k => data.delete(k) }; };
 const message = text => ({ role: 'user', text });
 
+test('new conversations save when randomUUID is unavailable on a plain HTTP origin', () => {
+  const browserCrypto = { getRandomValues: crypto.getRandomValues.bind(crypto) };
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+  try {
+    Object.defineProperty(globalThis, 'crypto', { configurable: true, value: browserCrypto });
+    const disk = storage(), sessions = createConversationStore(disk);
+    const first = sessions.save({ visible: [message('First HTTP conversation')] });
+    const second = sessions.save({ visible: [], draft: 'Second HTTP draft' });
+    assert.notEqual(first.id, second.id);
+    const reloaded = createConversationStore(disk);
+    assert.equal(reloaded.get(first.id).title, 'First HTTP conversation');
+    assert.equal(reloaded.current().draft, 'Second HTTP draft');
+  } finally {
+    Object.defineProperty(globalThis, 'crypto', descriptor);
+  }
+});
+
 test('saves and reopens independent conversations and drafts without board or credential data', () => {
   const disk = storage(); const sessions = createConversationStore(disk);
   const first = sessions.save({ visible: [message('Design a sensor board')], draft: 'Add a battery', boardTitle: 'Sensors', apiKey: 'secret', history: ['provider-private'], totals: { input: 24 } });

@@ -61,6 +61,9 @@ const contains = (outer, inner) =>
 export function interfaceCompatibility(doc) {
   const findings = [];
   for (const wire of doc.wires) {
+    // These links express diagram relationships rather than electrical limits.
+    // Keep compatibility findings consistent with coverage and the checklist.
+    if (['flow', 'link'].includes(wire.bus)) continue;
     const spec = wire.spec || {},
       a = resolveInterfaceEndpoint(doc, wire.from).capability,
       b = resolveInterfaceEndpoint(doc, wire.to).capability;

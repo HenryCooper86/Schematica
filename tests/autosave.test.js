@@ -47,6 +47,21 @@ test('selection changes never reconstruct the root document for autosave', () =>
   autosave.flush();
 });
 
+test('unchanged property edits do not reconstruct the root document or postpone a save', () => {
+  const store = new Store(newDoc('Start'));
+  let rootReads = 0, scheduled = 0;
+  const autosave = createAutosave({ store, storage: { setItem() {} },
+    getDoc: () => { rootReads++; return structuredClone(store.doc); },
+    schedule: () => ++scheduled, cancel() {},
+  });
+  store.apply(doc => { doc.title = 'Edited'; });
+  const reads = rootReads;
+  store.apply(doc => { doc.title = 'Edited'; });
+  assert.equal(rootReads, reads);
+  assert.equal(scheduled, 1);
+  autosave.dispose();
+});
+
 test('lifecycle flush persists the latest edit without waiting for debounce', () => {
   const { store, writes, timers, autosave } = setup();
   store.apply(doc => { doc.title = 'First'; });

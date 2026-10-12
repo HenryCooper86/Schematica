@@ -15,6 +15,14 @@ export async function runPresentationChecks({ js, key, check, sleep }) {
   await js(`(async () => { const {EXAMPLES} = await import('/src/examples.js'); const board = structuredClone(EXAMPLES[0].doc); board.journey.forEach(s => delete s.stops); board.journey[0].stops = [{id:'beat-a',node:'n5',caption:'Read sensors'}, {id:'beat-b',node:'n6',caption:'Sample temperature'}]; const transfer = new DataTransfer(); transfer.items.add(new File([JSON.stringify(board)], 'story.json', {type:'application/json'})); const input = document.getElementById('file-input'); input.files=transfer.files; input.dispatchEvent(new Event('change')); return true; })()`);
   await sleep(150);
   check('stop authoring renders ordered parts and captions', await js(`document.querySelectorAll('.journey-stop').length === 2 && document.querySelector('[data-stop-caption]').value === 'Read sensors'`));
+  check('stop caption input shows its saved limit even when normalization changes no document data', await js(`(() => {
+    const input = document.querySelector('[data-stop-caption]'), caption = 'x'.repeat(4000);
+    input.focus(); input.value = caption; input.dispatchEvent(new Event('change'));
+    input.value = caption + 'unsaved overflow'; input.dispatchEvent(new Event('change'));
+    const normalized = input.value === caption;
+    input.value = 'Read sensors'; input.dispatchEvent(new Event('change')); input.blur();
+    return normalized;
+  })()`));
   await js(`document.querySelector('[data-stop-action="down"]').click(); true`);
   check('stop reorder changes the first part', await js(`document.querySelector('.journey-stop strong').textContent.includes('Temp sensor')`));
   await js(`document.getElementById('undo').click(); document.getElementById('journey-present').click(); document.querySelector('#present-stops button').click(); true`);

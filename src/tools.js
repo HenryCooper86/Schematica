@@ -12,7 +12,7 @@ import { BUSES, BUS_ORDER } from './buses.js';
 import { nodePart } from './rdk/profiles.js';
 import { esc } from './render.js';
 import { toast } from './ui/press.js';
-import { tr, trd } from './i18n.js';
+import { trd } from './i18n.js';
 
 // requestRender(kind): 'all' (default) rebuilds the diagram, 'view' only moves
 // the camera, 'overlay' only redraws drag feedback. Hover effects (ports,
@@ -719,9 +719,10 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
   }
 
   editor.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.isComposing || e.keyCode === 229) return;
     if (e.key === 'Enter') commitInlineEditor();
     if (e.key === 'Escape') cancelInlineEditor();
-    e.stopPropagation();
   });
   editor.addEventListener('blur', commitInlineEditor);
 

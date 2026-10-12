@@ -137,6 +137,7 @@ export function initJourney({ svg, store, tools, render, recorder, propsPanel })
           [stops[i], stops[j]] = [stops[j], stops[i]];
         }
         updateStep(store, id, { stops });
+        if (el.tagName === 'TEXTAREA') el.value = step.stops?.[i]?.caption || '';
       });
     });
     journeyPanel.querySelectorAll('[data-jact]').forEach((btn) => {

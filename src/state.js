@@ -62,15 +62,22 @@ export class Store {
     // A failed edit must leave no partial mutation, including inside a batch.
     // The batch's own snapshot remains the single undo step for successful edits.
     const snap = structuredClone(this.doc);
+    const selection = new Set(this.selection);
     try {
       fn(this.doc);
     } catch (error) {
       this.doc = snap;
       throw error;
     }
-    // A mutation that changed nothing (e.g. a blur committing an unedited
-    // field) must not cost an undo step or clear the redo stack.
-    if (this._batchSnap === null && JSON.stringify(snap) !== JSON.stringify(this.doc)) this._push(snap);
+    // An unchanged property blur must not trigger document work, cost an
+    // undo step, or clear redo. Batch notifications still track live edits.
+    if (this._batchSnap === null) {
+      if (JSON.stringify(snap) === JSON.stringify(this.doc)) {
+        if (selection.size !== this.selection.size || [...selection].some(id => !this.selection.has(id))) this.emit('selection');
+        return;
+      }
+      this._push(snap);
+    }
     this.emit();
   }
 

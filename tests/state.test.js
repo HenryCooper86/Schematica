@@ -27,6 +27,39 @@ test('document subscribers ignore selection while ordinary subscribers identify 
   assert.equal(documents.length, 4);
 });
 
+test('unchanged property edits leave subscribers and redo history untouched', () => {
+  const store = new Store();
+  const id = addNode(store, 'mcu', 0, 0);
+  updateItem(store, id, { label: 'Changed' });
+  store.undo();
+  const changes = [];
+  store.subscribe(change => changes.push(change));
+  updateItem(store, id, { label: 'MCU' });
+  updateItem(store, 'missing', { label: 'Missing' });
+  assert.deepEqual(changes, []);
+  assert.equal(store.undoStack.length, 1);
+  assert.equal(store.canRedo(), true);
+  store.redo();
+  assert.equal(store.doc.nodes[0].label, 'Changed');
+  assert.deepEqual(changes, ['document']);
+});
+
+test('deleting an already-missing selection notifies only selection listeners and preserves redo', () => {
+  const store = new Store();
+  store.apply(doc => { doc.title = 'Edited'; });
+  store.undo();
+  store.setSelection(['missing']);
+  const changes = [], documents = [];
+  store.subscribe(change => changes.push(change));
+  store.subscribe(change => documents.push(change), { documentOnly: true });
+  deleteItems(store, ['missing']);
+  assert.equal(store.selection.size, 0);
+  assert.deepEqual(changes, ['selection']);
+  assert.deepEqual(documents, []);
+  assert.equal(store.undoStack.length, 0);
+  assert.equal(store.canRedo(), true);
+});
+
 test('uid is unique and prefixed', () => {
   const a = uid('n');
   const b = uid('n');

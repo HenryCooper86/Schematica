@@ -47,6 +47,17 @@ test('complete compatible declarations pass; unknown data is not an error', () =
   delete s.doc.wires[0].spec;
   assert.deepEqual(interfaceCompatibility(s.doc), []);
 });
+test('flow and relationship connections exclude retained electrical declarations from compatibility checks', () => {
+  for (const bus of ['flow', 'link']) {
+    const { s } = declared();
+    s.doc.wires[0].bus = bus;
+    s.doc.wires[0].spec.voltageMaxV = 2;
+    s.doc.nodes[1].interfacePorts.i2c.protocols = ['SPI'];
+    assert.deepEqual(interfaceCompatibility(s.doc), [], bus);
+    assert.deepEqual(reviewPackage(s.doc).findings.filter(f => f.rule.startsWith('interface-')), [], bus);
+  }
+});
+
 test('voltage, bandwidth, protocol and direction conflicts are explicit errors', () => {
   const { s } = declared();
   s.doc.nodes[1].interfacePorts.i2c = {

@@ -1,6 +1,6 @@
 import { nodePart } from './rdk/profiles.js';
 import { uid, newDoc } from './state.js';
-import { partOf, normalizePart, LIMITS } from './custom.js';
+import { normalizePart, LIMITS } from './custom.js';
 import { selectedEngineering } from './engineering.js';
 
 // Existing scope IDs survive grouping; new wrappers only add path segments.

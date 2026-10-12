@@ -167,8 +167,8 @@ export function storyRelationshipText(doc, step, index) {
   if (relation.kind === 'unconnected') return tr('No direct wire between these stops');
   const endpoint = p => `${doc.nodes.find(n => n.id === p.node)?.label || p.node} · ${p.port}`;
   return relation.wires.map(w => {
-    const arrow = w.arrow === 'both' ? '↔' : w.arrow === 'fwd' ? '→' : '—';
-    const direction = w.arrow === 'both' ? tr('Bidirectional arrow') : w.arrow === 'fwd' ? tr('Authored arrow direction') : tr('Direction unspecified');
+    const arrow = w.arrow === 'both' ? '↔' : w.arrow === 'fwd' ? '→' : w.arrow === 'back' ? '←' : '—';
+    const direction = w.arrow === 'both' ? tr('Bidirectional arrow') : ['fwd', 'back'].includes(w.arrow) ? tr('Authored arrow direction') : tr('Direction unspecified');
     return `${endpoint(w.from)} ${arrow} ${endpoint(w.to)} · ${BUSES[w.bus]?.short || w.bus}${w.label ? ' · ' + w.label : ''} · ${direction}`;
   }).join('\n');
 }

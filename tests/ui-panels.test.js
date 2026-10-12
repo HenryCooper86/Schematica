@@ -3,8 +3,72 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { focusSelector } from '../src/ui/press.js';
-import { propField, lockField, alignGroup, clampGap } from '../src/ui/props.js';
+import { propField, lockField, alignGroup, clampGap, createPropsPanel } from '../src/ui/props.js';
 import { alignAbility } from '../src/align.js';
+import { Store, addNode } from '../src/state.js';
+
+// Bind the actual panel handlers without replacing a control on document edits.
+function panelInput(t, store, dataset, value) {
+  const listeners = new Map();
+  const input = { dataset, value, addEventListener: (event, fn) => listeners.set(event, fn) };
+  const selector = `[data-${Object.keys(dataset)[0]}]`;
+  const props = { contains: () => false, classList: { toggle() {} },
+    querySelector: () => null, querySelectorAll: query => query === selector ? [input] : [] };
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'document');
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: {
+    activeElement: null,
+    getElementById: id => id === 'props' ? props : id === 'journey-panel' ? { hidden: true } : null,
+  } });
+  t.after(() => {
+    if (descriptor) Object.defineProperty(globalThis, 'document', descriptor);
+    else delete globalThis.document;
+  });
+  createPropsPanel({ store }).render();
+  return { input, change: () => listeners.get('change')() };
+}
+
+test('clearing a default swimlane label restores the input without a document change', t => {
+  const store = new Store();
+  store.doc.zones.push({ id: 'lane', kind: 'swimlane', label: 'Work', lanes: ['Lane 1'] });
+  store.selection.add('lane');
+  let changes = 0;
+  store.subscribe(() => changes++);
+  const { input, change } = panelInput(t, store, { lane: '0' }, 'Lane 1');
+  input.value = '';
+  change();
+  assert.equal(input.value, 'Lane 1');
+  assert.deepEqual(store.doc.zones[0].lanes, ['Lane 1']);
+  assert.equal(changes, 0);
+  assert.equal(store.undoStack.length, 0);
+});
+
+test('unchanged part numbers show their normalized text without notifying document subscribers', t => {
+  const store = new Store(), id = addNode(store, 'mcu', 0, 0);
+  store.doc.nodes[0].sublabel = 'STM32';
+  store.selection.add(id);
+  let changes = 0;
+  store.subscribe(() => changes++);
+  const { input, change } = panelInput(t, store, { prop: 'sublabel' }, 'STM32');
+  input.value = ' STM32 ';
+  change();
+  assert.equal(input.value, 'STM32');
+  assert.equal(store.doc.nodes[0].sublabel, 'STM32');
+  assert.equal(changes, 0);
+});
+
+test('unchanged schema fields show their trimmed text without notifying document subscribers', t => {
+  const store = new Store(), id = addNode(store, 'mcu', 0, 0);
+  store.doc.nodes[0].fields = { ityp: '80mA' };
+  store.selection.add(id);
+  let changes = 0;
+  store.subscribe(() => changes++);
+  const { input, change } = panelInput(t, store, { field: 'ityp' }, '80mA');
+  input.value = ' 80mA ';
+  change();
+  assert.equal(input.value, '80mA');
+  assert.deepEqual(store.doc.nodes[0].fields, { ityp: '80mA' });
+  assert.equal(changes, 0);
+});
 
 // A stand-in for the element chain focusSelector walks: id, data-* attributes,
 // and a parent link are all it reads.

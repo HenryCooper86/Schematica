@@ -1,4 +1,5 @@
 import { decodeThread, trimHistory } from './session.js';
+import { uid } from '../state.js';
 
 export const CONVERSATION_PREFIX = 'schematica.ai.conversation.';
 export const ACTIVE_CONVERSATION_KEY = 'schematica.ai.active-conversation';
@@ -62,7 +63,7 @@ export function createConversationStore(storage) {
     if (!value.visible?.length && !value.draft?.trim()) return null;
     const previous = validId(value.id) ? get(value.id) : null;
     const now = Date.now();
-    const record = normalize({ ...value, version: 1, id: previous?.id || (validId(value.id) ? value.id : crypto.randomUUID()), createdAt: previous?.createdAt || now, updatedAt: now });
+    const record = normalize({ ...value, version: 1, id: previous?.id || (validId(value.id) ? value.id : uid('c')), createdAt: previous?.createdAt || now, updatedAt: now });
     if (!record) return null;
     memory.set(record.id, record);
     try {

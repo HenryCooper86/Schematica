@@ -326,6 +326,26 @@ test('clearing the last schema field drops the fields key instead of leaving {}'
   assert.equal(JSON.stringify(node).includes('fields'), false, 'serializes without the key');
 });
 
+test('inline rename keeps composition keys inside the editor until text is committed', async () => {
+  const { store, svg, ev, editor } = await setup();
+  const id = addNode(store, 'mcu', 0, 0);
+  const line = makeEl({ dataset: { edit: 'label' }, parent: nodeEl(id) });
+  svg.dispatch('pointerdown', ev(line));
+  svg.dispatch('pointerdown', ev(line));
+  editor.value = '控制';
+  editor.dispatch('keydown', { key: 'Enter', isComposing: true, stopPropagation() {} });
+  assert.equal(editor.hidden, false);
+  assert.equal(store.doc.nodes[0].label, 'MCU');
+  editor.dispatch('keydown', { key: 'Escape', isComposing: true, stopPropagation() {} });
+  assert.equal(editor.hidden, false);
+  editor.dispatch('keydown', { key: 'Enter', keyCode: 229, stopPropagation() {} });
+  assert.equal(editor.hidden, false);
+  editor.value = '控制器';
+  editor.dispatch('keydown', { key: 'Enter', stopPropagation() {} });
+  assert.equal(editor.hidden, true);
+  assert.equal(store.doc.nodes[0].label, '控制器');
+});
+
 // ---- Align, distribute, tidy ----
 // The arithmetic is covered in tests/align.test.js; what matters here is that
 // the selection is measured the way the canvas draws it, that a moved zone

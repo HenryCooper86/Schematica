@@ -254,6 +254,7 @@ export function createPropsPanel({ store, editor, tools }) {
         const patch = input.dataset.prop === 'sublabel' && cur
           ? presetPatch(cur, input.value)
           : { [input.dataset.prop]: input.value };
+        input.value = patch[input.dataset.prop];
         updateItem(store, item.id, patch);
       });
     });
@@ -262,7 +263,8 @@ export function createPropsPanel({ store, editor, tools }) {
         const cur = findItem(store.doc, item.id)?.item;
         if (!cur) return;
         const fields = { ...(cur.fields || {}) };
-        if (input.value.trim()) fields[input.dataset.field] = input.value.trim();
+        input.value = input.value.trim();
+        if (input.value) fields[input.dataset.field] = input.value;
         else delete fields[input.dataset.field];
         // An empty map is dropped on load; no key keeps the doc round-trip clean.
         updateItem(store, item.id, { fields: Object.keys(fields).length ? fields : undefined });
@@ -302,7 +304,8 @@ export function createPropsPanel({ store, editor, tools }) {
         const cur = findItem(store.doc, item.id)?.item;
         if (!cur) return;
         const lanes = [...(cur.lanes || [])];
-        lanes[Number(input.dataset.lane)] = input.value || tr('Lane {n}', { n: Number(input.dataset.lane) + 1 });
+        input.value = input.value || tr('Lane {n}', { n: Number(input.dataset.lane) + 1 });
+        lanes[Number(input.dataset.lane)] = input.value;
         updateItem(store, item.id, { lanes });
       });
     });

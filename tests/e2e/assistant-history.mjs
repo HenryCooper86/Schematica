@@ -49,6 +49,24 @@ export async function runAssistantHistoryChecks({ send, js, check, sleep, fakeSe
   await js(`window.confirm = () => true; document.querySelector('[data-delete-conversation]').click(); window.confirm = window.__confirm; delete window.__confirm; true`);
   check('confirmed deletion removes only the chosen conversation', await js(`(${records}).length === 1 && !document.querySelector('#ai-history-list [data-conversation]')`));
   await click('ai-history-back');
+  const composingRequests = fakeSeen.length;
+  await type('ai-input', '控制器');
+  const composition = await js(`(() => {
+    const input = document.getElementById('ai-input');
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true, cancelable: true });
+    input.dispatchEvent(enter);
+    const legacyEnter = new KeyboardEvent('keydown', { key: 'Enter', keyCode: 229, bubbles: true, cancelable: true });
+    input.dispatchEvent(legacyEnter);
+    return { draft: input.value, idle: document.getElementById('ai-stop').hidden, prevented: enter.defaultPrevented || legacyEnter.defaultPrevented };
+  })()`);
+  check('confirming Chinese composition preserves the draft without sending or preventing IME input',
+    composition.draft === '控制器' && composition.idle && !composition.prevented && fakeSeen.length === composingRequests);
+  if (!composition.idle) {
+    await click('ai-stop');
+    await wait(`document.getElementById('ai-stop').hidden`);
+    await js(`document.getElementById('ai-preview-discard')?.click(); true`);
+    await wait(`!document.getElementById('ai-preview-dialog')`);
+  }
   const beforeRequests = fakeSeen.length;
   await type('ai-input', 'Fix this finding: add a fuse note');
   const blocked = await js(`document.getElementById('ai-send').click(); ({history:document.getElementById('ai-history-toggle').disabled,newThread:document.getElementById('ai-new').disabled})`);

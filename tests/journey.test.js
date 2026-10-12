@@ -163,6 +163,23 @@ test('story relationships highlight only direct wires and preserve authored dire
   assert.match(storyRelationshipText(doc,reverse,1), /b · gpio → c · gpio/);
 });
 
+test('story explanations retain reverse arrows regardless of stop order or language', async () => {
+  const { storyRelationshipText } = await import('../src/journey.js');
+  const { setLang } = await import('../src/i18n.js');
+  const doc = { nodes: [{ id: 'a', label: 'Source' }, { id: 'b', label: 'Sink' }], wires: [
+    { id: 'w', bus: 'uart', arrow: 'back', from: { node: 'a', port: 'uart' }, to: { node: 'b', port: 'uart' } },
+  ] };
+  for (const order of [['a', 'b'], ['b', 'a']]) {
+    const step = { stops: order.map(node => ({ node })) };
+    assert.equal(storyRelationshipText(doc, step, 1), 'Source · uart ← Sink · uart · UART · Authored arrow direction');
+  }
+  setLang('zh');
+  try {
+    assert.match(storyRelationshipText(doc, { stops: [{ node: 'a' }, { node: 'b' }] }, 1), /Source · uart ← Sink · uart/);
+    assert.doesNotMatch(storyRelationshipText(doc, { stops: [{ node: 'a' }, { node: 'b' }] }, 1), /方向未指定/);
+  } finally { setLang('en'); }
+});
+
 test('story moment links survive reordering and fall back for removed stops', async () => {
   const { readStoryMoment } = await import('../src/journey.js');
   const steps = [{id:'other'}, {id:'chapter',stops:[{id:'b'},{id:'a'}]}];
