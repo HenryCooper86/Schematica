@@ -53,6 +53,7 @@ accounts or enable that service.
 These documents explain measured behavior and past implementation decisions.
 They are dated records, not the primary usage instructions.
 
+- [Latest bug audit and regression results](quality-review-2026-10-13.md)
 - [October implementation and validation report](category-release-2026-10-07.md)
 - [Category-readiness assessment and remaining gaps](category-readiness-2026-10-07.md)
 - [Performance measurements](performance.md)

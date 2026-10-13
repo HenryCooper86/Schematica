@@ -148,7 +148,6 @@ export const PROVIDERS = {
 };
 export const EFFORTS = ['low', 'medium', 'high'];
 export const SETTINGS_KEY = 'schematica.ai.settings';
-export const THREAD_KEY = 'schematica.ai.thread';
 export const keyStorageKey = (provider) => `schematica.ai.key.${provider}`;
 
 // Dollars per million tokens. An estimate: the panel labels it as one.

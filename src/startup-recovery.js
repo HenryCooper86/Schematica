@@ -5,6 +5,8 @@ import { tr } from './i18n.js';
 // Original bytes live outside the rotating, normalized revision history.
 export const RECOVERY_PREFIX = 'schematica.recovery.';
 const AUTOSAVE = 'schematica.autosave';
+const validArchive = entry => entry && typeof entry.id === 'string' && entry.id.length > 0
+  && typeof entry.text === 'string' && Number.isFinite(entry.at) && Math.abs(entry.at) <= 8.64e15;
 const inspect = text => {
   try { return { ...deserialize(text), error: '' }; }
   catch (error) { return { doc: null, warnings: [], error: error.message }; }
@@ -14,13 +16,16 @@ export function createStartupRecovery(storage) {
   const notify = () => listeners.forEach(fn => fn());
   let original = null, doc = null, readError = '';
   function refresh() {
+    // Missing or unreadable copies are still recoverable in memory, but they
+    // must no longer be presented as safely stored on this device.
+    for (const entry of entries.values()) entry.durable = false;
     try {
       for (let i = 0; storage && i < storage.length; i++) {
         const key = storage.key(i);
         if (!key?.startsWith(RECOVERY_PREFIX)) continue;
         try {
           const entry = JSON.parse(storage.getItem(key));
-          if (entry?.id && key === RECOVERY_PREFIX + entry.id && typeof entry.text === 'string' && Number.isFinite(entry.at)) {
+          if (validArchive(entry) && key === RECOVERY_PREFIX + entry.id) {
             const known = entries.get(entry.id);
             if (known && known.text !== entry.text) { known.durable = false; continue; }
             const { warnings, error } = inspect(entry.text);
@@ -38,6 +43,7 @@ export function createStartupRecovery(storage) {
       const existing = storage.getItem(key);
       if (existing !== null) {
         const saved = JSON.parse(existing);
+        if (!validArchive(saved) || saved.id !== entry.id) throw Error('Invalid recovery metadata');
         if (saved.text !== entry.text) throw Error('Recovery copy differs');
         entry.reviewed = saved.reviewed === true;
       } else {

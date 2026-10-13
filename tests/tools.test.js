@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Store, addNode, addWire, addZone, addNote, updateItem, setLock } from '../src/state.js';
+import { Store, newDoc, addNode, addWire, addZone, addNote, updateItem, setLock } from '../src/state.js';
 import { nodeRect, noteHeight } from '../src/geometry.js';
 import { alignGroup } from '../src/ui/props.js';
 
@@ -94,7 +94,7 @@ async function setup() {
     preventDefault() { this.prevented = true; }, ...extra,
   });
   const key = (k, extra = {}) => ev(body, { key: k, ...extra });
-  return { svg, body, doc, win, store, tools, editor, toastEl, toolChanges, ev, key };
+  return { svg, body, doc, win, store, tools, popover, editor, toastEl, toolChanges, ev, key };
 }
 
 function nodeEl(id, parent = null) {
@@ -126,6 +126,91 @@ test('keys other than Escape are ignored while a move drag is in flight', async 
   win.dispatch('keydown', key('Escape'));
   assert.equal(store.isDragging(), false);
   assert.equal(store.doc.nodes[0].x, 0, 'Escape puts the card back');
+});
+
+test('replacing a board abandons the old drag even when the new board reuses an item ID', async () => {
+  const { svg, store, ev } = await setup();
+  const id = addNode(store, 'mcu', 0, 0), element = nodeEl(id);
+  svg.dispatch('pointerdown', ev(element, { clientX: 10, clientY: 10 }));
+  svg.dispatch('pointermove', ev(element, { clientX: 50, clientY: 10 }));
+  const replacement = newDoc('Replacement');
+  replacement.nodes.push({ ...structuredClone(store.doc.nodes[0]), x: 700 });
+  store.replaceDoc(replacement);
+  svg.dispatch('pointermove', ev(element, { clientX: 90, clientY: 10 }));
+  svg.dispatch('pointerup', ev(element));
+  assert.equal(store.doc.nodes[0].x, 700);
+  assert.equal(store.undoStack.length, 0);
+});
+
+test('replacing a board cancels an inline rename instead of editing a reused ID', async () => {
+  const { svg, store, editor, ev } = await setup();
+  const id = addNode(store, 'mcu', 0, 0), element = nodeEl(id);
+  svg.dispatch('pointerdown', ev(element));
+  svg.dispatch('pointerup', ev(element));
+  svg.dispatch('pointerdown', ev(element));
+  assert.equal(editor.hidden, false);
+  editor.value = 'Uncommitted old label';
+  const replacement = newDoc('Replacement');
+  replacement.nodes.push({ ...structuredClone(store.doc.nodes[0]), label: 'New board label' });
+  store.replaceDoc(replacement);
+  editor.dispatch('blur', ev(editor));
+  assert.equal(editor.hidden, true);
+  assert.equal(store.doc.nodes[0].label, 'New board label');
+  assert.equal(store.undoStack.length, 0);
+});
+
+test('switching tools abandons a wire gesture before clearing its draft', async () => {
+  const { svg, store, tools, ev } = await setup();
+  const id = addNode(store, 'mcu', 0, 0), port = portEl(id, 'i2c');
+  svg.dispatch('pointerdown', ev(port));
+  tools.setTool('pan');
+  assert.doesNotThrow(() => svg.dispatch('pointermove', ev(port, { clientX: 100 })));
+  assert.equal(tools.ui.wireDraft, null);
+  assert.equal(store.doc.wires.length, 0);
+});
+
+test('a delayed bus choice cannot connect endpoints removed after the picker opened', async () => {
+  const { svg, doc, store, popover, ev } = await setup();
+  const a = addNode(store, 'mcu', 0, 0), b = addNode(store, 'temp', 300, 0);
+  const choice = makeEl({ tag: 'BUTTON', dataset: { bus: 'i2c' } });
+  popover.querySelectorAll = () => [choice];
+  doc.elementFromPoint = () => portEl(b, 'vcc');
+  svg.dispatch('pointerdown', ev(portEl(a, 'i2c')));
+  svg.dispatch('pointerup', ev(svg));
+  assert.equal(popover.hidden, false);
+  store.apply(board => { board.nodes = board.nodes.filter(node => node.id !== b); });
+  choice.dispatch('click', ev(choice));
+  assert.equal(store.doc.wires.length, 0);
+});
+
+test('changing selection while choosing a bus still creates the intended connection', async () => {
+  const { svg, doc, store, popover, ev } = await setup();
+  const a = addNode(store, 'mcu', 0, 0), b = addNode(store, 'temp', 300, 0);
+  const choice = makeEl({ tag: 'BUTTON', dataset: { bus: 'i2c' } });
+  popover.querySelectorAll = () => [choice];
+  doc.elementFromPoint = () => portEl(b, 'vcc');
+  svg.dispatch('pointerdown', ev(portEl(a, 'i2c')));
+  svg.dispatch('pointerup', ev(svg));
+  store.setSelection([a]);
+  choice.dispatch('click', ev(choice));
+  assert.equal(popover.hidden, true);
+  assert.equal(store.doc.wires.length, 1);
+  assert.deepEqual(store.doc.wires[0].from, { node: a, port: 'i2c' });
+  assert.deepEqual(store.doc.wires[0].to, { node: b, port: 'vcc' });
+  assert.equal(store.doc.wires[0].bus, 'i2c');
+});
+
+test('losing pointer capture cancels a move without creating an undo step', async () => {
+  const { svg, store, ev } = await setup();
+  const id = addNode(store, 'mcu', 0, 0), element = nodeEl(id);
+  const undoDepth = store.undoStack.length;
+  svg.dispatch('pointerdown', ev(element, { clientX: 10, clientY: 10 }));
+  svg.dispatch('pointermove', ev(element, { clientX: 50, clientY: 10 }));
+  svg.dispatch('lostpointercapture', ev(svg));
+  svg.dispatch('pointerup', ev(element));
+  assert.equal(store.isDragging(), false);
+  assert.equal(store.doc.nodes[0].x, 0);
+  assert.equal(store.undoStack.length, undoDepth);
 });
 
 test('a locked card is still selectable but never moves with a drag', async () => {

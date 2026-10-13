@@ -29,6 +29,25 @@ test('ICD CSV handles quoted multiline references and imports atomically', () =>
   assert.equal(serialize(store.doc), before);
   assert.deepEqual(parseCSV(toCSV([['a', 'b'], ['x\ny', '"z"']])), [['a', 'b'], ['x\ny', '"z"']]);
 });
+
+test('ICD CSV preserves literal apostrophes before formula-like text', () => {
+  for (const literal of ["'=literal", "''+literal", "'@literal", "'\tliteral"]) {
+    const { store } = fixture();
+    store.doc.nodes[0].label = literal;
+    store.doc.wires[0].spec.source = literal;
+    const csv = interfaceCSV(store.doc);
+    assert.equal(importInterfaces(store.doc, csv), 1);
+    assert.equal(store.doc.wires[0].spec.source, literal);
+  }
+});
+
+test('ICD CSV accepts a UTF-8 byte order mark from spreadsheet exports', () => {
+  const { store } = fixture();
+  const csv = '\uFEFF' + interfaceCSV(store.doc);
+  store.doc.wires[0].spec.source = 'Changed locally';
+  assert.equal(importInterfaces(store.doc, csv), 1);
+  assert.equal(store.doc.wires[0].spec.source, 'datasheet.pdf p3');
+});
 test('requirements flag missing allocations, missing targets and missing evidence', () => {
   const { store } = fixture(); const req = store.doc.engineering.requirements[0];
   assert.equal(engineeringChecks(store.doc).length, 0);

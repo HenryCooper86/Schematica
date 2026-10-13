@@ -103,3 +103,51 @@ test('a changed recovery copy cannot replace the original retained in memory', (
   assert.throws(() => recovery.protect(storage).setItem('schematica.autosave', 'new work'));
   assert.equal(storage.getItem('schematica.autosave'), '{');
 });
+
+test('a deleted recovery copy loses its durable status and can be preserved again', () => {
+  const storage = memory('{'), recovery = createStartupRecovery(storage);
+  const entry = recovery.list()[0], key = RECOVERY_PREFIX + entry.id;
+  recovery.acknowledge(entry.id);
+  storage.removeItem(key);
+  recovery.refresh();
+  assert.equal(recovery.list()[0].durable, false);
+  assert.equal(recovery.pending(), true);
+  assert.equal(recovery.list()[0].text, '{');
+  recovery.retry();
+  assert.equal(recovery.list()[0].durable, true);
+  assert.equal(JSON.parse(storage.getItem(key)).text, '{');
+  assert.equal(recovery.pending(), false);
+});
+
+test('an unreadable recovery copy loses its durable status without losing original bytes', () => {
+  const storage = memory('{'), recovery = createStartupRecovery(storage);
+  const entry = recovery.list()[0];
+  storage.setItem(RECOVERY_PREFIX + entry.id, '{broken archive');
+  recovery.refresh();
+  assert.equal(recovery.list()[0].durable, false);
+  assert.equal(recovery.list()[0].text, '{');
+  assert.equal(recovery.blocked(), true);
+});
+
+test('malformed recovery identities and dates do not create unusable review entries', () => {
+  const storage = memory();
+  storage.setItem(RECOVERY_PREFIX + '42', JSON.stringify({ id: 42, at: 1, text: '{', reviewed: true }));
+  storage.setItem(RECOVERY_PREFIX + 'future', JSON.stringify({ id: 'future', at: 1e100, text: '{', reviewed: true }));
+  const recovery = createStartupRecovery(storage);
+  assert.deepEqual(recovery.list(), []);
+  assert.equal(recovery.pending(), false);
+  assert.equal(storage.length, 2, 'malformed archives remain untouched for manual recovery');
+});
+
+test('retry cannot mark a recovery copy with mismatched metadata as durably preserved', () => {
+  const storage = memory('{'), recovery = createStartupRecovery(storage);
+  const entry = recovery.list()[0], key = RECOVERY_PREFIX + entry.id;
+  storage.setItem(key, JSON.stringify({ id: 'different-id', at: entry.at, text: entry.text }));
+  recovery.refresh();
+  recovery.retry();
+  assert.equal(recovery.list()[0].durable, false);
+  assert.equal(recovery.blocked(), true);
+  assert.equal(recovery.list()[0].text, '{');
+  assert.throws(() => recovery.protect(storage).setItem('schematica.autosave', 'New work'));
+  assert.equal(storage.getItem('schematica.autosave'), '{');
+});

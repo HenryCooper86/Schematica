@@ -1,11 +1,14 @@
 export function csvCell(value) {
   const s = String(value ?? '');
-  const formula = /^[=+\-@\t\r]/.test(s);
+  // Escape an existing guard as well, so importing our CSV can remove exactly
+  // one apostrophe without changing an author's literal apostrophe prefix.
+  const formula = /^'*[=+\-@\t\r]/.test(s);
   const safe = formula ? `'${s}` : s;
   return formula || /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
 export const toCSV = rows => rows.map(row => row.map(csvCell).join(',')).join('\n');
 export function parseCSV(text) {
+  text = text.replace(/^\uFEFF/, '');
   const rows = []; let row = [], cell = '', quoted = false, closed = false;
   for (let i = 0; i < text.length; i++) {
     const c = text[i];

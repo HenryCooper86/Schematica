@@ -307,16 +307,3 @@ export function rdkPresets(kind) {
     notes: p.notes,
   }));
 }
-export function profileSummary(profile) {
-  if (!profile) return '';
-  return [
-    profile.name,
-    profile.notes,
-    `Checked: ${profile.checkedOn}`,
-    `Ports: ${profile.ports ? profile.ports.map((p) => `${p.id} (${p.bus})`).join(', ') : 'unverified'}`,
-    ...profile.requirements,
-    ...profile.sources.map(
-      (s) => `${s.title}${s.archived ? ' (archived)' : ''}: ${s.url}`,
-    ),
-  ].join('\n');
-}

@@ -220,3 +220,65 @@ test('a failed storage read while resolving retains the pending conflict', () =>
   assert.throws(() => p.resolve(), /Storage blocked/);
   assert.equal(p.pending()?.doc.title, 'Remote');
 });
+
+test('an unreadable remote autosave still preserves the local board as a conflict revision', () => {
+  const storage = memory(), key = 'schematica.autosave';
+  const revisions = createRevisions(storage);
+  const persistence = conflictStorage(storage, {
+    getDoc: () => newDoc('Local work'), revisions, onConflict() {},
+  });
+  storage.setItem(key, '{invalid JSON');
+  assert.throws(() => persistence.setItem(key, JSON.stringify(newDoc('Local work'))), /Another tab/);
+  assert.equal(persistence.pending().doc, null);
+  assert.equal(storage.getItem(key), '{invalid JSON');
+  const local = revisions.list().find(entry => entry.reason === 'conflict-local');
+  assert.ok(local, 'the local version remains available in revision recovery');
+  assert.equal(revisions.restore(local.id).title, 'Local work');
+});
+
+test('invalid revision identities and timestamps cannot break recovery or poison new snapshots', () => {
+  const storage = memory(), text = JSON.stringify(newDoc('Corrupt metadata'));
+  for (const [key, entry] of [
+    ['numeric-id', { id: 42, at: 1 }],
+    ['out-of-range', { id: 'out-of-range', at: 1e100 }],
+    ['wrong-key', { id: 'another-id', at: 1 }],
+  ]) storage.setItem(REVISION_PREFIX + key, JSON.stringify({ ...entry, text }));
+  const revisions = createRevisions(storage);
+  assert.deepEqual(revisions.list(), []);
+  const saved = revisions.save(newDoc('Healthy revision'));
+  assert.equal(revisions.restore(saved.id).title, 'Healthy revision');
+  assert.equal(createRevisions(storage).list().length, 1);
+  assert.ok(Number.isFinite(new Date(saved.at).getTime()));
+});
+
+test('database migration ignores malformed local revisions and retains valid recovery history', async () => {
+  const storage = memory(), text = JSON.stringify(newDoc('Valid milestone'));
+  storage.setItem(REVISION_PREFIX + 'valid', JSON.stringify({ id: 'valid', at: 1, text }));
+  storage.setItem(REVISION_PREFIX + 'invalid', JSON.stringify({ id: 42, text }));
+  const records = new Map(), errors = [];
+  const database = {
+    async read() { return [...records.values()]; },
+    async write(entries) {
+      for (const entry of entries) {
+        if (typeof entry.id !== 'string' || !Number.isFinite(entry.at)) throw new Error('Invalid revision');
+        records.set(entry.id, entry);
+      }
+    },
+  };
+  const revisions = createRevisions(storage, { database, onError: error => errors.push(error.message) });
+  await revisions.ready;
+  assert.deepEqual(errors, []);
+  assert.equal(revisions.restore('valid').title, 'Valid milestone');
+  assert.equal(storage.getItem(REVISION_PREFIX + 'valid'), null);
+  assert.notEqual(storage.getItem(REVISION_PREFIX + 'invalid'), null);
+  assert.deepEqual(revisions.list().map(entry => entry.id), ['valid']);
+});
+
+test('a revision at the maximum supported date cannot make the next saved revision disappear', () => {
+  const storage = memory();
+  storage.setItem(REVISION_PREFIX + 'future', JSON.stringify({ id: 'future', at: 8.64e15, text: JSON.stringify(newDoc('Far future')) }));
+  const revisions = createRevisions(storage);
+  const saved = revisions.save(newDoc('Latest work'));
+  assert.equal(createRevisions(storage).restore(saved.id).title, 'Latest work');
+  assert.ok(Number.isFinite(new Date(saved.at).getTime()));
+});

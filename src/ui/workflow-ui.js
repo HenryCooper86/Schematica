@@ -165,7 +165,7 @@ export function renderWorkflow({
         author = data.get("author").trim();
       if (!title || !author) return;
       const generation = store.generation, snapshot = JSON.stringify(store.doc);
-      const snap = revisions.save(store.doc, title, "review");
+      const snap = revisions.save(navigation.rootDoc(), title, "review");
       await revisions.flush();
       if (!revisions.list().find(r => r.id === snap.id)?.durable) throw new Error(tr('Not saved — export or retry'));
       if (store.generation !== generation || JSON.stringify(store.doc) !== snapshot) throw new Error(tr('The board changed. Preview again before applying.'));

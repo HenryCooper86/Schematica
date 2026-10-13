@@ -14,6 +14,25 @@ export async function runWorkflowChecks({ js, check, sleep, origin, screenshot }
     js(
       `(()=>{const f=document.querySelector(${JSON.stringify(selector)});for(const [k,v] of Object.entries(${JSON.stringify(values)}))f.elements.namedItem(k).value=v;f.requestSubmit();return true;})()`,
     );
+  check('a subsystem review keeps the complete architecture in revision recovery', await js(`(async()=>{
+    const {Store,newDoc,addNode}=await import('/src/state.js');
+    const {groupSubsystem,createSubsystemNavigation}=await import('/src/subsystems.js');
+    const {createRevisions}=await import('/src/revisions.js');
+    const {renderWorkflow}=await import('/src/ui/workflow-ui.js');
+    const store=new Store(newDoc('Complete architecture'));
+    const part=addNode(store,'mcu',0,0), wrapper=groupSubsystem(store,[part],'Control');
+    const navigation=createSubsystemNavigation(store);navigation.enter(wrapper);
+    const data=new Map(), storage={get length(){return data.size},key:i=>[...data.keys()][i],getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v),removeItem:k=>data.delete(k)};
+    const revisions=createRevisions(storage), body=document.createElement('section');document.body.append(body);
+    try {
+      renderWorkflow({tab:'comments',body,store,navigation,revisions,paint(){}});
+      const form=body.querySelector('#review-start');form.elements.author.value='Reviewer';form.elements.title.value='Control review';form.requestSubmit();
+      for(let i=0;i<20&&!store.doc.engineering?.reviews?.length;i++)await new Promise(resolve=>setTimeout(resolve,10));
+      const review=store.doc.engineering?.reviews?.[0];if(!review)return false;
+      const recovered=revisions.restore(review.revisionId);
+      return recovered.title==='Complete architecture'&&recovered.nodes[0].id===wrapper&&recovered.nodes[0].subsystem.doc.nodes[0].id===part;
+    } finally {body.remove()}
+  })()`));
   await js(
     `(async()=>{const {Store,addNode,addWire}=await import('/src/state.js');const s=new Store();s.doc.title='Workflow integration';const a=addNode(s,'mcu',0,0),b=addNode(s,'temp',350,0);addWire(s,'i2c',{node:a,port:'i2c'},{node:b,port:'i2c'});const dt=new DataTransfer();dt.items.add(new File([JSON.stringify(s.doc)],'workflow.json'));const input=document.getElementById('file-input');input.files=dt.files;input.dispatchEvent(new Event('change'));})()`,
   );
@@ -30,6 +49,22 @@ export async function runWorkflowChecks({ js, check, sleep, origin, screenshot }
       `(async()=>{const {openRevisionDB}=await import('/src/revision-db.js');const name='workflow-test-'+Date.now();const db=await openRevisionDB({open:()=>indexedDB.open(name,1)});await db.write([{id:'old',at:1,text:'old'}]);const put=IDBObjectStore.prototype.put;let rejected=false;IDBObjectStore.prototype.put=function(...args){const r=put.apply(this,args);this.transaction.abort();return r;};try{await db.write([{id:'new',at:2,text:'new'}]);}catch{rejected=true;}finally{IDBObjectStore.prototype.put=put;}const rows=await db.read();db.close();indexedDB.deleteDatabase(name);return rejected&&rows.length===1&&rows[0].id==='old';})()`,
     ),
   );
+  check('malformed database revision metadata cannot block new durable snapshots', await js(`(async()=>{
+    const {openRevisionDB}=await import('/src/revision-db.js'), {createRevisions}=await import('/src/revisions.js'), {newDoc}=await import('/src/state.js');
+    const name='workflow-corrupt-revisions-'+Date.now(), db=await openRevisionDB({open:()=>indexedDB.open(name,1)});
+    const request=indexedDB.open(name,1), connection=await new Promise((resolve,reject)=>{request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error)});
+    const text=JSON.stringify(newDoc('Retained milestone'));
+    await new Promise((resolve,reject)=>{const tx=connection.transaction('revisions','readwrite'), records=tx.objectStore('revisions');
+      records.put({id:'valid',at:1,text});records.put({id:42,at:1,text});records.put({id:'out-of-range',at:1e100,text});
+      tx.oncomplete=resolve;tx.onabort=tx.onerror=()=>reject(tx.error);
+    });connection.close();
+    try {
+      const errors=[], revisions=createRevisions(null,{database:db,onError:error=>errors.push(error.message)});await revisions.ready;
+      const saved=revisions.save(newDoc('New milestone'));await revisions.flush();
+      return errors.length===0&&revisions.list().some(entry=>entry.id===saved.id&&entry.durable)
+        &&revisions.restore(saved.id).title==='New milestone'&&revisions.restore('valid').title==='Retained milestone';
+    } finally {db.close();indexedDB.deleteDatabase(name)}
+  })()`));
   await open("views");
   await form("#view-form", { name: "Firmware interfaces" });
   check(

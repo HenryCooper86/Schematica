@@ -74,7 +74,7 @@ try {
 } catch { persistence = conflictStorage(null, { getDoc: () => navigation.rootDoc(), revisions, onConflict: () => {} }); }
 window.addEventListener('storage', event => {
   if (event.storageArea !== storage) return;
-  if (event.key?.startsWith(RECOVERY_PREFIX)) startupRecovery.refresh();
+  if (event.key === null || event.key?.startsWith(RECOVERY_PREFIX)) startupRecovery.refresh();
   if (event.key === 'schematica.autosave' || event.key === null) {
     persistence.observe(event.newValue);
     showSaveState();

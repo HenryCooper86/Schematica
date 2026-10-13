@@ -680,3 +680,18 @@ test('cancelling a batch removes selection references to rolled-back items', () 
   assert.equal(store.selection.size, 0);
   assert.equal(store.doc.nodes.length, 0);
 });
+
+test('a failed edit restores its selection together with the document', () => {
+  const store = new Store();
+  const id = addNode(store, 'mcu', 0, 0);
+  store.setSelection([id]);
+  const before = structuredClone(store.doc), undoDepth = store.undoStack.length;
+  assert.throws(() => store.apply(doc => {
+    doc.nodes.length = 0;
+    store.selection.clear();
+    throw new Error('Rejected edit');
+  }), /Rejected edit/);
+  assert.deepEqual(store.doc, before);
+  assert.deepEqual([...store.selection], [id]);
+  assert.equal(store.undoStack.length, undoDepth);
+});

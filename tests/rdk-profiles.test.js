@@ -88,7 +88,7 @@ for (const [board, camera, fromPort, toPort] of [
   });
 
 test('catalogue lookup is exact, searchable and provenance-backed', async () => {
-  const { RDK_PRODUCTS, profileFor, searchRdk, rdkPresets, profileSummary } =
+  const { RDK_PRODUCTS, profileFor, searchRdk, rdkPresets } =
     await import('../src/rdk/catalogue.js');
   const { nodePart, knownPorts, displayPart } =
     await import('../src/rdk/profiles.js');
@@ -145,7 +145,6 @@ test('catalogue lookup is exact, searchable and provenance-backed', async () => 
         p.sources.every((s) => s.title && s.url.startsWith('https://')),
     );
     assert.equal(p.checkedOn, '2026-09-06');
-    assert.ok(profileSummary(p).includes(p.sources[0].url));
   }
   assert.equal(
     profileFor({ kind: 'aisbc', sublabel: 'RDK X3 Module' }).ports,
@@ -195,16 +194,6 @@ test('changing a real GS130W node preserves its right wire and user annotations'
   assert.equal(doc.nodes[1].notes, 'keep me');
   assert.equal(deserialize(serialize(doc)).doc.wires[0].to.port, 'csi-right');
   assert.match(diagramMarkup(doc), /class="wire invalid"/);
-});
-
-test('summary includes exact ports and date for downstream consumers', async () => {
-  const { profileFor, profileSummary } =
-    await import('../src/rdk/catalogue.js');
-  const summary = profileSummary(
-    profileFor({ kind: 'depthcam', sublabel: 'GS130W' }),
-  );
-  assert.match(summary, /csi-right/);
-  assert.match(summary, /2026-09-06/);
 });
 
 test('legacy ports remain individually visible when their old position is occupied', async () => {

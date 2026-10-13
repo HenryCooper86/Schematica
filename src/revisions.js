@@ -1,4 +1,4 @@
-import { openRevisionDB } from "./revision-db.js";
+import { openRevisionDB, validRevision, MAX_REVISION_TIME } from "./revision-db.js";
 import { uid } from "./state.js";
 import { deserialize } from "./serialize.js";
 
@@ -30,7 +30,7 @@ export function createRevisions(
       if (!key?.startsWith(REVISION_PREFIX)) continue;
       try {
         const e = JSON.parse(storage.getItem(key));
-        if (e?.id && typeof e.text === "string") entries.push(e);
+        if (validRevision(e) && key === REVISION_PREFIX + e.id) entries.push(e);
       } catch {
         /* skip corrupt */
       }
@@ -40,7 +40,7 @@ export function createRevisions(
   const refresh = async (persisted = []) => {
     const entries = await db.read();
     durable.clear();
-    for (const e of entries) durable.set(e.id, { ...e, durable: true });
+    for (const e of entries) if (validRevision(e)) durable.set(e.id, { ...e, durable: true });
     // Publish the durable list before retiring pending snapshots, so they
     // remain restorable throughout the asynchronous database refresh.
     for (const e of persisted) memory.delete(e.id);
@@ -88,21 +88,7 @@ export function createRevisions(
         (a, b) => b.at - a.at || b.id.localeCompare(a.id),
       );
     try {
-      for (let i = 0; storage && i < storage.length; i++) {
-        const key = storage.key(i);
-        if (!key?.startsWith(REVISION_PREFIX)) continue;
-        try {
-          const entry = JSON.parse(storage.getItem(key));
-          if (
-            entry?.id &&
-            typeof entry.text === "string" &&
-            typeof entry.at === "number"
-          )
-            entries.set(entry.id, { ...entry, durable: true });
-        } catch {
-          /* An unreadable snapshot must not hide the others. */
-        }
-      }
+      for (const entry of legacy()) entries.set(entry.id, { ...entry, durable: true });
     } catch (error) {
       onError(error);
     }
@@ -146,7 +132,7 @@ export function createRevisions(
     const text = JSON.stringify(doc);
     const entry = {
       id: uid("rev"),
-      at: Math.max(Date.now(), ...list().map((r) => r.at + 1)),
+      at: Math.min(MAX_REVISION_TIME, Math.max(Date.now(), ...list().map((r) => r.at + 1))),
       label: String(label).slice(0, 200),
       reason,
       text,
@@ -194,8 +180,9 @@ export function conflictStorage(storage, { getDoc, revisions, onConflict }) {
     if (value === observed) return;
     observed = value;
     try {
+      const local = getDoc();
+      revisions.save(local, local.title, "conflict-local");
       const doc = value ? deserialize(value).doc : null;
-      revisions.save(getDoc(), getDoc().title, "conflict-local");
       if (doc) revisions.save(doc, doc.title, "conflict-remote");
       conflict = { doc };
       onConflict(conflict);

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   snap, nodeRect, nodeSize, nodeMeta, portPosition, wireGeom, wireGeomToPoint, curvePoint, wireLanes, WIRE_FAN,
-  rectContains, rectsIntersect, normRect, wrapText, noteHeight, NOTE_W, contentBounds, textUnits,
+  rectsIntersect, normRect, wrapText, noteHeight, NOTE_W, contentBounds, textUnits,
 } from '../src/geometry.js';
 import { EXAMPLE_OVERLAYS_ZH } from '../src/examples.js';
 import { normalizePart, partOf } from '../src/custom.js';
@@ -123,8 +123,6 @@ test('wireLanes fans wires that share a node pair and centers the fan', () => {
 });
 
 test('rect helpers', () => {
-  assert.ok(rectContains({ x: 0, y: 0, w: 10, h: 10 }, { x: 5, y: 5 }));
-  assert.ok(!rectContains({ x: 0, y: 0, w: 10, h: 10 }, { x: 15, y: 5 }));
   assert.ok(rectsIntersect({ x: 0, y: 0, w: 10, h: 10 }, { x: 5, y: 5, w: 10, h: 10 }));
   assert.ok(!rectsIntersect({ x: 0, y: 0, w: 10, h: 10 }, { x: 20, y: 0, w: 5, h: 5 }));
   assert.deepEqual(normRect(10, 10, 0, 5), { x: 0, y: 5, w: 10, h: 5 });

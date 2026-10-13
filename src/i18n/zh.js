@@ -256,6 +256,7 @@ export default {
   "Choose existing endpoints with supported ports.": "请选择具有受支持端口的现有端点。",
   "Choose ports on two different parts.": "请选择两个不同部件上的端口。",
   "The board changed. Reopen the connection dialog.": "画板已更改。请重新打开连接对话框。",
+  "The board changed. Draw the connection again.": "画板已更改。请重新绘制连接。",
   "Choose a supported bus for these ports.": "请为这些端口选择受支持的总线。",
   "Load the UART walkthrough before introducing a mismatch.": "请先加载 UART 引导示例，再引入不匹配。",
   "The walkthrough board changed. Reload the walkthrough to try the mismatch.": "引导画板已更改。请重新加载引导示例以尝试不匹配。",

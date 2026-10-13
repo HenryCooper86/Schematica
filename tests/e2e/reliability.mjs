@@ -90,7 +90,7 @@ export async function runReliabilityChecks({ js, check, send, origin, sleep, cap
     const {Store,newDoc}=await import('/src/state.js'), {createFormDrafts}=await import('/src/ui/form-drafts.js'), {renderWorkflow}=await import('/src/ui/workflow-ui.js');
     const body=document.createElement('section');document.body.append(body);const store=new Store(newDoc()), drafts=createFormDrafts(paint);let release;
     const revisions={save:()=>({id:'revision'}),flush:()=>new Promise(resolve=>release=resolve),list:()=>[{id:'revision',durable:true}]};
-    function paint(){drafts.capture();renderWorkflow({tab:'comments',body,store,revisions,paint,onSaved:drafts.commit,onSaveStart:drafts.snapshot});drafts.mount(body,'comments');}
+    function paint(){drafts.capture();renderWorkflow({tab:'comments',body,store,navigation:{rootDoc:()=>store.doc},revisions,paint,onSaved:drafts.commit,onSaveStart:drafts.snapshot});drafts.mount(body,'comments');}
     paint();let form=body.querySelector('#review-start');form.elements.author.value='Reviewer';form.elements.title.value='Submitted';form.dispatchEvent(new Event('input',{bubbles:true}));form.requestSubmit();
     form.elements.title.value='Newer draft';form.dispatchEvent(new Event('input',{bubbles:true}));paint();release();await new Promise(resolve=>setTimeout(resolve,50));
     form=body.querySelector('#review-start');const result=store.doc.engineering.reviews[0].title==='Submitted'&&form.elements.title.value==='Newer draft'&&drafts.hasChanges();body.remove();return result;
@@ -110,4 +110,14 @@ export async function runReliabilityChecks({ js, check, send, origin, sleep, cap
   check('recovery originals and notice survive reload', await js(`document.getElementById('title').value==='After recovery'&&document.getElementById('recovery-status').textContent.includes('Recovery')`));
   await js(`document.getElementById('recovery-status').click();document.querySelector('[data-recovery-reviewed]').click();true`);
   check('reviewing recovery clears the notice but retains the original export', await js(`!document.getElementById('recovery-status').textContent.includes('Recovery')&&!!document.querySelector('[data-recovery-export]')`));
+  await js(`localStorage.clear();window.dispatchEvent(new StorageEvent('storage',{key:null,newValue:null,storageArea:localStorage}));true`);
+  check('another tab clearing local storage restores the recovery warning', await js(`document.getElementById('recovery-status').textContent.includes('Recovery')`));
+  await js(`document.querySelector('#engineering-dialog [data-action=close]').click();document.getElementById('recovery-status').click();true`);
+  check('cleared recovery copies remain exportable in memory and can be preserved again', await js(`(async()=>{
+    const {RECOVERY_PREFIX}=await import('/src/startup-recovery.js');
+    const retained=!!document.querySelector('[data-recovery-export]')&&document.getElementById('startup-recovery').textContent.includes('Autosave is paused');
+    document.querySelector('[data-recovery-retry]').click();
+    return retained&&Object.keys(localStorage).filter(k=>k.startsWith(RECOVERY_PREFIX)).some(k=>JSON.parse(localStorage.getItem(k)).text==='{"nodes":')
+      &&document.getElementById('startup-recovery').textContent.includes('Original data saved on this device.');
+  })()`));
 }

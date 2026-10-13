@@ -67,6 +67,7 @@ export class Store {
       fn(this.doc);
     } catch (error) {
       this.doc = snap;
+      this.selection = selection;
       throw error;
     }
     // An unchanged property blur must not trigger document work, cost an

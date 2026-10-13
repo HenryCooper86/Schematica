@@ -12,7 +12,7 @@ import { BUSES, BUS_ORDER } from './buses.js';
 import { nodePart } from './rdk/profiles.js';
 import { esc } from './render.js';
 import { toast } from './ui/press.js';
-import { trd } from './i18n.js';
+import { tr, trd } from './i18n.js';
 
 // requestRender(kind): 'all' (default) rebuilds the diagram, 'view' only moves
 // the camera, 'overlay' only redraws drag feedback. Hover effects (ports,
@@ -53,6 +53,7 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
   // Nothing in the diagram depends on the tool (ports reveal via the
   // tool-wire class), so a tool switch only clears transient overlay state.
   function setTool(t) {
+    abandonDrag();
     tool = t;
     ui.wireDraft = null;
     svg.classList.toggle('tool-wire', t === 'wire');
@@ -447,6 +448,12 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
     requestRender('overlay');
   });
 
+  svg.addEventListener('lostpointercapture', () => {
+    if (!drag) return;
+    abandonDrag();
+    requestRender('overlay');
+  });
+
   svg.addEventListener('wheel', (e) => {
     e.preventDefault();
     const r = svg.getBoundingClientRect();
@@ -645,6 +652,7 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
   }
 
   function openBusPopover(cx, cy, suggested, onPick) {
+    const openedGeneration = store.generation, snapshot = JSON.stringify(store.doc);
     const order = [...suggested, ...BUS_ORDER.filter((b) => !suggested.includes(b))];
     popover.innerHTML = order.map((id) => {
       const b = BUSES[id];
@@ -657,10 +665,16 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
     popover.querySelectorAll('button').forEach((btn) => {
       btn.addEventListener('click', () => {
         closeBusPopover();
+        if (store.generation !== openedGeneration || JSON.stringify(store.doc) !== snapshot
+          || ui.busy || store.inBatch() || document.querySelector('dialog[open]')) {
+          toast(tr('The board changed. Draw the connection again.'));
+          return;
+        }
         onPick(btn.dataset.bus);
       });
     });
     setTimeout(() => {
+      if (popover.hidden) return;
       if (popoverDismiss) window.removeEventListener('pointerdown', popoverDismiss);
       popoverDismiss = (ev) => {
         if (!popover.contains(ev.target)) closeBusPopover();
@@ -725,6 +739,18 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
     if (e.key === 'Escape') cancelInlineEditor();
   });
   editor.addEventListener('blur', commitInlineEditor);
+
+  let generation = store.generation;
+  store.subscribe(() => {
+    if (generation === store.generation) return;
+    generation = store.generation;
+    abandonDrag();
+    closeBusPopover();
+    cancelInlineEditor();
+    spaceDown = false;
+    svg.classList.remove('panning');
+    lastPress = { key: null, t: 0, x: 0, y: 0 };
+  }, { documentOnly: true });
 
   return {
     view, ui, setTool, zoomBy, zoomReset, zoomFit, toWorld,

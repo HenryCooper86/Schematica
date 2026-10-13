@@ -77,7 +77,7 @@ export function importInterfaces(doc, csv) {
   for (const cells of rows) {
     if (cells.length !== headers.length) throw new Error('An ICD row has the wrong number of cells');
     // Undo the spreadsheet formula guard used by our exporter.
-    const row = Object.fromEntries(headers.map((key, i) => [key, cells[i].replace(/^'(?=[=+\-@\t\r])/, '')]));
+    const row = Object.fromEntries(headers.map((key, i) => [key, cells[i].replace(/^'(?='*[=+\-@\t\r])/, '')]));
     const existing = known.get(row.id);
     if (!existing || patches.has(row.id)) throw new Error('Unknown or duplicate interface ID: ' + row.id);
     if (['from', 'to', 'bus'].some(k => row[k] !== existing[k])) throw new Error('Interface endpoints or bus differ: ' + row.id);

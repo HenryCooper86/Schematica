@@ -1,3 +1,7 @@
+export const MAX_REVISION_TIME = 8.64e15;
+export const validRevision = entry => entry && typeof entry.id === "string" && entry.id.length > 0
+  && typeof entry.text === "string" && Number.isFinite(entry.at) && Math.abs(entry.at) <= MAX_REVISION_TIME;
+
 // Rotation and insertion share a transaction: quota errors retain the old store.
 export function openRevisionDB(indexedDB) {
   return new Promise((resolve, reject) => {
@@ -24,8 +28,13 @@ export function openRevisionDB(indexedDB) {
           const req = store.getAll();
           req.onsuccess = () => {
             try {
-              const all = new Map(req.result.map((e) => [e.id, e]));
-              for (const e of entries) all.set(e.id, e);
+              // Keep malformed records untouched for manual recovery, but do
+              // not let their metadata block writes or rotate valid history.
+              const all = new Map(req.result.filter(validRevision).map((e) => [e.id, e]));
+              for (const e of entries) {
+                if (!validRevision(e)) throw new Error("Invalid revision metadata");
+                all.set(e.id, e);
+              }
               const sorted = [...all.values()].sort(
                 (a, b) => b.at - a.at || b.id.localeCompare(a.id),
               );
