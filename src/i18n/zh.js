@@ -2,6 +2,24 @@
 // their English names. Grouped by the surface that shows them. Identity
 // entries mark Latin terms that stay Latin on purpose.
 export default {
+  "Saved board storage could not be read. Export your work before closing this tab.": "无法读取已保存的板图存储。关闭此标签页前，请导出当前工作。",
+  "The original autosave must be preserved before marking it reviewed.": "必须先保留原始自动保存数据，才能标记为已查看。",
+  "Autosave is paused to protect the original data. Export your current board or retry recovery.": "为保护原始数据，自动保存已暂停。请导出当前板图或重试恢复。",
+  "Recovery needs review": "请查看恢复数据",
+  "Original autosave recovery": "原始自动保存数据恢复",
+  "Startup found unreadable or repaired data. Original copies stay separate from saved revisions and are retained after review.": "启动时发现无法读取或需要修复的数据。原始副本与已保存版本分开保留，查看后仍会保留。",
+  "Saved board could not be opened": "无法打开已保存的板图",
+  "Saved board loaded with repairs": "已保存的板图经修复后加载",
+  "Original saved board": "原始已保存板图",
+  "Original data saved on this device.": "原始数据已保存在此设备上。",
+  "Export original data": "导出原始数据",
+  "Reviewed": "已查看",
+  "Mark reviewed": "标记为已查看",
+  "Retry preserving original data": "重试保留原始数据",
+  "Unsaved draft — kept in this tab": "未保存的草稿 — 保留在此标签页中",
+  "No unsaved changes": "没有未保存的更改",
+  "Discard unsaved Engineering drafts and open another board?": "放弃未保存的工程草稿并打开另一板图？",
+
   "Technical report": "技术报告",
   "Create technical report": "创建技术报告",
   "System architecture": "系统架构",

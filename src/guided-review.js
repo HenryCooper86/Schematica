@@ -23,7 +23,7 @@ export async function loadGuideBoard({ store, rootDoc, revisions, doc }) {
   assertCurrent();
   if (!revisions.list().some(r => r.id === saved.id && r.durable))
     throw new Error(tr('Save the current board to a file before loading the starter.'));
-  store.replaceDoc(next);
+  return store.replaceDoc(next);
 }
 
 export function walkthroughSession(store, expected = REFERENCE_EXAMPLE.doc) {

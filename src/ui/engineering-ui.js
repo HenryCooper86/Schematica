@@ -1,3 +1,5 @@
+import { createFormDrafts } from './form-drafts.js';
+import { renderStartupRecovery } from './startup-recovery.js';
 import { captureKiCadUpdate, assertKiCadUpdateCurrent, prepareKiCadUpdate, applyKiCadUpdate } from '../kicad-update.js';
 import { requirementFingerprint } from '../workflows.js';
 import { renderWorkflow } from './workflow-ui.js';
@@ -18,10 +20,10 @@ import { powerSummary, formatCurrent } from '../power.js';
 import { exposePort } from '../subsystems.js';
 import { download } from '../export.js';
 import { serialize } from '../serialize.js';
-import { escAttr as esc, openModal, toast } from './press.js';
+import { escAttr as esc, openModal, toast, keepFocus } from './press.js';
 import { tr, onLanguageChange } from '../i18n.js';
 
-export function initEngineering({ store, revisions, navigation, persistence, flush, importKiCad, explorer, tools }) {
+export function initEngineering({ store, revisions, startupRecovery, navigation, persistence, flush, importKiCad, explorer, tools }) {
   const button = document.createElement('button'); button.id = 'btn-engineering';
   button.innerHTML = '<svg viewBox="0 0 18 18" aria-hidden="true"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="11" y="11" width="5" height="5" rx="1"/><path d="M7 4.5h6.5V11M4.5 7v6.5H11"/></svg>';
   const labelButton = () => { button.title = tr('Engineering'); button.setAttribute('aria-label', tr('Engineering')); };
@@ -29,7 +31,19 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
   const dialog = document.createElement('dialog'); dialog.id = 'engineering-dialog';
   dialog.setAttribute('aria-labelledby', 'engineering-heading'); document.body.append(dialog);
   let tab = 'revisions', selected = null, baseline = null, reuseTargets = new Set(), reusePreview = null;
-  let reportDispose = null;
+  let reportDispose = null, submittingForm = null, painting = false, generation = store.generation;
+  const drafts = createFormDrafts(paint), selections = new Map();
+  const scopeKey = () => JSON.stringify(navigation.path());
+  const chooseTab = (next, id) => { tab = next; selected = id === undefined ? selections.get(scopeKey() + tab) ?? null : id; };
+  const saved = (form, submitted) => drafts.commit(form, submitted);
+  store.subscribe(() => {
+    if (generation === store.generation) return;
+    generation = store.generation;
+    if (!navigation.navigating()) { drafts.clear(); selections.clear(); selected = null; }
+  });
+  window.addEventListener('beforeunload', event => {
+    if (drafts.hasChanges()) { event.preventDefault(); event.returnValue = ''; }
+  });
   const labels = () => ({ revisions: tr('Revisions'), interfaces: tr('Interfaces'), requirements: tr('Requirements'), decisions: tr('Decisions'),
     impact: tr('Change impact'), budgets: tr('Budget assumptions'), subsystems: tr('Subsystems'), report: tr('Technical report'), review: tr('Review package'), interchange: tr('Interchange'), views: tr('Saved views'), comments: tr('Review comments'), matrix: tr('Verification matrix') });
   const input = (name, label, value = '', type = 'text') => `<label>${esc(label)}<input name="${name}" type="${type}" value="${esc(value)}" maxlength="20000"></label>`;
@@ -39,9 +53,16 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
   const items = () => [...store.doc.nodes, ...store.doc.wires].map(i => [i.id, i.label || `${i.id} (${i.bus})`]);
   const act = (id, label) => `<button type="button" data-action="${id}">${esc(label)}</button>`;
   const safe = fn => async event => { event?.preventDefault(); try { await fn(event); } catch (error) { toast(error.message); } };
-  const edit = fn => { store.apply(fn); reusePreview = null; paint(); };
+  const edit = fn => { store.apply(fn); saved(submittingForm); reusePreview = null; paint(); };
   const eng = doc => (doc.engineering ||= {});
   function paint() {
+    if (painting) return;
+    painting = true;
+    try { draw(); } finally { painting = false; }
+  }
+  function draw() {
+    drafts.capture();
+    const restoreFocus = keepFocus(dialog), hadFocus = dialog.contains(document.activeElement);
     reportDispose?.(); reportDispose = null;
     if (tab === 'report') while (navigation.depth()) navigation.up();
     const sectionScroll = dialog.dataset.section === tab ? dialog.querySelector('#engineering-body')?.scrollTop || 0 : 0;
@@ -61,9 +82,9 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
         + `<form>${input('label', tr('Revision name'), navigation.rootDoc().title)}${submit(tr('Save revision'))}</form>`
         + act('retry', tr('Retry saving revisions')) + `<p>${esc(tr('Up to 30 recent revisions are kept on this device. Export important milestones to a file.'))}</p><ul>${revisions.list().map(r => `<li><strong>${esc(r.label)}</strong> <span>${esc(r.durable ? tr('Saved on this device') : tr('Not saved — export or retry'))}</span> <time>${esc(new Date(r.at).toLocaleString())}</time>
           <button data-restore="${esc(r.id)}">${esc(tr('Restore'))}</button><button data-export="${esc(r.id)}">${esc(tr('Export'))}</button><button data-baseline="${esc(r.id)}">${esc(tr('Use as baseline'))}</button></li>`).join('')}</ul>`;
-      formHandler = data => { revisions.save(navigation.rootDoc(), data.get('label')); paint(); };
-      actions.keep = () => { persistence.resolve(); persistence.setItem('schematica.autosave', JSON.stringify(navigation.rootDoc())); flush(); paint(); };
-      actions.remote = () => { const doc = persistence.pending()?.doc; persistence.resolve(); if (doc) store.replaceDoc(doc); paint(); };
+      formHandler = data => { revisions.save(navigation.rootDoc(), data.get('label')); saved(submittingForm); paint(); };
+      actions.keep = () => { persistence.resolve(); startupRecovery.protect(persistence).setItem('schematica.autosave', JSON.stringify(navigation.rootDoc())); flush(); paint(); };
+      actions.remote = () => { const doc = persistence.pending()?.doc; if (doc && store.replaceDoc(doc) === false) return; persistence.resolve(); flush(); paint(); };
       body.querySelectorAll('[data-restore]').forEach(b => b.onclick = safe(() => { store.replaceDoc(revisions.restore(b.dataset.restore)); paint(); }));
       body.querySelectorAll('[data-export]').forEach(b => b.onclick = safe(() => download('revision.schematica.json', serialize(revisions.restore(b.dataset.export)), 'application/json')));
       body.querySelectorAll('[data-baseline]').forEach(b => b.onclick = safe(() => { baseline = revisions.restore(b.dataset.baseline); tab = 'review'; paint(); }));
@@ -129,7 +150,7 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
         ${submit(tr('Save record'))}${record ? act('delete', tr('Delete record')) : ''}</form>`;
       body.querySelectorAll('[data-record]').forEach(b => b.onclick = () => { selected = b.dataset.record; paint(); });
       actions.new = () => { selected = null; paint(); };
-      actions.delete = () => edit(doc => { eng(doc)[tab] = records.filter(r => r.id !== selected); selected = null; });
+      actions.delete = () => { saved(body.querySelector('form')); edit(doc => { eng(doc)[tab] = records.filter(r => r.id !== selected); selected = null; }); };
       formHandler = data => {
         const next = { ...Object.fromEntries(data), targets: data.getAll('targets') }; next.id = next.id.trim();
         if (!next.id || !next.text.trim()) throw new Error(tr('Record ID and description are required.'));
@@ -140,7 +161,7 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
         edit(doc => { eng(doc)[tab] = [...records.filter(r => r.id !== selected), next]; selected = next.id; });
       };
     } else if (['views', 'comments', 'matrix'].includes(tab)) {
-      renderWorkflow({ tab, body, store, navigation, revisions, baseline, explorer, tools, paint, close: () => dialog.close(), openTab: (next, id) => { tab = next; selected = id; paint(); } });
+      renderWorkflow({ onSaved: saved, onSaveStart: drafts.snapshot, tab, body, store, navigation, revisions, baseline, explorer, tools, paint, close: () => dialog.close(), openTab: (next, id) => { chooseTab(next, id); paint(); } });
     } else if (tab === 'impact') {
       const nodes=store.doc.nodes.filter(n=>!n.locked&&!n.subsystem);selected=nodes.some(n=>n.id===selected)?selected:nodes.find(n=>store.selection.has(n.id))?.id||nodes[0]?.id;
       const node=nodes.find(n=>n.id===selected);
@@ -150,7 +171,7 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
         const snapshot=JSON.stringify(store.doc),generation=store.generation,proposal=proposePartChange(store.doc,{id:selected,partNumber:data.get('partNumber'),rail:data.get('rail')});
         const target=body.querySelector('#impact-preview');target.innerHTML=`<p><strong>${esc(data.get('partNumber'))}</strong> · ${esc(data.get('rail'))}</p><div data-part-visual></div>`+impactSummary(impactAnalysis(store.doc,proposal))+act('apply-preview',tr('Apply previewed change'));
         renderChangePreview(target.querySelector('[data-part-visual]'), store.doc, proposal);
-        target.querySelector('[data-action=apply-preview]').onclick=safe(()=>{if(store.generation!==generation||JSON.stringify(store.doc)!==snapshot)throw new Error(tr('The board changed. Preview again before applying.'));store.apply(doc=>{doc.nodes=proposal.nodes;});paint();});
+        target.querySelector('[data-action=apply-preview]').onclick=safe(()=>{if(store.generation!==generation||JSON.stringify(store.doc)!==snapshot)throw new Error(tr('The board changed. Preview again before applying.'));store.apply(doc=>{doc.nodes=proposal.nodes;});saved(body.querySelector('form'));paint();});
         target.querySelectorAll('[data-impact-id]').forEach(b=>b.onclick=()=>{store.setSelection([b.dataset.impactId]);});
       };
     } else if (tab === 'budgets') {
@@ -187,11 +208,11 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
         actions.expose = () => { const value = body.querySelector('[name=internal-port]').value;
           if (!value) return; exposePort(store, container.id, JSON.parse(value), body.querySelector('[name=port-name]').value); paint(); };
       }
-      formHandler = data => { selected = navigation.group(store.selection, data.get('name').trim() || tr('Subsystem')); paint(); };
+      formHandler = data => { selected = navigation.group(store.selection, data.get('name').trim() || tr('Subsystem')); saved(submittingForm); paint(); };
       actions.up = () => { navigation.up(); dialog.close(); };
       body.querySelectorAll('[data-enter]').forEach(b => b.onclick = safe(() => { revisions.save(navigation.rootDoc(), navigation.rootDoc().title, 'subsystem-edit'); navigation.enter(b.dataset.enter); dialog.close(); }));
     } else if (tab === 'report') {
-      reportDispose = renderTechnicalReport({ body, store, baseline });
+      reportDispose = renderTechnicalReport({ body, store, baseline, onSaved: saved });
     } else if (tab === 'review') {
       const findings = reviewFindings(store.doc);
       body.innerHTML = `<p>${esc(baseline ? tr('Baseline: {title}', { title: baseline.title }) : tr('Choose a revision as the baseline to include a comparison.'))}</p>${act('technical-report', tr('Create technical report'))}${act('package', tr('Download review package'))}${baseline ? impactSummary(impactAnalysis(baseline,navigation.rootDoc())) : ''}
@@ -233,17 +254,27 @@ export function initEngineering({ store, revisions, navigation, persistence, flu
         target.querySelectorAll('[data-impact-id]').forEach(b => b.onclick = () => store.setSelection([b.dataset.impactId]));
       });
     }
-    dialog.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; selected = null; reuseTargets.clear(); reusePreview = null; paint(); });
+    if (tab === 'revisions') renderStartupRecovery(body, startupRecovery, flush, paint);
+    dialog.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { chooseTab(b.dataset.tab); reuseTargets.clear(); reusePreview = null; paint(); });
     dialog.querySelectorAll('[data-action]').forEach(b => b.onclick = safe(actions[b.dataset.action] || (() => {})));
     body.querySelectorAll('[data-impact-id]').forEach(b=>b.onclick=()=>{const id=b.dataset.impactId;if(tab==='review')while(navigation.depth())navigation.up();store.setSelection([id]);paint();});
-    body.querySelector('form')?.addEventListener('submit', safe(e => formHandler?.(new FormData(e.currentTarget))));
+    if (formHandler) body.querySelector('form')?.addEventListener('submit', safe(e => {
+      submittingForm = e.currentTarget;
+      try { formHandler(new FormData(submittingForm)); } finally { submittingForm = null; }
+    }));
+    body.querySelectorAll('[name=wire], [name=node]').forEach(el => el.setAttribute('data-draft-ignore', ''));
+    if (['requirements', 'decisions'].includes(tab) && !selected) body.querySelector('[name=id]')?.setAttribute('data-draft-sticky', '');
+    selections.set(scopeKey() + tab, selected);
+    drafts.mount(body, [scopeKey(), tab, selected]);
+    restoreFocus();
+    if (dialog.open && hadFocus && !dialog.contains(document.activeElement)) dialog.querySelector(`[data-tab="${tab}"]`)?.focus();
     body.scrollTop = sectionScroll;
     if (tab === 'interfaces') body.querySelector('#interface-worklist > ul').scrollTop = worklistScroll;
   }
-  revisions.subscribe?.(() => { if (dialog.open && tab === 'revisions' && !dialog.querySelector('input:focus')) paint(); });
+  revisions.subscribe?.(() => { if (!submittingForm && dialog.open && tab === 'revisions' && !dialog.querySelector('input:focus')) paint(); });
   button.onclick = () => { reuseTargets.clear(); reusePreview = null; paint(); openModal(dialog); };
   dialog.addEventListener('close', () => { reportDispose?.(); reportDispose = null; });
   onLanguageChange(() => { labelButton(); if (dialog.open) paint(); });
   labelButton();
-  return { openTab(next) { tab = next; selected = null; reuseTargets.clear(); reusePreview = null; paint(); openModal(dialog); }, openRevisions() { tab = 'revisions'; paint(); openModal(dialog); } };
+  return { confirmDiscardDrafts: () => !drafts.hasChanges() || confirm(tr('Discard unsaved Engineering drafts and open another board?')), openTab(next) { chooseTab(next); reuseTargets.clear(); reusePreview = null; paint(); openModal(dialog); }, openRevisions() { chooseTab('revisions'); paint(); openModal(dialog); } };
 }

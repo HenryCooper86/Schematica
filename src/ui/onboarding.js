@@ -67,7 +67,7 @@ export function initOnboarding({
           EXAMPLES.find((e) => e.id === id),
           getLang(),
         );
-        await loadGuideBoard({ store, rootDoc: () => navigation.rootDoc(), revisions, doc: example.doc });
+        if (await loadGuideBoard({ store, rootDoc: () => navigation.rootDoc(), revisions, doc: example.doc }) === false) return;
         session = id === 'declared-uart-reference' ? walkthroughSession(store, example.doc) : null;
         triedMismatch = false;
         tools.zoomFit();

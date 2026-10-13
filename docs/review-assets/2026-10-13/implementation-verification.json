@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-13",
+  "baseCommit": "fec15ad6adf4db82cce1a2e3735415b5f3b7ed7c",
+  "workingTree": true,
+  "unit": {
+    "command": "npm test",
+    "passed": 1135,
+    "failed": 0
+  },
+  "sourceCheck": {
+    "command": "npm run check:source",
+    "passed": true
+  },
+  "browser": {
+    "full": {
+      "command": "npm run e2e",
+      "passed": 340,
+      "total": 340,
+      "consoleProblems": 0,
+      "note": "Run completed before the final one-line correction preserving the chosen comparison baseline; the subsequent 22-check reliability run covers that correction."
+    },
+    "reliability": {
+      "command": "RELIABILITY_E2E_ONLY=1 npm run e2e",
+      "passed": 22,
+      "total": 22,
+      "consoleProblems": 0
+    },
+    "workflow": {
+      "command": "WORKFLOW_E2E_ONLY=1 npm run e2e",
+      "passed": 17,
+      "total": 17,
+      "consoleProblems": 0
+    },
+    "layout": {
+      "command": "LAYOUT_E2E_ONLY=1 npm run e2e",
+      "passed": 182,
+      "total": 182,
+      "consoleProblems": 0
+    }
+  }
+}

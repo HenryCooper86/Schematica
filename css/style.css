@@ -1842,3 +1842,9 @@ html[data-theme="light"] .ai-result.warn { color: #92400e; }
 .ai-history-row :is(strong, span, small) { overflow-wrap: anywhere; }
 .ai-history-row :is(span, time, small) { color: var(--muted); font-size: 10.5px; line-height: 1.4; }
 .ai-history-row > .ai-icon-btn { margin-top: 6px; }
+
+.engineering-draft { grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 8px 0; color: var(--muted); }
+#startup-recovery { margin-bottom: 20px; padding: 14px; border: 1px solid var(--accent); border-radius: 8px; background: var(--bg1); }
+#startup-recovery article { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+#startup-recovery time { display: block; color: var(--muted); margin: 4px 0; }
+#startup-recovery button { margin: 4px 8px 4px 0; }

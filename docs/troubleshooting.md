@@ -33,6 +33,29 @@ and choose **Keep this version** or **Open other version** after comparing the
 available snapshots. Close extra editing tabs once resolved. Schematica detects
 conflicts; it does not automatically merge their changes.
 
+### Startup says “Recovery needs review”
+
+Open **Engineering → Revisions → Original autosave recovery**. Read the reported
+errors or repairs and use **Export original data** to keep an untouched copy.
+An unreadable original is not automatically repaired by exporting it; restore a
+valid revision or open a known good board file to resume that design. A repaired
+board should be checked against the listed warnings. **Mark reviewed** acknowledges
+the notice without deleting the original copy.
+
+If preservation fails, autosave stays paused so editing cannot overwrite the
+original. Export both the current board and original data before leaving the
+page, resolve the browser storage problem, and choose **Retry preserving original
+data**. Recovery copies remain in this browser and site; clearing site data deletes
+them along with other local saves.
+
+### Engineering says “Unsaved draft” while the board says it is saved
+
+The board indicator describes committed board data. The form notice describes
+edits you have not submitted yet. Use the form's Save action before downloading
+the board or closing the page. Switching sections and closing Engineering retain
+the draft within this tab; **Discard draft** resets only that form. Drafts are not
+included in board files, revisions, or a normal reload.
+
 ### The first-project starter will not load
 
 The guide requires a durable recovery snapshot before replacing the board.

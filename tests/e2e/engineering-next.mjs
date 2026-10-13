@@ -136,6 +136,10 @@ export async function runEngineeringNextChecks({ js, key, check, sleep }) {
   check('reuse previews only missing fields before changing the board', await js(`document.getElementById('reuse-preview').textContent.includes('w2')&&!JSON.parse(localStorage.getItem('schematica.autosave')).wires[1].spec`));
   await js(`document.querySelector('[data-action=apply-reuse]').click();window.dispatchEvent(new Event('pagehide'));true`);
   check('reuse applies selected connection fields in one board edit', await js(`(()=>{const w=JSON.parse(localStorage.getItem('schematica.autosave')).wires[1];return w.spec.protocol==='UART'&&w.spec.source&&document.getElementById('interface-worklist').textContent.includes('Checked')})()`));
+  await js(`document.querySelector('[data-worklist-wire="w2"]').click();true`);
+  check('reuse preserves the unsaved fields of its destination form', await js(`document.querySelector('[name=protocol]').value==='Draft only'`));
+  await js(`document.querySelector('[data-draft-discard]').click();true`);
+  check('discard reveals the saved reused fields', await js(`document.querySelector('[name=protocol]').value==='UART'`));
   await js(`document.querySelector('#engineering-dialog [data-action=close]').click();true`);
   await js(
     `(()=>{const dt=new DataTransfer();dt.items.add(new File([${JSON.stringify(original)}],'restore.json'));const f=document.getElementById('file-input');f.files=dt.files;f.dispatchEvent(new Event('change'));return true})()`,

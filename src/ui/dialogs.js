@@ -346,7 +346,7 @@ export function initDialogs({ store, getRootDoc = () => store.doc }) {
       if (request !== openRequest) return;
       if (store.inBatch() || store.generation !== generation || JSON.stringify(getRootDoc()) !== snapshot)
         throw new Error(tr('The board changed while the file was loading. Open the file again.'));
-      store.replaceDoc(doc);
+      if (store.replaceDoc(doc) === false) return;
       if (warnings.length) toast(tr('Opened with warnings:\n\n{list}', { list: warnings.join('\n') }));
     } catch (err) {
       if (request === openRequest) toast(err.message);

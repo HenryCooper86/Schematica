@@ -146,8 +146,9 @@ export async function runDocumentChecks(harness) {
   await settle();
 
   const beforeReloadRequests = fakeSeen.length;
+  await js(`window.__documentsBeforeReload=true;true`);
   await send('Page.reload', { ignoreCache: true });
-  await waitFor(`document.readyState === 'complete' && !!document.querySelector('#ai-documents [data-doc-files]')`);
+  if (!await waitFor(`!window.__documentsBeforeReload && document.readyState === 'complete' && !!document.querySelector('#ai-documents [data-doc-files]')`)) throw Error('Document reload did not finish');
   check('reload clears session documents without a provider request', await rows() === 0 && fakeSeen.length === beforeReloadRequests);
   await seedFake();
   await js(`document.getElementById('btn-assistant').click(); (() => { const i=document.getElementById('ai-input'); i.value='Continue without sources'; document.getElementById('ai-send').click(); })(); true`);

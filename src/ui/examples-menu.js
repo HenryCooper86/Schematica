@@ -44,7 +44,7 @@ export function initExamplesMenu({ store }) {
         if (!ex) return;
         if (!confirm(tr('Load "{name}"? Anything not saved to a file is lost.', { name: ex.name }))) return;
         const { doc, warnings } = deserialize(serialize(ex.doc));
-        store.replaceDoc(doc);
+        if (store.replaceDoc(doc) === false) return;
         if (warnings.length) toast(tr('Example loaded with warnings:\n\n{list}', { list: warnings.join('\n') }));
       });
     });

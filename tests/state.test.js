@@ -428,6 +428,25 @@ test('subscribe fires on emit and unsubscribes', () => {
   assert.equal(calls, 1);
 });
 
+test('a cancelled replacement preserves the board, history, selection and later hooks', () => {
+  const store = new Store(newDoc('Original'));
+  store.apply(doc => { doc.title = 'Edited'; });
+  store.setSelection(['selected']);
+  const snapshot = JSON.stringify(store.doc), generation = store.generation;
+  let later = false, emitted = false;
+  store.beforeReplace.add(() => false);
+  store.beforeReplace.add(() => { later = true; });
+  store.subscribe(() => { emitted = true; });
+  assert.equal(store.replaceDoc(newDoc('Replacement')), false);
+  assert.equal(JSON.stringify(store.doc), snapshot);
+  assert.equal(store.generation, generation);
+  assert.deepEqual([...store.selection], ['selected']);
+  assert.equal(later, false);
+  assert.equal(emitted, false);
+  store.undo();
+  assert.equal(store.doc.title, 'Original');
+});
+
 test('replaceDoc resets history and selection', () => {
   const store = new Store();
   const id = addNode(store, 'mcu', 0, 0);

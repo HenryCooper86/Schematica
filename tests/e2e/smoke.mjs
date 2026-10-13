@@ -1,3 +1,4 @@
+import { runReliabilityChecks } from './reliability.mjs';
 import { runTeamReviewChecks } from './team-review.mjs';
 import { runKiCadUpdateChecks } from './kicad-update.mjs';
 import { runGuidedReviewChecks } from './guided-review.mjs';
@@ -206,12 +207,14 @@ await new Promise((r) => { ws.onopen = r; });
 let seq = 0;
 const pending = new Map();
 const problems = [];
+const expectedDialogs = [];
 ws.onmessage = (ev) => {
   const m = JSON.parse(ev.data);
   if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); }
   // A confirm() would block every later command; accept it and report it.
   if (m.method === 'Page.javascriptDialogOpening') {
-    problems.push(`dialog: ${m.params.message}`);
+    if (expectedDialogs[0] === m.params.message) expectedDialogs.shift();
+    else problems.push(`dialog: ${m.params.message}`);
     send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {});
   }
   if (m.method === 'Runtime.exceptionThrown') {
@@ -221,7 +224,7 @@ ws.onmessage = (ev) => {
     problems.push(`console.${m.params.type}: ` + m.params.args.map((a) => a.value ?? a.description).join(' '));
   }
 };
-const send = (method, params = {}) => new Promise((resolve, reject) => {
+const protocolSend = (method, params = {}) => new Promise((resolve, reject) => {
   const id = ++seq;
   const timer = setTimeout(() => {
     pending.delete(id);
@@ -230,6 +233,20 @@ const send = (method, params = {}) => new Promise((resolve, reject) => {
   pending.set(id, (m) => { clearTimeout(timer); resolve(m); });
   ws.send(JSON.stringify({ id, method, params }));
 });
+// CDP acknowledges reload before destroying the old document. Wait for a new
+// document before callers inspect controls that also existed before reload.
+const send = async (method, params = {}) => {
+  if (method !== 'Page.reload') return protocolSend(method, params);
+  const before = await protocolSend('Runtime.evaluate', { expression: 'performance.timeOrigin', returnByValue: true });
+  const origin = before.result.result.value;
+  const response = await protocolSend(method, params);
+  for (let attempt = 0; attempt < 150; attempt++) {
+    const current = await protocolSend('Runtime.evaluate', { expression: `performance.timeOrigin !== ${origin} && document.readyState === 'complete'`, returnByValue: true });
+    if (current.result?.result?.value === true) return response;
+    await sleep(100);
+  }
+  throw Error('Page.reload did not finish loading a new document');
+};
 const js = async (expr) => {
   const res = await send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true });
   if (res.result.exceptionDetails) throw new Error(res.result.exceptionDetails.exception?.description || 'eval failed');
@@ -266,14 +283,14 @@ await sleep(1500);
 
 // Watchdog: a hung browser must fail the run, not stall CI.
 const watchdog = setTimeout(async () => {
-  console.log('FAIL watchdog — the smoke test did not finish within 180s');
+  console.log('FAIL watchdog — the smoke test did not finish within 240s');
   failed++;
-  results.push('FAIL watchdog — the smoke test did not finish within 180s');
+  results.push('FAIL watchdog — the smoke test did not finish within 240s');
   await retainArtifacts();
   chrome.kill();
   server.close();
   process.exit(1);
-}, 180000);
+}, 240000);
 
 const results = [];
 let failed = 0;
@@ -283,6 +300,7 @@ function check(name, ok, detail = '') {
 }
 
 async function retainArtifacts() {
+  if (expectedDialogs.length) problems.push('Expected dialogs did not open: ' + expectedDialogs.join(', '));
   writeFileSync(join(artifactDir, 'report.json'), JSON.stringify({ suite, failed, results, problems }, null, 2));
   writeFileSync(join(artifactDir, 'results.log'), [...results, ...problems].join('\n'));
   writeFileSync(join(artifactDir, 'chrome.log'), chromeErr);
@@ -294,12 +312,14 @@ async function retainArtifacts() {
   }
 }
 
-const teamTools={js,check,sleep,navigate:url=>send('Page.navigate',{url}),resize:(width,height)=>send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false}),restoreViewport:()=>send('Emulation.clearDeviceMetricsOverride'),capture:async name=>{const shot=await send('Page.captureScreenshot',{format:'png'});writeFileSync(join(artifactDir,name+'.png'),Buffer.from(shot.result.data,'base64'));}};
+const teamTools={js,check,sleep,expectDialog:message=>expectedDialogs.push(message),navigate:url=>send('Page.navigate',{url}),resize:(width,height)=>send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false}),restoreViewport:()=>send('Emulation.clearDeviceMetricsOverride'),capture:async name=>{const shot=await send('Page.captureScreenshot',{format:'png'});writeFileSync(join(artifactDir,name+'.png'),Buffer.from(shot.result.data,'base64'));}};
 
 try {
   if (process.env.E2E_FORCE_FAILURE === '1') throw new Error('Requested artifact verification failure');
   if (!process.env.WORKFLOW_E2E_ONLY) await js(`(()=>{const p=document.getElementById('ai-preview-enabled');p.checked=false;p.dispatchEvent(new Event('change'));return true;})()`);
-  if (process.env.GUIDE_E2E_ONLY) {
+  if (process.env.RELIABILITY_E2E_ONLY) {
+    await runReliabilityChecks({ ...teamTools, send, origin, sleep });
+  } else if (process.env.GUIDE_E2E_ONLY) {
     await runGuideChecks({ send, js, check, origin, sleep });
   } else if (process.env.HISTORY_E2E_ONLY) {
     await send('Page.navigate', { url: 'about:blank' });
@@ -1439,6 +1459,7 @@ try {
   await runTeamReviewChecks(teamTools);
   await runAssistantHistoryChecks({ send, js, check, sleep, fakeSeen, capture: teamTools.capture, origin });
   await runGuideChecks({ send, js, check, origin, sleep });
+  await runReliabilityChecks({ ...teamTools, send, origin, sleep });
   }
 } catch (err) {
   failed += 1;

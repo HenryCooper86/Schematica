@@ -138,7 +138,7 @@ export class Store {
   }
 
   replaceDoc(doc) {
-    for (const fn of this.beforeReplace) fn(this.doc, doc);
+    for (const fn of this.beforeReplace) if (fn(this.doc, doc) === false) return false;
     this._batchSnap = null;
     this.doc = doc;
     this.undoStack = [];
@@ -146,6 +146,7 @@ export class Store {
     this.selection.clear();
     this.generation += 1;
     this.emit();
+    return true;
   }
 
   setSelection(ids) {

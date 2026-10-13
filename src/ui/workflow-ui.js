@@ -36,6 +36,8 @@ export function renderWorkflow({
   paint,
   close,
   openTab,
+  onSaved = () => {},
+  onSaveStart = () => undefined,
 }) {
   if (tab === "matrix") {
     body.innerHTML = `<p>${esc(tr("Evidence is current only after verification against the allocated design. Changed allocations require another review."))}</p>
@@ -95,6 +97,7 @@ export function renderWorkflow({
       store.apply((doc) => {
         (eng(doc).savedViews ||= []).push(view);
       });
+      onSaved(e.currentTarget);
       paint();
     });
     body.querySelectorAll("[data-view]").forEach(
@@ -157,7 +160,7 @@ export function renderWorkflow({
     body.querySelector("#review-start").onsubmit = safe(async (e) => {
       if (reviews.length >= 100)
         throw new Error(tr("At most 100 review records are supported."));
-      const data = new FormData(e.currentTarget),
+      const form = e.currentTarget, submitted = onSaveStart(form), data = new FormData(form),
         title = data.get("title").trim(),
         author = data.get("author").trim();
       if (!title || !author) return;
@@ -179,6 +182,7 @@ export function renderWorkflow({
       store.apply((doc) => {
         (eng(doc).reviews ||= []).push(review);
       });
+      onSaved(form, submitted);
       paint();
     });
     body.querySelector("#comments-export").onclick = () =>
@@ -212,10 +216,11 @@ export function renderWorkflow({
     });
     body.querySelectorAll("[data-review]").forEach((section) => {
       const review = reviews.find((r) => r.id === section.dataset.review);
-      const edit = (fn) => {
+      const edit = (fn, form) => {
         store.apply((doc) =>
           fn(doc.engineering.reviews.find((r) => r.id === review.id)),
         );
+        onSaved(form);
         paint();
       };
       section.querySelector("[data-comment-form]").onsubmit = safe((e) => {
@@ -235,7 +240,7 @@ export function renderWorkflow({
             resolved: false,
           });
           r.status = "draft";
-        });
+        }, e.currentTarget);
       });
       section.querySelectorAll("[data-resolve]").forEach(
         (b) =>

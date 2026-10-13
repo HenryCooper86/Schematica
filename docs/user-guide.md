@@ -146,6 +146,22 @@ and wait for **Saved on this device**. Use **Restore** to return to that snapsho
 The store retains up to 30 recent revisions with a bounded storage budget, so
 export milestones you need to keep indefinitely.
 
+If startup finds unreadable or repaired autosave data, **Recovery needs review**
+opens the original data and repair warnings in Revisions. **Export original data**
+downloads the exact original contents, even when they cannot be opened as a board.
+These copies are separate from the rotating revision history. **Mark reviewed**
+clears the notice and keeps the copy. If the original cannot be preserved,
+autosave pauses; export the current board and original data, then try
+**Retry preserving original data** after resolving the storage problem.
+
+Engineering forms retain unsaved field edits when you change sections or records,
+close and reopen the dialog, or change language. The **Unsaved draft** notice
+and **Discard draft** action belong to that form. Use its Save action to commit
+the edits to the board; committed edits remain undoable. Report details are
+committed by **Save and preview report**. Drafts live only in the current tab,
+so save them before reloading or closing the page. Opening another board asks
+before discarding drafts. Cancelling leaves the current board and drafts intact.
+
 If another tab changes the autosave, Schematica asks you to choose **Keep this
 version** or **Open other version**. Resolve the conflict before continuing;
 it does not merge both drawings automatically. If storage fails, download a board

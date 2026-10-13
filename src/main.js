@@ -1,3 +1,4 @@
+import { createStartupRecovery, RECOVERY_PREFIX } from './startup-recovery.js';
 import { initTeamReview } from './ui/team-review.js';
 import { initOnboarding } from './ui/onboarding.js';
 import { initConnections } from './ui/connections.js';
@@ -41,18 +42,8 @@ initI18n({ storage: langStorage });
 translateStatic();
 initAppearance(langStorage);
 
-function loadAutosave() {
-  try {
-    const text = localStorage.getItem('schematica.autosave');
-    if (!text) return null;
-    return deserialize(text).doc;
-  } catch (err) {
-    console.warn('Discarding unreadable autosave:', err);
-    return null;
-  }
-}
-
-const store = new Store(loadAutosave() || newDoc());
+const startupRecovery = createStartupRecovery(langStorage);
+const store = new Store(startupRecovery.doc || newDoc());
 const renderer = createRenderer(svg);
 let dialogs = null;
 let explorer = null;
@@ -68,6 +59,7 @@ try { recoveryDB = globalThis.indexedDB; } catch { /* blocked storage */ }
 const revisions = createRevisions(storage, { indexedDB: recoveryDB, onError: () => toast(tr('Revision storage failed. Export a board file to keep a durable copy.')) });
 store.beforeReplace.add(() => {
   if (navigation.navigating()) return;
+  if (engineeringUI?.confirmDiscardDrafts() === false) return false;
   const previous = navigation.rootDoc();
   if (previous.nodes.length || previous.notes.length || previous.zones.length || previous.engineering) revisions.save(previous, previous.title, 'before-replace');
   navigation.reset();
@@ -82,6 +74,7 @@ try {
 } catch { persistence = conflictStorage(null, { getDoc: () => navigation.rootDoc(), revisions, onConflict: () => {} }); }
 window.addEventListener('storage', event => {
   if (event.storageArea !== storage) return;
+  if (event.key?.startsWith(RECOVERY_PREFIX)) startupRecovery.refresh();
   if (event.key === 'schematica.autosave' || event.key === null) {
     persistence.observe(event.newValue);
     showSaveState();
@@ -201,13 +194,17 @@ const recoveryStatus = document.createElement('button'); recoveryStatus.id = 're
 document.getElementById('canvas-wrap').append(recoveryStatus);
 const showSaveState = () => {
   const pending = persistence.pending() || revisions.list().some(r => !r.durable);
-  recoveryStatus.textContent = autosaveState === 'error' || pending ? tr('Unsaved changes — recovery') : autosaveState === 'pending' ? tr('Saving…') : tr('Saved on this device');
-  recoveryStatus.dataset.state = autosaveState === 'error' || pending ? 'error' : autosaveState;
+  recoveryStatus.textContent = startupRecovery.pending() ? tr('Recovery needs review') : autosaveState === 'error' || pending ? tr('Unsaved changes — recovery') : autosaveState === 'pending' ? tr('Saving…') : tr('Saved on this device');
+  recoveryStatus.dataset.state = startupRecovery.pending() ? 'error' : autosaveState === 'error' || pending ? 'error' : autosaveState;
 };
 recoveryStatus.onclick = () => engineeringUI?.openRevisions();
-revisions.subscribe(showSaveState); onLanguageChange(showSaveState);
-const autosave = createAutosave({ store, storage: persistence, getDoc: () => navigation.rootDoc(), onStatus: state => { autosaveState = state; showSaveState(); }, onError: () => {
+revisions.subscribe(showSaveState); startupRecovery.subscribe(showSaveState); onLanguageChange(showSaveState);
+const autosave = createAutosave({ store, storage: startupRecovery.protect(persistence), getDoc: () => navigation.rootDoc(), onStatus: state => { autosaveState = state; showSaveState(); }, onError: () => {
   if (persistence.pending()) return;
+  if (startupRecovery.blocked()) {
+    toast(tr('Autosave is paused to protect the original data. Export your current board or retry recovery.'), { action: { label: tr('Review versions'), run: () => engineeringUI?.openRevisions() } });
+    return;
+  }
   toast(tr('Autosave failed: this browser\'s storage is full or blocked. Save the board to a file to keep it.'));
 } });
 showSaveState();
@@ -261,7 +258,7 @@ initLegend();
 initCompare({ store });
 explorer = initExplore({ store, tools, svg, render });
 dialogs = initDialogs({ store, getRootDoc: () => navigation.rootDoc() });
-engineeringUI = initEngineering({ store, revisions, navigation, persistence, flush: () => autosave.flush(), importKiCad, explorer, tools });
+engineeringUI = initEngineering({ store, revisions, startupRecovery, navigation, persistence, flush: () => autosave.flush(), importKiCad, explorer, tools });
 const connections = initConnections({ store });
 initTeamReview({navigation});
 initOnboarding({ store, navigation, revisions, engineering: engineeringUI, tools, connections });
@@ -299,7 +296,7 @@ syncAnimation();
       } catch { /* backup is best-effort; the in-memory copy still restores */ }
     }
     history.replaceState(null, '', location.pathname + location.search);
-    store.replaceDoc(doc);
+    if (store.replaceDoc(doc) === false) return;
     if (moment.has('step')) journeyUI.openMoment(moment);
     const notes = warnings.length ? tr('\n\nLoaded with warnings:\n{list}', { list: warnings.join('\n') }) : '';
     if (hasWork) {
