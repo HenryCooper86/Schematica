@@ -609,6 +609,23 @@ test('a custom node keeps its own label and gets the definition name when it has
   assert.equal(doc.nodes[0].part.name.length <= LIMITS.name, true);
 });
 
+test('custom field IDs that name object properties retain their values in nested boards', () => {
+  const fields = Object.fromEntries(['__proto__', 'constructor', 'toString'].map(id => [id, `Value for ${id}`]));
+  const child = sampleDoc();
+  child.nodes[0].kind = 'custom';
+  child.nodes[0].part = { ...CUSTOM, fields: Object.keys(fields).map(id => ({ id, label: id })) };
+  child.nodes[0].fields = fields;
+  child.wires = [];
+  const root = sampleDoc();
+  root.nodes[0].subsystem = { doc: child, exposed: [] };
+  const { doc, warnings } = deserialize(serialize(root));
+  assert.deepEqual(warnings, []);
+  const restored = doc.nodes[0].subsystem.doc.nodes[0].fields;
+  assert.deepEqual(restored, fields);
+  assert.equal(Object.getPrototypeOf(restored), Object.prototype);
+  assert.deepEqual(deserialize(serialize(doc)).doc, doc);
+});
+
 test('deserialize warnings follow the interface language', () => {
   initI18n({ storage: null });
   const text = JSON.stringify({ schema: 2, nodes: [{ id: 'a', kind: 'nope', x: 0, y: 0 }], wires: [], zones: [], notes: [], journey: [] });

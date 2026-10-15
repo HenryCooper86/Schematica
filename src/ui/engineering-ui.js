@@ -89,10 +89,11 @@ export function initEngineering({ store, revisions, startupRecovery, navigation,
       body.querySelectorAll('[data-export]').forEach(b => b.onclick = safe(() => download('revision.schematica.json', serialize(revisions.restore(b.dataset.export)), 'application/json')));
       body.querySelectorAll('[data-baseline]').forEach(b => b.onclick = safe(() => { baseline = revisions.restore(b.dataset.baseline); tab = 'review'; paint(); }));
     } else if (tab === 'interfaces') {
-      const rows = interfaceRows(store.doc); selected = rows.some(r => r.id === selected) ? selected : rows.find(r => store.selection.has(r.id))?.id || rows[0]?.id;
-      const row = rows.find(r => r.id === selected), wire = store.doc.wires.find(w=>w.id===selected);
+      const rows = interfaceRows(store.doc), wires = new Map(store.doc.wires.map(wire => [wire.id, wire]));
+      selected = wires.has(selected) ? selected : rows.find(r => store.selection.has(r.id))?.id || rows[0]?.id;
+      const row = rows.find(r => r.id === selected), wire = wires.get(selected);
       const errors = new Set(interfaceCompatibility(store.doc).filter(f => f.level === 'error').map(f => f.ids[0]));
-      const statuses = rows.map(r => { const w = store.doc.wires.find(w => w.id === r.id); const missing = ['flow','link'].includes(w.bus) ? [] : missingInterfaceDeclarations(store.doc,w);
+      const statuses = rows.map(r => { const w = wires.get(r.id); const missing = ['flow','link'].includes(w.bus) ? [] : missingInterfaceDeclarations(store.doc,w);
         const code = ['flow','link'].includes(w.bus) ? 'excluded' : errors.has(w.id) ? 'failed' : missing.length ? 'unassessed' : 'checked';
         const status = code === 'checked' ? tr('Checked') : code === 'failed' ? tr('Failed') : code === 'unassessed' ? tr('Unassessed') : tr('Not applicable');
         return { ...r, missing, code, status }; });

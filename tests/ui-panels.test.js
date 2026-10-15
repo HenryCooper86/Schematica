@@ -2,10 +2,59 @@
 // again after its panel is rebuilt, and the props label/control pairing.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { focusSelector } from '../src/ui/press.js';
+import { focusSelector, onPress } from '../src/ui/press.js';
 import { propField, lockField, alignGroup, clampGap, createPropsPanel } from '../src/ui/props.js';
 import { alignAbility } from '../src/align.js';
 import { Store, addNode } from '../src/state.js';
+
+function panelButton(t) {
+  const descriptors = ['window', 'document'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]);
+  const win = new EventTarget(), button = new EventTarget();
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: win });
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: { activeElement: null } });
+  t.after(() => {
+    for (const [key, descriptor] of descriptors) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else delete globalThis[key];
+    }
+  });
+  const pointer = (target, type, pointerId) => {
+    const event = new Event(type);
+    Object.assign(event, { button: 0, pointerId });
+    target.dispatchEvent(event);
+  };
+  return { win, button, pointer };
+}
+
+test('a cancelled panel press does not disable subsequent keyboard activation', async t => {
+  const { win, button, pointer } = panelButton(t);
+  let activations = 0;
+  onPress(button, () => activations++);
+  pointer(button, 'pointerdown', 1);
+  pointer(win, 'pointercancel', 1);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  button.dispatchEvent(new Event('click'));
+  assert.equal(activations, 2);
+});
+
+test('another pointer cannot release panel click suppression before the owner finishes', async t => {
+  const { win, button, pointer } = panelButton(t);
+  let activations = 0;
+  onPress(button, () => activations++);
+  pointer(button, 'pointerdown', 1);
+  pointer(button, 'pointerdown', 2);
+  assert.equal(activations, 1, 'a second pointer cannot activate the same button again');
+  pointer(win, 'pointerup', 2);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  button.dispatchEvent(new Event('click'));
+  assert.equal(activations, 1, 'the owner still has an active press');
+  pointer(win, 'pointerup', 1);
+  button.dispatchEvent(new Event('click'));
+  assert.equal(activations, 1, 'the compatibility click must not activate twice');
+  await new Promise(resolve => setTimeout(resolve, 0));
+  button.dispatchEvent(new Event('click'));
+  assert.equal(activations, 2, 'keyboard activation works after release');
+});
 
 // Bind the actual panel handlers without replacing a control on document edits.
 function panelInput(t, store, dataset, value) {

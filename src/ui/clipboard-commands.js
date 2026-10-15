@@ -1,4 +1,4 @@
-import { buildClip, encodeClip, readClip, pasteInto, clipCount, copiedMessage, pastedMessage, MAX_CLIP_ITEMS, pasteOffsetInfo } from '../clipboard.js';
+import { buildClip, encodeClip, readClip, pasteInto, clipCount, copiedMessage, pastedMessage, MAX_CLIP_ITEMS, MAX_CLIP_CHARS, pasteOffsetInfo } from '../clipboard.js';
 import { deleteItems, lockedKeptMessage } from '../state.js';
 import { tr } from '../i18n.js';
 
@@ -35,6 +35,10 @@ export function createClipboardCommands({ store, library, canEditNow, notify, cl
       return;
     }
     const text = encodeClip(clip);
+    if (text.length > MAX_CLIP_CHARS) {
+      notify(tr('That clipboard selection is too large to paste.'));
+      return;
+    }
     memoryClip = text;
     // Still inside the keypress, so the write carries its user activation.
     const api = clipboard();
@@ -51,7 +55,8 @@ export function createClipboardCommands({ store, library, canEditNow, notify, cl
     // Newer edits must also survive: the clipboard holds the earlier snapshot.
     const removed = cut && canEditNow() && store.generation === copiedGeneration
       && JSON.stringify(store.doc) === copiedSnapshot;
-    const kept = removed ? lockedKeptMessage(deleteItems(store, copiedIds).kept) : null;
+    const copiedItems = new Set([...clip.nodes, ...clip.wires, ...clip.zones, ...clip.notes].map(item => item.id));
+    const kept = removed ? lockedKeptMessage(deleteItems(store, copiedIds.filter(id => copiedItems.has(id))).kept) : null;
     notify([
       copiedMessage(n, { cut: removed }),
       kept,

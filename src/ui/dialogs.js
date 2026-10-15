@@ -8,7 +8,7 @@ import { newDoc, deleteItems, lockedKeptMessage } from '../state.js';
 import { serialize, deserializeFile } from '../serialize.js';
 import { buildExportSVG, exportBounds, exportPNG, exportPDF, download, copyPNG } from '../export.js';
 import { encodeGIF } from '../gif.js';
-import { LOOP_MS, esc } from '../render.js';
+import { LOOP_MS, bakeFrame, esc } from '../render.js';
 import { buildBOM, bomCSV, bomMarkdown, bomHeaders, bomTotalMa, bomSummary } from '../bom.js';
 import { formatCurrent, formatCapacity, formatHours, powerSummary } from '../power.js';
 import { checkDoc } from '../drc.js';
@@ -77,9 +77,10 @@ export function initDialogs({ store, getRootDoc = () => store.doc }) {
   document.getElementById('export-png-go').addEventListener('click', () => {
     const width = clampPx(exportW.value);
     const height = clampPx(exportH.value);
+    const filename = safeName('.png');
     exportDialog.close();
     exportPNG(buildExportSVG(store.doc, exportOpts()), (blob) => {
-      if (blob) download(safeName('.png'), blob);
+      if (blob) download(filename, blob);
       else toast(tr('PNG export failed in this browser. The SVG export still works.'));
     }, { width, height });
   });
@@ -93,9 +94,10 @@ export function initDialogs({ store, getRootDoc = () => store.doc }) {
   });
   document.getElementById('export-pdf-go').addEventListener('click', () => {
     const width = clampPx(exportW.value);
+    const filename = safeName('.pdf');
     exportDialog.close();
     exportPDF(buildExportSVG(store.doc, { ...exportOpts(), transparent: false }), (blob) => {
-      if (blob) download(safeName('.pdf'), blob);
+      if (blob) download(filename, blob);
       else toast(tr('PDF export failed in this browser. PNG and SVG still work.'));
     }, { width, background: themeBackground(exportOpts().theme) });
   });
@@ -109,7 +111,10 @@ export function initDialogs({ store, getRootDoc = () => store.doc }) {
     exportDialog.close();
     toast(tr('Rendering the seamless loop GIF…'));
     try {
-      const b = exportBounds(store.doc);
+      const filename = safeName('.loop.gif');
+      const doc = store.doc;
+      const theme = exportOpts().theme;
+      const b = exportBounds(doc);
       let width = Math.min(960, Math.max(16, Math.round(Number(exportW.value)) || 960));
       let height = Math.max(16, Math.round(width * (b.h / b.w)));
       if (height > 960) {
@@ -118,14 +123,19 @@ export function initDialogs({ store, getRootDoc = () => store.doc }) {
         height = 960;
       }
       const FRAMES = 60;
+      // Freeze content, translated labels and theme once. Only animation
+      // attributes change between frames; do not retain 60 complete SVGs.
+      const snapshot = new DOMParser().parseFromString(buildExportSVG(doc, { theme, now: 0 }), 'image/svg+xml');
+      if (snapshot.querySelector('parsererror')) throw new Error('Invalid SVG export');
+      const frame = snapshot.documentElement, serializer = new XMLSerializer();
       const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       const frames = [];
       for (let i = 0; i < FRAMES; i++) {
-        const svgStr = buildExportSVG(store.doc, { theme: exportOpts().theme, now: (i * LOOP_MS) / FRAMES });
-        const url = URL.createObjectURL(new Blob([svgStr], { type: 'image/svg+xml' }));
+        bakeFrame(frame, (i * LOOP_MS) / FRAMES);
+        const url = URL.createObjectURL(new Blob([serializer.serializeToString(frame)], { type: 'image/svg+xml' }));
         try {
           const img = new Image();
           img.src = url;
@@ -137,7 +147,7 @@ export function initDialogs({ store, getRootDoc = () => store.doc }) {
         frames.push({ data: ctx.getImageData(0, 0, width, height).data, width, height });
       }
       const bytes = encodeGIF(frames, { delayMs: LOOP_MS / FRAMES });
-      download(safeName('.loop.gif'), new Blob([bytes], { type: 'image/gif' }), 'image/gif');
+      download(filename, new Blob([bytes], { type: 'image/gif' }), 'image/gif');
       toast(tr('Seamless loop GIF saved.'));
     } catch {
       toast(tr('Loop GIF export failed in this browser.'));
@@ -319,8 +329,14 @@ export function initDialogs({ store, getRootDoc = () => store.doc }) {
 
   // ---- Share link ----
   document.getElementById('btn-share').addEventListener('click', async () => {
+    let fragment;
     try {
-      const fragment = await encodeShare(store.doc);
+      fragment = await encodeShare(getRootDoc());
+    } catch (error) {
+      toast(error.message);
+      return;
+    }
+    try {
       const url = `${location.origin}${location.pathname}#${fragment}`;
       await navigator.clipboard.writeText(url);
       toast(tr('Share link copied to clipboard ({n} characters).', { n: url.length.toLocaleString() }));

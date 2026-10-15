@@ -60,6 +60,7 @@ export async function runRequest({
   ];
   const usage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
   let text = '';
+  let partialText = '';
   let stop = 'end';
   let stopDetails = null;
   let cutOff = false;
@@ -73,8 +74,19 @@ export async function runRequest({
     for (let round = 0; round < maxRounds; round++) {
       rounds = round + 1;
       guard.check();
-      const res = await provider.chat({ system, messages, tools: TOOLS, signal, onText });
+      let streaming = true;
+      let res;
+      try {
+        res = await provider.chat({ system, messages, tools: TOOLS, signal, onText: chunk => {
+          if (!streaming || signal?.aborted || !guard.ownsBoard()) return;
+          partialText += chunk;
+          onText?.(chunk);
+        } });
+      } finally {
+        streaming = false;
+      }
       guard.check();
+      partialText = '';
       addUsage(usage, res.usage);
       const content = [];
       if (res.text) {
@@ -124,6 +136,12 @@ export async function runRequest({
       if (round === maxRounds - 1) { cutOff = true; stop = 'rounds'; }
     }
   } catch (err) {
+    // The UI has already displayed these chunks. A failed or stopped stream
+    // must not replace them with an empty reply or lose them from the next turn.
+    if (partialText && guard.ownsBoard()) {
+      text += (text ? '\n\n' : '') + partialText;
+      messages.push({ role: 'assistant', content: [{ type: 'text', text: partialText }] });
+    }
     if (err?.name === 'AbortError' || signal?.aborted) {
       stop = 'aborted';
       cutOff = true;
@@ -159,6 +177,7 @@ export async function runSingleShot({
   ];
   const usage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
   let text = '';
+  let streamedText = '', streamedStored = false;
   let stop = 'end';
   let stopDetails = null;
   let applied = 0;
@@ -185,10 +204,20 @@ export async function runSingleShot({
     for (let attempt = 0; attempt < 2 && !plan; attempt++) {
       rounds += 1;
       guard.check();
-      const res = await provider.chat({ system, messages, tools: [], signal, onText: attempt === 0 ? onText : null });
+      let streaming = true, res;
+      try {
+        res = await provider.chat({ system, messages, tools: [], signal, onText: attempt === 0 ? chunk => {
+          if (!streaming || signal?.aborted || !guard.ownsBoard()) return;
+          streamedText += chunk;
+          onText?.(chunk);
+        } : null });
+      } finally {
+        streaming = false;
+      }
       guard.check();
       addUsage(usage, res.usage);
       messages.push({ role: 'assistant', content: res.text ? [{ type: 'text', text: res.text }] : [], raw: res.raw });
+      if (attempt === 0) streamedStored = true;
       stop = res.stop;
       stopDetails = res.stopDetails || null;
       if (stop !== 'end') { text = res.text || ''; break; }
@@ -212,6 +241,10 @@ export async function runSingleShot({
       }
     }
   } catch (err) {
+    if (streamedText && guard.ownsBoard()) {
+      text = streamedText;
+      if (!streamedStored) messages.push({ role: 'assistant', content: [{ type: 'text', text: streamedText }] });
+    }
     if (err?.name === 'AbortError' || signal?.aborted) stop = 'aborted';
     else error = err;
   } finally {

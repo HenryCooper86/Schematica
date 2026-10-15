@@ -260,7 +260,16 @@ and use **Link selection** on a step to make its camera follow those items.
 **Go** and Present highlight the linked items and frame their current positions.
 **Camera only** removes the link. Missing targets are reported, and a step with
 no remaining targets falls back to its saved camera. Recording during
-Present captures the animated tour with captions burned into the frames.
+Present captures the animated tour with captions burned into the frames. Each
+frame retains the caption and counter captured with its camera image, even when
+image decoding finishes after the presentation advances.
+
+**Rec → Start** stays disabled while microphone permission or music loading is
+pending. Cancel, Escape, or dismissing the recording dialog cancels that startup;
+any microphone stream granted afterward is stopped rather than starting capture.
+Cancelling cannot dismiss the browser's permission prompt: respond to that prompt
+before starting another recording. After Stop, **Encoding…** blocks a new capture
+until the current video has finished saving. GIF capture does not use audio.
 
 Use **Add selected parts as stops** to give a chapter an ordered sequence. Select
 parts in the desired order, then edit stop captions or use the up/down buttons.
@@ -281,6 +290,8 @@ the same navigation, playback, connection explanations, and moment fragments.
 When sharing an offline export, send the HTML file along with its fragment;
 local file paths are not portable links. The copy dialog keeps a selectable
 link available if the browser blocks clipboard access.
+Exiting presentation or switching to **Show all** invalidates unfinished moment-link
+requests. Changing interface language preserves the all-board view.
 
 Try the **Guided story** examples: Weather Station (power, sensing, uplink),
 EV Battery Management (monitoring, control, vehicle communication), and Secure

@@ -2,7 +2,7 @@
 import { addStep, updateStep, removeStep, moveStep, tweenView, selectedTargets, resolveStep, addStops, nextStoryPosition, resolveStoryStop, storyRelationshipText, readStoryMoment } from '../journey.js';
 import { encodeShare } from '../share.js';
 import { createPlayback } from '../playback.js';
-import { onPress, escAttr, keepFocus } from './press.js';
+import { onPress, escAttr, keepFocus, openModal, toast } from './press.js';
 import { panelHeader, bindCollapsible } from './collapsible.js';
 import { tr, onLanguageChange } from '../i18n.js';
 
@@ -12,6 +12,7 @@ export function initJourney({ svg, store, tools, render, recorder, propsPanel })
   const presentState = { active: false, index: 0, stop: -1, caption: '', counter: '' };
   let tweenRaf = null;
   let presentedJourney = '';
+  let linkRequest = 0;
   const playback = createPlayback({
     advance: () => presentGo(1),
     delay: () => document.getElementById('present-speed').value,
@@ -169,11 +170,18 @@ export function initJourney({ svg, store, tools, render, recorder, propsPanel })
   store.subscribe(renderJourney);
   svg.addEventListener('pointerdown', () => { if (!presentState.active && tools.ui.story) { tools.ui.story = null; render(); } });
   let generation = store.generation;
-  store.subscribe(() => { if (generation !== store.generation) { generation = store.generation; tools.ui.story = null; if (presentState.active) presentExit(); else render(); } }, { documentOnly: true });
-  onLanguageChange(() => { renderJourney(); if (presentState.active) presentShow(); });
+  store.subscribe(() => {
+    if (generation === store.generation) return;
+    generation = store.generation;
+    if (tweenRaf) { cancelAnimationFrame(tweenRaf); tweenRaf = null; }
+    tools.ui.story = null;
+    if (presentState.active) presentExit(); else render();
+  }, { documentOnly: true });
+  onLanguageChange(() => { renderJourney(); if (presentState.active) { if (presentState.showingAll) showAll(); else presentShow(); } });
 
   // ---- Present mode ----
   function presentShow() {
+    linkRequest++;
     presentState.showingAll = false;
     document.getElementById('present-copy').disabled = false;
     const steps = store.doc.journey || [];
@@ -254,6 +262,7 @@ export function initJourney({ svg, store, tools, render, recorder, propsPanel })
   }
 
   function presentExit() {
+    linkRequest++;
     playback.pause();
     if (tweenRaf) { cancelAnimationFrame(tweenRaf); tweenRaf = null; }
     presentState.active = false;
@@ -276,6 +285,7 @@ export function initJourney({ svg, store, tools, render, recorder, propsPanel })
   document.getElementById('present-speed').addEventListener('change', () => playback.reschedule());
   document.getElementById('present-restart').addEventListener('click', () => { playback.pause(); presentState.index = 0; presentState.stop = -1; presentShow(); });
   function showAll() {
+    linkRequest++;
     playback.pause();
     goToStep({ view: currentCenter(), targets: { nodes: store.doc.nodes.map(n => n.id), wires: store.doc.wires.map(w => w.id) } });
     tools.ui.story = null; render();
@@ -290,20 +300,27 @@ export function initJourney({ svg, store, tools, render, recorder, propsPanel })
   document.addEventListener('visibilitychange', () => { if (document.hidden) playback.pause(); });
   window.addEventListener('resize', () => { if (presentState.active) { playback.pause(); if (presentState.showingAll) showAll(); else presentShow(); } });
   const linkDialog = document.getElementById('story-link-dialog');
-  document.getElementById('story-link-close').onclick = () => linkDialog.close();
+  document.getElementById('story-link-close').onclick = () => { linkRequest++; linkDialog.close(); };
+  linkDialog.addEventListener('cancel', () => { linkRequest++; });
   document.getElementById('present-copy').addEventListener('click', async () => {
     playback.pause();
-    const step = store.doc.journey[presentState.index];
-    const stop = step?.stops?.[presentState.stop];
-    const snapshot = structuredClone(store.doc);
+    const request = ++linkRequest;
+    const step = store.doc.journey?.[presentState.index];
+    if (!presentState.active || presentState.showingAll || !step) return;
+    const stop = step.stops?.[presentState.stop];
     const params = new URLSearchParams({ step: step.id, present: '1' });
     if (stop) params.set('stop', stop.id);
-    const fragment = await encodeShare(snapshot);
-    const url = `${location.origin}${location.pathname}#${fragment}&${params}`;
-    const input = document.getElementById('story-link-value');
-    input.value = url;
-    linkDialog.showModal(); input.focus(); input.select();
-    try { await navigator.clipboard.writeText(url); } catch { /* selectable link is the clipboard fallback */ }
+    try {
+      const fragment = await encodeShare(structuredClone(store.doc));
+      if (request !== linkRequest) return;
+      const url = `${location.origin}${location.pathname}#${fragment}&${params}`;
+      const input = document.getElementById('story-link-value');
+      input.value = url;
+      openModal(linkDialog); input.focus(); input.select();
+      try { await navigator.clipboard.writeText(url); } catch { /* selectable link is the clipboard fallback */ }
+    } catch (error) {
+      if (request === linkRequest) toast(error.message);
+    }
   });
 
 

@@ -217,3 +217,22 @@ test('case-distinct added pins cannot collide with surviving authored sides on s
   assert.deepEqual(component(restored.doc, 'U1').part.feeds, [originalPort.id]);
   assert.equal(component(restored.doc, 'U1').part.ports[0].required, true);
 });
+
+test('applying removals prunes only vanished selections before notifying subscribers', () => {
+  const store = new Store(make()), removedNode = component(store.doc, 'R1').id;
+  const removedWire = store.doc.wires.find(w => w.from.node === removedNode).id;
+  const survivingNode = component(store.doc, 'U1').id;
+  store.setSelection([removedNode, removedWire, survivingNode]);
+  const selections = [];
+  store.subscribe(() => selections.push([...store.selection]), { documentOnly: true });
+  applyKiCadUpdate(store, prepareKiCadUpdate(store, make(removeR)));
+  assert.deepEqual([...store.selection], [survivingNode]);
+  assert.deepEqual(selections, [[survivingNode]]);
+  assert.equal(store.undoStack.length, 1);
+  store.undo();
+  assert.ok(store.doc.nodes.some(n => n.id === removedNode));
+  assert.ok(store.doc.wires.some(w => w.id === removedWire));
+  assert.deepEqual([...store.selection], [survivingNode]);
+  store.redo();
+  assert.deepEqual([...store.selection], [survivingNode]);
+});

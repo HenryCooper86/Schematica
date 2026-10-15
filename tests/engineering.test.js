@@ -100,6 +100,18 @@ test('review exceptions stay stable across movement and expire on engineering ch
   const affected = store.doc.nodes.find(n => f.ids.includes(n.id)); affected.fields = { ityp: '25mA' };
   assert.equal(reviewFindings(store.doc).find(x => x.id === f.id)?.exception, undefined);
 });
+
+test('review exceptions expire when supplementary Unicode engineering text changes', () => {
+  const { store } = fixture();
+  store.doc.engineering.requirements[0].text = 'Measure temperature 😀';
+  const finding = reviewFindings(store.doc).find(f => f.rule === 'unconnected-power');
+  store.doc.engineering.exceptions = [{
+    id: finding.exceptionId, fingerprint: finding.fingerprint, rationale: 'Prototype', owner: 'Reviewer', at: '2026-10-15',
+  }];
+  assert.ok(reviewFindings(store.doc).find(f => f.id === finding.id).exception);
+  store.doc.engineering.requirements[0].text = 'Measure temperature 😁';
+  assert.equal(reviewFindings(store.doc).find(f => f.id === finding.id).exception, undefined);
+});
 test('review exports include all engineering records and escape embedded script text', () => {
   const { store } = fixture(); store.doc.title = '</script><script>alert(1)</script>';
   const report = reviewPackage(store.doc, newDoc());

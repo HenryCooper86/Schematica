@@ -7,6 +7,12 @@ export function initRecording({ svg, store }) {
   const recorder = createRecorder(svg, { notify: toast });
   const recDialog = document.getElementById('rec-dialog');
   const recBtn = document.getElementById('btn-rec');
+  const startBtn = document.getElementById('rec-start');
+
+  function syncAudio() {
+    const format = document.querySelector('input[name="rec-format"]:checked')?.value;
+    document.getElementById('rec-audio').classList.toggle('disabled', format === 'gif');
+  }
 
   function renderFormats() {
     const formats = [...recorder.videoFormats(), { id: 'gif', label: tr('GIF (animated)'), ext: 'gif' }];
@@ -14,20 +20,20 @@ export function initRecording({ svg, store }) {
       `<label><input type="radio" name="rec-format" value="${escAttr(f.id)}"${i === 0 ? ' checked' : ''}> ${escAttr(f.label)}</label>`
     )).join('');
     document.querySelectorAll('input[name="rec-format"]').forEach((r) => {
-      r.addEventListener('change', () => {
-        document.getElementById('rec-audio').classList.toggle('disabled', r.value === 'gif' && r.checked);
-      });
+      r.addEventListener('change', syncAudio);
     });
+    syncAudio();
   }
 
   function onState(s) {
+    startBtn.disabled = s.starting || s.recording || s.encoding;
     if (s.encoding) {
       recBtn.textContent = tr('Encoding…');
       recBtn.disabled = true;
       recBtn.classList.remove('recording');
       return;
     }
-    recBtn.disabled = false;
+    recBtn.disabled = s.starting;
     if (s.recording) {
       const m = Math.floor(s.elapsed / 60);
       const sec = String(s.elapsed % 60).padStart(2, '0');
@@ -39,29 +45,35 @@ export function initRecording({ svg, store }) {
     }
   }
 
-  let stoppedAt = 0;
+  let stoppedAt = -Infinity;
   recBtn.addEventListener('click', () => {
     if (recorder.state().recording) {
       recorder.stop();
       stoppedAt = performance.now();
       return;
     }
-    if (recorder.state().encoding) return;
+    if (recorder.state().encoding || recorder.state().starting) return;
     // A double-click on Stop must not bounce straight into the record dialog.
     if (performance.now() - stoppedAt < 500) return;
     renderFormats();
-    document.getElementById('rec-audio').classList.remove('disabled');
     openModal(recDialog);
   });
 
-  document.getElementById('rec-cancel').addEventListener('click', () => {
+  function cancelStart() {
+    if (recorder.state().starting) recorder.stop();
+  }
+  function closeDialog() {
+    cancelStart();
     recDialog.close();
-  });
+  }
+  document.getElementById('rec-cancel').addEventListener('click', closeDialog);
+  recDialog.addEventListener('cancel', cancelStart);
   recDialog.addEventListener('pointerdown', (e) => {
-    if (e.target === recDialog) recDialog.close();
+    if (e.target === recDialog) closeDialog();
   });
 
-  document.getElementById('rec-start').addEventListener('click', async () => {
+  startBtn.addEventListener('click', async () => {
+    if (recorder.state().starting || recorder.state().recording || recorder.state().encoding) return;
     const format = document.querySelector('input[name="rec-format"]:checked')?.value;
     if (!format) return;
     const audio = document.querySelector('input[name="rec-audio"]:checked')?.value || 'none';
@@ -91,6 +103,7 @@ export function initRecording({ svg, store }) {
       renderFormats();
       const again = [...document.querySelectorAll('input[name="rec-format"]')].find((r) => r.value === chosen);
       if (again) again.checked = true;
+      syncAudio();
     }
     onState(recorder.state());
   });

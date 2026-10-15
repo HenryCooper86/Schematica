@@ -22,6 +22,11 @@ session. It writes reports, driver logs, and screenshots to `.acceptance/firefox
 or `.acceptance/safari`. `VALIDATION_OUTPUT` overrides this output folder.
 `FIREFOX_PATH` and `GECKODRIVER_PATH` override executable discovery.
 
+Run Safari separately from other browser jobs and leave its automation window in
+the foreground without desktop interaction. The runner activates Safari through
+Launch Services and records an explicit visible/focused prerequisite. Hidden
+Safari can acknowledge native WebDriver actions without delivering any DOM input.
+
 The tests reuse the engineering, exploration, presentation, and performance modules
 from Chrome's suite. Native WebDriver key/pointer actions cover interaction while
 DOM scripting sets up fixtures and reads assertions. This is a targeted native
@@ -107,6 +112,34 @@ Mac. Screenshots and full driver logs remain under `.acceptance`.
 The KiCad importer remains one-way and bounded at 64 pins per component. These
 four example designs establish tested compatibility, not universal KiCad support.
 No participant interviews or separate physical-laptop trials have been conducted.
+
+## Continued verification — 15 October 2026
+
+Fresh KiCad 10.0.6 exports were checked against the independently parsed topology
+manifest in `.acceptance/kicad/manifest.json`. Native Firefox 155.0.1 passed
+153/153 checks and native Safari 27.0.1 passed 154/154, including the Safari
+foreground prerequisite. Both reports contain no captured browser errors or
+unhandled rejections.
+
+The five supported designs preserve exact component references and every net's
+connected-pin membership after save/reload: pic_programmer, complex_hierarchy,
+multichannel_mixer, RoyalBlue54L-Feather, and StickHub. The CM5_MINIMA_3 demo has
+100 connected pins on one component and was explicitly rejected against the
+shared 64-port limit, not truncated.
+
+The topology runner now waits for the asynchronous board-file open to finish
+before asserting rendered title and node count. This corrects a harness race
+exposed by Safari; it does not relax component or pin-membership comparisons.
+Safari drag and Undo were also instrumented with trusted native events. A
+presentation-only native run passed 18 checks; the complete isolated run passed.
+An earlier full run paused playback during concurrent browser activity; that
+interruption's precise cause was not established, so no application timing fix
+or weakened playback assertion was applied.
+
+Reports and screenshots: `.acceptance/firefox/continued-audit/` and
+`.acceptance/safari/continued-isolated/`. These are same-Mac browser and genuine
+public-example checks, not a private-team pilot or representative-device study.
+
 
 ## Deployment tooling runtime
 

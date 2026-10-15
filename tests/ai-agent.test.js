@@ -271,3 +271,84 @@ for (const runner of [runRequest, runSingleShot]) {
     store.cancelBatch();
   });
 }
+
+for (const runner of [runRequest, runSingleShot]) {
+  test(`${runner.name}: stopping a streamed reply preserves text already shown without accepting late chunks`, async () => {
+    const { store, executor } = setup([]);
+    const controller = new AbortController();
+    const chunks = [];
+    const provider = { async chat({ onText }) {
+      onText('Partial answer.');
+      controller.abort();
+      onText(' Late answer.');
+      throw new DOMException('Stopped', 'AbortError');
+    } };
+    const res = await runner({ provider, executor, store, signal: controller.signal,
+      userText: 'Explain', boardText: '', onText: text => chunks.push(text) });
+    assert.equal(res.stop, 'aborted');
+    assert.equal(res.text, 'Partial answer.');
+    assert.deepEqual(chunks, ['Partial answer.']);
+    assert.deepEqual(res.messages.at(-1), { role: 'assistant',
+      content: [{ type: 'text', text: 'Partial answer.' }] });
+    assert.equal(store.inBatch(), false);
+    assert.equal(store.undoStack.length, 0);
+  });
+
+  test(`${runner.name}: completed calls cannot stream into a finished reply`, async () => {
+    const { store, executor } = setup([]);
+    const response = runner === runSingleShot ? '{"summary":"Done.","ops":[]}' : 'Done.';
+    const chunks = [];
+    let lateText;
+    const provider = { async chat({ onText }) {
+      lateText = onText;
+      onText(response);
+      return { text: response, toolCalls: [], stop: 'end' };
+    } };
+    const res = await runner({ provider, executor, store, userText: 'Explain', boardText: '',
+      onText: text => chunks.push(text) });
+    lateText('Obsolete response');
+    assert.equal(res.text, 'Done.');
+    assert.deepEqual(chunks, [response]);
+    assert.equal(store.undoStack.length, 0);
+  });
+}
+
+test('a failed quiet plan repair retains the visible response without duplicating conversation turns', async () => {
+  const { store, executor } = setup([]);
+  let calls = 0;
+  const provider = { async chat({ onText }) {
+    if (++calls === 1) {
+      onText('The plan is incomplete.');
+      return { text: 'The plan is incomplete.', stop: 'end' };
+    }
+    throw new Error('Connection lost during repair');
+  } };
+  const res = await runSingleShot({ provider, executor, store, userText: 'Explain', boardText: '' });
+  assert.equal(res.text, 'The plan is incomplete.');
+  assert.equal(res.error.message, 'Connection lost during repair');
+  assert.deepEqual(res.messages.filter(message => message.role === 'assistant').map(message => message.content[0].text),
+    ['The plan is incomplete.']);
+  assert.equal(store.doc.nodes.length, 0);
+  assert.equal(store.undoStack.length, 0);
+});
+
+test('a failed later stream keeps both completed rounds and its partial answer', async () => {
+  const { store, executor } = setup([]);
+  let rounds = 0;
+  const provider = { async chat({ onText }) {
+    if (++rounds === 1) {
+      onText('Building.');
+      return { text: 'Building.', toolCalls: [build], stop: 'tool_use' };
+    }
+    onText('The sensor connects');
+    throw new Error('Connection lost');
+  } };
+  const res = await runRequest({ provider, executor, store, userText: 'Build', boardText: '', onText() {} });
+  assert.equal(res.text, 'Building.\n\nThe sensor connects');
+  assert.equal(res.error.message, 'Connection lost');
+  assert.equal(res.messages.at(-1).content[0].text, 'The sensor connects');
+  assert.equal(store.doc.nodes.length, 2);
+  assert.equal(store.undoStack.length, 1);
+  store.undo();
+  assert.equal(store.doc.nodes.length, 0);
+});

@@ -20,8 +20,9 @@ import { buildHTML } from "./html-export.js";
 
 function hash(value) {
   let h = 2166136261;
-  for (const char of JSON.stringify(value))
-    h = Math.imul(h ^ char.charCodeAt(0), 16777619);
+  const json = JSON.stringify(value);
+  for (let i = 0; i < json.length; i++)
+    h = Math.imul(h ^ json.charCodeAt(i), 16777619);
   return (h >>> 0).toString(36);
 }
 const canonical = (v) =>

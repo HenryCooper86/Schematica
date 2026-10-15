@@ -13,7 +13,7 @@ export async function runKiCadChecks({ js, check, manifest }) {
       const byId=new Map(restored.nodes.map(n=>[n.id,n]));
       const nets=restored.nodes.filter(n=>n.part.category==='connectivity').map(n=>({name:n.label,pins:restored.wires.filter(w=>w.to.node===n.id).map(w=>{const part=byId.get(w.from.node);return [part.label,part.part.ports.find(p=>p.id===w.from.port).name]}).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)))})).sort((a,b)=>a.name.localeCompare(b.name));
       const transfer=new DataTransfer();transfer.items.add(new File([serialize(restored)],'kicad.json'));const input=document.getElementById('file-input');input.files=transfer.files;input.dispatchEvent(new Event('change'));
-      return {components:components.map(n=>n.label).sort(),nets,warnings,wires:restored.wires.length,nodes:restored.nodes.length};
+      return {title:restored.title,components:components.map(n=>n.label).sort(),nets,warnings,wires:restored.wires.length,nodes:restored.nodes.length};
     })()`);
     if (fixture.expectedRejection) {
       check(`${fixture.name}: unsupported pin count is rejected explicitly`, result.rejected && result.message.includes(`${manifest.portLimit} connected pins`), result.message);
@@ -23,7 +23,12 @@ export async function runKiCadChecks({ js, check, manifest }) {
       const normalize = nets => nets?.map(n=>JSON.stringify([n.name,n.pins.map(p=>JSON.stringify(p)).sort()])).sort();
       check(`${fixture.name}: every net and connected pin survives save/reload`, JSON.stringify(normalize(result.nets)) === JSON.stringify(normalize(fixture.nets)), {nets:result.nets?.length,wires:result.wires});
       check(`${fixture.name}: no import normalization warnings`, result.warnings?.length === 0, result.warnings);
-      check(`${fixture.name}: imported board renders all parts and net junctions`, await js(`document.querySelectorAll('#canvas .node').length===${result.nodes}`));
+      let rendered = false;
+      for (let attempt = 0; attempt < 100 && !rendered; attempt++) {
+        rendered = await js(`document.getElementById('title').value===${JSON.stringify(result.title)}&&document.querySelectorAll('#canvas .node').length===${result.nodes}`);
+        if (!rendered) await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      check(`${fixture.name}: imported board renders all parts and net junctions`, rendered);
     }
     results.push({name:fixture.name,...result});
   }

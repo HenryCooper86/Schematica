@@ -5,7 +5,7 @@ import { paintComparison } from './change-preview.js';
 import { tr, onLanguageChange } from '../i18n.js';
 import { openModal } from './press.js';
 
-export function initCompare({ store }) {
+export function initCompare({ store, getRootDoc = () => store.doc }) {
   const dialog = document.getElementById('compare-dialog');
   const input = document.getElementById('compare-file');
   const status = document.getElementById('compare-status');
@@ -17,11 +17,12 @@ export function initCompare({ store }) {
   const names = () => ({ added: tr('Added'), removed: tr('Removed'), changed: tr('Changed'), rewired: tr('Rewired'), moved: tr('Layout changed') });
   function paint() {
     if (!baseline) return;
-    last = JSON.stringify(store.doc);
-    report = compareBoards(baseline, store.doc);
+    const current = getRootDoc();
+    last = JSON.stringify(current);
+    report = compareBoards(baseline, current);
     const labels = names();
     status.textContent = report.changes.length ? Object.entries(report.counts).map(([k, n]) => `${labels[k]}: ${n}`).join(' · ') : tr('No differences.');
-    paintComparison(beforeView, afterView, baseline, store.doc, report.changes);
+    paintComparison(beforeView, afterView, baseline, current, report.changes);
     list.replaceChildren();
     for (const change of report.changes) {
       const item = document.createElement('details');
@@ -73,6 +74,6 @@ export function initCompare({ store }) {
   document.getElementById('compare-close').addEventListener('click', () => dialog.close());
   dialog.addEventListener('pointerdown', event => { if (event.target === dialog) dialog.close(); });
   receipt.addEventListener('click', () => { if (report) download('board-comparison.json', JSON.stringify(report, null, 2), 'application/json'); });
-  store.subscribe(() => { if (dialog.open && baseline && JSON.stringify(store.doc) !== last) paint(); }, { documentOnly: true });
+  store.subscribe(() => { if (dialog.open && baseline && JSON.stringify(getRootDoc()) !== last) paint(); }, { documentOnly: true });
   onLanguageChange(() => { if (dialog.open) paint(); });
 }

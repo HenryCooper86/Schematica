@@ -41,6 +41,7 @@ export function exportPNG(svgString, done, { scale = 2, width = null, height = n
     canvas.width = Math.round(img.width * kw);
     canvas.height = Math.round(img.height * kh);
     const ctx = canvas.getContext('2d');
+    if (!ctx) { URL.revokeObjectURL(url); done(null); return; }
     ctx.scale(kw, kh);
     ctx.drawImage(img, 0, 0);
     URL.revokeObjectURL(url);
@@ -63,6 +64,7 @@ export function exportPDF(svgString, done, { width = null, background = themeBac
     canvas.width = Math.round(img.width * k);
     canvas.height = Math.round(img.height * k);
     const ctx = canvas.getContext('2d');
+    if (!ctx) { URL.revokeObjectURL(url); done(null); return; }
     // JPEG has no alpha channel, so always paint the canvas ground.
     ctx.fillStyle = background;
     ctx.fillRect(0, 0, canvas.width, canvas.height);

@@ -20,7 +20,7 @@ export function initPartEditor({ store, library, svg, tools }) {
   const dialog = document.getElementById('part-dialog');
   const $ = (id) => document.getElementById(id);
   let draft = null; // the definition being edited, in the editor's shape
-  let ctx = null;   // { nodeId, templateId, mode, name, others }
+  let ctx = null;   // { nodeId, templateId, mode, name, others, generation }
   let nextPort = 0;
   let nextField = 0;
   // The last value typed or picked on each icon tab this dialog has been
@@ -304,7 +304,7 @@ export function initPartEditor({ store, library, svg, tools }) {
       ? siblings(store.doc, node)
       : (templateId ? store.doc.nodes.filter((n) => n.kind === 'custom' && n.part?.lib === templateId) : []);
     ctx = {
-      nodeId, templateId, mode, name: def.name, others: others.map((n) => n.id),
+      nodeId, templateId, mode, name: def.name, others: others.map((n) => n.id), generation: store.generation,
     };
     $('pe-save-lib').checked = mode === 'new' || !!templateId || !!draft.lib;
     $('pe-save-lib').disabled = mode === 'new' || !!templateId;
@@ -318,6 +318,7 @@ export function initPartEditor({ store, library, svg, tools }) {
   }
 
   function save() {
+    if (!dialog.open || !ctx || ctx.generation !== store.generation) return;
     const raw = rawDraft();
     if (draftProblems(raw).length) return;
     const { part } = normalizePart(raw);
@@ -355,6 +356,17 @@ export function initPartEditor({ store, library, svg, tools }) {
   $('pe-save').addEventListener('click', save);
   $('pe-cancel').addEventListener('click', () => dialog.close());
   dialog.addEventListener('pointerdown', (e) => { if (e.target === dialog) dialog.close(); });
+  dialog.addEventListener('close', () => {
+    if (dialog.open) return; // A queued close event may belong to an earlier opening.
+    draft = null;
+    ctx = null;
+  });
+  store.subscribe(() => {
+    if (!ctx || ctx.generation === store.generation) return;
+    draft = null;
+    ctx = null;
+    if (dialog.open) dialog.close();
+  }, { documentOnly: true });
   // Canvas shortcuts listen on window; a keypress inside the form is the form's.
   dialog.addEventListener('keydown', (e) => e.stopPropagation());
 

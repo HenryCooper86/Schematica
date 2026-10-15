@@ -781,6 +781,7 @@ export default {
   'Could not access the clipboard - use Download CSV instead.': '无法访问剪贴板 — 请改用“下载 CSV”。',
   'Share link copied to clipboard ({n} characters).': '分享链接已复制到剪贴板（{n} 个字符）。',
   'Could not copy the share link - your browser blocked clipboard access.': '无法复制分享链接 — 浏览器阻止了剪贴板访问。',
+  'This share link is too large to open.': '此分享链接过大，无法打开。',
   'Opened with warnings:\n\n{list}': '打开时有警告：\n\n{list}',
   'Part': '部件',
   'Part number': '型号',

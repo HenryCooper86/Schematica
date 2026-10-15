@@ -1,3 +1,5 @@
+import { tr } from './i18n.js';
+
 // Share links: the whole document deflated into a URL fragment. Zero dependencies.
 // Fragment schemes: "d=<base64url deflate-raw>" (compressed) or "j=<base64url>" (raw fallback).
 
@@ -14,6 +16,7 @@ function fromBase64Url(s) {
 
 export async function encodeShare(doc) {
   const input = new TextEncoder().encode(JSON.stringify(doc));
+  if (input.byteLength > MAX_SHARE_BYTES) throw new Error(tooLargeMessage());
   if (typeof CompressionStream === 'function') {
     const stream = new Blob([input]).stream().pipeThrough(new CompressionStream('deflate-raw'));
     const bytes = new Uint8Array(await new Response(stream).arrayBuffer());
@@ -26,7 +29,7 @@ export async function encodeShare(doc) {
 // cap exists because a few kilobytes of deflated zeros inflate to gigabytes.
 export const MAX_SHARE_BYTES = 16 * 1024 * 1024;
 
-const TOO_LARGE = 'This share link is too large to open.';
+const tooLargeMessage = () => tr('This share link is too large to open.');
 
 // Drains a stream into one buffer, giving up as soon as the cap is passed so
 // a decompression bomb never gets to allocate its full size.
@@ -40,7 +43,7 @@ async function readCapped(stream, max) {
     total += value.byteLength;
     if (total > max) {
       await reader.cancel();
-      throw new Error(TOO_LARGE);
+      throw new Error(tooLargeMessage());
     }
     chunks.push(value);
   }
@@ -57,7 +60,7 @@ export async function decodeShare(fragment) {
   const m = /^#?([dj])=([A-Za-z0-9_-]+)$/.exec(fragment);
   if (!m) throw new Error('Not a Schematica share link.');
   const bytes = fromBase64Url(m[2]);
-  if (bytes.byteLength > MAX_SHARE_BYTES) throw new Error(TOO_LARGE);
+  if (bytes.byteLength > MAX_SHARE_BYTES) throw new Error(tooLargeMessage());
   if (m[1] === 'j') return new TextDecoder().decode(bytes);
   if (typeof DecompressionStream !== 'function') {
     throw new Error('This browser cannot decode compressed share links.');

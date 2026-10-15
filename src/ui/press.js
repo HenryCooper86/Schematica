@@ -8,14 +8,22 @@
 // click listener stays for keyboard activation, suppressed after a pointer
 // press so the same activation can't fire twice.
 export function onPress(btn, fn) {
+  let activePointer = null;
   btn.addEventListener('pointerdown', (e) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || activePointer !== null) return;
     const ae = document.activeElement;
     if (ae && ae !== btn && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) ae.blur();
+    activePointer = e.pointerId;
     btn._pointerFired = true;
-    window.addEventListener('pointerup', () => {
-      setTimeout(() => { btn._pointerFired = false; }, 0);
-    }, { once: true });
+    const release = event => {
+      if (event.pointerId !== activePointer) return;
+      activePointer = null;
+      window.removeEventListener('pointerup', release);
+      window.removeEventListener('pointercancel', release);
+      setTimeout(() => { if (activePointer === null) btn._pointerFired = false; }, 0);
+    };
+    window.addEventListener('pointerup', release);
+    window.addEventListener('pointercancel', release);
     fn(e);
   });
   btn.addEventListener('click', (e) => {

@@ -60,7 +60,9 @@ export async function importDocuments(files, { existing = [], extractBinary, sig
         if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(text)) throw Error(tr('Binary data cannot be imported as text.'));
       } else {
         const reader = extractBinary || (await import('./document-readers.js')).extractBinary;
-        const result = await cancellable(reader(file, { signal }), signal);
+        // Parsing may transfer this buffer to its worker; hashing and duplicate
+        // detection are complete, and no later import step needs its bytes.
+        const result = await cancellable(reader(file, { signal, data }), signal);
         text = result.text; warnings = [...(result.warnings || [])];
       }
       if (typeof text !== 'string' || !text.trim()) throw Error(tr('No readable text found. Image-only PDFs need OCR, which is not supported.'));

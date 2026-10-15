@@ -12,10 +12,10 @@ engineering metadata: use this version when editing these files.
 
 ## Recovery and revisions
 
-Snapshot fingerprints now distinguish supplementary Unicode characters, including
-emoji. Existing local approvals or evidence stamps containing these characters may
-be marked stale and require review again; other saved fingerprints retain their
-previous identity.
+Snapshot and reviewed-exception fingerprints distinguish supplementary Unicode
+characters, including emoji. Existing local approvals, evidence stamps, or
+reviewed exceptions containing these characters may be marked stale and require
+review again; ASCII-only fingerprints retain their previous identity.
 
 **Revisions → Save revision** stores a named snapshot of the entire architecture.
 New/Open/Example and other board replacements first snapshot existing work.
@@ -44,6 +44,10 @@ protocol version, rate/bandwidth, and a source reference. Direction also updates
 wire arrowheads. Enable **Check required interface details** to flag missing
 information without adding warnings to older boards by default. Text such as
 “N/A — optical link” can explicitly document a non-applicable voltage domain.
+
+I2C address checks treat separate controller ports as separate buses. Identical
+addresses on those independent buses do not conflict; explicitly wiring the
+buses together makes them one address space.
 
 The **Interface worklist** shows checked, failed, and unassessed connections in
 the current board or expanded subsystem. Select a row to edit it. To reuse an
@@ -369,5 +373,8 @@ Each scope owns its operating mode and peak assumption. A scope with no explicit
 settings uses Active and simultaneous peaks. Grouping copies its parent settings;
 subsequent child changes are independent. Root power, BOM, checks and review
 reports evaluate those child settings. Noncoincident peaks are combined within a
-scope; independent scope excursions on a shared rail are summed. This remains
-arithmetic on declared loads, not electrical or transient simulation.
+scope; independent scope excursions are summed, including across converters.
+Voltage and efficiency scaling preserve each excursion's scope. A converter's
+own excursion shares its scope's noncoincident maximum rather than adding another
+peak independently. This remains arithmetic on declared loads, not electrical
+or transient simulation.

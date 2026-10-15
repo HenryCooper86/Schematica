@@ -199,8 +199,14 @@ tables and findings. Review reports currently use English. A package can also
 compare against a saved revision: choose **Use as baseline** in Revisions first.
 For subsystem scope and included files, see [review packages](engineering-workflows.md#review-packages-and-exceptions).
 
-Save downloads outside the browser for a durable handoff. **Save** preserves the
-whole architecture, including subsystems; visual exports show the current scope.
+Save downloads outside the browser for a durable handoff. **Save** and **Share**
+preserve the whole architecture, including live edits in an open subsystem;
+visual exports show the current scope. Share links exceeding the 16 MiB decoded
+board limit are rejected before copying.
+
+**Loop GIF** freezes the board, translated labels, and theme when export starts;
+later edits do not mix into its frames. PNG and PDF filenames stay paired with
+the board that was rendered, even if you open another board before rendering ends.
 
 ## Compare and import
 
@@ -208,8 +214,9 @@ whole architecture, including subsystems; visual exports show the current scope.
 
 Open the current board, choose **Explore → Compare saved board**, and select an
 earlier `.schematica.json` file. Inspect the before/after diagrams and changed
-fields. The comparison distinguishes layout movement from configuration changes;
-previewing it does not edit your board.
+fields. Comparison covers the whole architecture even when a subsystem is open.
+It distinguishes layout movement from configuration changes; previewing it does
+not edit your board.
 
 For a proposed part-number or rail change, use **Engineering → Change impact**.
 Review affected interfaces and records before choosing **Apply previewed change**.
@@ -264,6 +271,10 @@ extracted text is sent to the configured provider when you send the message.
 Documents are held in memory, and ordinary messages or replies may retain quoted
 content. Image-only PDFs need OCR outside this application. See
 [document privacy and limits](editor-reference.md#assistant-document-privacy-and-limits).
+
+**Stop** keeps text already received in the conversation. An interrupted preview
+is discarded; edits already applied with preview disabled remain undoable.
+Unfinished structured plans are not applied.
 
 Public URL reading needs the Node-backed edition. The static edition's provider
 connectivity depends on provider CORS support or the configured relay; see

@@ -56,3 +56,50 @@ test('a delayed cut cannot remove items from a replacement board', async () => {
   assert.deepEqual(store.doc, before);
   assert.equal(store.undoStack.length, 0);
 });
+
+test('an oversized cut leaves the board and the previous in-tab copy intact', async () => {
+  const store = new Store();
+  store.doc.notes.push({ id: 'small', x: 0, y: 0, text: 'Keep this copy' });
+  const notices = [];
+  let writes = 0;
+  const commands = createClipboardCommands({
+    store, canEditNow: () => true, notify: message => notices.push(message),
+    clipboard: () => ({ writeText: async () => { writes += 1; } }),
+  });
+  store.setSelection(['small']);
+  await commands.copySelection();
+  store.doc.notes = Array.from({ length: 201 }, (_, i) => ({
+    id: `large${i}`, x: i * 8, y: 0, text: 'x'.repeat(20_000),
+  }));
+  store.setSelection(store.doc.notes.map(note => note.id));
+  const before = structuredClone(store.doc), undoDepth = store.undoStack.length;
+  await commands.copySelection({ cut: true });
+  assert.deepEqual(store.doc, before);
+  assert.equal(store.undoStack.length, undoDepth);
+  assert.equal(writes, 1, 'an unpasteable payload must not replace the system clipboard');
+  assert.match(notices.at(-1), /too large/i);
+  await commands.pasteClipboard();
+  assert.equal(store.doc.notes.at(-1).text, 'Keep this copy');
+});
+
+test('cut leaves a separately selected wire that was not copied', async () => {
+  const store = new Store();
+  const a = addNode(store, 'mcu', 0, 0);
+  const b = addNode(store, 'temp', 300, 0);
+  const wire = addWire(store, 'i2c', { node: a, port: 'i2c' }, { node: b, port: 'i2c' });
+  store.doc.notes.push({ id: 'note', x: 0, y: 300, text: 'Cut me' });
+  store.setSelection(['note', wire]);
+  let copied;
+  const commands = createClipboardCommands({
+    store, canEditNow: () => true, notify: () => {},
+    clipboard: () => ({ writeText: async text => { copied = JSON.parse(text); } }),
+  });
+  const before = structuredClone(store.doc);
+  await commands.copySelection({ cut: true });
+  assert.equal(copied.wires.length, 0);
+  assert.equal(store.doc.notes.length, 0);
+  assert.deepEqual(store.doc.wires, before.wires, 'cut removes only items represented by the payload');
+  assert.deepEqual([...store.selection], [wire]);
+  store.undo();
+  assert.deepEqual(store.doc, before);
+});

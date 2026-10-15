@@ -32,9 +32,11 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
   let tool = 'select';
   let spaceDown = false;
   let drag = null;
+  let dragPointerId = null;
   let hotPort = null; // the port under a wire being dragged, marked via data-hot
 
   function capturePointer(e) {
+    dragPointerId = e.pointerId;
     try {
       svg.setPointerCapture(e.pointerId);
     } catch {
@@ -202,7 +204,7 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
   const EDIT_FIELDS = { node: 'label', wire: 'label', zone: 'label', note: 'text' };
 
   svg.addEventListener('pointerdown', (e) => {
-    if (ui.busy) return;
+    if (ui.busy || drag) return;
     if (ui.highlight.size) {
       ui.highlight.clear();
       requestRender('overlay');
@@ -308,7 +310,7 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
   });
 
   svg.addEventListener('pointermove', (e) => {
-    if (!drag) return;
+    if (!drag || e.pointerId !== dragPointerId) return;
     const pt = toWorld(e);
     if (drag.mode === 'pan') {
       view.x = drag.vx + (e.clientX - drag.sx);
@@ -365,7 +367,8 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
   });
 
   svg.addEventListener('pointerup', (e) => {
-    if (!drag) return;
+    if (!drag || e.pointerId !== dragPointerId) return;
+    dragPointerId = null;
     if (drag.mode === 'rewire') {
       const d = drag;
       drag = null;
@@ -435,6 +438,7 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
     if (drag && (drag.mode === 'move' || drag.mode === 'zresize')) store.cancelDrag();
     if (drag?.mode === 'rewire') drag.el.classList.remove('rewiring');
     drag = null;
+    dragPointerId = null;
     ui.wireDraft = null;
     ui.marquee = null;
     setHotPort(null);
@@ -442,14 +446,14 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
   }
 
   svg.addEventListener('pointercancel', (e) => {
-    if (!drag) return;
+    if (!drag || e.pointerId !== dragPointerId) return;
     abandonDrag();
     try { svg.releasePointerCapture(e.pointerId); } catch { /* capture already gone */ }
     requestRender('overlay');
   });
 
-  svg.addEventListener('lostpointercapture', () => {
-    if (!drag) return;
+  svg.addEventListener('lostpointercapture', (e) => {
+    if (!drag || e.pointerId !== dragPointerId) return;
     abandonDrag();
     requestRender('overlay');
   });

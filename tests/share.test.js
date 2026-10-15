@@ -51,3 +51,10 @@ test('decodeShare refuses a link that inflates past the size cap', async () => {
   const raw = `j=${Buffer.from(zeros).toString('base64url')}`;
   await assert.rejects(() => decodeShare(raw), /too large/);
 });
+
+test('share encoding refuses boards that the decoder cannot open', async () => {
+  const doc = sampleDoc();
+  doc.notes = Array.from({ length: 840 }, (_, i) => ({ id: `note-${i}`, x: 0, y: 0, text: 'x'.repeat(20_000) }));
+  assert.ok(new TextEncoder().encode(JSON.stringify(doc)).byteLength > MAX_SHARE_BYTES);
+  await assert.rejects(() => encodeShare(doc), /too large/);
+});

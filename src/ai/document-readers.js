@@ -1,7 +1,7 @@
 import { LIMITS } from './documents.js';
 
 // Each invocation owns its workers; there is never a shared parser to invalidate.
-export async function extractBinary(file, { signal } = {}) {
+export async function extractBinary(file, { signal, data } = {}) {
   if (!Number.isSafeInteger(file.size) || file.size > LIMITS.fileBytes) throw Error('File exceeds the 10 MiB limit.');
   if (signal?.aborted) throw new DOMException('Document import cancelled.', 'AbortError');
   const kind = file.name.split('.').at(-1).toLowerCase();
@@ -23,7 +23,7 @@ export async function extractBinary(file, { signal } = {}) {
   timer = setTimeout(() => stop(Error('Document extraction timed out. Try a smaller document.')), LIMITS.timeoutMs);
   try {
     return await Promise.race([stopPromise, (async () => {
-      const data = await file.arrayBuffer(); check();
+      data ??= await file.arrayBuffer(); check();
       if (data.byteLength !== file.size) throw Error('File size changed during reading.');
       if (kind === 'docx') {
         worker = new Worker(new URL('./docx-worker.js', import.meta.url));

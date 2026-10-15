@@ -1,3 +1,4 @@
+import { runMediaReliabilityChecks } from './media-reliability.mjs';
 import { runReliabilityChecks } from './reliability.mjs';
 import { runTeamReviewChecks } from './team-review.mjs';
 import { runKiCadUpdateChecks } from './kicad-update.mjs';
@@ -317,7 +318,9 @@ const teamTools={js,check,sleep,expectDialog:message=>expectedDialogs.push(messa
 try {
   if (process.env.E2E_FORCE_FAILURE === '1') throw new Error('Requested artifact verification failure');
   if (!process.env.WORKFLOW_E2E_ONLY) await js(`(()=>{const p=document.getElementById('ai-preview-enabled');p.checked=false;p.dispatchEvent(new Event('change'));return true;})()`);
-  if (process.env.RELIABILITY_E2E_ONLY) {
+  if (process.env.MEDIA_E2E_ONLY) {
+    await runMediaReliabilityChecks({ js, check, sleep, send, origin });
+  } else if (process.env.RELIABILITY_E2E_ONLY) {
     await runReliabilityChecks({ ...teamTools, send, origin, sleep });
   } else if (process.env.GUIDE_E2E_ONLY) {
     await runGuideChecks({ send, js, check, origin, sleep });
@@ -1459,6 +1462,7 @@ try {
   await runTeamReviewChecks(teamTools);
   await runAssistantHistoryChecks({ send, js, check, sleep, fakeSeen, capture: teamTools.capture, origin });
   await runGuideChecks({ send, js, check, origin, sleep });
+  await runMediaReliabilityChecks({ js, check, sleep, send, origin });
   await runReliabilityChecks({ ...teamTools, send, origin, sleep });
   }
 } catch (err) {

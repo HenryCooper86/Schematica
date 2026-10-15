@@ -376,3 +376,40 @@ test('operating modes and explicit noncoincident peaks use their stated assumpti
   r=powerRails(d)[0];assert.equal(r.typicalMa,120);assert.equal(r.peakMa,220);
   d.engineering.budget.mode='sleep';assert.equal(powerRails(d)[0].typicalMa,3);
 });
+
+test('independent scope peak excursions stay independent across a converter', async () => {
+  const { Store } = await import('../src/state.js');
+  const { groupSubsystem } = await import('../src/subsystems.js');
+  const { checkDoc } = await import('../src/drc.js');
+  const d = doc(
+    [node('bat', 'battery', { imax: '130mA' }), node('reg', 'regulator'), node('parent', 'mcu'), node('child', 'temp')],
+    [wire('in', 'power', 'bat', 'out', 'reg', 'in'),
+      wire('parent', 'power', 'bat', 'out', 'parent', 'vcc'),
+      wire('out', 'power', 'reg', 'out', 'child', 'vcc')],
+  );
+  d.engineering = { budget: { mode: 'active', peaks: 'noncoincident' } };
+  d.nodes[1].budget = { inputV: 10, outputV: 5, efficiency: 100 };
+  d.nodes[2].budget = { activeMa: 20, activePeakMa: 50 };
+  d.nodes[3].budget = { activeMa: 100, activePeakMa: 200 };
+  const store = new Store(d);
+  groupSubsystem(store, ['child'], 'Child loads');
+  const input = powerRails(store.doc).find(r => r.sources.some(s => s.node.label === 'bat'));
+  assert.equal(input.typicalMa, 70);
+  assert.equal(input.peakMa, 150, 'the child excursion (50 mA converted) adds to the parent excursion (30 mA)');
+  assert.equal(powerSummary(store.doc).find(r => r.sources.includes('bat')).peakMa, 150);
+  assert.ok(checkDoc(store.doc).some(f => f.rule === 'power-budget-peak'), 'checks expose the overload previously hidden by scope merging');
+});
+
+test('a converter and its loads share one noncoincident excursion in the same scope', () => {
+  const d = doc(
+    [node('bat', 'battery'), node('reg', 'regulator'), node('load', 'mcu')],
+    [wire('in', 'power', 'bat', 'out', 'reg', 'in'),
+      wire('out', 'power', 'reg', 'out', 'load', 'vcc')],
+  );
+  d.engineering = { budget: { mode: 'active', peaks: 'noncoincident' } };
+  d.nodes[1].budget = { activeMa: 10, activePeakMa: 30 };
+  d.nodes[2].budget = { activeMa: 100, activePeakMa: 150 };
+  assert.equal(rail(powerRails(d), 'bat').peakMa, 160, '110 mA typical plus the larger 50 mA excursion');
+  d.engineering.budget.peaks = 'simultaneous';
+  assert.equal(rail(powerRails(d), 'bat').peakMa, 180);
+});

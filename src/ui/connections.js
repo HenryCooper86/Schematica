@@ -49,10 +49,12 @@ export function initConnections({ store }) {
       <p>${esc(tr('Press Ctrl+Enter or Command+Enter to create the connection.'))}</p><p id="connect-error" role="alert"></p><footer><button type="submit">${esc(tr('Create connection'))}</button><button type="button" id="connect-cancel">${esc(tr('Cancel'))}</button></footer></form>`;
     const nodes = store.doc.nodes.filter(n => nodePart(n).ports.some(p => Object.hasOwn(BUSES, p.bus)));
     const selected = nodes.filter(n => store.selection.has(n.id));
+    const from = selected[0] || nodes[0];
+    const initial = [from, selected[1] || nodes.find(n => n.id !== from?.id) || from];
     for (const [i, end] of ['from', 'to'].entries()) {
       const control = dialog.querySelector(`#connect-${end}-node`);
       control.innerHTML = nodes.map(n => option(n.id, `${n.label || n.id} (${n.id})`)).join('');
-      control.value = (selected[i] || nodes[i] || nodes[0])?.id || '';
+      control.value = initial[i]?.id || '';
       updatePorts(end);
       control.onchange = () => { updatePorts(end); updateBuses(); };
       dialog.querySelector(`#connect-${end}-port`).onchange = updateBuses;

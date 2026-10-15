@@ -96,6 +96,36 @@ export async function runReliabilityChecks({ js, check, send, origin, sleep, cap
     form=body.querySelector('#review-start');const result=store.doc.engineering.reviews[0].title==='Submitted'&&form.elements.title.value==='Newer draft'&&drafts.hasChanges();body.remove();return result;
   })()`));
 
+  // Board-level sharing and comparison retain the architecture while a child is open.
+  await js(`(async()=>{
+    const {Store,newDoc,addNode}=await import('/src/state.js'), {groupSubsystem}=await import('/src/subsystems.js');
+    const store=new Store(newDoc('Nested architecture'));
+    const child=addNode(store,'mcu',0,0);groupSubsystem(store,[child],'Control subsystem');addNode(store,'temp',400,0);
+    window.reliabilityRoot=structuredClone(store.doc);
+    document.querySelector('#engineering-dialog [data-action=close]').click();
+    const dt=new DataTransfer();dt.items.add(new File([JSON.stringify(store.doc)],'nested.json'));
+    const input=document.getElementById('file-input');input.files=dt.files;input.dispatchEvent(new Event('change'));
+  })()`);
+  await wait(`document.getElementById('title').value==='Nested architecture'`);
+  await js(`document.getElementById('btn-engineering').click();true`); await section('subsystems');
+  await js(`document.querySelector('[data-enter]').click();true`);
+  await wait(`document.getElementById('title').value==='Control subsystem'`);
+  await js(`(()=>{
+    const dt=new DataTransfer();dt.items.add(new File([JSON.stringify(window.reliabilityRoot)],'baseline.json'));
+    const input=document.getElementById('compare-file');input.files=dt.files;input.dispatchEvent(new Event('change'));
+    document.getElementById('explore-compare').click();return true;
+  })()`);
+  await wait(`!document.getElementById('compare-download').disabled`);
+  check('comparison uses the complete architecture while a subsystem is open', await js(`document.getElementById('compare-status').textContent==='No differences.'`));
+  await js(`document.getElementById('compare-close').click();document.getElementById('title').value='Edited subsystem';document.getElementById('title').dispatchEvent(new Event('change'));window.reliabilityWriteText=navigator.clipboard.writeText;navigator.clipboard.writeText=async text=>{window.reliabilityShare=text;};document.getElementById('btn-share').click();true`);
+  await wait(`!!window.reliabilityShare`);
+  check('sharing from a subsystem includes its live edits and the rest of the architecture', await js(`(async()=>{
+    const {decodeShare}=await import('/src/share.js');
+    const shared=JSON.parse(await decodeShare(new URL(window.reliabilityShare).hash));
+    return shared.title==='Nested architecture'&&shared.nodes.some(n=>n.kind==='temp')&&shared.nodes.find(n=>n.subsystem)?.subsystem.doc.title==='Edited subsystem';
+  })()`));
+  await js(`navigator.clipboard.writeText=window.reliabilityWriteText;delete window.reliabilityWriteText;true`);
+
   // Leave the fixture page before injecting startup data, so its pagehide flush
   // cannot replace the malformed value intended for the next document.
   await send('Page.navigate', { url: origin + '/guide.html' });

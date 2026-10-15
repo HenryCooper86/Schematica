@@ -162,11 +162,16 @@ export function partCurrents(node, mode = 'active') {
 // rough figure: about right for a linear regulator, high for a step-down
 // converter, low for a step-up one. Where the rail it feeds cannot be summed,
 // its own declared figure is all there is to report.
-function drawOf(entry, rails, load, guard) {
+function drawOf(entry, rails, load, guard, budget) {
   const { node, currents } = entry;
   const declared = currents.typicalMa != null || currents.peakMa != null;
   const ownTypical = currents.typicalMa ?? currents.peakMa ?? 0;
   const ownPeak = currents.peakMa ?? currents.typicalMa ?? 0;
+  const assumption = node.analysisBudget || budget;
+  const key = assumption?.peaks === 'noncoincident'
+    ? JSON.stringify(['scope', node.analysisScope || '[]'])
+    : JSON.stringify(['node', node.id]);
+  const excursions = new Map([[key, Math.max(0, ownPeak - ownTypical)]]);
   const fed = rails.findIndex((r) => r.sources.some((s) => s.node.id === node.id));
   if (fed >= 0 && !guard.has(fed)) {
     const downstream = load(fed, guard);
@@ -174,17 +179,21 @@ function drawOf(entry, rails, load, guard) {
       const b = node.budget;
       const conversion = b?.inputV > 0 && b?.outputV > 0 && b?.efficiency > 0;
       const ratio = conversion ? b.outputV / b.inputV / (b.efficiency / 100) : 1;
+      // Carry excursion identities through converters: independent scopes still
+      // add, while one noncoincident scope shares a maximum across both rails.
+      for (const [scope, excursion] of downstream.excursions)
+        excursions.set(scope, Math.max(excursions.get(scope) || 0, excursion * ratio));
       return {
         typicalMa: ownTypical + downstream.typicalMa * ratio,
-        peakMa: ownPeak + downstream.peakMa * ratio,
+        excursions,
         known: true,
         carried: true,
         incomplete: downstream.unknown > 0 || (!!b && [b.inputV, b.outputV, b.efficiency].some(v => v != null) && !conversion),
       };
     }
   }
-  if (declared) return { typicalMa: ownTypical, peakMa: ownPeak, known: true, carried: false, incomplete: fed >= 0 };
-  return { typicalMa: 0, peakMa: 0, known: false, carried: false };
+  if (declared) return { typicalMa: ownTypical, excursions, known: true, carried: false, incomplete: fed >= 0 };
+  return { typicalMa: 0, excursions, known: false, carried: false };
 }
 
 // The power tree: one entry per rail, in the order the wires build them.
@@ -237,17 +246,16 @@ export function powerRails(doc) {
     let known = false;
     for (const entry of rail.draws) {
       if (entry.currents.typicalMa != null || entry.currents.peakMa != null) declared = true;
-      const d = drawOf(entry, rails, load, next);
+      const d = drawOf(entry, rails, load, next, doc.engineering?.budget);
       if (!d.known || d.incomplete) unknownIds.push(entry.node.id);
       if (!d.known) continue;
       known = true;
       typicalMa += d.typicalMa;
-      const assumption = entry.node.analysisBudget || doc.engineering?.budget;
-      const key = assumption?.peaks === 'noncoincident' ? (entry.node.analysisScope || '[]') : entry.node.id;
-      excursions.set(key, Math.max(excursions.get(key) || 0, d.peakMa - d.typicalMa));
+      for (const [key, excursion] of d.excursions)
+        excursions.set(key, Math.max(excursions.get(key) || 0, excursion));
     }
     peakMa = typicalMa + [...excursions.values()].reduce((a, b) => a + b, 0);
-    return { typicalMa, peakMa, unknown: unknownIds.length, unknownIds, known, declaredDraw: declared };
+    return { typicalMa, peakMa, excursions, unknown: unknownIds.length, unknownIds, known, declaredDraw: declared };
   };
 
   return rails.map((rail, i) => {

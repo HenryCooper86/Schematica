@@ -175,15 +175,15 @@ export function deserialize(text, { depth = 0 } = {}) {
         }
       } else {
         const known = new Set(part.fields.map((fd) => fd.id));
-        const fields = {};
+        const fields = [];
         for (const [k, v] of Object.entries(n.fields)) {
           if (!known.has(k)) {
             warnings.push(tr('Dropped unknown field "{field}" on node "{id}".', { field: k, id: n.id }));
             continue;
           }
-          if (typeof v === 'string' && v.trim()) fields[k] = str(v);
+          if (typeof v === 'string' && v.trim()) fields.push([k, str(v)]);
         }
-        if (Object.keys(fields).length) node.fields = fields;
+        if (fields.length) node.fields = Object.fromEntries(fields);
       }
     }
     if (n.disposition != null) {

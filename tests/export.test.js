@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildExportSVG } from '../src/export.js';
+import { buildExportSVG, exportPNG, exportPDF } from '../src/export.js';
 import { contentBounds } from '../src/geometry.js';
 import { Store, addNode } from '../src/state.js';
 
@@ -52,3 +52,22 @@ test('buildExportSVG renders an animation frame when given a timestamp', () => {
   assert.ok(!buildExportSVG(doc).includes('stroke-dashoffset'), 'static export has no animation');
   assert.ok(buildExportSVG(doc, { now: 500 }).includes('stroke-dashoffset'), 'timestamped export freezes the flow frame');
 });
+
+for (const [format, render] of [['PNG', exportPNG], ['PDF', exportPDF]]) {
+  test(`${format} export reports unavailable canvas contexts without leaking its source URL`, t => {
+    const originalDocument = globalThis.document, originalImage = globalThis.Image;
+    t.after(() => { globalThis.document = originalDocument; globalThis.Image = originalImage; });
+    let image;
+    globalThis.Image = class {
+      constructor() { image = this; this.width = 100; this.height = 100; }
+    };
+    globalThis.document = { createElement: () => ({ getContext: () => null }) };
+    const revoked = [], results = [];
+    t.mock.method(URL, 'createObjectURL', () => 'blob:export-source');
+    t.mock.method(URL, 'revokeObjectURL', url => revoked.push(url));
+    render('<svg/>', blob => results.push(blob));
+    assert.doesNotThrow(() => image.onload());
+    assert.deepEqual(results, [null]);
+    assert.deepEqual(revoked, ['blob:export-source']);
+  });
+}

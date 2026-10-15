@@ -255,7 +255,7 @@ store.subscribe(() => {
 // ---- Panels, dialogs, menus ----
 initPalette({ svg, store, tools, library, editor });
 initLegend();
-initCompare({ store });
+initCompare({ store, getRootDoc: () => navigation.rootDoc() });
 explorer = initExplore({ store, tools, svg, render });
 dialogs = initDialogs({ store, getRootDoc: () => navigation.rootDoc() });
 engineeringUI = initEngineering({ store, revisions, startupRecovery, navigation, persistence, flush: () => autosave.flush(), importKiCad, explorer, tools });

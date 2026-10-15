@@ -41,12 +41,12 @@ export function checkDoc(doc) {
     wiredNodes.add(w.to.node);
   }
 
-  // 1. I2C address conflicts within one net. "0x76", " 0X76 " and "0x76"
-  //    are the same device address, so compare a normalised key and report
-  //    the address as the first conflicting node wrote it.
-  for (const component of busComponents(doc, 'i2c')) {
+  // 1. I2C address conflicts within one net. Separate ports on a controller
+  // are separate buses unless wires explicitly join them.
+  // "0x76" and " 0X76 " are the same address.
+  for (const component of busComponents(doc, 'i2c', ref => JSON.stringify([ref.node, ref.port]))) {
     const byAddr = new Map();
-    for (const id of component) {
+    for (const id of new Set(component.map(vertex => JSON.parse(vertex)[0]))) {
       const n = byId.get(id);
       const key = i2cAddrKey(n?.addr);
       if (key) {

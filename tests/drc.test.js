@@ -77,6 +77,25 @@ test('no conflict across separate I2C nets', () => {
   assert.ok(!checkDoc(d).some((f) => f.rule === 'i2c-addr-conflict'));
 });
 
+test('independent I2C ports on one controller do not merge their address spaces', () => {
+  const part = normalizePart({
+    name: 'Dual I2C controller',
+    ports: [
+      { id: 'bus1', name: 'I2C 1', side: 'left', bus: 'i2c' },
+      { id: 'bus2', name: 'I2C 2', side: 'right', bus: 'i2c' },
+    ],
+  }).part;
+  const d = doc(
+    [node('m', 'custom', { part, addr: '0x42' }), node('a', 'temp', { addr: '0x76' }), node('b', 'tof', { addr: '0x76' })],
+    [wire('w1', 'i2c', 'm', 'bus1', 'a', 'i2c'), wire('w2', 'i2c', 'm', 'bus2', 'b', 'i2c')],
+  );
+  assert.equal(checkDoc(d).filter(f => f.rule === 'i2c-addr-conflict').length, 0);
+  d.wires.push(wire('bridge', 'i2c', 'a', 'i2c', 'b', 'i2c'));
+  const conflicts = checkDoc(d).filter(f => f.rule === 'i2c-addr-conflict');
+  assert.equal(conflicts.length, 1, 'an explicit bridge joins the two address spaces');
+  assert.deepEqual(conflicts[0].ids, ['a', 'b']);
+});
+
 test('flags unconnected VCC/GND pins and fully floating nodes', () => {
   const d = doc(
     [node('m', 'mcu'), node('t', 'temp'), node('lonely', 'imu')],

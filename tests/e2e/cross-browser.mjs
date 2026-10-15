@@ -88,7 +88,24 @@ try {
   session = started.sessionId; report.capabilities = started.capabilities;
   await command('/timeouts', { script: 60000, pageLoad: 60000 });
   await command('/window/rect', { width: 1500, height: 950 });
+  if (browser === 'safari') {
+    // safaridriver accepts native actions while Safari is hidden, but dispatches
+    // no DOM input. Activate its automation window before loading native checks.
+    await new Promise((resolve, reject) => {
+      const activation = spawn('/usr/bin/open', ['-a', 'Safari']);
+      activation.once('error', reject);
+      activation.once('exit', code => code === 0 ? resolve() : reject(new Error(`Safari activation exited ${code}`)));
+    });
+  }
   await load();
+  if (browser === 'safari') {
+    for (let i = 0; i < 100; i++) {
+      report.nativeInput = await js(`({visibility:document.visibilityState,focused:document.hasFocus()})`);
+      if (report.nativeInput.visibility === 'visible' && report.nativeInput.focused) break;
+      await sleep(100);
+    }
+    check('native Safari window is visible and focused', report.nativeInput.visibility === 'visible' && report.nativeInput.focused, report.nativeInput);
+  }
   check('editor initializes', await js(`!!document.querySelector('#canvas .node')`));
   report.viewport = await js(`({width:innerWidth,height:innerHeight})`);
   check('toolbar stays within the viewport', await js(`document.getElementById('toolbar').scrollWidth<=innerWidth`));

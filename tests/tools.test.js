@@ -213,6 +213,43 @@ test('losing pointer capture cancels a move without creating an undo step', asyn
   assert.equal(store.undoStack.length, undoDepth);
 });
 
+test('a second pointer cannot replace, move, or finish another pointer’s drag', async () => {
+  const { svg, store, ev } = await setup();
+  const a = addNode(store, 'mcu', 0, 0), b = addNode(store, 'temp', 300, 0);
+  const first = nodeEl(a), second = nodeEl(b), depth = store.undoStack.length;
+  svg.dispatch('pointerdown', ev(first, { clientX: 10, clientY: 10 }));
+  svg.dispatch('pointermove', ev(first, { clientX: 50, clientY: 10 }));
+  assert.equal(store.doc.nodes[0].x, 40);
+  svg.dispatch('pointerdown', ev(second, { pointerId: 2, clientX: 310, clientY: 10 }));
+  svg.dispatch('pointermove', ev(second, { pointerId: 2, clientX: 390, clientY: 10 }));
+  svg.dispatch('pointerup', ev(second, { pointerId: 2, clientX: 390, clientY: 10 }));
+  assert.equal(store.isDragging(), true, 'the original pointer still owns the gesture');
+  assert.deepEqual([...store.selection], [a]);
+  assert.deepEqual(store.doc.nodes.map(node => node.x), [40, 300]);
+  svg.dispatch('pointermove', ev(first, { clientX: 90, clientY: 10 }));
+  svg.dispatch('pointerup', ev(first, { clientX: 90, clientY: 10 }));
+  assert.equal(store.isDragging(), false);
+  assert.deepEqual(store.doc.nodes.map(node => node.x), [80, 300]);
+  assert.equal(store.undoStack.length, depth + 1);
+  store.undo();
+  assert.deepEqual(store.doc.nodes.map(node => node.x), [0, 300]);
+});
+
+test('cancellation and capture loss from another pointer leave the active drag alone', async () => {
+  const { svg, store, ev } = await setup();
+  const id = addNode(store, 'mcu', 0, 0), element = nodeEl(id), depth = store.undoStack.length;
+  svg.dispatch('pointerdown', ev(element, { clientX: 10, clientY: 10 }));
+  svg.dispatch('pointermove', ev(element, { clientX: 50, clientY: 10 }));
+  svg.dispatch('pointercancel', ev(svg, { pointerId: 2 }));
+  svg.dispatch('lostpointercapture', ev(svg, { pointerId: 2 }));
+  assert.equal(store.isDragging(), true);
+  assert.equal(store.doc.nodes[0].x, 40);
+  svg.dispatch('pointercancel', ev(svg));
+  assert.equal(store.isDragging(), false);
+  assert.equal(store.doc.nodes[0].x, 0);
+  assert.equal(store.undoStack.length, depth);
+});
+
 test('a locked card is still selectable but never moves with a drag', async () => {
   const { svg, store, ev } = await setup();
   const a = addNode(store, 'mcu', 0, 0);
@@ -401,6 +438,7 @@ test('clearing the last schema field drops the fields key instead of leaving {}'
   const line = makeEl({ dataset: { edit: 'fields.type' }, parent: el });
   // Two presses within the double-click window open the inline editor.
   svg.dispatch('pointerdown', ev(line));
+  svg.dispatch('pointerup', ev(line));
   svg.dispatch('pointerdown', ev(line));
   assert.equal(editor.hidden, false);
   assert.equal(editor.value, 'insider');
@@ -416,6 +454,7 @@ test('inline rename keeps composition keys inside the editor until text is commi
   const id = addNode(store, 'mcu', 0, 0);
   const line = makeEl({ dataset: { edit: 'label' }, parent: nodeEl(id) });
   svg.dispatch('pointerdown', ev(line));
+  svg.dispatch('pointerup', ev(line));
   svg.dispatch('pointerdown', ev(line));
   editor.value = '控制';
   editor.dispatch('keydown', { key: 'Enter', isComposing: true, stopPropagation() {} });

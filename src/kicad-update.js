@@ -109,5 +109,8 @@ export function prepareKiCadUpdate(store, incoming, stamp = captureKiCadUpdate(s
 export function applyKiCadUpdate(store, preview) {
   assertKiCadUpdateCurrent(store, preview);
   const { proposal } = previewKiCadUpdate(store.doc, preview.incoming);
-  store.apply(doc => { doc.nodes = proposal.nodes; doc.wires = proposal.wires; doc.kicad = proposal.kicad; });
+  store.apply(doc => {
+    doc.nodes = proposal.nodes; doc.wires = proposal.wires; doc.kicad = proposal.kicad;
+    store._pruneSelection();
+  });
 }

@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs';
 import { CATEGORIES } from '../src/palette.js';
 import { initials, optionList, normalizePart, definitionFrom } from '../src/custom.js';
 import { nodePart } from '../src/rdk/profiles.js';
+import { Store, addNode, newDoc } from '../src/state.js';
+import { initPartEditor } from '../src/ui/part-editor.js';
 
 // The editor's draft conversion lives inside initPartEditor, which needs a
 // document to build. The two pure functions are lifted out of the module
@@ -60,4 +62,76 @@ test('Customize… on a built-in part keeps the placeholders its schema fields c
     'every hint arrives unchanged',
   );
   assert.deepEqual(normalizePart(raw).part.fields, def.fields, 'and survives validation intact');
+});
+
+function editorFixture(t) {
+  const elements = new Map();
+  const previousDocument = globalThis.document;
+  t.after(() => { globalThis.document = previousDocument; });
+  const get = id => {
+    if (!elements.has(id)) {
+      const listeners = new Map();
+      const element = {
+        value: '', hidden: false, checked: false, disabled: false, open: false,
+        innerHTML: '', textContent: '', style: {},
+        addEventListener: (type, fn) => {
+          if (!listeners.has(type)) listeners.set(type, []);
+          listeners.get(type).push(fn);
+        },
+        dispatch: type => { for (const fn of listeners.get(type) || []) fn({ target: element }); },
+        querySelectorAll: () => [], setAttribute: () => {}, focus: () => {},
+        showModal: () => { element.open = true; },
+        close: () => { element.open = false; element.dispatch('close'); },
+        getBoundingClientRect: () => ({ width: 800, height: 600 }),
+      };
+      elements.set(id, element);
+    }
+    return elements.get(id);
+  };
+  globalThis.document = { getElementById: get };
+  const store = new Store();
+  const saved = [];
+  const editor = initPartEditor({
+    store, library: { save: part => { saved.push(structuredClone(part)); return 'template'; } },
+    svg: get('svg'), tools: { view: { x: 0, y: 0, zoom: 1 } },
+  });
+  return { store, saved, editor, get };
+}
+
+test('replacing the board cancels an open custom-part edit before it can overwrite reused IDs', t => {
+  const { store, saved, editor, get } = editorFixture(t);
+  const def = normalizePart({
+    lib: 'template', name: 'Original', category: 'misc', icon: { text: 'O' }, ports: [], fields: [],
+  }).part;
+  const id = addNode(store, 'custom', 0, 0, def);
+  editor.open({ def, nodeId: id, mode: 'edit' });
+  get('pe-name').value = 'Stale edit';
+  get('pe-name').dispatch('input');
+  const replacement = newDoc('Replacement');
+  replacement.nodes.push({ ...structuredClone(store.doc.nodes[0]), label: 'Replacement node' });
+  store.replaceDoc(replacement);
+  const before = structuredClone(store.doc);
+  get('pe-save').dispatch('click');
+  assert.deepEqual(store.doc, before);
+  assert.equal(store.undoStack.length, 0);
+  assert.equal(saved.length, 0, 'the stale draft must not change the library either');
+  assert.equal(get('part-dialog').open, false, 'document replacement closes the old editor');
+});
+
+test('an active custom-part edit still saves to the board and library in one undo step', t => {
+  const { store, saved, editor, get } = editorFixture(t);
+  const def = normalizePart({
+    lib: 'template', name: 'Original', category: 'misc', icon: { text: 'O' }, ports: [], fields: [],
+  }).part;
+  const id = addNode(store, 'custom', 0, 0, def);
+  const before = structuredClone(store.doc), depth = store.undoStack.length;
+  editor.open({ def, nodeId: id, mode: 'edit' });
+  get('pe-name').value = 'Updated';
+  get('pe-name').dispatch('input');
+  get('pe-save').dispatch('click');
+  assert.equal(store.doc.nodes[0].part.name, 'Updated');
+  assert.equal(saved[0].name, 'Updated');
+  assert.equal(store.undoStack.length, depth + 1);
+  store.undo();
+  assert.deepEqual(store.doc, before);
 });

@@ -10,7 +10,8 @@
 - Release directory: resolved by `readlink -f /opt/schematica/current`
 - Docker Compose project: `schematica`
 - Initial deployment documented: 2026-09-15
-- Last verified release: [`4f59918`](https://github.com/HenryCooper86/Schematica/commit/4f599187b364bad50cc1c3997974a136eb439a8d), 2026-10-07; [CI](https://github.com/HenryCooper86/Schematica/actions/runs/37499034707), [Pages](https://github.com/HenryCooper86/Schematica/actions/runs/37499525809) and [Lightsail](https://github.com/HenryCooper86/Schematica/actions/runs/37499526144) passed. Check current workflow results for later releases.
+- Previous deployment-workflow verification: [`4f59918`](https://github.com/HenryCooper86/Schematica/commit/4f599187b364bad50cc1c3997974a136eb439a8d), 2026-10-07; [CI](https://github.com/HenryCooper86/Schematica/actions/runs/37499034707), [Pages](https://github.com/HenryCooper86/Schematica/actions/runs/37499525809) and [Lightsail](https://github.com/HenryCooper86/Schematica/actions/runs/37499526144) passed.
+- Read-only verification on 2026-10-15: production health and selected production/Pages asset hashes matched committed revision [`bcfdb2d`](https://github.com/HenryCooper86/Schematica/commit/bcfdb2d1a74a2ca18aac39ec71e58eebc8673b56); Pages' revision marker matched too. No deployment was performed, and uncommitted audit fixes are not implied to be live.
 
 GitHub Actions deploys a successful `CI` push run on `main` through
 [the Lightsail workflow](../.github/workflows/lightsail.yml). The server separately
