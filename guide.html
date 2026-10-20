@@ -42,6 +42,7 @@
         <a href="#save-export">Save, recover and export</a>
         <a href="#present">Present and record</a>
         <a href="#guide-assistant">Use the assistant</a>
+        <a href="#guide-security">Explain CVEs and PoCs</a>
         <a href="#appearance-language">Appearance and language</a>
         <a href="#keyboard">Keyboard shortcuts</a>
         <a href="#troubleshooting">Common questions</a>
@@ -166,6 +167,31 @@
           <p>Ask for a concrete change, review its preview and findings, then Apply changes or Discard draft. Applied changes can be undone. Keep Preview changes before applying enabled while learning.</p>
           <blockquote>Review this controller-and-sensor board. Identify missing interface declarations and explain what evidence I need. Leave unknown values blank.</blockquote>
           <p>You can attach text, PDF or DOCX sources. Selected extracted text is sent to your configured provider when you send a message. Remember the key on this device only when you want browser persistence. Provider use may be billed by that provider.</p>
+        </section>
+
+        <section id="guide-security">
+          <h2>Explain CVEs and PoCs</h2>
+          <p>Use Security analysis to turn a CVE record, advisory, PoC source code and patch into a cited explanation and editable illustrations.</p>
+          <aside class="guide-tip">
+            <h3>Production and static editions</h3>
+            <p>CVE lookup and Read URL require the Node-backed production site. On GitHub Pages, attach files or paste source text instead. Analysis still requires a configured provider and browser access to that provider or a relay.</p>
+            <p><a href="https://bionicloud.net/" target="_blank" rel="noopener">Open the production editor</a></p>
+          </aside>
+          <ol class="guide-steps">
+            <li><h3>Look up a CVE</h3><p>Open the editor, choose the shield button → Security analysis, enter CVE-2021-44228 and choose Look up CVE. Review the record status, retained sources and retrieval warnings. Lookup alone does not require a model API key and does not generate an analysis or diagram.</p></li>
+            <li><h3>Add the PoC and patch</h3><p>Use Read URL, Add files or Add pasted source to include an advisory, PoC source code or patch. Lookup can retrieve up to two advisory references; it does not discover every PoC. Uncheck or remove sources you do not want sent for analysis.</p></li>
+            <li><h3>Configure the analysis provider</h3><p>In Assistant (A), configure the provider, model, Base URL and API key, then Save and Test connection. Security analysis shares these settings. Provider requests may be billed by that provider.</p></li>
+            <li><h3>Analyze the retained evidence</h3><p>Return to Security analysis, add an optional question and choose Analyze retained sources. Inspect findings, model-read coverage and unknowns. Open citations to compare claims with retained source lines; source-backed does not mean independently reproduced.</p></li>
+            <li><h3>Create editable illustrations</h3><p>Choose Architecture illustration, Exploit path illustration or Mitigation illustration. Review the edit preview and choose Apply changes. Generated cards and connections remain editable; Undo reverses the apply. Save analysis with board also uses an edit preview.</p></li>
+            <li><h3>Present and export</h3><p>Select a generated stage to read its explanation. Choose Show walkthrough or Journey → Present. Download HTML report exports cited excerpts; Include full retained source text is off by default. For PDF, use Print and Save as PDF.</p></li>
+          </ol>
+          <blockquote>Explain the root cause, affected components, prerequisites and mitigation. Cite source lines, distinguish evidence from inference, and leave unsupported conclusions unknown.</blockquote>
+          <aside class="guide-tip">
+            <h3>Limits and source privacy</h3>
+            <p>Published, reserved or rejected describes the CVE record, not whether your system is vulnerable. Static reading does not execute PoCs, scan targets or verify exploitability.</p>
+            <p>Lookup and URL reading contact this website's server and public source hosts. Analysis sends selected source text and your note to the provider. Saving analysis with the board or applying an illustration also saves retained sources in the board; autosave, revisions, downloads and share links can contain them. Review source contents before sharing.</p>
+          </aside>
+          <p><a href="https://github.com/HenryCooper86/Schematica/blob/main/docs/user-guide.md#security-analysis" target="_blank" rel="noopener">Security analysis workflow and limits</a></p>
         </section>
 
         <section id="appearance-language">
