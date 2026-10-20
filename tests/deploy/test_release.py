@@ -49,7 +49,7 @@ class ReleaseTests(unittest.TestCase):
         finally:
             signal.alarm(0)
 
-    def simulate(self, failure=None):
+    def simulate(self, failure=None, public_archive=False):
         with tempfile.TemporaryDirectory() as folder:
             base = Path(folder).resolve()
             previous = base / 'releases' / 'old'
@@ -57,7 +57,8 @@ class ReleaseTests(unittest.TestCase):
             (previous / '.env').write_text('SCHEMATICA_DOMAIN=bionicloud.net\n')
             (previous / 'REVISION').write_text('b' * 40)
             (base / 'current').symlink_to(previous)
-            prefix = f'{release.REPO.replace("/", "-")}-{SHA}/'
+            archive_ref = SHA[:7] if public_archive else SHA
+            prefix = f'{release.REPO.replace("/", "-")}-{archive_ref}/'
             archive = io.BytesIO()
             with tarfile.open(fileobj=archive, mode='w:gz') as tar:
                 root = tarfile.TarInfo(prefix.rstrip('/'))
@@ -108,6 +109,10 @@ class ReleaseTests(unittest.TestCase):
     @requires_data_filter
     def test_success_switches_current_only_after_health(self):
         self.simulate()
+
+    @requires_data_filter
+    def test_public_archive_switches_current_after_health(self):
+        self.simulate(public_archive=True)
 
     @requires_data_filter
     def test_activation_failure_restores_previous_image(self):

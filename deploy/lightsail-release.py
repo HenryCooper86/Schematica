@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Restricted SSH entry point: deploy the successful CI revision at private main.
+"""Restricted SSH entry point: deploy the successful CI revision at main.
 
 Install root-owned as /usr/local/sbin/schematica-deploy. The dedicated SSH key
 may invoke only this command, with one bounded JSON request on stdin containing
@@ -131,10 +131,18 @@ def deploy(sha, token):
             while chunk := source.read(1024 * 1024):
                 out.write(chunk)
         with tarfile.open(archive) as tar:
-            # The authenticated REST archive names the owner, repo and full ref.
-            prefix = f'{REPO.replace("/", "-")}-{sha}/'
+            # The request pins the full commit. GitHub abbreviates public archive
+            # roots, while private signed archives retain the full hash.
+            roots = (f'{REPO.replace("/", "-")}-{sha}',
+                     f'{REPO.replace("/", "-")}-{sha[:7]}')
+            prefix = None
             members = []
             for member in tar.getmembers():
+                if prefix is None:
+                    root = member.name.partition('/')[0]
+                    if root not in roots:
+                        raise ValueError('Unexpected archive root')
+                    prefix = root + '/'
                 if member.name == prefix.rstrip('/'):
                     continue
                 if not member.name.startswith(prefix):

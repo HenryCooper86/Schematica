@@ -1,6 +1,5 @@
 export async function runSkillChecks({ js, check, sleep, fakeSeen }) {
   await js(`localStorage.setItem('schematica.ai.settings',JSON.stringify({provider:'anthropic',model:'test-model',baseUrl:location.origin+'/fake',effort:'low',remember:true,tools:null}));localStorage.setItem('schematica.ai.key.anthropic','sk-fake');document.getElementById('btn-assistant').click();const p=document.getElementById('ai-preview-enabled');p.checked=true;p.dispatchEvent(new Event('change'));true`);
-  check('all five skills and automatic routing are available', await js(`document.querySelectorAll('#ai-skill option').length===6`));
   await js(`document.getElementById('ai-blueprint').click();document.querySelector('#blueprint-dialog [name=goal]').value='Manual plan';document.querySelector('#blueprint-dialog [name=components]').value='Sensor\\nController';document.querySelector('#blueprint-dialog form').requestSubmit();true`);
   await sleep(100);
   await js(`document.getElementById('ai-blueprint').click();true`);

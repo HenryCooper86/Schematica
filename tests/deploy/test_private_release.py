@@ -232,6 +232,13 @@ class ArchiveRejectionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.deploy_with(archive)
 
+    def test_rejects_mixed_full_and_abbreviated_roots(self):
+        public_prefix = f'{release.REPO.replace("/", "-")}-{SHA[:7]}/'
+        archive = self.build([(PREFIX + 'compose.yaml', tarfile.REGTYPE, None),
+                              (public_prefix + 'src/app.js', tarfile.REGTYPE, None)])
+        with self.assertRaises(ValueError):
+            self.deploy_with(archive)
+
     def test_rejects_traversal_member(self):
         archive = self.build([(PREFIX + '../../etc/passwd', tarfile.REGTYPE, None)])
         with self.assertRaises(tarfile.FilterError):
