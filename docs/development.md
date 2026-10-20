@@ -62,7 +62,23 @@ KICAD_UPDATE_E2E_ONLY=1 npm run e2e
 TEAM_REVIEW_E2E_ONLY=1 npm run e2e
 WORKFLOW_E2E_ONLY=1 npm run e2e
 LAYOUT_E2E_ONLY=1 npm run e2e
+GUIDE_E2E_ONLY=1 npm run e2e
 ```
+
+The security model, evidence boundaries, source retrieval and native illustrations
+have focused regressions:
+
+```sh
+node --test tests/security-analysis.test.js tests/ai-security-sources.test.js tests/ai-security-analyzer.test.js tests/security-diagrams.test.js
+```
+
+Unit providers are deterministic; they do not establish live model quality.
+For an end-to-end check, run the app, configure a provider, import an advisory,
+PoC and patch, uncheck a distinctive private source, analyze, inspect citations,
+apply all three view previews, use a linked stage and Journey, save/reopen and
+export a report with full sources disabled. Confirm the unchecked source was
+not transmitted and uncited full text was not exported. Never execute a PoC
+to validate this static-only workflow.
 
 Run Chrome suites sequentially; they share a temporary profile path. Test reports
 and failure screenshots are retained under `.acceptance/`. Native Firefox/Safari
@@ -110,6 +126,7 @@ Files are limited to 16 MiB. These checks inspect declarations, not physical har
 | KiCad import and reconciliation | [src/kicad.js](../src/kicad.js), [src/kicad-update.js](../src/kicad-update.js) |
 | Custom parts and templates | [src/custom.js](../src/custom.js), [src/library.js](../src/library.js) |
 | Assistant tools and provider adapters | [src/ai](../src/ai) |
+| CVE/PoC explainer | [src/security-analysis.js](../src/security-analysis.js), [src/ai/security.js](../src/ai/security.js), [src/security-diagrams.js](../src/security-diagrams.js), [src/ui/security-ui.js](../src/ui/security-ui.js) |
 | Shared-review client and service | [src/team-client.js](../src/team-client.js), [server/team-api.js](../server/team-api.js), [server/team-store.js](../server/team-store.js) |
 | Server routing and public sources | [server/index.js](../server/index.js), [server/web.js](../server/web.js) |
 | Browser regression workflows | [tests/e2e](../tests/e2e) |

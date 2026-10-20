@@ -11,6 +11,7 @@ export function renderTechnicalReport({ body, store, baseline, onSaved = () => {
   const area = (key, label) => `<label>${esc(label)}<textarea name="${key}" maxlength="20000" rows="3">${esc(details[key])}</textarea></label>`;
   const sections = [
     ['architecture', tr('System architecture')], ['interfaces', tr('Interfaces and connections')],
+    ['security', tr('Security analysis')],
     ['requirements', tr('Requirements and allocation')], ['decisions', tr('Design decisions')],
     ['power', tr('Power budgets and assumptions')], ['bom', tr('Component list')],
     ['verification', tr('Verification and evidence')], ['changes', tr('Revision comparison')],
@@ -26,6 +27,8 @@ export function renderTechnicalReport({ body, store, baseline, onSaved = () => {
       <div class="report-branding"><label>${esc(tr('Company logo (PNG or JPEG, up to 256 KiB)'))}<input id="report-logo" type="file" accept="image/png,image/jpeg"></label><p id="report-logo-status">${esc(details.logo ? tr('Logo included') : tr('No logo selected'))}</p><button type="button" data-report-action="remove-logo"${details.logo ? '' : ' disabled'}>${esc(tr('Remove logo'))}</button></div>
       ${area('summary', tr('Executive summary'))}${area('scope', tr('Project scope'))}${area('architecture', tr('Architecture explanation'))}${area('risks', tr('Risks and open issues'))}${area('nextSteps', tr('Next steps'))}
       <fieldset class="report-sections"><legend>${esc(tr('Report sections'))}</legend><p>${esc(tr('The cover, executive summary, and risks remain in every report.'))}</p>${sections.map(([key, label]) => `<label><input name="section" type="checkbox" value="${key}"${details.sections.includes(key) ? ' checked' : ''}>${esc(label)}</label>`).join('')}</fieldset>
+      <label><input type="checkbox" name="securitySources"${details.securitySources ? ' checked' : ''}>${esc(tr('Include full retained security sources in the report'))}</label>
+      <p>${esc(tr('Security reports include cited excerpts. Full source text is optional. Review source code and sensitive information before sharing.'))}</p>
       <p>${esc(tr('Report headings are in English. Your project text is preserved.'))}</p>
       <button type="submit">${esc(tr('Save and preview report'))}</button>
     </form>

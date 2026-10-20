@@ -27,14 +27,14 @@ import { escAttr, toast, onPress } from './press.js';
 import { initAssistantDocuments } from './assistant-documents.js';
 import { tr, trd, onLanguageChange, getLang } from '../i18n.js';
 
-export function initAssistant({ store, tools, render, svg, library = null }) {
+export function initAssistant({ store, tools, render, svg, library = null, settings: sharedSettings = null }) {
   const panel = document.getElementById('assistant');
   const btn = document.getElementById('btn-assistant');
   // Reading `window.localStorage` throws outright when site data is blocked,
   // so the settings take a storage that may be null and live in memory.
   let storage = null;
   try { storage = window.localStorage; } catch { storage = null; }
-  const settings = createSettings(storage);
+  const settings = sharedSettings || createSettings(storage);
   const conversations = createConversationStore(storage);
   let sessionId = null, sessionBoardTitle = store.doc.title, resumedConversation = false;
   let sessionsOpen = false, persistTimer = null;

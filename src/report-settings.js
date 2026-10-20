@@ -1,5 +1,5 @@
 // Report presentation travels with the board, independently of review approval.
-export const REPORT_SECTIONS = ['architecture', 'interfaces', 'requirements', 'decisions', 'power', 'bom', 'verification', 'changes'];
+export const REPORT_SECTIONS = ['architecture', 'security', 'interfaces', 'requirements', 'decisions', 'power', 'bom', 'verification', 'changes'];
 export const MAX_REPORT_LOGO_BYTES = 256 * 1024;
 const text = (value, limit = 20000) => typeof value === 'string' ? value.slice(0, limit) : '';
 
@@ -15,6 +15,7 @@ export function normalizeReportSettings(raw) {
   for (const key of ['summary', 'scope', 'architecture', 'risks', 'nextSteps']) out[key] = text(raw[key]);
   out.sections = Array.isArray(raw.sections)
     ? REPORT_SECTIONS.filter(key => raw.sections.includes(key)) : [...REPORT_SECTIONS];
+  if (raw.securitySources === true || raw.securitySources === 'on') out.securitySources = true;
   const logo = typeof raw.logo === 'string' ? raw.logo : '';
   const match = /^data:image\/(png|jpeg);base64,([A-Za-z0-9+/]+={0,2})$/.exec(logo);
   const payload = match?.[2] || '';

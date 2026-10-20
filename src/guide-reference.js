@@ -29,7 +29,7 @@ const paragraph = (en, zh) => `<p>${esc(text(en, zh))}</p>`;
 export function toolbarReference(mac) {
   const groups = [
     [0, 6, 'Drawing tools', '绘图工具'], [6, 14, 'History and view', '历史与视图'],
-    [14, 25, 'Display and panels', '显示与面板'], [25, TOOLBAR_HELP.length, 'Files, review and sharing', '文件、评审与分享'],
+    [14, 26, 'Display and panels', '显示与面板'], [26, TOOLBAR_HELP.length, 'Files, review and sharing', '文件、评审与分享'],
   ];
   return groups.map(([from, to, en, zh]) => heading(en, zh) + '<div class="guide-control-list">' + TOOLBAR_HELP.slice(from, to).map(row => entry(row, row[0] === 'appearance' ? ['light','dark','system'].map(mode => symbol(`theme-${mode}`)).join('') : symbol(row[0]), row[5].replace('MOD', mac ? '⌘' : 'Ctrl'))).join('') + '</div>').join('');
 }

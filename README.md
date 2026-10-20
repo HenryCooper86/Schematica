@@ -37,6 +37,7 @@ what you should see and how to recover your previous board.
 | Compare changes or import a KiCad netlist | [Compare and import](docs/user-guide.md#compare-and-import) |
 | Present a guided tour of the architecture | [Present your board](docs/user-guide.md#present-your-board) |
 | Use the assistant with your own provider | [Assistant guide](docs/user-guide.md#use-the-assistant) |
+| Explain a CVE or PoC with cited, editable illustrations | [Security analysis](docs/user-guide.md#security-analysis) |
 | Review a shared snapshot with a team | [Team reviews](docs/user-guide.md#review-with-a-team) |
 
 The interface supports English and Simplified Chinese. **中文 / EN** changes the

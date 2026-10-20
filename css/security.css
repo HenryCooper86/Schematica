@@ -1,0 +1,290 @@
+/* ---- Security analysis panel ----
+   A floating, non-modal drawer bottom-left, mirroring the assistant on the
+   other side: the canvas stays clickable so a selected stage can keep its
+   evidence beside it. All colors come from the shared theme variables; only
+   this panel's pieces live here. */
+
+#security-panel {
+  position: absolute;
+  z-index: 21;
+  left: 14px;
+  bottom: 54px;
+  width: 400px;
+  max-width: calc(100% - 28px);
+  height: clamp(420px, 72%, 780px);
+  max-height: calc(100% - 68px);
+  display: flex;
+  flex-direction: column;
+  background: rgba(13, 18, 32, 0.96);
+  border: 1px solid var(--line2);
+  border-radius: 14px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+#security-panel[hidden] { display: none; }
+#app.panels-hidden #security-panel { display: none !important; }
+#app.presenting #security-panel { display: none; }
+
+#security-panel h3 {
+  margin: 0;
+  padding: 9px 10px 9px 14px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: #7dd3fc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+}
+#security-panel.collapsed { height: auto; }
+#security-panel.collapsed .sec-scroll { display: none; }
+#security-panel.collapsed h3 { border-bottom: 0; }
+.sec-tools { margin-left: auto; display: inline-flex; gap: 2px; }
+#security-panel .panel-toggle,
+#security-panel .ai-icon-btn {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+}
+#security-panel .panel-toggle:hover,
+#security-panel .ai-icon-btn:hover {
+  color: var(--text);
+  background: var(--bg3);
+  border-color: var(--line2);
+}
+#security-panel button:focus-visible,
+#security-panel summary:focus-visible,
+#security-panel input:focus-visible,
+#security-panel textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.sec-scroll { overflow-y: auto; padding: 10px 12px 14px; display: grid; gap: 8px; }
+#security-panel .sec-narrative, #security-panel pre, #security-panel code {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.sec-static-note,
+.sec-privacy,
+.sec-view-note,
+.sec-disclosure {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.sec-static-note { color: #f5c97b; }
+
+/* Provider row: shared with the Assistant configuration. */
+.sec-provider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 7px 12px;
+  background: var(--bg1);
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+}
+.sec-provider::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--faint);
+  flex: none;
+}
+.sec-provider[data-state="ready"]::before { background: #34d399; }
+.sec-provider[data-state="single"]::before,
+.sec-provider[data-state="untested"]::before { background: #f5c97b; }
+.sec-provider[data-state="unset"]::before { background: #f87171; }
+.sec-provider-name { overflow-wrap: anywhere; }
+.sec-provider-name code { font-family: var(--mono); }
+.sec-provider-state { margin-left: auto; flex: none; }
+
+/* Collapsible sections. */
+.sec-section { border: 1px solid var(--line); border-radius: 10px; background: var(--bg1); }
+.sec-section > summary {
+  cursor: pointer;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text);
+  list-style-position: inside;
+  user-select: none;
+}
+.sec-section > summary:hover { color: #7dd3fc; }
+.sec-count { color: var(--muted); font-size: 11px; }
+.sec-section-body { padding: 2px 12px 12px; display: grid; gap: 8px; }
+
+/* Inputs and buttons. */
+#security-panel input[type="text"],
+#security-panel input:not([type]),
+#security-panel input[list],
+#security-panel textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 9px;
+  color: var(--text);
+  background: var(--bg0);
+  border: 1px solid var(--line2);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+}
+#security-panel textarea { resize: vertical; }
+#security-panel ::placeholder { color: var(--faint); }
+#security-panel input:disabled, #security-panel textarea:disabled { color: var(--muted); }
+#security-panel button {
+  color: var(--text);
+  background: var(--bg2);
+  border: 1px solid var(--line2);
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+#security-panel button:hover:not(:disabled) { background: var(--bg3); border-color: var(--accent); }
+#security-panel button:disabled { opacity: 0.4; cursor: default; }
+.sec-primary { color: #0b1220 !important; background: var(--accent) !important; border-color: var(--accent) !important; font-weight: 600; }
+.sec-primary:hover:not(:disabled) { filter: brightness(1.08); }
+
+.sec-fetch-row { display: flex; align-items: center; gap: 6px; }
+.sec-fetch-row label { flex: 1; display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; min-width: 0; }
+.sec-fetch-row input { flex: 1; }
+.sec-file-row { display: flex; gap: 6px; }
+.sec-paste { display: grid; gap: 6px; }
+.sec-paste label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; }
+
+.sec-cve-record { margin: 0; color: #7dd3fc; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+
+/* Source rows with coverage. */
+.sec-source-list { display: grid; gap: 6px; }
+.sec-source { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--bg2); display: grid; gap: 4px; }
+.sec-source h4 { margin: 0; font-size: 12px; display: flex; align-items: center; gap: 6px; overflow-wrap: anywhere; }
+.sec-source h4 label { display: flex; align-items: center; gap: 6px; min-width: 0; font-weight: 600; }
+.sec-origin { margin-left: auto; flex: none; font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); border: 1px solid var(--line2); border-radius: 5px; padding: 1px 5px; }
+.sec-source-url { margin: 0; font-family: var(--mono); font-size: 10px; color: var(--muted); overflow-wrap: anywhere; }
+.sec-source-meta { margin: 0; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+.sec-source-meta code { font-family: var(--mono); }
+.sec-partial { margin: 0; color: #f5c97b; font-size: 11px; font-weight: 600; }
+.sec-source-warnings { margin: 0; padding-left: 16px; color: #f5c97b; font-size: 11px; }
+.sec-remove { justify-self: end; font-size: 11px; padding: 3px 8px; }
+.sec-notices { margin: 0; color: var(--faint); font-size: 11px; }
+.sec-notices ul { margin: 0; padding-left: 16px; }
+.sec-notices[hidden] { display: none; }
+
+.sec-notes-label { display: grid; gap: 4px; color: var(--muted); font-size: 11px; }
+.sec-actions-row { display: flex; flex-wrap: wrap; gap: 6px; }
+#sec-cancel { color: #fca5a5; border-color: #6b2b2b; }
+
+.sec-status-lines { display: grid; gap: 2px; }
+.sec-status-lines p { margin: 0; color: var(--faint); font-size: 11px; }
+.sec-status-lines[hidden] { display: none; }
+#sec-status { margin: 0; color: #7dd3fc; font-size: 11px; }
+#sec-status[hidden] { display: none; }
+.sec-error { margin: 0; color: #fca5a5; font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sec-error[hidden] { display: none; }
+
+/* Results. */
+#sec-analysis-header { min-width: 0; overflow-wrap: anywhere; }
+#sec-analysis-coverage { margin: 8px 0; font-size: 12px; line-height: 1.5; }
+#sec-analysis-coverage p, #sec-analysis-coverage ul { margin: 4px 0; }
+#sec-analysis-coverage ul { padding-left: 16px; }
+#sec-analysis-header h4 { margin: 0 0 2px; font-size: 13px; overflow-wrap: anywhere; }
+.sec-analysis-meta { margin: 0; color: var(--muted); font-size: 11px; }
+.sec-narrative { margin: 0; color: var(--text); font-size: 12px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sec-analysis-warnings { margin: 0; padding-left: 16px; color: #f5c97b; font-size: 11px; }
+.sec-analysis-note { margin: 0; color: var(--faint); font-size: 11px; font-style: italic; }
+.sec-board-state { margin: 0; }
+.sec-state { margin: 0; font-size: 11px; padding: 4px 8px; border-radius: 6px; display: inline-block; }
+.sec-state.applied { color: #34d399; background: rgba(52, 211, 153, 0.12); }
+.sec-state.unsaved { color: #f5c97b; background: rgba(245, 201, 123, 0.12); }
+.sec-state.diverged { color: #fca5a5; background: rgba(252, 165, 165, 0.12); }
+
+.sec-selection { border: 1px solid var(--accent-dim); border-radius: 8px; padding: 8px 10px; background: var(--bg2); }
+.sec-selection h4 { margin: 0 0 4px; font-size: 12px; overflow-wrap: anywhere; }
+.sec-selection p { margin: 0; color: var(--muted); font-size: 11px; }
+.sec-selection ul { margin: 4px 0 0; padding-left: 16px; }
+.sec-jump { font-size: 11px; padding: 3px 8px; }
+
+#sec-findings { display: grid; gap: 8px; }
+.sec-finding { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--bg2); display: grid; gap: 5px; }
+.sec-finding h4 { margin: 0; font-size: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; overflow-wrap: anywhere; }
+.sec-finding.attention { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+.sec-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.sec-chip { font-size: 10px; border: 1px solid var(--line2); border-radius: 5px; padding: 1px 5px; color: var(--muted); overflow-wrap: anywhere; }
+.sec-chip.basis-source { color: #34d399; border-color: rgba(52, 211, 153, 0.4); }
+.sec-chip.basis-inference { color: #f5c97b; border-color: rgba(245, 201, 123, 0.4); }
+.sec-chip.basis-unknown { color: #fca5a5; border-color: rgba(252, 165, 165, 0.4); }
+.sec-evidence-row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.sec-evidence-ref { font-size: 11px; padding: 3px 8px; font-family: var(--mono); max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.sec-no-evidence { color: var(--faint); font-size: 11px; }
+.sec-show { justify-self: start; font-size: 11px; }
+.sec-targets { margin: 0; font-family: var(--mono); font-size: 10px; color: var(--faint); overflow-wrap: anywhere; }
+.sec-targets-missing { margin: 0; color: #f5c97b; font-size: 11px; overflow-wrap: anywhere; }
+.sec-relationships-heading { margin: 4px 0 0; font-size: 12px; }
+.sec-relationships { margin: 0; padding-left: 16px; display: grid; gap: 6px; color: var(--text); font-size: 12px; }
+.sec-relationships li { overflow-wrap: anywhere; }
+
+/* Cited excerpt drawer. */
+.sec-evidence { border: 1px solid var(--line2); border-radius: 8px; padding: 8px 10px; background: var(--bg0); display: grid; gap: 6px; }
+.sec-evidence h4 { margin: 0; font-size: 12px; }
+.sec-excerpt {
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg1);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.sec-line { display: block; }
+.sec-line-n { display: inline-block; min-width: 3.2em; color: var(--faint); user-select: none; }
+
+/* Illustrations and walkthrough. */
+.sec-view-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.sec-stops { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.sec-stop {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  text-align: left;
+  align-items: start;
+}
+.sec-stop-finding { color: var(--muted); font-size: 11px; }
+.sec-stop-evidence { font-family: var(--mono); font-size: 10px; color: var(--faint); overflow-wrap: anywhere; }
+
+/* Report. */
+.sec-toggle { display: flex; align-items: center; gap: 6px; color: var(--text); font-size: 12px; }
+
+/* The hidden print frame: never visible, removed after the print dialog. */
+.sec-print-frame { position: fixed; width: 0; height: 0; border: 0; visibility: hidden; }
+
+html[data-theme="light"] #security-panel { background: rgba(255, 255, 255, 0.97); }
+html[data-theme="light"] #security-panel h3,
+html[data-theme="light"] .sec-cve-record,
+html[data-theme="light"] #sec-status { color: #0369a1; }
+html[data-theme="light"] .sec-primary { color: #fff !important; background: var(--accent) !important; }

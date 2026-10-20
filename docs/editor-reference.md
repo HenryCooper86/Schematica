@@ -51,6 +51,7 @@ start with [Getting started](getting-started.md).
 | Share | Share button — the whole board compressed into a copyable URL; opening the link loads it, no backend. Opened over a board you were working on, the link loads at once, keeps your board as a backup, and the notice offers to restore it |
 | Check | Check button — design rule checks: I2C address conflicts, unconnected power pins, floating parts, bus mismatches, lifecycle risks, power budgets (the sensor starter still needs structured interface declarations), plus Layout quality and a read-only Power tab listing every rail |
 | Assistant | `A` or the sparkle button — describe a board and it builds it, ask for a change and it edits the board, press Fix on a check finding or "Fix checks" and it resolves them, "Fill in details" fills part numbers from presets. Add files, a folder, or drop individual files to use local documents as sources; review, select, preview, or remove them before Send. Bring your own key: Claude by default, plus OpenRouter, Z.AI GLM, Moonshot Kimi, and any OpenAI-compatible endpoint. With `npm start`, your own backend calls the official provider URLs and streams replies, including Ollama Cloud via `https://ollama.com/v1`. The static edition still supports the optional worker in `relay/`. Each reply is one undo step and what it touched glows until your next click. The key is forwarded to your configured provider, saved in this browser only if you tick remember, and never included in the board, autosave, or share links |
+| Security analysis | Shield button — read a CVE, advisory, PoC, patch or pasted source; analyze checked sources with the Assistant provider; inspect citations; preview three editable illustration views and guided stops; save or export a cited explanation. Static analysis only: no code execution or target testing. |
 | Wire options | Select a wire — bus, label, arrowheads (→ or ↔), line style (solid, dashed, dotted, air gap), traffic flow, delete |
 | Custom parts | **+ New** under My parts in the palette defines a part: name, category, accent, an icon (a built-in one, initials, or an SVG path), typed ports on any side, and extra fields. It is saved to My parts (this browser) and placed on the board. **Customize…** on any built-in card starts from its definition, so an MCU with a second CAN port keeps its wires. **Edit part…** on a custom card changes it and, when it came from a template, offers to update its siblings. Export and Import move My parts between machines as a JSON file. Custom parts in a board file travel with it; an older build of the app opens them as custom boxes |
 
@@ -252,6 +253,85 @@ selected documents. The source list marks extraction or request truncation as
 partial and shows what will be included. PDF and DOCX extraction uses the
 bundled, lazy-loaded PDF.js and Mammoth distributions; document bytes and
 parsing stay local until selected extracted text is sent with your message.
+
+## Security analysis records and limits
+
+**Security analysis** is separate from Assistant attachments. Before applying,
+its imports/results live in the tab. **Save analysis with board** and illustration
+previews save `securityAnalysis` with the document, including retained source text.
+Those sources consequently travel in autosave, revisions, board downloads and
+share links. Imported records are validated; malformed evidence is rejected with
+an import warning rather than silently assigned to different source lines.
+
+The record stores CVE identity/status, summary, sources, typed findings, explicit
+logical relationships, citations, basis labels and board references. Source
+metadata and record status come from retrieval/import, not the model. Hashes are
+SHA-256 of normalized retained text. They establish content identity, not source
+authenticity. PDF/DOCX line numbers describe extracted text, not original pages.
+
+New analyses also store app-recorded `readCoverage` (complete line ranges delivered
+to the model, separate from retention) and generated `illustrations` (view-specific
+finding/target associations). Missing metadata in historical records means unknown;
+opening a board never invents past reads or illustration provenance.
+
+- Up to 20 retained sources, 100,000 characters per source and 500,000 in total.
+  File/PDF extraction retains the existing 10 MiB/file, 40 MiB/import collection,
+  100-page PDF and 30-second extraction limits. `.diff`, `.patch`, `.ps1` and
+  `.pl` are also supported as text; archives, repository cloning and OCR are not.
+- Initial model context is bounded to 56,000 source characters and 120 lines per
+  source. Tool-capable models can request retained windows: at most 400
+  lines/24,000 characters per read, 200,000 characters of tool results, and eight
+  model rounds. Delivery ranges are sorted/merged and bounded to 1,000 per source.
+  Requests exceeding that coverage limit are declined explicitly. Retained lines
+  not delivered remain unassessed regardless of tool support. Delivery does not
+  establish comprehension.
+- Citations require complete lines actually delivered to the model, at most
+  200 lines/20,000 characters per reference and 500,000 cited characters total.
+  Invalid, oversized or unread references are removed and affected source claims
+  become **Unknown**. Locations are structurally checked; semantic support still
+  needs human review.
+- Up to 100 findings and 150 relationships. Each illustration includes the
+  endpoints of its explicit relationships even when an endpoint belongs to
+  another view. Connections use logical flow/link buses, not invented physical
+  interfaces. A card pair supports 16 distinct connection lanes; exceeding that
+  limit fails explicitly rather than dropping relationships.
+  Relationship `boundaryRelation` explicitly records `inside`, `outside`,
+  `crosses`, or `none` relative to exactly one boundary endpoint. Unspecified or
+  contradictory relationships do not imply containment; labels and direction
+  remain visible even when a geometric zone would be misleading.
+  Shared membership uses boundary cards and explicit connections rather than
+  forcing overlapping or nested zones whose geometry is not established.
+- Finding links accumulate across appended illustrations, up to 200 per finding.
+  Missing targets remain reported. Existing cards, wires and presentation
+  chapters are not removed by generation. Each applied preview is one undo step.
+  Illustration provenance is bounded to 100 builds, with up to 200 associations
+  per build; reaching a limit refuses the next build without altering the board.
+  Walkthroughs resolve the newest matching build, including builds without a
+  Journey chapter. Missing targets do not fall back to other views or older builds.
+  A chapterless latest build or a deleted latest chapter never borrows an older frame.
+  Without recorded provenance or a matching historical chapter, target association
+  is unknown and a new illustration is required.
+- Public retrieval reuses the server's public-address, DNS/redirect, response-size
+  and timeout restrictions. A reader permits 12 fetches; CVE lookup follows at
+  most two selected advisory references, not arbitrary crawls or exploit targets.
+  Cancellation rejects late parser/retrieval results before publication or caching;
+  cancelling an import cannot turn a delayed extraction into a retained source.
+
+New analysis outputs cover all nine assessment areas, inserting explicit
+**not assessed** outcomes for omitted areas. Finding-limit handling preserves at
+least one outcome per area. Mandatory application disclosures take precedence over
+model-written warnings; excess application warnings are counted explicitly.
+Reserved/rejected records keep vulnerability-specific applicability and attack
+relations unknown under application policy; associated source text is not proof
+that this identifier describes an established vulnerability.
+
+
+Standalone and project technical reports include cited excerpts. Full retained
+source text requires an explicit opt-in. The standalone report also includes the
+current board figure; review unrelated board details before distributing it.
+Neither a published CVE nor a source-backed PoC statement proves applicability,
+successful exploitation, severity in your environment, or security certification.
+
 
 ## Journeys and recordings
 

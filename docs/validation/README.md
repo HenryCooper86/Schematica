@@ -88,6 +88,38 @@ Exit codes for both summaries: `0` recorded targets met; `1` targets not met;
 not contact participants or make provider calls; the existing `npm run acceptance`
 runner can assist a separately configured provider session.
 
+## CVE and PoC evaluation
+
+The [security evaluation corpus and runner](../../eval/security/README.md) exercise
+the production analyzer on seven synthetic cases: misleading pairing, conflicting
+advisories, two-file illustrative PoC code, advisory-only input, reserved/rejected
+records and embedded instruction attempts. Configure `SECURITY_EVAL_BASE_URL`,
+`SECURITY_EVAL_MODEL` and, when required, `SECURITY_EVAL_API_KEY` for a real provider:
+
+```sh
+node eval/security/runner.mjs --out .acceptance/security/live.json
+```
+
+Artifacts include source identities/hashes, corpus/evaluator hashes, validated
+analysis and expected/actual observations for each check. Credentials are redacted
+after scoring; private source content still requires review before sharing.
+Preserve failed runs and corrections. Check every explanation against its citations:
+heuristic passes are not proof of comprehension, exploitability or deployment risk.
+Reserved/rejected applicability is constrained by application policy, so a passing
+case measures the final analyzer output, not unassisted model judgment.
+
+The isolated browser workflow covers native illustration geometry, panel/history
+synchronization, view-specific walkthroughs, save/reload and report delivery
+disclosures:
+
+```sh
+SECURITY_E2E_ONLY=1 npm run e2e
+```
+
+Its saved records and controlled provider response exercise UI behavior only.
+Likewise, `tests/security-eval.test.js` validates scoring boundaries and credential
+handling with controlled inputs; neither is live semantic-model evidence.
+
 ## Performance
 
 ```sh

@@ -1,3 +1,5 @@
+import { createSettings } from './ai/settings.js';
+import { initSecurityAnalysis } from './ui/security-ui.js';
 import { createStartupRecovery, RECOVERY_PREFIX } from './startup-recovery.js';
 import { initTeamReview } from './ui/team-review.js';
 import { initOnboarding } from './ui/onboarding.js';
@@ -267,7 +269,9 @@ const journeyUI = initJourney({ svg, store, tools, render, recorder, propsPanel 
 initExamplesMenu({ store });
 initLayoutToggles();
 initShortcuts();
-initAssistant({ store, tools, render, svg, library });
+const aiSettings = createSettings(storage);
+initAssistant({ store, tools, render, svg, library, settings: aiSettings });
+initSecurityAnalysis({ store, tools, render, svg, library, settings: aiSettings });
 
 initLanguageSwitch(document.getElementById('btn-lang'));
 // Flag tooltips are drawn into the SVG, so the canvas redraws on a switch.

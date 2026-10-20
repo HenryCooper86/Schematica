@@ -17,13 +17,16 @@ Review and apply that plan, then use **Build a flow** or **Create a presentation
 The assistant can also simplify a diagram or review its architecture. Quick
 starts fill the composer so the audience and task can be adjusted before Send.
 
-The **Skill** selector offers Automatic and five explicit choices:
+The **Skill** selector offers Automatic and six explicit choices:
 
 - Blueprint planning: structure project intent and distinguish assumptions.
 - Flow design: turn the plan into meaningful parts, branches, and connections.
 - Diagram simplification: improve clarity without losing technical meaning.
 - Presentation storytelling: author chapters and ordered stops linked to parts.
 - Architecture review: compare the board with intent and report check findings.
+- Security analysis routing: direct CVE/PoC work to the shield toolbar panel for
+  retained evidence, static analysis, editable illustrations and cited reports.
+  This playbook does not add security-analysis tools or execution to chat.
 
 Automatic routing recognizes English and Chinese task terms. Tool-capable models
 can also request a playbook using the read-only `read_skill` tool. Explicit
@@ -34,6 +37,9 @@ Blueprints travel with the board through save/open, autosave, revisions and shar
 links. Selected source documents retain their existing privacy rules; authored
 Blueprint summaries become ordinary saved board content. Blueprints describe
 intent and do not automatically synchronize with later board changes.
+
+Security analysis has a different storage boundary: applying it saves retained
+source text with the board. See [the workflow and privacy disclosure](user-guide.md#security-analysis).
 
 `apply_edits` supports `set_blueprint` and `set_presentation`, including the
 single-shot provider fallback. Edits use the existing isolated preview and one

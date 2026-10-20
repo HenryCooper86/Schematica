@@ -1,3 +1,4 @@
+import { validateSecurityAnalysis } from './security-analysis.js';
 import { architectureScopes } from './architecture-scopes.js';
 import { buildExportSVG } from './export.js';
 import { reviewPackage } from './review.js';
@@ -39,6 +40,8 @@ function reportComparison(source, baseline, sections) {
     }
     if (sections.includes('decisions') && original.decisions?.length) engineering.decisions = original.decisions.map(r => select(r, ['id', 'text', 'rationale', 'owner', 'status', 'targets']));
     delete copy.engineering;
+    // Source text is disclosed only by the dedicated, selected security section.
+    delete copy.securityAnalysis;
     return { design: copy, engineering };
   };
   const recordChanges = (prev, next, collection) => {
@@ -91,6 +94,9 @@ export function buildTechnicalReport(doc, { settings = {}, baseline = null, crea
     })) : [],
     interfaces: review.interfaces, requirements: review.requirements, decisions: review.decisions,
     power: review.power, bom: review.bom, findings: review.findings, verification,
+    security: details.sections.includes('security') ? scopes.filter(scope => scope.doc.securityAnalysis).map(scope => ({
+      scopeTitle: scope.title, analysis: validateSecurityAnalysis(scope.doc.securityAnalysis),
+    })) : [],
     assumptions: review.assumptions, comparison: baseline ? reportComparison(source, designSnapshot(baseline), details.sections) : null, impact: review.impact,
   };
 }

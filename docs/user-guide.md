@@ -14,6 +14,7 @@ The instructions use English button names. Toolbar icons show their names on hov
 - [Share and export](#share-and-export)
 - [Compare and import](#compare-and-import)
 - [Use the assistant](#use-the-assistant)
+- [Explain CVEs and PoCs](#security-analysis)
 - [Present your board](#present-your-board)
 - [Review with a team](#review-with-a-team)
 - [Keyboard shortcuts](#keyboard-shortcuts)
@@ -280,6 +281,79 @@ Public URL reading needs the Node-backed edition. The static edition's provider
 connectivity depends on provider CORS support or the configured relay; see
 [server setup](backend.md). A model response is a proposal to inspect, not verified
 engineering evidence.
+
+## Security analysis
+
+Choose the **shield button → Security analysis** in the toolbar. This separate,
+non-modal panel explains CVE records, advisories, PoC source code and patches
+by **static reading only**. It never runs code, installs dependencies or tests
+a target. Configure the provider in **Assistant**; both panels share its settings
+and memory-only key. Provider requests may be billed by that provider.
+
+1. Enter a CVE identifier and choose **Look up CVE**, enter a public source
+   **URL**, choose **Add files**, or **Add pasted source**. CVE lookup and URL
+   reading require the Node-backed edition. Published CVE records can bring in
+   up to two relevant advisory references; failures remain visible.
+2. Review source names, coverage, hashes and warnings. Uncheck sources you do
+   not want sent, or remove them. Files and pasted text remain local at this
+   stage; CVE/URL reads contact the website server and public source hosts.
+3. Add an optional question and choose **Analyze retained sources**. Only checked
+   sources and your note are eligible for the configured model. Inspect the
+   resulting summary, findings, logical relationships and unknowns. The model
+   receives bounded excerpts and, when supported, requested retained line ranges.
+   **Source retention and model-read coverage** distinguishes stored text from
+   complete lines actually delivered to the model. Undelivered retained lines
+   remain unassessed, even when targeted reads were available. Delivery does not
+   prove comprehension; older saved analyses explicitly show coverage not recorded.
+4. Click a citation to read the numbered excerpt. **Source-backed** means the
+   statement cites retained text, not that exploitation was reproduced.
+   **Inference** and **Unknown** remain visibly distinct. Reserved/rejected
+   records and unavailable details do not establish a vulnerability.
+   Every new analysis includes an outcome for affected components, root cause,
+   prerequisites, steps, impact, severity, mitigations, unknowns and PoC/advisory
+   consistency. An omitted area is labeled **not assessed**, not silently filled
+   with a conclusion. Consistency means evidence agreement, not a working exploit.
+   For reserved/rejected records, vulnerability-specific findings and relationships
+   remain **Unknown**; record-state facts and rejection reasons can still cite sources.
+5. Choose **Save analysis with board**, or preview an **Architecture**,
+   **Exploit path** or **Mitigation illustration**. Nothing changes the board
+   until **Apply changes**; normal Undo/Redo also covers analysis-only saves.
+   Applied results follow restored board history, including their diagram links;
+   a separately generated unsaved result remains independent of that history.
+   Illustrations append editable cards, logical connections and Journey chapters
+   without removing existing work. Building the same view again appends another
+   illustration rather than replacing your edited cards.
+   Trust-zone membership requires explicit inside/outside/crossing metadata, not
+   adjacency or a guessed interpretation of a relationship label. Ambiguous
+   membership remains visible as boundary cards and labeled connections.
+   Shared memberships likewise stay explicit without inventing nested domains.
+6. Select a generated canvas stage to see its explanation and first cited excerpt.
+   **Show walkthrough** lists linked stops; open **Journey → Present** to play
+   the generated chapters. Missing board references remain visible.
+   Walkthrough stops belong to the newest illustration of the selected view.
+   Deleted targets remain missing rather than switching to another view or an
+   older illustration. Older boards without a recorded view association must be
+   illustrated again before their targets can be associated reliably.
+7. **Download HTML report** creates a standalone cited report with the current
+   board figure. **Print** opens browser printing; choose **Save as PDF**.
+   Reports include cited excerpts. Full retained source text is **off by default**
+   and requires **Include full retained source text**. Review the figure and
+   source contents before sharing. The project technical report also has a
+   selectable **Security analysis** section and its own full-source opt-in.
+
+**Saving changes the privacy boundary:** an applied analysis includes its
+retained source text in board files, autosave, revisions, and share links.
+Anyone receiving those copies can read the sources. Unapplied imports and
+analysis results stay in the current tab; reopening a saved board restores
+applied findings, citations and diagram links without another model request.
+
+PoC behavior may be described or inferred, never verified by this workflow.
+Product/version/configuration applicability and deployment risk still require
+review. Source hashes identify retained normalized/extracted text, not an
+authenticated original artifact. PDF/DOCX citations refer to extracted lines,
+not original page coordinates; scanned PDFs require external OCR.
+See [security limits](editor-reference.md#security-analysis-records-and-limits).
+
 
 ## Present your board
 
