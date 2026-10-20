@@ -1,9 +1,10 @@
 #!/usr/bin/python3
-"""Restricted SSH entry point: deploy the successful CI revision at public main.
+"""Restricted SSH entry point: deploy the successful CI revision at private main.
 
 Install root-owned as /usr/local/sbin/schematica-deploy. The dedicated SSH key
-may invoke only this command, with one commit hash on stdin. No repository
-script runs on the host; tests run in the application container.
+may invoke only this command, with one bounded JSON request on stdin containing
+the commit and an ephemeral read token. Tokens are never persisted or given to
+containers. No repository script runs on the host.
 """
 import fcntl
 import hashlib
@@ -18,10 +19,15 @@ import tarfile
 import tempfile
 import time
 import urllib.request
+import urllib.error
+import urllib.parse
 
 REPO = 'HenryCooper86/Schematica'
 BASE = Path('/opt/schematica')
 HEALTH = 'https://bionicloud.net/healthz'
+MAX_REQUEST_CHARS = 8192
+MAX_TOKEN_CHARS = 4096
+GITHUB_HOSTS = frozenset(('api.github.com', 'codeload.github.com'))
 
 
 def run(*args, capture=False):
@@ -30,18 +36,51 @@ def run(*args, capture=False):
     return result.stdout.strip() if capture else None
 
 
-def api(path):
-    req = urllib.request.Request(f'https://api.github.com/repos/{REPO}/{path}',
-                                 headers={'Accept': 'application/vnd.github+json',
-                                          'User-Agent': 'Schematica-release'})
-    with urllib.request.urlopen(req, timeout=30) as response:
+def validate_github_url(url):
+    try:
+        parsed = urllib.parse.urlsplit(url)
+        valid = (parsed.scheme == 'https' and parsed.hostname in GITHUB_HOSTS
+                 and parsed.username is None and parsed.password is None
+                 and parsed.port is None and not parsed.fragment)
+    except ValueError:
+        valid = False
+    if not valid:
+        raise ValueError('Unsafe GitHub request or redirect destination')
+
+
+class GitHubRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        validate_github_url(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def github_open(url, token, timeout=30):
+    validate_github_url(url)
+    req = urllib.request.Request(url, headers={
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'Schematica-release',
+    })
+    # urllib copies ordinary headers when following redirects. Authentication
+    # belongs only to the initial request; the archive redirect is signed.
+    req.add_unredirected_header('Authorization', 'Bearer ' + token)
+    try:
+        return urllib.request.build_opener(GitHubRedirectHandler()).open(req, timeout=timeout)
+    except urllib.error.HTTPError as error:
+        error.close()
+        raise RuntimeError(f'GitHub request failed with HTTP {error.code}') from None
+    except (urllib.error.URLError, OSError):
+        raise RuntimeError('GitHub request failed; no credentials or signed URL were logged') from None
+
+
+def api(path, token):
+    with github_open(f'https://api.github.com/repos/{REPO}/{path}', token) as response:
         return json.load(response)
 
 
-def eligible(sha):
-    if api('commits/main')['sha'] != sha:
+def eligible(sha, token):
+    if api('commits/main', token)['sha'] != sha:
         raise ValueError('Revision is no longer the current main commit')
-    runs = api(f'actions/workflows/ci.yml/runs?head_sha={sha}&event=push&branch=main&per_page=30')['workflow_runs']
+    runs = api(f'actions/workflows/ci.yml/runs?head_sha={sha}&event=push&branch=main&per_page=30', token)['workflow_runs']
     matching = [r for r in runs if r['head_sha'] == sha and r['head_branch'] == 'main'
                 and r['event'] == 'push' and r['head_repository']['full_name'] == REPO]
     latest = max(matching, key=lambda r: (r['id'], r.get('run_attempt', 1)), default={})
@@ -76,8 +115,8 @@ def healthy(expected_release=None):
     raise RuntimeError('Public HTTPS health check failed')
 
 
-def deploy(sha):
-    eligible(sha)
+def deploy(sha, token):
+    eligible(sha, token)
     previous = (BASE / 'current').resolve(strict=True)
     if (previous / 'REVISION').read_text().strip() == sha:
         healthy(previous)
@@ -87,13 +126,13 @@ def deploy(sha):
     release.mkdir(mode=0o755)
     with tempfile.TemporaryDirectory(prefix='schematica-release-') as scratch:
         archive = Path(scratch) / 'source.tar.gz'
-        req = urllib.request.Request(f'https://codeload.github.com/{REPO}/tar.gz/{sha}')
-        with urllib.request.urlopen(req, timeout=60) as source, archive.open('wb') as out:
+        url = f'https://api.github.com/repos/{REPO}/tarball/{sha}'
+        with github_open(url, token, timeout=60) as source, archive.open('wb') as out:
             while chunk := source.read(1024 * 1024):
                 out.write(chunk)
         with tarfile.open(archive) as tar:
-            # Strip only the verified GitHub archive prefix; reject links and devices.
-            prefix = f'Schematica-{sha}/'
+            # The authenticated REST archive names the owner, repo and full ref.
+            prefix = f'{REPO.replace("/", "-")}-{sha}/'
             members = []
             for member in tar.getmembers():
                 if member.name == prefix.rstrip('/'):
@@ -122,7 +161,7 @@ def deploy(sha):
             '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges:true',
             '--tmpfs', '/tmp:rw,nosuid,nodev', '--entrypoint', 'node',
             '-v', f'{release}:/verification:ro', '-w', '/verification', 'schematica-app', '--test')
-        eligible(sha)  # A newer push during the build must not be overwritten.
+        eligible(sha, token)  # A newer push during the build must not be overwritten.
         try:
             compose(release, 'up', '-d', '--no-build', '--wait', '--wait-timeout', '120')
             healthy(release)
@@ -137,19 +176,38 @@ def deploy(sha):
     print(f'Deployed and healthy: {sha}', flush=True)
 
 
+def read_request(stream):
+    line = stream.readline(MAX_REQUEST_CHARS + 1)
+    if not line or len(line) > MAX_REQUEST_CHARS or not line.endswith('\n'):
+        raise ValueError('Expected one bounded newline-terminated release request')
+    if stream.read(1):
+        raise ValueError('Only one release request is accepted')
+    try:
+        request = json.loads(line)
+    except (ValueError, TypeError):
+        raise ValueError('Invalid release request JSON') from None
+    if not isinstance(request, dict) or set(request) != {'sha', 'token'}:
+        raise ValueError('Release request requires exactly sha and token')
+    sha, token = request['sha'], request['token']
+    if not isinstance(sha, str) or not re.fullmatch('[0-9a-f]{40}', sha):
+        raise ValueError('Expected one full lowercase commit hash')
+    if (not isinstance(token, str) or not 1 <= len(token) <= MAX_TOKEN_CHARS
+            or not all(33 <= ord(char) <= 126 for char in token)):
+        raise ValueError('Expected a bounded token without whitespace or control characters')
+    return sha, token
+
+
 def main():
     if not hasattr(tarfile, 'data_filter'):
         raise SystemExit('Python with tarfile data-filter support is required (use Python 3.12+).')
     if len(sys.argv) != 1:
         raise ValueError('Arguments are not accepted')
     signal.alarm(20)
-    sha = sys.stdin.readline(128).strip()
+    sha, token = read_request(sys.stdin)
     signal.alarm(0)
-    if not re.fullmatch('[0-9a-f]{40}', sha):
-        raise ValueError('Expected one full lowercase commit hash on stdin')
     with (BASE / 'deploy.lock').open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        deploy(sha)
+        deploy(sha, token)
 
 
 if __name__ == '__main__':

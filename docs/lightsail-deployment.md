@@ -28,16 +28,31 @@ no forwarding, and a pinned server host key. The operator's administrative key i
 not stored in GitHub. Repository secrets are `LIGHTSAIL_DEPLOY_KEY` and
 `LIGHTSAIL_KNOWN_HOSTS`; the environment is `lightsail-production`.
 
+The repository remains private. The job needs only `contents: read` and
+`actions: read`. It sends its short-lived `github.token` and the full commit hash
+as one bounded, newline-terminated JSON object over encrypted SSH stdin, followed
+by EOF. The token is not a command-line argument, persistent server credential,
+repository secret, file, or container environment variable. The previous
+plaintext-hash stdin protocol is no longer accepted.
+
 The root-owned `/usr/local/sbin/schematica-deploy` is installed from
-[lightsail-release.py](../deploy/lightsail-release.py). It downloads the exact public
-commit, builds the app, and runs Node tests inside the unprivileged application
+[lightsail-release.py](../deploy/lightsail-release.py). It reads private commit/CI
+metadata and downloads the exact commit through GitHub's authenticated archive
+API. Only HTTPS destinations on `api.github.com` and `codeload.github.com` are
+allowed; authorization is not forwarded on redirects. The archive's owner,
+repository and full commit root are verified, with safe extraction limited to
+regular files and directories.
+
+The helper builds the app and runs Node tests inside the unprivileged application
 container before replacing live containers. Compose health checks, public HTTPS
 health, and a served application-file hash must pass before the `current` symlink
 changes. An activation/health failure restores the retained previous image and
 configuration without rebuilding. Caddy volumes are retained throughout.
 
-Server command changes require an operator to reinstall that file; repository
-pushes do not rewrite the restricted entry point. Python 3.12 or newer is required
+Server command changes require an operator to reinstall that file, root-owned
+and mode `0755`, using the administrative SSH identity. Preserve the old helper
+and install the replacement atomically before enabling the updated workflow;
+repository pushes do not rewrite the restricted entry point. Python 3.12 or newer is required
 for safe tar extraction. A host lock and workflow concurrency prevent overlapping
 deployments. Releases/images are retained for recovery; prune older inactive ones
 only after identifying the current and last healthy releases.
@@ -83,6 +98,13 @@ requires the user's provider key, entered in the website's assistant settings.
 A failed workflow is visible in GitHub Actions. Fix the problem and rerun CI for
 the current `main` commit; successful CI triggers deployment again. Superseded
 commits are rejected instead of replacing a newer release.
+
+If GitHub refuses to start CI jobs because of payment or spending limits, restore
+Actions billing in the account settings, then rerun CI for the current `main`.
+Neither the deployment workflow nor the server helper bypasses unsuccessful CI.
+Private-repository GitHub Pages also requires an eligible GitHub plan and Pages
+configured to publish with GitHub Actions. Keep repository visibility private;
+changing visibility is not a deployment recovery step.
 
 For emergency recovery, use the administrative SSH key, inspect `REVISION` and
 Compose logs, then bring up the desired previous release with its retained image.

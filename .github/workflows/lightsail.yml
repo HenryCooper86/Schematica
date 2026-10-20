@@ -6,7 +6,9 @@ on:
     types: [completed]
     branches: [main]
 
-permissions: {}
+permissions:
+  contents: read
+  actions: read
 
 concurrency:
   group: lightsail-production
@@ -30,12 +32,14 @@ jobs:
           RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
           DEPLOY_KEY: ${{ secrets.LIGHTSAIL_DEPLOY_KEY }}
           KNOWN_HOSTS: ${{ secrets.LIGHTSAIL_KNOWN_HOSTS }}
+          GH_READ_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
           [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
           test -n "$DEPLOY_KEY"
           test -n "$KNOWN_HOSTS"
+          test -n "$GH_READ_TOKEN"
           umask 077
           key="$RUNNER_TEMP/lightsail-key"
           hosts="$RUNNER_TEMP/lightsail-hosts"
@@ -43,7 +47,7 @@ jobs:
           printf '%s\n' "$DEPLOY_KEY" > "$key"
           printf '%s\n' "$KNOWN_HOSTS" > "$hosts"
           unset DEPLOY_KEY KNOWN_HOSTS
-          printf '%s\n' "$RELEASE_SHA" | ssh -T -i "$key" \
+          python3 -c 'import json, os; print(json.dumps({"sha": os.environ["RELEASE_SHA"], "token": os.environ["GH_READ_TOKEN"]}))' | ssh -T -i "$key" \
             -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
             -o UserKnownHostsFile="$hosts" -o ConnectTimeout=20 \
             -o ServerAliveInterval=15 -o ServerAliveCountMax=20 \
