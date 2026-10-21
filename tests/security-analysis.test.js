@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { validateSecurityAnalysis, securityEvidence, securityAnalysisHTML } from '../src/security-analysis.js';
+import { securityAssetKind } from '../src/security-assets.js';
 import { Store } from '../src/state.js';
 import { serialize, deserialize } from '../src/serialize.js';
 import { createEditPreview } from '../src/ai/preview.js';
@@ -192,4 +193,38 @@ test('illustrations validate view, finding and target references without fabrica
   analysis.illustrations = [{ view: 'nope', chapter: '', items: [] }];
   assert.throws(() => validateSecurityAnalysis(analysis), /unsupported value/);
   assert.equal(validateSecurityAnalysis(fixture()).illustrations, undefined);
+});
+
+test('securityAssetKind honours explicit supported assets and otherwise resolves role-neutral glyphs', () => {
+  assert.equal(securityAssetKind({ kind: 'affected', basis: 'source', assetKind: 'linux' }), 'linux');
+  assert.equal(securityAssetKind({ kind: 'mitigation', basis: 'inference', assetKind: 'siem' }), 'siem',
+    'an inferred asset stays visible with its inference basis');
+  assert.equal(securityAssetKind({ kind: 'affected', basis: 'unknown', assetKind: 'linux' }), 'generic',
+    'unknown applicability never draws a speculative concrete asset');
+  assert.equal(securityAssetKind({ kind: 'affected', basis: 'source', assetKind: 'process' }), 'generic',
+    'flowchart placeholders are not accepted as explicit assets');
+  assert.equal(securityAssetKind({ kind: 'affected', basis: 'source', assetKind: '<img src=x>' }), 'generic');
+});
+
+test('assetKind persists through validation and serialization while unsupported saved kinds are rejected', () => {
+  const analysis = fixture();
+  assert.equal(validateSecurityAnalysis(analysis).findings[0].assetKind, undefined,
+    'saved analyses without assetKind stay valid and unchanged');
+  analysis.findings[0].assetKind = 'webserver';
+  assert.equal(validateSecurityAnalysis(analysis).findings[0].assetKind, 'webserver');
+  const store = new Store();
+  store.doc.securityAnalysis = analysis;
+  const reopened = deserialize(serialize(store.doc));
+  assert.equal(reopened.doc.securityAnalysis.findings[0].assetKind, 'webserver');
+  for (const bad of ['generic', 'process', 'startend', 'not-a-kind"><svg onload=1>', '']) {
+    analysis.findings[0].assetKind = bad;
+    assert.throws(() => validateSecurityAnalysis(analysis), /unsupported value|text limit/, `assetKind "${bad}" must be rejected`);
+  }
+  analysis.findings[0].assetKind = 'webserver';
+  analysis.findings[0].basis = 'unknown';
+  const kept = validateSecurityAnalysis(analysis);
+  assert.equal(kept.findings[0].assetKind, 'webserver',
+    'an unknown-basis hint stays readable in the record and is only clamped at render time');
+  assert.notEqual(securityAssetKind(kept.findings[0]), 'webserver',
+    'an unknown-basis saved hint must not depict a concrete server');
 });

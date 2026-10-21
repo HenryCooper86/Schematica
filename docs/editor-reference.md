@@ -295,6 +295,18 @@ opening a board never invents past reads or illustration provenance.
   another view. Connections use logical flow/link buses, not invented physical
   interfaces. A card pair supports 16 distinct connection lanes; exceeding that
   limit fails explicitly rather than dropping relationships.
+  Findings may store an optional validated `assetKind` catalogue ID. New analyses
+  select evidence-grounded OS, software, server, actor, hardware and control icons;
+  missing selections retain neutral role symbols, and unknown-basis selections are
+  not used. Older records remain valid without `assetKind`; reanalysis selects assets
+  without changing existing illustrations. Assets lacking the four logical side ports
+  are editable custom cards referencing the built-in icon, with logical link ports
+  rather than fabricated physical interfaces. Asset selections and icons survive board
+  saving, reopening and export. Views without trust zones group cards into labelled
+  swimlane scene bands (Actors, Attack sequence, Security controls, Network & services,
+  Systems & platforms, Devices, Facilities, Related findings) by catalogue category and
+  role glyph; bands are presentation only, never containment, and trust-zone views keep
+  the flat directed layout.
   Relationship `boundaryRelation` explicitly records `inside`, `outside`,
   `crosses`, or `none` relative to exactly one boundary endpoint. Unspecified or
   contradictory relationships do not imply containment; labels and direction

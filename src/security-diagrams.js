@@ -1,10 +1,14 @@
 // Editable illustrations for the security explainer. Everything drawn comes
 // from the validated analysis: the view's findings (plus the endpoints of its
-// relationships) become native editable cards, metadata findings become
-// notes, and trust boundaries become zones that contain exactly the cards
-// whose relationships unanimously declare them inside — membership comes
-// solely from the contract's boundaryRelation metadata, never from adjacency
-// or label wording, and a card also declared outside or crossing (or left
+// relationships) become native editable cards wearing real catalogue glyphs —
+// the shared asset contract (src/security-assets.js) resolves each finding to
+// a Schematica part, so an attacker, a Linux host, a firewall or a building
+// stays recognizable instead of collapsing into process boxes — metadata
+// findings become notes, and trust boundaries become zones that contain
+// exactly the cards whose relationships unanimously declare them inside —
+// membership comes solely from the contract's boundaryRelation metadata,
+// never from adjacency or label wording, and a card also declared outside or
+// crossing (or left
 // none/unspecified) is never contained. Every relationship the analysis
 // states for the view becomes a wire on the logical flow/link buses — never
 // a fabricated physical bus — including boundary relationships, which attach
@@ -31,32 +35,116 @@ import { resolveStep } from './journey.js';
 import { uid } from './state.js';
 import { MAX_TEXT } from './serialize.js';
 import { nodeRect, rectsIntersect, snap, NOTE_W, noteHeight, contentBounds } from './geometry.js';
+import { PARTS } from './palette.js';
+import { tr } from './i18n.js';
+import { securityAssetKind } from './security-assets.js';
 
 export const SECURITY_ILLUSTRATION_VIEWS = ['architecture', 'exploit', 'mitigation'];
 
 const VIEW_TITLES = { architecture: 'Architecture', exploit: 'Exploit path', mitigation: 'Mitigation' };
 const chapterMark = (view) => `Security illustration (${view}):`;
-// Finding kinds that become cards, mapped to palette kinds. Components and
-// steps are deliberately plain boxes; only root causes claim the vulnerability
-// glyph, and open questions take the decision shape. Every kind mapped here
-// carries the four side ports the wire lanes rely on.
-const FINDING_PARTS = {
-  affected: 'process',
-  component: 'process',
-  root_cause: 'vulnerability',
-  prerequisite: 'preparation',
-  step: 'process',
-  impact: 'startend',
-  mitigation: 'process',
-  unknown: 'decision',
-};
+// Finding kinds that become cards (every other kind is a note or a zone).
+// The glyph a card wears is the shared asset contract's answer, never a guess
+// from the finding's wording: an explicit, evidence-backed finding.assetKind
+// names the catalogue kind to draw (a Linux host, a firewall, a threat actor),
+// and without one the neutral role defaults apply — the vulnerability glyph
+// for a root cause, the exploit glyph for a step, the plain asset box for
+// components and mitigations, the decision shape for open questions.
+const CARD_KINDS = new Set(['affected', 'component', 'root_cause', 'prerequisite', 'step', 'impact', 'mitigation', 'unknown']);
 // Statements about other findings rather than things in their own right.
 // A consistency verdict is metadata about the PoC/advisory pair, never a step
 // of an exploit flow, so it draws as a note like the other note kinds.
 const NOTE_KINDS = new Set(['severity', 'mapping', 'contradiction', 'consistency']);
-// Palette kinds whose side ports carry the flow bus; used to pick flow for
-// sequence wires and link elsewhere without bus-mismatch warnings.
-const FLOW_SIDED = new Set(['process', 'startend', 'preparation', 'decision']);
+// Every generated card exposes the four side ports the wire lanes address by
+// name, all on an untyped bus so a port carries any number of wires and a
+// card pair keeps its sixteen lanes. A catalogue kind that already offers
+// those ports on link or flow is placed as the real catalogue node — its
+// glyph, badge and fields stay catalogue data. Any other asset (an
+// Ethernet-sided host, a portless person, an MCU) becomes a custom card that
+// borrows only the catalogue's identity — name, category, accent and glyph
+// through icon:{kind}, never a hand-written path — over four logical link
+// ports, so a stated relationship can never become a physical Ethernet wire
+// and the global catalogue is never modified to make an asset fit.
+const SIDE_PORTS = ['n', 'e', 's', 'w'];
+const SIDE_OF = { n: 'top', e: 'right', s: 'bottom', w: 'left' };
+
+// Scene bands group a view's cards by what they are, not by invented
+// deployment semantics: actors and people, the attack-sequence glyphs,
+// network/security controls, systems and platforms, devices, facilities, and
+// anything else. The grouping reads straight from the finding's drawn asset
+// (catalogue category or role glyph), so a band never asserts containment or
+// infrastructure the analysis did not state. Views with trust zones keep the
+// flat directed layout — a trust rectangle must span exactly what the
+// analysis declared inside, and scene bands would fight that geometry.
+const SCENE_ORDER = {
+  architecture: ['actors', 'controls', 'network', 'systems', 'devices', 'facilities', 'findings'],
+  exploit: ['actors', 'attack', 'controls', 'network', 'systems', 'devices', 'facilities', 'findings'],
+  mitigation: ['controls', 'network', 'systems', 'devices', 'facilities', 'attack', 'actors', 'findings'],
+};
+const SCENES = {
+  actors: { label: 'Actors', color: '#f472b6' },
+  attack: { label: 'Attack sequence', color: '#f87171' },
+  controls: { label: 'Security controls', color: '#60a5fa' },
+  network: { label: 'Network & services', color: '#38bdf8' },
+  systems: { label: 'Systems & platforms', color: '#34d399' },
+  devices: { label: 'Devices', color: '#22d3ee' },
+  facilities: { label: 'Facilities', color: '#f59e0b' },
+  findings: { label: 'Related findings', color: '#94a3b8' },
+};
+const SCENE_LABEL = {
+  actors: () => tr('Actors'),
+  attack: () => tr('Attack sequence'),
+  controls: () => tr('Security controls'),
+  network: () => tr('Network & services'),
+  systems: () => tr('Systems & platforms'),
+  devices: () => tr('Devices'),
+  facilities: () => tr('Facilities'),
+  findings: () => tr('Related findings'),
+};
+const ATTACK_GLYPHS = new Set(['vulnerability', 'exploit', 'preparation', 'startend', 'process']);
+const ACTOR_KINDS = new Set(['threatactor', 'insider']);
+// Catalogue "security" parts split: these actively enforce or monitor, the
+// rest (web/application servers, CDN, gateways) are service infrastructure
+// and belong with the network scene rather than being labelled controls.
+const CONTROL_KINDS = new Set(['firewall', 'waf', 'proxy', 'siem', 'idsips', 'vpn', 'hsm']);
+const NETWORK_SERVICE_KINDS = new Set(['cdn', 'loadbalancer', 'apigateway', 'webserver', 'appserver', 'dnsserver', 'mailserver']);
+const SCENE_PAD = 20;
+const SCENE_GAP = 48;
+
+function sceneOf(kind, view) {
+  const part = PARTS[kind] ?? PARTS.generic;
+  if (ACTOR_KINDS.has(kind) || part.category === 'people') return 'actors';
+  if (view !== 'architecture' && ATTACK_GLYPHS.has(kind)) return 'attack';
+  if (CONTROL_KINDS.has(kind)) return 'controls';
+  if (part.category === 'network' || NETWORK_SERVICE_KINDS.has(kind)) return 'network';
+  if (part.category === 'system' || part.category === 'os' || part.category === 'compute') return 'systems';
+  if (part.category === 'endpoints' || part.category === 'sensors' || part.category === 'actuators') return 'devices';
+  if (part.category === 'facilities') return 'facilities';
+  return 'findings';
+}
+
+function assetCard(finding) {
+  const kind = securityAssetKind(finding);
+  const part = PARTS[kind] ?? PARTS.generic;
+  const sides = SIDE_PORTS.map((id) => part.ports.find((p) => p.id === id));
+  if (sides.every((p) => p && (p.bus === 'link' || p.bus === 'flow'))) {
+    return {
+      kind: part.kind, asset: part.kind, name: part.name, custom: null,
+      flow: sides.every((p) => p.bus === 'flow'),
+    };
+  }
+  return {
+    kind: 'custom', asset: part.kind, name: part.name, flow: false,
+    custom: {
+      name: part.name,
+      category: part.category,
+      ...(part.accent ? { accent: part.accent } : {}),
+      icon: { kind: part.kind },
+      ports: SIDE_PORTS.map((id) => ({ id, name: 'LINK', side: SIDE_OF[id], bus: 'link' })),
+    },
+  };
+}
+
 const BASIS_TEXT = { source: 'source-backed', inference: 'inferred', unknown: 'unknown basis' };
 const BASIS_STYLE = { source: null, inference: 'dashed', unknown: 'dotted' };
 const TRUST_COLOR = '#f59e0b';
@@ -199,7 +287,7 @@ function planIncluded(analysis, view) {
   const included = analysis.findings.filter((f) => f.view === view || endpoints.has(f.id));
   const layers = findingLayers(included, rels);
   included.sort((a, b) => layers.get(a.id) - layers.get(b.id));
-  const cards = included.filter((f) => Object.hasOwn(FINDING_PARTS, f.kind));
+  const cards = included.filter((f) => CARD_KINDS.has(f.kind));
   let n = 0;
   const order = new Map();
   for (const finding of cards) {
@@ -282,7 +370,7 @@ export function buildSecurityWalkthrough(doc, analysis, options = {}) {
   const targetsOf = (finding) => {
     if (record) return recordItems.get(finding.id) ?? [];
     if (newestChapter) {
-      if (Object.hasOwn(FINDING_PARTS, finding.kind)) return finding.targets.filter((id) => chapterNodes.has(id));
+      if (CARD_KINDS.has(finding.kind)) return finding.targets.filter((id) => chapterNodes.has(id));
       return finding.targets.filter((id) => boardIds.has(id));
     }
     return [];
@@ -297,7 +385,7 @@ export function buildSecurityWalkthrough(doc, analysis, options = {}) {
       missing.push({ findingId: finding.id, title: finding.title });
       continue;
     }
-    const node = Object.hasOwn(FINDING_PARTS, finding.kind) ? live.find((id) => nodeIds.has(id)) : null;
+    const node = CARD_KINDS.has(finding.kind) ? live.find((id) => nodeIds.has(id)) : null;
     if (!node) continue; // illustrated as a zone, a note, or a boundary card: not a walkthrough stop
     stops.push({
       node,
@@ -392,11 +480,75 @@ function keepClearOfZones(doc, nodeIds, noteIds, membersOfZone) {
 
 // The generic assistant placer is hub-oriented. Security views instead follow
 // the stated directed graph, top to bottom, with branching findings side by
-// side. Only this build moves; old boards and illustrations remain untouched.
-function placeIllustration(doc, snapshot, nodesByFinding, layers, noteIds, zones) {
+// side. Views without trust zones arrange their cards as labelled swimlane
+// scene bands (actors, the attack sequence, systems, controls, devices,
+// facilities) so the picture reads as a composition, not one flat flow.
+// Only this build moves; old boards and illustrations remain untouched.
+function placeIllustration(doc, snapshot, nodesByFinding, layers, noteIds, zones, kindOf, assetOf, view) {
   const existing = contentBounds(snapshot);
   const originX = existing ? Math.ceil((existing.x + existing.w + COL_GAP) / 8) * 8 : 40;
   const originY = existing ? Math.ceil(existing.y / 8) * 8 : 40;
+  if (!zones.size) {
+    const taken = new Set(doc.zones.map((item) => item.id));
+    let counter = 0;
+    const nextZoneId = () => { let id; do { id = `scn${counter++}`; } while (taken.has(id)); taken.add(id); return id; };
+    const byScene = new Map();
+    for (const [finding, node] of nodesByFinding) {
+      const scene = sceneOf(assetOf.get(finding) ?? kindOf.get(finding), view);
+      if (!byScene.has(scene)) byScene.set(scene, []);
+      byScene.get(scene).push([finding, node]);
+    }
+    let y = originY;
+    let right = originX;
+    for (const key of SCENE_ORDER[view] ?? SCENE_ORDER.architecture) {
+      const entries = byScene.get(key) || [];
+      if (!entries.length) continue;
+      const scene = SCENES[key];
+      const sceneTop = y;
+      const rows = new Map();
+      for (const [finding, node] of entries) {
+        const layer = layers.get(finding) ?? 0;
+        if (!rows.has(layer)) rows.set(layer, []);
+        rows.get(layer).push(node);
+      }
+      let bottom = sceneTop;
+      let maxX = originX;
+      for (const layer of [...rows.keys()].sort((a, b) => a - b)) {
+        const nodes = rows.get(layer);
+        for (let offset = 0; offset < nodes.length; offset += 3) {
+          const row = nodes.slice(offset, offset + 3);
+          let x = originX;
+          let rowH = 0;
+          for (const node of row) {
+            const size = nodeRect(node);
+            node.x = snap(x);
+            node.y = snap(y);
+            x = node.x + size.w + COL_GAP;
+            rowH = Math.max(rowH, size.h);
+            maxX = Math.max(maxX, node.x + size.w);
+          }
+          bottom = Math.max(bottom, y + rowH);
+          y = Math.ceil((y + rowH + 112) / 8) * 8;
+        }
+      }
+      doc.zones.push({
+        id: nextZoneId(), kind: 'swimlane', orient: 'h',
+        label: SCENE_LABEL[key](), color: scene.color, lanes: [SCENE_LABEL[key]()],
+        x: snap(originX - SCENE_PAD), y: snap(sceneTop - SCENE_PAD),
+        w: maxX - originX + 2 * SCENE_PAD, h: bottom - sceneTop + 2 * SCENE_PAD,
+      });
+      right = Math.max(right, maxX + SCENE_PAD);
+      y = Math.ceil((bottom + SCENE_PAD + SCENE_GAP) / 8) * 8;
+    }
+    let noteY = originY;
+    for (const id of noteIds) {
+      const note = doc.notes.find((item) => item.id === id);
+      note.x = Math.ceil((right + COL_GAP) / 8) * 8;
+      note.y = noteY;
+      noteY = Math.ceil((noteY + noteHeight(note.text) + ROW_GAP) / 8) * 8;
+    }
+    return;
+  }
   const groups = new Map();
   for (const [finding, node] of nodesByFinding) {
     const layer = layers.get(finding) ?? 0;
@@ -496,7 +648,7 @@ export function buildSecurityIllustration(doc, analysis, options = {}) {
   const boundaryIds = new Set(included.filter((f) => f.kind === 'boundary').map((f) => f.id));
   const isCardFinding = (id) => {
     const f = findingById.get(id);
-    return Boolean(f && Object.hasOwn(FINDING_PARTS, f.kind));
+    return Boolean(f && CARD_KINDS.has(f.kind));
   };
   const BASIS_STRENGTH = { unknown: 0, inference: 1, source: 2 };
   const boundaryPlan = new Map(); // boundary id -> { members, inferredMembership, wired }
@@ -579,23 +731,32 @@ export function buildSecurityIllustration(doc, analysis, options = {}) {
 
   const ops = [];
   const refFor = new Map(); // finding id -> ref of its generated item
-  const kindOf = new Map(); // finding id -> palette kind (cards and boundary cards)
+  const kindOf = new Map(); // finding id -> board kind of its card (cards and boundary cards)
+  const assetOf = new Map(); // finding id -> catalogue kind the card depicts (scene grouping)
+  const flowOf = new Map(); // finding id -> true when the card's side ports carry the flow bus
   const boundaryCardRef = new Map(); // boundary finding id -> ref of its extra card, when it also drew a zone
   for (const finding of cards) {
     const ref = nextRef();
     refFor.set(finding.id, ref);
-    const kind = FINDING_PARTS[finding.kind];
-    kindOf.set(finding.id, kind);
+    const card = assetCard(finding);
+    kindOf.set(finding.id, card.kind);
+    assetOf.set(finding.id, card.asset);
+    flowOf.set(finding.id, card.flow);
     const number = order.get(finding.id);
     const op = {
-      op: 'add_part', ref, kind,
-      label: `${number ? `${number}. ` : ''}${finding.title}`,
-      sublabel: BASIS_TEXT[finding.basis],
+      op: 'add_part', ref, kind: card.kind,
+      label: `${number ? `${number}. ` : ''}${finding.title}${PARTS[card.kind]?.threat || PARTS[card.kind]?.shape ? ` — ${card.name} [${finding.basis}]` : ''}`,
+      sublabel: `${card.name} · ${BASIS_TEXT[finding.basis]}`,
       notes: noteText(valid, finding),
     };
+    if (card.custom) op.custom = card.custom;
     if (finding.kind === 'root_cause') {
       op.flags = ['bug'];
-      if (valid.cveId) op.fields = { cve: valid.cveId };
+      // The CVE identifier rides the asset's own schema field, so it is kept
+      // only where the drawn part defines one; a custom asset card carries no
+      // invented part number, model or version.
+      const fields = PARTS[card.kind]?.fields ?? [];
+      if (valid.cveId && fields.some((f) => f.id === 'cve')) op.fields = { cve: valid.cveId };
     }
     ops.push(op);
   }
@@ -650,9 +811,11 @@ export function buildSecurityIllustration(doc, analysis, options = {}) {
           const cardRef = nextRef();
           boundaryCardRef.set(finding.id, cardRef);
           kindOf.set(finding.id, BOUNDARY_CARD_KIND);
+          assetOf.set(finding.id, 'decision'); // a boundary is structural, never an attack step
+          flowOf.set(finding.id, true);
           ops.push({
             op: 'add_part', ref: cardRef, kind: BOUNDARY_CARD_KIND,
-            label: finding.title, sublabel: BASIS_TEXT[finding.basis],
+            label: `${finding.title} [${finding.basis}]`, sublabel: BASIS_TEXT[finding.basis],
             notes: noteText(valid, finding),
             near: plan.wired.map(cardRefOf).find(Boolean),
           });
@@ -665,9 +828,11 @@ export function buildSecurityIllustration(doc, analysis, options = {}) {
         const cardRef = nextRef();
         refFor.set(finding.id, cardRef);
         kindOf.set(finding.id, BOUNDARY_CARD_KIND);
+        assetOf.set(finding.id, 'decision'); // a boundary is structural, never an attack step
+        flowOf.set(finding.id, true);
         ops.push({
           op: 'add_part', ref: cardRef, kind: BOUNDARY_CARD_KIND,
-          label: finding.title, sublabel: BASIS_TEXT[finding.basis],
+          label: `${finding.title} [${finding.basis}]`, sublabel: BASIS_TEXT[finding.basis],
           notes: noteText(valid, finding),
           near: plan.wired.map(cardRefOf).find(Boolean),
         });
@@ -740,7 +905,7 @@ export function buildSecurityIllustration(doc, analysis, options = {}) {
     const hiPorts = loLayer === hiLayer ? LEFT_PORTS : loLayer < hiLayer ? UP_PORTS : DOWN_PORTS;
     const portLo = loPorts[k % SIDES.length];
     const portHi = hiPorts[Math.floor(k / SIDES.length) % SIDES.length];
-    const bothFlow = FLOW_SIDED.has(kindOf.get(r.from)) && FLOW_SIDED.has(kindOf.get(r.to));
+    const bothFlow = flowOf.get(r.from) === true && flowOf.get(r.to) === true;
     ops.push({
       op: 'connect',
       from: { node: cardRefOf(r.from), port: r.from === lo ? portLo : portHi },
@@ -803,7 +968,7 @@ export function buildSecurityIllustration(doc, analysis, options = {}) {
     const nodesByFinding = new Map([...kindOf.keys()].map(finding => [
       finding, doc.nodes.find(node => node.id === refToId[boundaryCardRef.get(finding) ?? refFor.get(finding)]),
     ]).filter(([, node]) => node));
-    placeIllustration(doc, snapshot, nodesByFinding, layers, generatedNoteIds, zoneMembersById);
+    placeIllustration(doc, snapshot, nodesByFinding, layers, generatedNoteIds, zoneMembersById, kindOf, assetOf, view);
     keepClearOfZones(doc, generatedNodeIds, generatedNoteIds, zoneMembersById);
     for (const [zoneId, members] of zoneMembersById) {
       const zone = doc.zones.find(item => item.id === zoneId);

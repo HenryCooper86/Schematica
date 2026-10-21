@@ -199,7 +199,7 @@ export function initSecurityAnalysis({ store, tools, render, svg, library = null
       + `<summary>${escAttr(tr('Illustrations'))}</summary>`
       + '<div class="sec-section-body">'
       + `<div class="sec-view-row">${viewButtons}</div>`
-      + `<p class="sec-view-note">${escAttr(tr('Each illustration is generated from the findings and previewed like an edit: nothing lands on the board until you apply it, and one Undo removes it again.'))}</p>`
+      + `<p class="sec-view-note">${escAttr(tr('Illustrations use catalogue assets for supported systems, software, actors and controls, grouped into labelled colour-coded scene bands with logical connections. Reanalyze older results for asset selection. Preview first; nothing changes until Apply, and one Undo removes it.'))}</p>`
       + `<button type="button" id="sec-walkthrough" data-sec="walkthrough">${escAttr(tr('Show walkthrough'))}</button>`
       + '<div id="sec-walkthrough-view" class="sec-walkthrough"></div>'
       + '</div></details>'

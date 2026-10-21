@@ -119,4 +119,144 @@ export async function runSecurityChecks({ send, js, check, sleep, origin, captur
   check('boundary relations remain visible as directed labeled connections', geometry.wires === 2 && geometry.labels.some(label=>label.includes('outside')) && geometry.labels.some(label=>label.includes('inside')) && await js(`document.querySelectorAll('#canvas g.wire').length === 2`), JSON.stringify(geometry));
   if(capture) await capture('security-explicit-trust-boundary');
   await click('#btn-security');
+  // Rich catalogue assets: the illustration shows the entities the analysis
+  // cites, not generic flow boxes. Link-ported catalogue kinds stay native
+  // parts; typed-port or portless assets adapt to custom parts that keep the
+  // catalogue glyph and four logical link ports. Every cited line names the
+  // entity and relation it evidences.
+  await js(String.raw`(async () => {
+    const {newDoc} = await import('/src/state.js'); const {sha256Hex} = await import('/src/ai/security.js');
+    const lines = [
+      'An attacker sends a crafted request through the network firewall.',
+      'The firewall forwards the request to the gateway host running Linux.',
+      'The gateway host invokes the vulnerable log library to parse the request.',
+      'The telemetry MCU streams sensor logs to the log library.',
+      'A staff engineer reviews the library logs.',
+    ];
+    const text = lines.join('\n');
+    const time='2026-01-01T00:00:00.000Z';
+    const evidence=(line)=>({sourceId:'assets-source',startLine:line,endLine:line});
+    const finding=(id,title,line,assetKind)=>({id,kind:'component',title,detail:'Static source description: '+title,basis:'source',view:'architecture',evidence:[evidence(line)],targets:[],assetKind});
+    const relation=(id,from,to,label,line)=>({id,from,to,label,basis:'source',view:'architecture',evidence:[evidence(line)]});
+    const doc=newDoc('Rich asset fixture');
+    doc.securityAnalysis={version:1,id:'rich-assets',title:'Rich catalogue assets',cveId:'',status:'not-provided',summary:text,generatedAt:time,
+      sources:[{id:'assets-source',name:'assets.txt',url:'',retrievedAt:time,hash:await sha256Hex(text),text,startLine:1,totalLines:5,partial:false,warnings:[]}],
+      readCoverage:[{sourceId:'assets-source',ranges:[{startLine:1,endLine:5}]}],
+      findings:[finding('attacker','Remote attacker',1,'threatactor'),finding('firewall','Network firewall',2,'firewall'),
+        finding('host','Gateway host',2,'linux'),finding('library','Log library',3,'package'),
+        finding('mcu','Telemetry MCU',4,'mcu'),finding('engineer','Staff engineer',5,'person')],
+      relationships:[relation('sends','attacker','firewall','sends request through',1),relation('forwards','firewall','host','forwards request to',2),
+        relation('invokes','host','library','invokes to parse',3),relation('streams','mcu','library','streams logs to',4),relation('reviews','engineer','library','reviews',5)],
+      warnings:[]};
+    const dt=new DataTransfer();dt.items.add(new File([JSON.stringify(doc)],'rich-assets.json'));const input=document.getElementById('file-input');input.files=dt.files;input.dispatchEvent(new Event('change'));
+  })()`);
+  await wait(`document.getElementById('title').value === 'Rich asset fixture'`);
+  await click('#btn-security');
+  await illustrate('architecture');
+  // Observe the applied board and the actual rendered SVG: each asset card
+  // must carry its catalogue glyph (never initials or a generic badge), the
+  // portless and pin-only assets must expose the four logical link ports, and
+  // each stated relationship must be a directed labelled arrow between the
+  // cards it names.
+  const observeAssets = () => js(String.raw`(async () => {
+    window.dispatchEvent(new Event('pagehide'));
+    const doc=JSON.parse(localStorage.getItem('schematica.autosave'));
+    const {PARTS}=await import('/src/palette.js');
+    const matchesGlyph=(el,p)=>{
+      if(!el||!p)return false;
+      if(!p.glyph)return Array.from(el.querySelectorAll('path'),path=>path.getAttribute('d')).includes(p.icon);
+      const expected=document.createElementNS('http://www.w3.org/2000/svg','svg');
+      expected.innerHTML=p.glyph;
+      return Array.from(el.querySelectorAll('g')).some(group=>group.innerHTML===expected.innerHTML);
+    };
+    const findings=doc.securityAnalysis.findings;
+    const target=f=>findings.find(x=>x.id===f).targets.at(-1);
+    const assets=findings.filter(f=>f.assetKind).map(f=>{
+      const id=target(f.id);
+      const el=id?document.querySelector('#canvas g.node[data-id="'+id+'"]'):null;
+      const p=PARTS[f.assetKind];
+      const board=id?doc.nodes.find(n=>n.id===id):null;
+      return {id:f.id,kind:f.assetKind,node:id,rendered:!!el,
+        glyph:matchesGlyph(el,p),
+        ports:el?Array.from(el.querySelectorAll('.portg'),g=>g.dataset.port).sort():[],
+        boardKind:board?board.kind:null,
+        iconKind:board&&board.part?board.part.icon&&board.part.icon.kind:null};
+    });
+    const wires=doc.securityAnalysis.relationships.map(r=>{
+      const from=target(r.from), to=target(r.to);
+      const el=from&&to?document.querySelector('#canvas g.wire[data-from^="'+from+':"][data-to^="'+to+':"]'):null;
+      const vis=el?el.querySelector('path.vis'):null;
+      return {id:r.id,label:r.label,wired:!!el,
+        direction:!!el&&el.dataset.from.startsWith(from+':')&&el.dataset.to.startsWith(to+':'),
+        arrow:!!vis&&vis.getAttribute('marker-end')==='url(#arrow)',
+        labelled:!!el&&el.textContent.includes(r.label)};
+    });
+    return {assets,wires};
+  })()`);
+  const assetById = assets => id => assets.find(a => a.id === id);
+  const wireById = assets => id => assets.wires.find(w => w.id === id);
+  const expectAssets = ['attacker','firewall','host','library','mcu','engineer'];
+  const expectWires = ['sends','forwards','invokes','streams','reviews'];
+  const nativeKinds = {attacker:'threatactor', library:'package'};
+  const assets = await observeAssets();
+  check('every cited entity becomes a card rendering its catalogue glyph', expectAssets.every(id => { const a = assetById(assets.assets)(id); return a && a.rendered && a.glyph; }), JSON.stringify(assets));
+  check('link-ported catalogue assets stay native parts on the applied board', Object.entries(nativeKinds).every(([id,kind]) => { const a = assetById(assets.assets)(id); return a && a.boardKind === kind; }), JSON.stringify(assets));
+  check('every asset exposes exactly the four logical link ports', expectAssets.every(id => { const a = assetById(assets.assets)(id); return a && a.ports.join(',') === 'e,n,s,w'; }), JSON.stringify(assets));
+  check('portless person and pin-only MCU adapt to custom parts that keep the glyph and four logical link ports', ['mcu','engineer'].every(id => { const a = assetById(assets.assets)(id); return a && a.boardKind === 'custom' && a.iconKind === a.kind && a.ports.join(',') === 'e,n,s,w'; }), JSON.stringify(assets));
+  check('every stated relationship becomes a directed labelled arrow between the assets it names', expectWires.every(id => { const w = wireById(assets)(id); return w && w.wired && w.direction && w.arrow && w.labelled; }), JSON.stringify(assets));
+  if(capture) await capture('security-rich-assets');
+  const assetNode = assets.assets[0].node;
+  await click('#btn-security');
+  await click('#undo');
+  await wait(`!document.querySelector('#canvas g.node[data-id="${assetNode}"]')`);
+  check('undoing the illustration removes every rich asset card', await js(`(() => { const ids=${JSON.stringify(assets.assets.map(a=>a.node))}; return ids.every(id=>!document.querySelector('#canvas g.node[data-id="'+id+'"]')); })()`));
+  await click('#redo');
+  await wait(`!!document.querySelector('#canvas g.node[data-id="${assetNode}"]')`);
+  await click('#btn-security');
+  const restored = await observeAssets();
+  check('redo restores every asset glyph, logical port and directed arrow', JSON.stringify(restored) === JSON.stringify(assets), JSON.stringify(restored));
+  const savedAssets = (await snapshot()).securityAnalysis;
+  await send('Page.reload');
+  await wait(`!!document.getElementById('btn-security')`);
+  await wait(`!!document.querySelector('#canvas g.node[data-id="${assetNode}"]')`);
+  await click('#btn-security');
+  const reloaded = await observeAssets();
+  check('saved rich-asset analysis reloads with the same board, assets and arrows', JSON.stringify(reloaded) === JSON.stringify(restored) && JSON.stringify((await snapshot()).securityAnalysis) === JSON.stringify(savedAssets), JSON.stringify(reloaded));
+  await click('#btn-security');
+  // Evidence qualifiers must be visible on the diagram itself, including
+  // threat icons and shape-backed boundary cards whose sublabels are hidden.
+  await js(`(async () => {
+    const {newDoc}=await import('/src/state.js');
+    const analysis=${JSON.stringify(savedAssets)};
+    const actor=analysis.findings.find(f=>f.id==='attacker');
+    actor.basis='inference';actor.view='exploit';actor.targets=[];
+    const unknown={id:'unverified',kind:'step',view:'exploit',title:'Unverified remote shell',
+      detail:'The retained evidence does not establish a remote shell.',basis:'unknown',evidence:[],targets:[],assetKind:'linux'};
+    const boundary={id:'unverified-boundary',kind:'boundary',view:'exploit',title:'Unverified service boundary',
+      detail:'The service boundary is inferred, not established.',basis:'inference',evidence:[],targets:[]};
+    analysis.findings=[actor,unknown,boundary];
+    analysis.relationships=[{id:'unverified-link',from:actor.id,to:unknown.id,label:'unverified sequence',
+      basis:'unknown',view:'exploit',evidence:[]},{id:'boundary-link',from:boundary.id,to:unknown.id,label:'inferred context',
+      basis:'inference',view:'exploit',evidence:[],boundaryRelation:'none'}];
+    delete analysis.illustrations;
+    const doc=newDoc('Evidence qualifier fixture');doc.securityAnalysis=analysis;
+    const dt=new DataTransfer();dt.items.add(new File([JSON.stringify(doc)],'qualifiers.json'));
+    const input=document.getElementById('file-input');input.files=dt.files;input.dispatchEvent(new Event('change'));
+  })()`);
+  await wait(`document.getElementById('title').value === 'Evidence qualifier fixture'`);
+  await click('#btn-security');
+  await illustrate('exploit');
+  const qualifiers=await js(`(() => {
+    window.dispatchEvent(new Event('pagehide'));
+    const doc=JSON.parse(localStorage.getItem('schematica.autosave'));
+    return doc.securityAnalysis.findings.map(f=>{
+      const node=doc.nodes.find(n=>f.targets.includes(n.id)),el=node&&document.querySelector('#canvas g.node[data-id="'+node.id+'"]');
+      return {id:f.id,basis:f.basis,text:el?.querySelector('[data-edit="label"]')?.textContent||'',
+        asset:node?.part?.icon?.kind||node?.kind};
+    });
+  })()`);
+  check('inferred actors, unknown steps and boundary cards retain visible evidence qualifiers',
+    qualifiers.every(f=>f.text.includes('['+f.basis+']')) && qualifiers.find(f=>f.id==='unverified')?.asset!=='linux',
+    JSON.stringify(qualifiers));
+  await click('#btn-security');
 }

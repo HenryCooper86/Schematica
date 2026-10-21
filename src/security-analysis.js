@@ -1,4 +1,9 @@
 // Static analysis is reference data, not proof of exploitation or deployment risk.
+// Optional finding.assetKind names a real catalogue kind (see
+// security-assets.js) so illustrations draw a recognizable asset; it stays
+// absent on every analysis that never chose one.
+import { SECURITY_ASSET_KINDS } from './security-assets.js';
+
 export const SECURITY_KINDS = ['affected', 'root_cause', 'prerequisite', 'step', 'impact', 'mitigation', 'severity', 'mapping', 'contradiction', 'unknown', 'component', 'boundary', 'consistency'];
 export const SECURITY_VIEWS = ['architecture', 'exploit', 'mitigation'];
 export const SECURITY_BOUNDARY_RELATIONS = ['none', 'inside', 'outside', 'crosses'];
@@ -24,7 +29,9 @@ export const SECURITY_ANALYSIS_SCHEMA = objectSchema({
     totalLines: lineSchema, partial: { type: 'boolean' }, warnings: arraySchema(stringSchema(2000), 30) }), 20),
   findings: arraySchema(objectSchema({ id: idSchema, kind: { type: 'string', enum: SECURITY_KINDS },
     title: stringSchema(240, { minLength: 1 }), detail: stringSchema(8000), basis: { type: 'string', enum: BASES },
-    view: { type: 'string', enum: [...SECURITY_VIEWS, 'none'] }, evidence: evidenceList, targets: arraySchema(idSchema, 200) }), 100),
+    view: { type: 'string', enum: [...SECURITY_VIEWS, 'none'] },
+    assetKind: { type: 'string', enum: [...SECURITY_ASSET_KINDS] }, evidence: evidenceList, targets: arraySchema(idSchema, 200) },
+    ['assetKind']), 100),
   relationships: arraySchema(objectSchema({ id: idSchema, from: idSchema, to: idSchema, label: stringSchema(240, { minLength: 1 }),
     basis: { type: 'string', enum: BASES }, view: { type: 'string', enum: SECURITY_VIEWS }, evidence: evidenceList,
     boundaryRelation: { type: 'string', enum: SECURITY_BOUNDARY_RELATIONS } }, ['boundaryRelation']), 150),

@@ -5,6 +5,8 @@ import { BACKEND } from './runtime.js';
 import { extractPage } from './web.js';
 import { extractJson } from './agent.js';
 import { validateSecurityAnalysis, SECURITY_KINDS, SECURITY_VIEWS, SECURITY_BOUNDARY_RELATIONS, SECURITY_COVERAGE_RANGES_LIMIT } from '../security-analysis.js';
+import { PARTS } from '../palette.js';
+import { SECURITY_ASSET_KINDS } from '../security-assets.js';
 
 export const SECURITY_SOURCE_LIMIT = 20;      // contract maximum sources per analysis
 export const SECURITY_SOURCE_CHARS = 100000;  // retained characters per source
@@ -356,6 +358,11 @@ const READ_SOURCE_TOOL = {
   strict: true,
 };
 
+// Compact id:name list of every catalogue kind a finding may claim as its
+// illustration asset. Derived from the real palette at load, so the model can
+// never be shown (or return) an id the renderer cannot draw.
+const ASSET_CATALOGUE = SECURITY_ASSET_KINDS.map(kind => `${kind}:${PARTS[kind].name}`).join(', ');
+
 export const SECURITY_SYSTEM_RULES = `You are Schematica's security analysis assistant. You explain reported vulnerabilities (CVE records, vendor advisories) and user-supplied proof-of-concept text by static reading only. You never execute, compile, transform or download code; you never probe, contact, scan or test any system, service, host or account; you never claim an exploit was run, verified, reproduced or successful. Your only tool is read_source, which returns lines Schematica already retrieved.
 
 Data rules:
@@ -372,8 +379,10 @@ Data rules:
 
 Views (use purposefully): "exploit" for prerequisites, ordered attack steps and impact along the exploitation path; "architecture" for affected components, trust boundaries and structural placement; "mitigation" for fixes, mitigations, hardening and detection; "none" (findings only) for severity, mapping, contradictions, unknowns and record-state summaries.
 
+Diagram assets: a finding may carry an optional "assetKind" naming one of Schematica's catalogue kinds, so its illustration draws the real thing instead of a generic box. Choose one only when the finding itself is that concrete asset and the retained sources support it: the affected deployment unit or host, its operating system, a network, server or security device, service, package, endpoint, facility, access control, or an acting threat (actor, malware) the sources actually describe as affected, present, deployed or acting. A product named only as a recommended fix, or a mitigation merely mentioned, is not deployed infrastructure. Never infer an asset from the CVE title, a vendor name or background knowledge; a generic term in the text ("the server", "a web application") does not identify a catalogue asset. Omit assetKind whenever the finding or the asset is not established, and never set it on basis "unknown" findings. Give source-backed structural findings their own cards too — kinds "component" and "boundary" in the architecture view, and concrete actors, targets and controls as "affected"/"prerequisite"/"impact"/"mitigation" findings — and join them with labeled relationships wherever the sources support the connection, not only along the action flow. This never adds findings or relationships without evidence; an unsupported structure stays an unknown. Catalogue kinds (id:name): ${ASSET_CATALOGUE}.
+
 Reply format: after any read_source calls you need, reply with exactly one JSON object and no other text (no markdown fences, no prose):
-{"title": string (max 240), "summary": string (max 8000), "findings": [{"id": string (max 120, unique), "kind": one of affected|root_cause|prerequisite|step|impact|mitigation|severity|mapping|contradiction|unknown|component|boundary|consistency, "title": string (max 240), "detail": string (max 8000), "basis": "source"|"inference"|"unknown", "view": "architecture"|"exploit"|"mitigation"|"none", "evidence": [{"sourceId": string, "startLine": integer, "endLine": integer}]}], "relationships": [{"id": string (max 120, unique), "from": finding id, "to": finding id, "label": string (max 240) naming the specific relation (enables, requires, mitigates, targets...), "basis": "source"|"inference"|"unknown", "view": "architecture"|"exploit"|"mitigation", "boundaryRelation": "none"|"inside"|"outside"|"crosses" (optional; describes the non-boundary endpoint relative to the boundary endpoint; use only when exactly one endpoint is a kind "boundary" finding, otherwise omit or use "none"), "evidence": [...]}], "warnings": [string]}
+{"title": string (max 240), "summary": string (max 8000), "findings": [{"id": string (max 120, unique), "kind": one of affected|root_cause|prerequisite|step|impact|mitigation|severity|mapping|contradiction|unknown|component|boundary|consistency, "title": string (max 240), "detail": string (max 8000), "basis": "source"|"inference"|"unknown", "view": "architecture"|"exploit"|"mitigation"|"none", "assetKind": optional, one catalogue id from the Diagram assets list; omit unless the finding is that concrete, supported asset, "evidence": [{"sourceId": string, "startLine": integer, "endLine": integer}]}], "relationships": [{"id": string (max 120, unique), "from": finding id, "to": finding id, "label": string (max 240) naming the specific relation (enables, requires, mitigates, targets...), "basis": "source"|"inference"|"unknown", "view": "architecture"|"exploit"|"mitigation", "boundaryRelation": "none"|"inside"|"outside"|"crosses" (optional; describes the non-boundary endpoint relative to the boundary endpoint; use only when exactly one endpoint is a kind "boundary" finding, otherwise omit or use "none"), "evidence": [...]}], "warnings": [string]}
 Cover at least: what is affected (or an explicit unknown), root cause, exploitation prerequisites, ordered steps (kind "step"), impact, severity with its basis, mitigations, every material unknown, and a kind "consistency" assessment of whether the PoC/advisory text agrees or disagrees with the ordered steps. Consistency is evidence agreement, never proof of a working exploit: state agree/disagree/absent explicitly, and if it cannot be assessed record kind "consistency" with basis "unknown" saying it was not assessed — never fabricate a verdict. Relationships connect existing finding ids into an explicit labeled chain; never fabricate a causal link. Set "boundaryRelation" on a relationship only when exactly one endpoint is a kind "boundary" finding, describing whether the other endpoint lies inside, outside, or crosses the boundary (or "none"). Omit what you cannot support; do not pad. Do not include source metadata, cveId, status, generatedAt, targets, readCoverage or any fields beyond this schema: Schematica records those itself. Severity and CVSS scores come only from retained sources; without them record kind "severity" with basis "unknown".`;
 
 const STATUS_CAVEATS = {
@@ -548,10 +557,28 @@ function coerceModelAnalysis(plan, meta, extraWarnings) {
       basis = 'unknown';
       notes.push(`Finding "${title.slice(0, 60)}": the CVE record is ${meta.status}; vulnerability-specific applicability remains unknown. Record-state facts remain available in citations.`);
     }
-    findings.push({
+    // Asset hints are accepted only from the catalogue and only while the
+    // finding's applicability survived every downgrade above: a concrete asset
+    // on an unknown-basis claim (bad citations, reserved/rejected record) would
+    // assert infrastructure the analysis never established, so it is dropped
+    // with a note rather than kept or rewritten. No hint is ever inferred from
+    // the finding's text.
+    let assetKind;
+    if (f.assetKind !== undefined) {
+      if (!SECURITY_ASSET_KINDS.includes(f.assetKind)) {
+        notes.push(`Finding "${title.slice(0, 60)}" had unsupported assetKind "${str(f.assetKind, 40)}"; omitted.`);
+      } else if (basis === 'unknown') {
+        notes.push(`Finding "${title.slice(0, 60)}" asset "${f.assetKind}" was dropped: the finding's applicability is not established.`);
+      } else {
+        assetKind = f.assetKind;
+      }
+    }
+    const finding = {
       id: idFor(f.id, `finding-${i + 1}`), kind, title, detail: str(f.detail, 8000), basis,
       view: unestablishedArea ? 'none' : FINDING_VIEWS.includes(f.view) ? f.view : 'none', evidence, targets: [],
-    });
+    };
+    if (assetKind !== undefined) finding.assetKind = assetKind;
+    findings.push(finding);
   }
   if (!findings.length) throw Error('The analysis model returned no usable findings.');
   if (rawFindings.length > 100) omissionNotes.push(`Only the first 100 model findings were considered (${rawFindings.length} were returned).`);

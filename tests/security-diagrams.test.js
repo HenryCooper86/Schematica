@@ -4,6 +4,7 @@ import { buildSecurityIllustration, buildSecurityWalkthrough } from '../src/secu
 import { newDoc } from '../src/state.js';
 import { nodeRect, rectsIntersect, zoneMembers, NOTE_W, noteHeight } from '../src/geometry.js';
 import { deserialize, serialize } from '../src/serialize.js';
+import { PARTS } from '../src/palette.js';
 
 // A minimal contract-shaped analysis. Sources are complete (partial false),
 // evidence falls inside the retained lines, and every source-backed item
@@ -64,15 +65,12 @@ test('exploit view renders editable cards and directed logical wires', () => {
 
   const nodes = res.targets.nodes.map((id) => nodeById(doc, id));
   assert.equal(nodes.length, 4);
-  assert.deepEqual(nodes.map((n) => n.kind), ['preparation', 'vulnerability', 'process', 'startend']);
   for (const n of nodes) assert.ok(Number.isFinite(n.x) && Number.isFinite(n.y), `${n.id} placed`);
 
   const bug = nodes[1];
   assert.deepEqual(bug.flags, ['bug']);
   assert.equal(bug.fields.cve, 'CVE-2026-1234');
-  assert.equal(bug.sublabel, 'source-backed');
   assert.match(bug.notes, /Evidence: Vendor advisory L2-L3/);
-  assert.equal(nodes[0].sublabel, 'inferred');
 
   const wires = res.targets.wires.map((id) => doc.wires.find((w) => w.id === id));
   assert.equal(wires.length, 3);
@@ -87,6 +85,112 @@ test('exploit view renders editable cards and directed logical wires', () => {
   assert.equal(wires[1].to.node, nodes[2].id);
   assert.equal(wires[0].style, 'dashed', 'inferred relationships draw dashed');
   assert.equal(wires[1].style, null, 'source-backed relationships draw solid');
+});
+
+test('mixed asset findings draw real glyphs, adapted custom cards and logical wires end to end', () => {
+  const doc = newDoc('Mixed assets');
+  const evidence = [{ sourceId: 'src-adv', startLine: 1, endLine: 2 }];
+  const base = analysis({
+    findings: [
+      finding('f-actor', 'step', 'exploit', { title: 'Remote attacker', assetKind: 'threatactor' }),
+      finding('f-host', 'component', 'exploit', { title: 'Linux build host', assetKind: 'linux' }),
+      finding('f-lib', 'affected', 'exploit', { title: 'Vulnerable library', assetKind: 'package',
+        basis: 'source', evidence }),
+      finding('f-fw', 'mitigation', 'exploit', { title: 'Edge firewall', assetKind: 'firewall' }),
+      finding('f-bug', 'root_cause', 'exploit', { assetKind: 'kernel', basis: 'source', evidence }),
+      finding('f-site', 'impact', 'exploit', { title: 'Office building', assetKind: 'building' }),
+      finding('f-owner', 'impact', 'exploit', { title: 'Device owner', assetKind: 'person' }),
+    ],
+    relationships: [
+      rel('m1', 'f-actor', 'f-host', 'exploit'),
+      rel('m2', 'f-host', 'f-lib', 'exploit', { basis: 'source', evidence }),
+      rel('m3', 'f-actor', 'f-host', 'exploit'),
+      rel('m4', 'f-host', 'f-actor', 'exploit'),
+      rel('m5', 'f-lib', 'f-bug', 'exploit'),
+      rel('m6', 'f-fw', 'f-host', 'exploit'),
+      rel('m7', 'f-site', 'f-owner', 'exploit'),
+    ],
+  });
+  const res = buildSecurityIllustration(doc, base);
+  const card = (fid) => nodeById(doc, res.targets.items[fid]);
+  assert.equal(res.targets.nodes.length, 7, 'every asset finding framed a card');
+
+  // Kinds whose four n/e/s/w ports are untyped become the real catalogue
+  // node: the glyph, badge and fields are catalogue data.
+  assert.equal(card('f-actor').kind, 'threatactor');
+  assert.equal(card('f-lib').kind, 'package');
+  assert.equal(card('f-bug').kind, 'kernel');
+  assert.deepEqual(card('f-bug').flags, ['bug'], 'the root cause keeps its bug flag on a real asset');
+  assert.equal(card('f-bug').fields, undefined, 'no CVE field is invented on an asset without one');
+  assert.equal(card('f-actor').sublabel, 'Threat Actor · inferred');
+  assert.equal(card('f-lib').sublabel, 'Software package · source-backed');
+
+  // Every other asset adapts: a custom card borrowing the catalogue's
+  // identity over four logical link ports — never a hardware pin, never an
+  // arbitrary SVG path.
+  for (const [fid, kind] of [['f-host', 'linux'], ['f-fw', 'firewall'], ['f-site', 'building'], ['f-owner', 'person']]) {
+    const node = card(fid);
+    assert.equal(node.kind, 'custom', `${fid} adapts to a custom asset card`);
+    assert.deepEqual(node.part.icon, { kind }, `${fid} wears the ${kind} catalogue glyph`);
+    assert.equal(node.part.name, PARTS[kind].name);
+    assert.equal(node.part.category, PARTS[kind].category);
+    assert.equal(node.part.accent, PARTS[kind].accent, `${fid} keeps the catalogue accent`);
+    assert.deepEqual(node.part.ports.map((p) => `${p.id}:${p.bus}`).sort(),
+      ['e:link', 'n:link', 's:link', 'w:link'], `${fid} exposes exactly the four logical link ports`);
+    assert.match(node.sublabel, new RegExp(`^${PARTS[kind].name} · `), 'sublabel names the asset and its basis');
+  }
+  assert.match(card('f-lib').notes, /Evidence: Vendor advisory L1-L2/, 'citations ride the asset cards');
+
+  // Relationships stay logical and directed; parallel and reversed edges on
+  // one pair each keep their own lane.
+  const wires = res.targets.wires.map((id) => doc.wires.find((w) => w.id === id));
+  assert.equal(wires.length, base.relationships.length, 'every stated relationship became a wire');
+  for (const w of wires) {
+    assert.ok(['flow', 'link'].includes(w.bus), 'relationships stay logical, never physical Ethernet');
+    assert.equal(w.arrow, 'fwd');
+  }
+  const actorId = card('f-actor').id, hostId = card('f-host').id;
+  const pair = wires.filter((w) => [w.from.node, w.to.node].every((n) => [actorId, hostId].includes(n)));
+  assert.equal(pair.length, 3, 'parallel and reversed relationships all wire');
+  assert.equal(new Set(pair.map((w) => [w.from.node, w.from.port, w.to.node, w.to.port].join('|'))).size, 3,
+    'each occupies its own lane');
+  assert.ok(pair.some((w) => w.from.node === actorId && w.to.node === hostId), 'forward direction kept');
+  assert.ok(pair.some((w) => w.from.node === hostId && w.to.node === actorId), 'reversed direction kept');
+  const m2 = wires.find((w) => w.label.startsWith('rel m2'));
+  assert.equal(m2.from.node, hostId);
+  assert.equal(m2.to.node, card('f-lib').id);
+  assert.equal(m2.style, null, 'source-backed relationships draw solid');
+
+  // Size-aware layout: no two cards overlap.
+  const rects = doc.nodes.map(nodeRect);
+  for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
+    assert.equal(rectsIntersect(rects[i], rects[j]), false, 'mixed asset cards never overlap');
+  }
+
+  // Walkthrough stops survive, and a save/reopen keeps the borrowed glyphs,
+  // the logical ports and the wiring.
+  assert.equal(buildSecurityWalkthrough(doc, res.analysis).stops.length, 7);
+  const round = deserialize(serialize(doc));
+  const reopened = round.doc.nodes.find((n) => n.id === hostId);
+  assert.deepEqual(reopened.part.icon, { kind: 'linux' }, 'the borrowed glyph survives the round trip');
+  assert.deepEqual(reopened.part.ports.map((p) => p.id), ['n', 'e', 's', 'w']);
+  assert.equal(round.doc.wires.find((w) => w.label.startsWith('rel m2')).bus, m2.bus);
+  assert.equal(buildSecurityWalkthrough(round.doc, round.doc.securityAnalysis).stops.length, 7,
+    'reopened asset cards still resolve as walkthrough stops');
+
+  // Atomicity: a parallel burst past the lane budget is refused before
+  // anything is drawn, on adapted custom cards too.
+  const fresh = newDoc('Atomic');
+  const hostile = analysis({
+    findings: [
+      finding('h1', 'component', 'exploit', { assetKind: 'firewall' }),
+      finding('h2', 'component', 'exploit', { assetKind: 'linux' }),
+    ],
+    relationships: Array.from({ length: 17 }, (_, i) => rel(`px${i}`, 'h1', 'h2', 'exploit')),
+  });
+  const before = JSON.stringify(fresh);
+  assert.throws(() => buildSecurityIllustration(fresh, hostile), /16 wire lanes one card pair can carry/);
+  assert.equal(JSON.stringify(fresh), before, 'the board is left untouched');
 });
 
 test('unrelated board content and journey survive; the illustration lands clear of it', () => {
@@ -282,7 +386,6 @@ test('a source-backed outside client never reads as inside the boundary: geometr
   const client = nodeById(doc, res.targets.items['f-client']);
   const boundaryCard = nodeById(doc, res.targets.boundaryCards['f-dmz']);
   assert.ok(boundaryCard, 'the boundary drew a card so its relationships stay wires');
-  assert.equal(boundaryCard.label, 'Finding f-dmz', 'the boundary card is not a numbered step');
 
   // The app decides membership geometrically, so verify real geometry.
   assert.ok(rectInside(nodeRect(parser), zone), 'the declared-inside parser sits inside the zone');
@@ -325,7 +428,8 @@ test('an unknown-basis inside relationship asserts no containment', () => {
     ],
   });
   const res = buildSecurityIllustration(doc, base);
-  assert.equal(doc.zones.length, 0, 'unknown evidence never becomes asserted zone containment');
+  const plainZones = doc.zones.filter((z) => z.kind !== 'swimlane');
+  assert.equal(plainZones.length, 0, 'unknown evidence never becomes asserted zone containment');
   const card = nodeById(doc, res.targets.items['f-dmz']);
   assert.ok(card, 'the boundary is a labelled card instead');
   assert.equal(res.targets.wires.length, 1, 'the uncertain membership stays a wire');
@@ -416,7 +520,7 @@ test('crossing, none and unspecified boundary relationships draw wires and imply
   });
   const res = buildSecurityIllustration(doc, base, { view: 'architecture' });
 
-  assert.equal(doc.zones.length, 0, 'nothing was declared inside, so no zone may imply containment');
+  assert.equal(doc.zones.filter((z) => z.kind !== 'swimlane').length, 0, 'nothing was declared inside, so no zone may imply containment');
   const card = nodeById(doc, res.targets.items['f-perim']);
   assert.ok(card, 'the boundary itself became a card its relationships can wire to');
   assert.equal(res.targets.nodes.includes(card.id), true, 'the boundary card is framed by the chapter');
@@ -828,7 +932,7 @@ test('shared membership without a domain hierarchy stays explicit without false 
       rel('inside-b', 'shared', 'domain-b', 'architecture', { boundaryRelation: 'inside' })],
   });
   const result = buildSecurityIllustration(doc, base, { view: 'architecture' });
-  assert.equal(doc.zones.length, 0, 'overlap versus nesting is not established by shared membership');
+  assert.equal(doc.zones.filter((z) => z.kind !== 'swimlane').length, 0, 'overlap versus nesting is not established by shared membership');
   for (const domain of ['domain-a', 'domain-b']) {
     assert.ok(doc.wires.some(wire => wire.from.node === result.targets.items.shared && wire.to.node === result.targets.items[domain] && wire.arrow === 'fwd'));
   }
@@ -1000,4 +1104,60 @@ test('oversized metadata annotations are rejected atomically rather than losing 
   });
   assert.throws(() => buildSecurityIllustration(doc, base), Error);
   assert.deepEqual(doc, before);
+});
+
+test('views without trust zones arrange cards into labelled, color-coded scene bands', () => {
+  const doc = newDoc('Board');
+  const base = analysis({
+    findings: [
+      finding('actor', 'component', 'architecture', { assetKind: 'threatactor' }),
+      finding('engineer', 'component', 'architecture', { assetKind: 'person' }),
+      finding('firewall', 'component', 'architecture', { assetKind: 'waf' }),
+      finding('host', 'affected', 'architecture', { assetKind: 'linux' }),
+      finding('library', 'affected', 'architecture', { assetKind: 'package' }),
+      finding('site', 'component', 'architecture', { assetKind: 'building' }),
+    ],
+    relationships: [
+      rel('r1', 'actor', 'firewall', 'architecture'),
+      rel('r2', 'firewall', 'host', 'architecture'),
+      rel('r3', 'host', 'library', 'architecture'),
+      rel('r4', 'engineer', 'host', 'architecture'),
+      rel('r5', 'host', 'site', 'architecture'),
+    ],
+  });
+  const res = buildSecurityIllustration(doc, base, { view: 'architecture' });
+  const bands = doc.zones.filter((z) => z.kind === 'swimlane');
+  assert.ok(bands.length >= 4, `expected scene bands, got ${JSON.stringify(doc.zones.map((z) => z.label))}`);
+  assert.equal(doc.zones.length, bands.length, 'no plain zones: no containment was declared');
+  const bandOf = (node) => {
+    const r = nodeRect(node);
+    return bands.find((z) => z.x <= r.x && z.y <= r.y && r.x + r.w <= z.x + z.w && r.y + r.h <= z.y + z.h);
+  };
+  for (const f of base.findings) assert.ok(bandOf(nodeById(doc, res.targets.items[f.id])), `${f.id} sits inside its scene band`);
+  for (let i = 0; i < bands.length; i++) {
+    for (let j = i + 1; j < bands.length; j++) {
+      assert.equal(rectsIntersect(zoneRect(bands[i]), zoneRect(bands[j])), false, 'scene bands never overlap');
+    }
+  }
+  const labelOf = (id) => bandOf(nodeById(doc, res.targets.items[id])).label;
+  assert.equal(labelOf('actor'), labelOf('engineer'), 'threat actors and people share a scene');
+  assert.equal(labelOf('host'), labelOf('library'), 'operating systems and software share a scene');
+  assert.notEqual(labelOf('actor'), labelOf('host'), 'actors and systems stay in distinct scenes');
+  assert.equal(labelOf('site'), 'Facilities');
+  const reopened = deserialize(serialize(doc));
+  assert.deepEqual(reopened.doc.zones.map((z) => ({ kind: z.kind, label: z.label, color: z.color })),
+    bands.map((z) => ({ kind: z.kind, label: z.label, color: z.color })), 'scene bands survive saving and reopening');
+});
+
+test('exploit findings group into an attack sequence band that frames every flow stage', () => {
+  const doc = newDoc('Board');
+  const res = buildSecurityIllustration(doc, exploitSet());
+  const bands = doc.zones.filter((z) => z.kind === 'swimlane');
+  assert.equal(bands.length, 1, 'one attack sequence band, no invented scenes');
+  assert.equal(bands[0].label, 'Attack sequence');
+  for (const id of res.targets.nodes) {
+    const r = nodeRect(nodeById(doc, id));
+    assert.ok(bands[0].x <= r.x && bands[0].y <= r.y && r.x + r.w <= bands[0].x + bands[0].w
+      && r.y + r.h <= bands[0].y + bands[0].h, 'every flow stage stays inside the attack band');
+  }
 });

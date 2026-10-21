@@ -323,3 +323,51 @@ test('the final admitted CVE window includes its matching line when the context 
     assert.equal(result.findings.find(item => item.id === `claim-${line}`).basis, 'source');
   }
 });
+
+test('model asset hints survive only on established findings and never leak into app-authored unknowns', async () => {
+  const retained = await source();
+  const result = await analyzeSecurity({ sources: [retained], provider: provider([reply(plan({ findings: [
+    finding({ id: 'cited', assetKind: 'linux' }),
+    finding({ id: 'inferred', kind: 'component', view: 'architecture', basis: 'inference', evidence: [], assetKind: 'firewall' }),
+    finding({ id: 'unclear', basis: 'unknown', evidence: [], assetKind: 'linux' }),
+    finding({ id: 'invented', assetKind: 'quantum-router' }),
+  ] }))]) });
+  assert.equal(result.findings.find(f => f.id === 'cited').assetKind, 'linux');
+  assert.equal(result.findings.find(f => f.id === 'inferred').assetKind, 'firewall',
+    'an explicit inferred asset persists with its visible inference basis');
+  assert.equal(result.findings.find(f => f.id === 'unclear').assetKind, undefined);
+  assert.equal(result.findings.find(f => f.id === 'invented').assetKind, undefined);
+  const warnings = result.warnings.join('\n');
+  assert.match(warnings, /unsupported assetKind "quantum-router"; omitted/);
+  assert.match(warnings, /asset "linux" was dropped/);
+  for (const row of result.findings.filter(f => f.id.startsWith('not-assessed'))) {
+    assert.equal(row.assetKind, undefined, 'not-assessed outcomes stay without asset hints');
+  }
+});
+
+test('a citation downgrade drops the claimed asset rather than keeping an unsupported one', async () => {
+  const retained = await source();
+  const result = await analyzeSecurity({ sources: [retained], provider: provider([reply(plan({
+    findings: [finding({ id: 'overrun', assetKind: 'linux', evidence: [{ sourceId: 's1', startLine: 1, endLine: 999 }] })],
+  }))]) });
+  const row = result.findings.find(f => f.id === 'overrun');
+  assert.equal(row.basis, 'unknown');
+  assert.equal(row.assetKind, undefined);
+  assert.match(result.warnings.join('\n'), /asset "linux" was dropped/);
+});
+
+test('reserved and rejected records never gain speculative concrete assets', async () => {
+  for (const status of ['reserved', 'rejected']) {
+    const retained = await source(`Record state: ${status.toUpperCase()}.\nAssociated material does not establish applicability to this identifier.`);
+    const result = await analyzeSecurity({ sources: [retained], cveId: 'CVE-2026-99007', status,
+      provider: provider([reply(plan({ findings: [
+        finding({ id: 'affected', kind: 'affected', view: 'architecture', assetKind: 'webserver' }),
+        finding({ id: 'state', kind: 'consistency', view: 'none' }),
+      ] }))]) });
+    const affected = result.findings.find(f => f.id === 'affected');
+    assert.equal(affected.basis, 'unknown');
+    assert.equal(affected.assetKind, undefined);
+    assert.match(result.warnings.join('\n'), /asset "webserver" was dropped/);
+    assert.equal(result.findings.find(f => f.id === 'state').basis, 'source');
+  }
+});

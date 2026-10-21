@@ -335,6 +335,20 @@ Window resizing and collapsing keep a draggable part of the header reachable.
    Illustrations append editable cards, logical connections and Journey chapters
    without removing existing work. Building the same view again appends another
    illustration rather than replacing your edited cards.
+   New analyses select icons from the asset library for supported operating systems,
+   servers, software packages, actors, hardware and controls—not just process boxes.
+   Views without trust zones arrange their cards into labelled, colour-coded scene
+   bands (Actors, Attack sequence, Security controls, Network & services, Systems &
+   platforms, Devices, Facilities), so the picture reads as a composition of scenes
+   rather than one flat flow. Grouping comes from catalogue categories and role
+   glyphs, never invented containment; views with trust zones keep the flat layout
+   because a trust rectangle must span exactly what the analysis declared inside.
+   Each card names its asset type and evidence basis; actions remain distinct from
+   the systems they affect. Connections describe logical relationships, not inferred
+   physical network interfaces. Assets are selected from the findings, never guessed
+   from a CVE title or added merely to decorate the diagram. Unknown findings keep
+   neutral symbols. Reanalyze older results to gain source-specific asset selections;
+   existing boards and manually edited illustrations are not replaced automatically.
    Long labels wrap inside their cards and connection pills. New illustrations
    follow directed relationship layers instead of a generic hub layout; only
    attack actions are numbered in exploit views, not prerequisites or root causes.
