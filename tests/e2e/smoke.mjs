@@ -918,8 +918,8 @@ try {
   // (choosing one would confirm(), which the smoke test never does).
   await js(`document.getElementById('btn-examples').click(); true`);
   await sleep(100);
-  const menu = await js(`(() => { const m = document.getElementById('examples-menu'); return { hidden: m.hidden, headings: [...m.querySelectorAll('.menu-group')].map((h) => h.textContent), examples: m.querySelectorAll('button[data-example]').length }; })()`);
-  check('the Examples menu opens with Embedded, Vehicle, and Security headings over every built-in board', menu.hidden === false && JSON.stringify(menu.headings.slice(0, 3)) === JSON.stringify(['Embedded', 'Vehicle', 'Security']) && menu.examples === EXAMPLES.length, JSON.stringify(menu));
+  const menu = await js(`(() => { const m = document.getElementById('examples-menu'); return { hidden: m.hidden, headings: [...m.querySelectorAll('.menu-group')].map((h) => h.textContent), buttons: m.querySelectorAll('button').length }; })()`);
+  check('the Examples menu opens with Embedded, Vehicle, and Security headings over every built-in board', menu.hidden === false && JSON.stringify(menu.headings) === JSON.stringify(['Embedded', 'Vehicle', 'Security']) && menu.buttons === EXAMPLES.length, JSON.stringify(menu));
   await key('Escape', 'Escape', 27);
   await sleep(100);
   check('Escape closes the Examples menu', (await js(`document.getElementById('examples-menu').hidden`)) === true);
@@ -954,7 +954,7 @@ try {
   await js(`document.getElementById('btn-examples').click(); true`);
   await sleep(100);
   const menuZh = await js(`[...document.querySelectorAll('#examples-menu .menu-group')].map((h) => h.textContent)`);
-  check('the Examples menu groups are Chinese', JSON.stringify(menuZh.slice(0, 3)) === JSON.stringify(['嵌入式', '车辆', '安全']), JSON.stringify(menuZh));
+  check('the Examples menu groups are Chinese', JSON.stringify(menuZh) === JSON.stringify(['嵌入式', '车辆', '安全']), JSON.stringify(menuZh));
   await key('Escape', 'Escape', 27);
   await sleep(100);
   const nodesBeforeZh = await js(`document.querySelectorAll('#canvas g.node').length`);

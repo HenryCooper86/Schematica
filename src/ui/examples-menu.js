@@ -4,7 +4,7 @@ import { serialize, deserialize } from '../serialize.js';
 import { toast, escAttr } from './press.js';
 import { tr, trd, getLang } from '../i18n.js';
 
-export function initExamplesMenu({ store, onIncident = null }) {
+export function initExamplesMenu({ store }) {
   const menu = document.getElementById('examples-menu');
   const btn = document.getElementById('btn-examples');
   let dismiss = null;
@@ -25,8 +25,7 @@ export function initExamplesMenu({ store, onIncident = null }) {
     }
     const shown = EXAMPLES.map((ex) => localizedExample(ex, getLang()));
     menu.innerHTML = EXAMPLE_GROUPS.map((group) => `<div class="menu-group">${escAttr(trd(group))}</div>`
-      + shown.filter((ex) => ex.group === group).map((ex) => `<button data-example="${escAttr(ex.id)}"><span class="example-name">${escAttr(ex.name)}</span>${ex.doc.journey.some(s => s.stops?.length) ? ` <small>${escAttr(tr('Guided story'))}</small>` : ''}</button>`).join('')).join('')
-      + (onIncident ? `<div class="menu-group">${escAttr(trd('Import'))}</div><button data-incident><span class="example-name">${escAttr(tr('Reconstruct incident from log…'))}</span></button>` : '');
+      + shown.filter((ex) => ex.group === group).map((ex) => `<button data-example="${escAttr(ex.id)}"><span class="example-name">${escAttr(ex.name)}</span>${ex.doc.journey.some(s => s.stops?.length) ? ` <small>${escAttr(tr('Guided story'))}</small>` : ''}</button>`).join('')).join('');
     const r = btn.getBoundingClientRect();
     menu.hidden = false;
     // Measure the actual translated menu instead of assuming a 230px width.
@@ -40,11 +39,6 @@ export function initExamplesMenu({ store, onIncident = null }) {
     menu.style.top = `${Math.max(gap, useBelow ? r.bottom + 6 : r.top - bounds.height - 6)}px`;
     menu.querySelectorAll('button').forEach((b) => {
       b.addEventListener('click', () => {
-        if (b.dataset.incident !== undefined) {
-          close();
-          onIncident && onIncident();
-          return;
-        }
         const ex = shown.find((e2) => e2.id === b.dataset.example);
         close();
         if (!ex) return;

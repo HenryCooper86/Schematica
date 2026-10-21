@@ -268,7 +268,8 @@ initOnboarding({ store, navigation, revisions, engineering: engineeringUI, tools
 const recorder = initRecording({ svg, store });
 const journeyUI = initJourney({ svg, store, tools, render, recorder, propsPanel });
 const incidentReplay = initIncidentReplay({ svg, store, tools, render });
-initExamplesMenu({ store, onIncident: () => incidentReplay.pickIncidentFile() });
+document.getElementById('btn-incident').addEventListener('click', () => incidentReplay.pickIncidentFile());
+initExamplesMenu({ store });
 initLayoutToggles();
 initShortcuts();
 const aiSettings = createSettings(storage);

@@ -22,6 +22,7 @@ export const GUIDE_ICONS = {
   "btn-journey": "<svg viewBox=\"0 0 18 18\" aria-hidden=\"true\"><path d=\"M5 16V3 M5 3.5h8.5l-2.2 3 2.2 3H5\"/></svg>",
   "btn-assistant": "<svg viewBox=\"0 0 18 18\" aria-hidden=\"true\"><path d=\"M9 2l1.6 4.4L15 8l-4.4 1.6L9 14l-1.6-4.4L3 8l4.4-1.6z M14.5 12.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z\"/></svg>",
   "btn-security": "<svg viewBox=\"0 0 18 18\" aria-hidden=\"true\"><path d=\"M9 2l6 2v4c0 4-3 6.5-6 8-3-1.5-6-4-6-8V4z M9 5v5 M9 12h.01\"/></svg>",
+  "btn-incident": "<svg viewBox=\"0 0 18 18\" aria-hidden=\"true\"><circle cx=\"9\" cy=\"9\" r=\"6.5\"/><path d=\"M9 5.5V9l2.5 2\"/></svg>",
   "btn-palette": "<svg viewBox=\"0 0 18 18\" aria-hidden=\"true\"><rect x=\"2.5\" y=\"3.5\" width=\"13\" height=\"11\" rx=\"2\"/><path d=\"M7 3.5v11 M4.5 7h.01 M4.5 9.5h.01\"/></svg>",
   "btn-panels": "<svg viewBox=\"0 0 18 18\" aria-hidden=\"true\"><rect x=\"2.5\" y=\"3.5\" width=\"13\" height=\"11\" rx=\"2\"/><path d=\"M11 3.5v11 M13 7h.01 M13 9.5h.01\"/></svg>",
   "appearance": "<svg viewBox=\"0 0 18 18\" width=\"16\" height=\"16\" aria-hidden=\"true\"><rect x=\"2.5\" y=\"3\" width=\"13\" height=\"9\" rx=\"1.5\"/><path d=\"M9 12v3 M6 15h6\"/></svg>",
