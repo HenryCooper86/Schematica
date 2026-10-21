@@ -7,8 +7,10 @@ export const CATEGORIES = [
   { id: 'robotics', name: 'Robotics' },
   { id: 'automotive', name: 'Automotive' },
   { id: 'system', name: 'System & Cloud' },
+  { id: 'os', name: 'Operating Systems' },
   { id: 'network', name: 'Network' },
   { id: 'security', name: 'Security & Edge' },
+  { id: 'facilities', name: 'Facilities' },
   { id: 'flow', name: 'Process Flow' },
   { id: 'threats', name: 'Threats' },
   { id: 'misc', name: 'Storage / Misc' },
@@ -23,8 +25,10 @@ export const CATEGORY_COLORS = {
   robotics: '#f472b6',
   automotive: '#facc15',
   system: '#e879f9',
+  os: '#c084fc',
   network: '#38bdf8',
   security: '#f43f5e',
+  facilities: '#f59e0b',
   flow: '#60a5fa',
   threats: '#ef4444',
   misc: '#34d399',
@@ -57,6 +61,10 @@ const f = (id, label, extra = {}) => ({ id, label, ...extra });
 const SEVERITY = f('severity', 'Severity', { options: SEVERITIES });
 // Network and security devices: a model stays in the part number, these join it.
 const NET_FIELDS = [f('ip', 'IP address', { placeholder: 'e.g. 10.0.20.11' }), f('dns', 'DNS name', { placeholder: 'e.g. web01.corp.local' })];
+// Hosts (operating systems, servers, appliances) carry a version alongside the
+// network metadata: CVE applicability is a version range, not just a name.
+const VERSION = f('version', 'Version', { placeholder: 'e.g. 1.2.3' });
+const OS_FIELDS = [...NET_FIELDS, VERSION];
 
 // ---- Power budget (see power.js) ----
 // Current is free text so a datasheet line survives being pasted as written:
@@ -382,6 +390,81 @@ export const PARTS = {
     p('top', 'P1', 'top', 0.5, 'gpio'), p('right', 'P2', 'right', 0.5, 'gpio'),
     p('bottom', 'P3', 'bottom', 0.5, 'gpio'), p('left', 'P4', 'left', 0.5, 'gpio'),
   ]),
+  // ---- Operating Systems ----
+  // Monochrome brand-mark silhouettes so a host can be identified at a glance.
+  // The mark is original artwork (not a verbatim trademark copy); the card
+  // label and version field carry the exact product name.
+  linux: nd('linux', 'os', 'Linux', '#fbbf24', '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>',
+    sides('eth', 'ETH'), { fields: OS_FIELDS }),
+  windows: nd('windows', 'os', 'Windows', '#60a5fa', '<path fill="currentColor" stroke="none" d="M3 5.5h8.2v6.2H3zM12.8 5.5H21v6.2h-8.2zM3 12.8h8.2V19H3zM12.8 12.8H21V19h-8.2z"/>',
+    sides('eth', 'ETH'), { fields: OS_FIELDS }),
+  macos: nd('macos', 'os', 'macOS', '#94a3b8', '<path fill="currentColor" stroke="none" d="M16.4 12.9c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.8-3.5.8-.7 0-1.8-.8-3-.8-1.5 0-3 .9-3.8 2.3-1.6 2.8-.4 6.9 1.2 9.2.8 1.1 1.7 2.4 2.9 2.4 1.2 0 1.6-.7 3-.7 1.4 0 1.8.7 3 .7 1.2 0 2-1.1 2.8-2.2.9-1.3 1.3-2.5 1.3-2.6-.1 0-2.5-1-2.5-3.8zM14.1 5.5c.6-.8 1-1.8.9-2.9-.9 0-2 .6-2.6 1.4-.6.7-1.1 1.7-.9 2.7 1 .1 2-.5 2.6-1.2z"/>',
+    sides('eth', 'ETH'), { fields: OS_FIELDS }),
+  android: nd('android', 'os', 'Android', '#34d399', '<path fill="currentColor" stroke="none" fill-rule="evenodd" d="M17.6 9.5l1.8-3.1a.5.5 0 1 0-.86-.5L16.6 9.2a10 10 0 0 0-9.2 0L5.46 5.9a.5.5 0 1 0-.86.5l1.8 3.1A10 10 0 0 0 3 17h18a10 10 0 0 0-3.4-7.5zM9.5 14a1.25 1.25 0 1 1 0-2.5A1.25 1.25 0 0 1 9.5 14zm5 0a1.25 1.25 0 1 1 0-2.5A1.25 1.25 0 0 1 14.5 14z"/>',
+    sides('eth', 'ETH'), { fields: OS_FIELDS }),
+  ios: nd('ios', 'os', 'iOS', '#94a3b8', '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+    sides('eth', 'ETH'), { fields: OS_FIELDS }),
+  ubuntu: nd('ubuntu', 'os', 'Ubuntu', '#fb923c', '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="4.8" r="1.8"/><circle cx="5.7" cy="15.4" r="1.8"/><circle cx="18.3" cy="15.4" r="1.8"/>',
+    sides('eth', 'ETH'), { fields: OS_FIELDS }),
+  debian: nd('debian', 'os', 'Debian', '#f43f5e', '<path d="M12 12a8.5 8.5 0 1 1 8.5-8.5a5.5 5.5 0 1 1-5.5 5.5a2.5 2.5 0 1 1 2.5-2.5"/>',
+    sides('eth', 'ETH'), { fields: OS_FIELDS }),
+  alpine: nd('alpine', 'os', 'Alpine Linux', '#38bdf8', '<path d="m3 18 6-10 2 3.5L13 8l8 10z"/><path d="M8 18h10"/>',
+    sides('eth', 'ETH'), { fields: OS_FIELDS }),
+  // ---- Facilities ----
+  // Physical locations and access control for architecture and security
+  // diagrams (buildings, perimeter, cameras). Original Lucide-style glyphs.
+  building: nd('building', 'facilities', 'Building', '#f59e0b', '<rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01"/>',
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
+  datacenter: nd('datacenter', 'facilities', 'Data center', '#f59e0b', '<path d="M4 21V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16"/><path d="M2 21h20"/><path d="M7 9h.01M11 9h.01M15 9h.01M7 13h.01M11 13h.01M15 13h.01M7 17h.01M11 17h.01"/>',
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
+  factory: nd('factory', 'facilities', 'Factory', '#f59e0b', '<path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/><path d="M17 18h1M12 18h1M7 18h1"/>',
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
+  warehouse: nd('warehouse', 'facilities', 'Warehouse', '#f59e0b', '<path d="M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35A2 2 0 0 1 3.26 6.5l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z"/><path d="M6 18h12"/><path d="M6 14h12"/><rect width="12" height="12" x="6" y="10"/>',
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
+  rack: nd('rack', 'facilities', 'Server rack', '#f59e0b', '<rect x="3" y="3" width="18" height="6" rx="1"/><rect x="3" y="15" width="18" height="6" rx="1"/><path d="M7 6h.01M7 18h.01M11 6h.01M11 18h.01"/>',
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
+  cctv: nd('cctv', 'facilities', 'Surveillance camera', '#f59e0b', '<path d="M7 9a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2z"/><path d="M8 9V5h6v4"/><path d="M8 21v-2"/><path d="M14 13h.01"/>',
+    [p('net', 'NET', 'right', 0.5, 'eth')]),
+  door: nd('door', 'facilities', 'Access door', '#f59e0b', '<path d="M6 21V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v16"/><path d="M2 21h20"/><circle cx="13.5" cy="12" r="1.5"/>',
+    []),
+  badge: nd('badge', 'facilities', 'Access badge', '#f59e0b', '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="11" r="2"/><path d="M13 12h6M13 15h4"/>',
+    []),
+  // ---- Servers, services and controls for CVE analysis ----
+  // The affected component in a finding is a real deployment unit (a web
+  // server, a library, a kernel), not a generic box; these give those units
+  // recognizable shapes. Mitigations map to controls (SIEM, VPN, HSM, IDS).
+  webserver: nd('webserver', 'security', 'Web server', '#f87171', '<rect x="2" y="3" width="20" height="7" rx="1"/><rect x="2" y="14" width="20" height="7" rx="1"/><path d="M6 6.5h.01M6 17.5h.01M16 6.5l-3 2 3 2"/>',
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
+  appserver: nd('appserver', 'security', 'Application server', '#fb7185', '<rect x="2" y="3" width="20" height="7" rx="1"/><rect x="2" y="14" width="20" height="7" rx="1"/><path d="M6 6.5h.01M6 17.5h.01M8 17.5l2-1.5-2-1.5M14 17.5l-2-1.5 2-1.5"/>',
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
+  dnsserver: nd('dnsserver', 'network', 'DNS server', '#818cf8', '<rect x="2" y="3" width="20" height="7" rx="1"/><rect x="2" y="14" width="20" height="7" rx="1"/><path d="M6 6.5h.01M6 17.5h.01M16 17l2-2-2-2M16 17l-2-2 2-2"/>',
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
+  mailserver: nd('mailserver', 'network', 'Mail server', '#a78bfa', '<rect x="2" y="3" width="20" height="7" rx="1"/><rect x="2" y="14" width="20" height="7" rx="1"/><path d="M4 16l4-3 4 3 4-3 4 3"/><path d="M6 6.5h.01"/>',
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
+  container: nd('container', 'system', 'Container', '#2dd4bf', '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/>',
+    sides('eth', 'ETH'), { fields: OS_FIELDS }),
+  vm: nd('vm', 'system', 'Virtual machine', '#67e8f9', '<rect x="3" y="3" width="18" height="18" rx="1"/><path d="M7 7h10v10H7z"/><path d="M7 17l4-6 2 3 2-2"/>',
+    sides('eth', 'ETH'), { fields: OS_FIELDS }),
+  kubernetes: nd('kubernetes', 'system', 'Kubernetes cluster', '#38bdf8', '<path d="M12 2 20 6.5v11L12 22 4 17.5v-11z"/><circle cx="12" cy="12" r="2.5"/><path d="M12 9.5V4M12 14.5V20M9.5 12H4M14.5 12H20"/>',
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
+  package: nd('package', 'system', 'Software package', '#f472b6', '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
+    sides('link', 'LINK'), { fields: [VERSION] }),
+  kernel: nd('kernel', 'system', 'Kernel / driver', '#f97316', '<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/>',
+    sides('link', 'LINK'), { fields: [VERSION] }),
+  daemon: nd('daemon', 'system', 'Service / daemon', '#94a3b8', '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/>',
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
+  queue: nd('queue', 'system', 'Message queue', '#e879f9', '<path d="M3 7h18v11H3z"/><path d="m3 8 9 6 9-6"/><path d="M12 3v3M12 20v2"/>',
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
+  cache: nd('cache', 'system', 'Cache', '#fbbf24', '<path d="M13 2 4 14h6l-1 8 9-12h-6z"/>',
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
+  siem: nd('siem', 'security', 'SIEM', '#f43f5e', '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M8 13l3-3 3 2 3-4"/>',
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
+  idsips: nd('idsips', 'security', 'IDS / IPS', '#fb7185', '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M8 13h2M12 13h2M14 10l2 6"/>',
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
+  vpn: nd('vpn', 'security', 'VPN gateway', '#38bdf8', '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8 7l8 9"/><rect x="8.5" y="9" width="6" height="7" rx="1"/><path d="M10.5 9V7a1.5 1.5 0 0 1 3 0v2"/>',
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
+  hsm: nd('hsm', 'security', 'HSM', '#eab308', '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><circle cx="9.5" cy="11.5" r="2"/><path d="M11 12.5 15 16"/>',
+    sides('eth', 'ETH'), { fields: NET_FIELDS }),
 };
 
 export function getPart(kind) {

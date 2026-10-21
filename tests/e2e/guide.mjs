@@ -27,6 +27,6 @@ export async function runGuideChecks({ send, js, check, origin, sleep }) {
   await js(`document.getElementById('guide-part-search').scrollIntoView(); true`);
   check('narrow guide keeps icons and explanations within the viewport', await js(`document.documentElement.scrollWidth <= innerWidth + 1 && [...document.querySelectorAll('.guide-control')].every(el => el.getBoundingClientRect().right <= innerWidth + 1)`));
   await js(`document.getElementById('btn-lang').click(); document.getElementById('guide-part-search').value = ''; document.getElementById('guide-part-search').dispatchEvent(new Event('input')); true`);
-  check('clearing search restores all palette categories and English descriptions', await js(`document.querySelectorAll('.guide-category').length === 13 && document.querySelectorAll('[data-guide-part]').length === 107 && document.getElementById('toolbar-reference').textContent.includes('Select / move')`));
+  check('clearing search restores all palette categories and English descriptions', await js(`(async () => { const { CATEGORIES, PARTS } = await import('/src/palette.js'); return document.querySelectorAll('.guide-category').length === CATEGORIES.length && document.querySelectorAll('[data-guide-part]').length === Object.keys(PARTS).length && document.getElementById('toolbar-reference').textContent.includes('Select / move'); })()`));
   await send('Emulation.clearDeviceMetricsOverride');
 }
