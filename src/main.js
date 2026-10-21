@@ -32,6 +32,7 @@ import { initRecording } from './ui/recording-ui.js';
 import { initLayoutToggles } from './ui/panels.js';
 import { initShortcuts } from './ui/shortcuts-ui.js';
 import { initAssistant } from './ui/assistant-ui.js';
+import { initIncidentReplay } from './ui/incident-replay.js';
 import { initI18n, onLanguageChange, tr } from './i18n.js';
 import { translateStatic, initLanguageSwitch } from './ui/i18n-dom.js';
 
@@ -266,7 +267,8 @@ initTeamReview({navigation});
 initOnboarding({ store, navigation, revisions, engineering: engineeringUI, tools, connections });
 const recorder = initRecording({ svg, store });
 const journeyUI = initJourney({ svg, store, tools, render, recorder, propsPanel });
-initExamplesMenu({ store });
+const incidentReplay = initIncidentReplay({ svg, store, tools, render });
+initExamplesMenu({ store, onIncident: () => incidentReplay.pickIncidentFile() });
 initLayoutToggles();
 initShortcuts();
 const aiSettings = createSettings(storage);

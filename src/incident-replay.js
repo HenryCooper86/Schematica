@@ -1,0 +1,214 @@
+// Reconstruct a replayable attack chain from a log of timestamped actions.
+// The input is an "incident log": a JSON object (or a bare array) of actions,
+// each with a timestamp, an actor, an action, and optionally a target, note,
+// phase and trust-boundary. Reconstruction clusters near-identical actions into
+// ordered steps, groups them into phases, draws an editable board (actors and
+// targets wired together, trust boundaries as zones), and produces a journey
+// whose chapters are phases and whose stops are the chronological steps. The
+// existing presentation player then replays it like the incident reference.
+import { newDoc, uid } from './state.js';
+import { applyEdits, MAX_OPS } from './ai/ops.js';
+import { placeNew } from './ai/layout.js';
+import { resolveStep } from './journey.js';
+
+// Consecutive near-identical actions within this window collapse into one step.
+export const CLUSTER_WINDOW_MS = 5 * 60 * 1000;
+const DEFAULT_KIND = 'process';
+const ZONE_COLOR = '#f59e0b';
+const DISCLAIMER = 'Reconstructed from a log. Steps are what the log recorded, not independent proof of execution.';
+
+function text(value) { return String(value ?? '').trim(); }
+
+function timeLabel(ts) {
+  const d = new Date(ts);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${mm}-${dd} ${hh}:${mi}`;
+}
+
+export function parseIncidentLog(input) {
+  let data;
+  try {
+    data = typeof input === 'string' ? JSON.parse(input) : input;
+  } catch {
+    throw Error('The incident log is not valid JSON.');
+  }
+  const rawActions = Array.isArray(data) ? data : (data && data.actions);
+  if (!Array.isArray(rawActions) || !rawActions.length) {
+    throw Error('The incident log has no actions. Expect {"actions": [{"ts", "actor", "action", ...}]}.');
+  }
+  const actions = rawActions.map((entry, i) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw Error(`Action ${i + 1} is not an object.`);
+    const ts = Date.parse(text(entry.ts || entry.time || entry.timestamp));
+    if (!Number.isFinite(ts)) throw Error(`Action ${i + 1} has no valid timestamp.`);
+    const actor = text(entry.actor || entry.from) || 'actor';
+    const action = text(entry.action || entry.event || entry.type) || 'action';
+    return {
+      ts, actor, action,
+      target: text(entry.target || entry.to || entry.dest),
+      note: text(entry.note || entry.detail || entry.description),
+      phase: text(entry.phase),
+      boundary: text(entry.boundary),
+      kind: text(entry.kind),
+    };
+  }).sort((a, b) => a.ts - b.ts);
+  const incident = text(data && !Array.isArray(data) ? (data.incident || data.title) : '');
+  const boundaries = (data && !Array.isArray(data) && Array.isArray(data.trustBoundaries))
+    ? data.trustBoundaries.map((b, i) => ({ id: text(b && b.id) || `zone-${i + 1}`, name: text(b && b.name) || `Boundary ${i + 1}` }))
+    : [];
+  const nodeKinds = (data && !Array.isArray(data) && data.nodes && typeof data.nodes === 'object') ? data.nodes : {};
+  return { incident, actions, boundaries, nodeKinds };
+}
+
+export function reconstructIncident(parsed) {
+  const { incident, actions, boundaries, nodeKinds } = parsed;
+
+  // Cluster near-identical consecutive actions into one ordered step.
+  const steps = [];
+  for (const action of actions) {
+    const last = steps[steps.length - 1];
+    const phase = action.phase || action.action;
+    if (last && last.phase === phase && last.actor === action.actor && last.action === action.action
+      && last.target === action.target && action.ts - last.lastTs <= CLUSTER_WINDOW_MS) {
+      last.lastTs = action.ts;
+      last.count += 1;
+      if (action.note && !last.note) last.note = action.note;
+    } else {
+      steps.push({
+        ts: action.ts, lastTs: action.ts, actor: action.actor, action: action.action,
+        target: action.target, note: action.note, phase, boundary: action.boundary,
+        kind: action.kind, count: 1,
+      });
+    }
+  }
+
+  // Phases in order of first appearance, with per-phase timing and volume.
+  const phaseNames = [];
+  const phaseSet = new Set();
+  for (const step of steps) if (!phaseSet.has(step.phase)) { phaseSet.add(step.phase); phaseNames.push(step.phase); }
+  const phases = phaseNames.map((name) => {
+    const owned = steps.filter((s) => s.phase === name);
+    return {
+      name,
+      firstSeen: Math.min(...owned.map((s) => s.ts)),
+      lastSeen: Math.max(...owned.map((s) => s.lastTs)),
+      count: owned.reduce((sum, s) => sum + s.count, 0),
+    };
+  });
+
+  // Unique actors and targets, with an optional kind hint from the log.
+  const names = []; // display names, in first-seen order
+  const kinds = new Map(); // name -> palette kind
+  for (const step of steps) {
+    for (const name of [step.actor, step.target]) {
+      if (!name || kinds.has(name)) continue;
+      kinds.set(name, step.kind || nodeKinds[name] || DEFAULT_KIND);
+      names.push(name);
+    }
+  }
+  const refOf = new Map(names.map((name, i) => [name, `n${i}`]));
+
+  const doc = newDoc(incident || 'Incident');
+  const ops = [];
+  for (const name of names) {
+    ops.push({ op: 'add_part', ref: refOf.get(name), kind: kinds.get(name), label: name });
+  }
+
+  // Trust boundaries become zones around the nodes the log assigns to them.
+  const boundaryId = new Set(boundaries.map((b) => b.id));
+  const zoneMembers = new Map(); // boundary id -> [node refs]
+  for (const step of steps) {
+    const nodeName = step.target || step.actor;
+    if (!step.boundary || !boundaryId.has(step.boundary) || !nodeName || !refOf.has(nodeName)) continue;
+    if (!zoneMembers.has(step.boundary)) zoneMembers.set(step.boundary, []);
+    zoneMembers.get(step.boundary).push(refOf.get(nodeName));
+  }
+  for (const boundary of boundaries) {
+    const members = [...new Set(zoneMembers.get(boundary.id) || [])];
+    if (!members.length) continue;
+    ops.push({ op: 'add_zone', ref: `z${boundary.id}`, label: boundary.name, color: ZONE_COLOR, members });
+  }
+
+  // One directed wire per unique actor -> target edge, labelled by the first action.
+  const edges = new Map();
+  for (const step of steps) {
+    if (!step.target || !step.actor || step.actor === step.target) continue;
+    const key = `${step.actor}\u0000${step.target}`;
+    if (!edges.has(key)) edges.set(key, step.action);
+  }
+  for (const [key, action] of edges) {
+    const [actor, target] = key.split('\u0000');
+    ops.push({
+      op: 'connect',
+      from: { node: refOf.get(actor) },
+      to: { node: refOf.get(target) },
+      bus: 'flow', arrow: 'fwd', label: action,
+    });
+  }
+
+  // Apply atomically in bounded batches, translating refs into real ids as
+  // earlier batches create them. The whole reconstruction fails (board
+  // untouched) if any batch is rejected.
+  const snapshot = JSON.parse(JSON.stringify(doc));
+  const refToId = {};
+  const idOf = (name) => refToId[refOf.get(name)] ?? null;
+  const translate = (op) => {
+    const resolve = (ref) => refToId[ref] ?? ref;
+    if (op.op === 'add_zone') return { ...op, members: op.members.map(resolve) };
+    if (op.op === 'connect') {
+      return { ...op, from: { ...op.from, node: resolve(op.from.node) }, to: { ...op.to, node: resolve(op.to.node) } };
+    }
+    return op;
+  };
+  try {
+    for (let i = 0; i < ops.length; i += MAX_OPS) {
+      const batch = ops.slice(i, i + MAX_OPS).map(translate);
+      const result = applyEdits(doc, batch);
+      if (!result.ok) {
+        throw Error(`Incident reconstruction rejected: ${result.errors.map((e) => `#${e.index}: ${e.message}`).join('; ')}`);
+      }
+      Object.assign(refToId, result.refs);
+      placeNew(doc, result.layout);
+    }
+    const disclaimer = doc.notes.find((note) => note.text.startsWith(DISCLAIMER));
+    if (!disclaimer && names.length) {
+      const anchor = idOf(names[0]);
+      if (anchor) {
+        const result = applyEdits(doc, [{ op: 'add_note', ref: 'd', near: anchor, text: `${DISCLAIMER} ${incident || ''}`.trim() }]);
+        if (result.ok) { Object.assign(refToId, result.refs); placeNew(doc, result.layout); }
+      }
+    }
+  } catch (error) {
+    Object.assign(doc, snapshot);
+    throw error;
+  }
+
+  // Build the journey: a chapter per phase, stops in chronological order.
+  const stopCaption = (step) => {
+    const parts = [timeLabel(step.ts)];
+    parts.push(step.actor ? (step.target ? `${step.actor} → ${step.target}` : step.actor) : step.action);
+    parts.push(step.action);
+    if (step.count > 1) parts.push(`×${step.count}`);
+    if (step.note) parts.push(step.note);
+    return parts.join(' · ');
+  };
+  const timeline = steps.map((step) => ({ ...step, node: idOf(step.target || step.actor) }));
+  for (const phase of phaseNames) {
+    const owned = steps.filter((s) => s.phase === phase);
+    const nodes = [...new Set(owned.map((s) => idOf(s.target || s.actor)).filter(Boolean))];
+    const chapter = {
+      id: uid('j'),
+      label: `Phase: ${phase}`,
+      caption: `${phase} — ${owned.reduce((sum, s) => sum + s.count, 0)} logged action(s).`,
+      view: { cx: 0, cy: 0, zoom: 1 },
+      stops: owned.map((step) => ({ id: uid('s'), node: idOf(step.target || step.actor), caption: stopCaption(step) })),
+      targets: { nodes, wires: [] },
+    };
+    chapter.view = resolveStep(doc, chapter).view;
+    doc.journey.push(chapter);
+  }
+
+  return { doc, timeline, phases };
+}
