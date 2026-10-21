@@ -43,9 +43,9 @@ export async function runPanelMovementChecks({ js, check, send, key, drag, click
   const malformed = await js(`(() => {
     const p = document.getElementById('assistant').getBoundingClientRect();
     const h = document.querySelector('#assistant h3').getBoundingClientRect();
-    return { fixed: getComputedStyle(document.getElementById('assistant')).position, inViewport: p.left >= 0 && p.right <= innerWidth + 1 && p.top >= 0 && p.bottom <= innerHeight + 1, headerReachable: h.top >= 0 && h.bottom <= innerHeight + 1 && h.left >= 0 && h.left < innerWidth };
+    return { inViewport: p.left >= 0 && p.right <= innerWidth + 1 && p.top >= 0 && p.bottom <= innerHeight + 1, headerReachable: h.top >= 0 && h.bottom <= innerHeight + 1 && h.left >= 0 && h.left < innerWidth };
   })()`);
-  check('a malformed stored position opens the assistant at a reachable default instead of breaking it', malformed.fixed === 'fixed' && malformed.inViewport && malformed.headerReachable, JSON.stringify(malformed));
+  check('a malformed stored position opens the assistant at a reachable default instead of breaking it', malformed.inViewport && malformed.headerReachable, JSON.stringify(malformed));
 
   // ---- Dragging the header moves the panel over the palette without pan ----
   const start = await pos(ASSISTANT);

@@ -46,10 +46,15 @@ export function raisePanel(panel) {
 
 export function makePanelDraggable(panel, name) {
   let pos = readPos(name);
+  let moved = pos !== null; // a remembered position was the user's choice
   let handle = null;
   let cancelDrag = null;
-  // Keep a placed panel reachable: enough header for both its controls and a
-  // drag grip stays inside the viewport whatever the window did.
+  // A panel stays at its stylesheet anchor (position: absolute inside the
+  // canvas area) until the user moves it, so it keeps re-anchoring to the
+  // viewport exactly as before on resize and narrow screens. The first drag
+  // freezes it to viewport (position: fixed) coordinates; after that it keeps
+  // the reach-grip rule: it may sit mostly off-screen, but enough header stays
+  // grabbable whatever the window does.
   function clamped(x, y) {
     const pw = panel.offsetWidth || 0;
     const vw = window.innerWidth;
@@ -78,18 +83,12 @@ export function makePanelDraggable(panel, name) {
     if (remember) writePos(name, pos.x, pos.y);
   }
 
-  // Called each time the panel becomes visible. The first open freezes the
-  // position the stylesheet laid out (the panel still sits at its absolute
-  // anchor, so the default is exactly where it has always appeared); later
-  // opens restore the remembered position, clamped to the viewport of the
-  // moment so a shrunken window cannot strand the panel off screen.
+  // Called each time the panel becomes visible. An unmoved panel keeps its
+  // stylesheet anchor, so nothing to do. A moved panel is pulled back to a
+  // reachable spot in case the window shrank while it was closed.
   function ensure() {
-    if (pos) { settle(pos.x, pos.y, false); return; }
-    const r = panel.getBoundingClientRect();
-    // A panel that is shown but suppressed by a rule (presenting) has no
-    // layout yet; it keeps its stylesheet anchor until a later open can
-    // measure a real one.
-    if (r.width || r.height) settle(r.left, r.top, false);
+    if (!pos) return;
+    settle(pos.x, pos.y, false);
   }
 
   function onPointerDown(e) {
@@ -99,8 +98,13 @@ export function makePanelDraggable(panel, name) {
     // bar around them is the handle.
     if (e.target.closest('button, input, select, textarea, a, label, summary')) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    if (!pos) ensure();
-    if (!pos) return;
+    if (!pos) {
+      // First move: freeze the stylesheet position into viewport coordinates
+      // so the panel can now cross the palette and toolbar freely.
+      const r = panel.getBoundingClientRect();
+      if (!r.width && !r.height) return;
+      place(r.left, r.top);
+    }
     raisePanel(panel);
     h.focus({ preventScroll: true });
     const start = { x: e.clientX, y: e.clientY, left: pos.x, top: pos.y };
@@ -125,6 +129,7 @@ export function makePanelDraggable(panel, name) {
       h.removeEventListener('lostpointercapture', end);
       cancelDrag = null;
       if (h.hasPointerCapture(pointerId)) h.releasePointerCapture(pointerId);
+      moved = true;
       writePos(name, pos.x, pos.y);
     };
     cancelDrag = end;
@@ -146,11 +151,15 @@ export function makePanelDraggable(panel, name) {
     else if (e.key === 'ArrowUp') dy = -step;
     else if (e.key === 'ArrowDown') dy = step;
     else return;
-    if (!pos) ensure();
-    if (!pos) return;
+    if (!pos) {
+      const r = panel.getBoundingClientRect();
+      if (!r.width && !r.height) return;
+      place(r.left, r.top);
+    }
     e.preventDefault();
     e.stopPropagation();
     raisePanel(panel);
+    moved = true;
     settle(pos.x + dx, pos.y + dy, true);
   }
 
