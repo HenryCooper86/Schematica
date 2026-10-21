@@ -13,9 +13,9 @@
 // The app reads zone membership geometrically (a card inside the rectangle is
 // a member), so after placement a pass moves any generated card the zone does
 // not contain clear of the zone rectangle: the picture can never show
-// containment the analysis did not declare. The builder reuses the
-// assistant's own applyEdits + placeNew pipeline, so unrelated board content
-// keeps its items and coordinates. Illustrations only append: an earlier
+// containment the analysis did not declare. The builder reuses the assistant's
+// atomic applyEdits pipeline, then lays out only the generated items by directed
+// layers. Unrelated board content keeps its items and coordinates. Each earlier
 // illustration stays for Undo or manual deletion, each build appends an
 // illustration record (view, chapter, per-finding targets) to the analysis so
 // walkthroughs can resolve the newest build of a view even when it made no
@@ -26,10 +26,11 @@
 // analysis's reading, not a deployment.
 import { validateSecurityAnalysis, SECURITY_ANALYSIS_SCHEMA } from './security-analysis.js';
 import { applyEdits, MAX_OPS } from './ai/ops.js';
-import { placeNew, COL_GAP, ROW_GAP } from './ai/layout.js';
+import { fitZone, COL_GAP, ROW_GAP } from './ai/layout.js';
 import { resolveStep } from './journey.js';
 import { uid } from './state.js';
-import { nodeRect, rectsIntersect, snap, NOTE_W, noteHeight } from './geometry.js';
+import { MAX_TEXT } from './serialize.js';
+import { nodeRect, rectsIntersect, snap, NOTE_W, noteHeight, contentBounds } from './geometry.js';
 
 export const SECURITY_ILLUSTRATION_VIEWS = ['architecture', 'exploit', 'mitigation'];
 
@@ -69,6 +70,10 @@ const ILLUSTRATION_RECORD_CAP = SECURITY_ANALYSIS_SCHEMA.properties.illustration
 // collide on connect's duplicate check.
 const SIDES = ['e', 's', 'w', 'n'];
 const LANES = SIDES.length * SIDES.length;
+const DOWN_PORTS = ['s', 'e', 'w', 'n'];
+const UP_PORTS = ['n', 'w', 'e', 's'];
+const RIGHT_PORTS = ['e', 's', 'n', 'w'];
+const LEFT_PORTS = ['w', 'n', 's', 'e'];
 const DISCLAIMER = 'Static-analysis illustration: [source] items cite retained source lines, [inference] items are model conclusions, [unknown] items lack evidence. Nothing here was executed, and this is not a confirmed deployment architecture.';
 
 function ensureDoc(doc) {
@@ -125,10 +130,65 @@ function walkthroughCaption(view) {
   return `${VIEW_TITLES[view]} walkthrough. ${DISCLAIMER}`;
 }
 
+// Collapse cycles before assigning directed layers. A cycle remains a visible
+// group, not an invented sequence; independent findings retain source order.
+function findingLayers(findings, relationships) {
+  const edges = new Map(findings.map(finding => [finding.id, new Set()]));
+  for (const relation of relationships) {
+    if (edges.has(relation.from) && edges.has(relation.to)) edges.get(relation.from).add(relation.to);
+  }
+  const indices = new Map(), low = new Map(), stack = [], active = new Set();
+  const componentOf = new Map(), components = [];
+  let index = 0;
+  const visit = id => {
+    indices.set(id, index);
+    low.set(id, index++);
+    stack.push(id);
+    active.add(id);
+    for (const next of edges.get(id)) {
+      if (!indices.has(next)) {
+        visit(next);
+        low.set(id, Math.min(low.get(id), low.get(next)));
+      } else if (active.has(next)) {
+        low.set(id, Math.min(low.get(id), indices.get(next)));
+      }
+    }
+    if (low.get(id) !== indices.get(id)) return;
+    const component = [];
+    let member;
+    do {
+      member = stack.pop();
+      active.delete(member);
+      componentOf.set(member, components.length);
+      component.push(member);
+    } while (member !== id);
+    components.push(component);
+  };
+  for (const finding of findings) if (!indices.has(finding.id)) visit(finding.id);
+  const outgoing = components.map(() => new Set());
+  const incoming = components.map(() => 0), layers = components.map(() => 0);
+  for (const [from, destinations] of edges) for (const to of destinations) {
+    const a = componentOf.get(from), b = componentOf.get(to);
+    if (a === b || outgoing[a].has(b)) continue;
+    outgoing[a].add(b);
+    incoming[b]++;
+  }
+  const ready = [];
+  incoming.forEach((count, id) => { if (!count) ready.push(id); });
+  for (let cursor = 0; cursor < ready.length; cursor++) {
+    const id = ready[cursor];
+    for (const next of outgoing[id]) {
+      layers[next] = Math.max(layers[next], layers[id] + 1);
+      if (--incoming[next] === 0) ready.push(next);
+    }
+  }
+  return new Map(findings.map(finding => [finding.id, layers[componentOf.get(finding.id)]]));
+}
+
 // What the view draws: its own findings plus both endpoints of every
 // relationship stated for the view (a relationship's view says where its edge
-// belongs, even when an endpoint finding is placed elsewhere). Order is the
-// analysis's own order; only the sequence views number the cards.
+// belongs, even when an endpoint finding is placed elsewhere). Directed layers
+// give the walkthrough a causal reading order without adding relationships.
 function planIncluded(analysis, view) {
   const rels = analysis.relationships.filter((r) => r.view === view);
   const endpoints = new Set();
@@ -137,11 +197,16 @@ function planIncluded(analysis, view) {
     endpoints.add(r.to);
   }
   const included = analysis.findings.filter((f) => f.view === view || endpoints.has(f.id));
+  const layers = findingLayers(included, rels);
+  included.sort((a, b) => layers.get(a.id) - layers.get(b.id));
   const cards = included.filter((f) => Object.hasOwn(FINDING_PARTS, f.kind));
   let n = 0;
   const order = new Map();
-  for (const finding of cards) order.set(finding.id, view === 'architecture' ? 0 : ++n);
-  return { included, cards, order, rels };
+  for (const finding of cards) {
+    const numbered = view === 'exploit' ? finding.kind === 'step' : view === 'mitigation' && finding.kind === 'mitigation';
+    order.set(finding.id, numbered ? ++n : 0);
+  }
+  return { included, cards, order, rels, layers };
 }
 
 // The default walkthrough view follows what was actually illustrated, newest
@@ -179,8 +244,7 @@ export function buildSecurityWalkthrough(doc, analysis, options = {}) {
     throw Error(`Unknown walkthrough view "${opts.view}"; use one of ${SECURITY_ILLUSTRATION_VIEWS.join(', ')}.`);
   }
   const view = opts.view ?? pickView(valid, doc);
-  const numbered = view !== 'architecture';
-  const { included } = planIncluded(valid, view);
+  const { included, order } = planIncluded(valid, view);
   const nodeIds = new Set((doc.nodes || []).map((n) => n.id));
   const boardIds = new Set([
     ...(doc.nodes || []).map((n) => n.id), ...(doc.wires || []).map((w) => w.id),
@@ -225,7 +289,6 @@ export function buildSecurityWalkthrough(doc, analysis, options = {}) {
   };
 
   const names = new Map(valid.sources.map((s) => [s.id, s.name]));
-  let n = 0;
   const stops = [];
   const missing = [];
   for (const finding of included) {
@@ -236,13 +299,12 @@ export function buildSecurityWalkthrough(doc, analysis, options = {}) {
     }
     const node = Object.hasOwn(FINDING_PARTS, finding.kind) ? live.find((id) => nodeIds.has(id)) : null;
     if (!node) continue; // illustrated as a zone, a note, or a boundary card: not a walkthrough stop
-    if (numbered) n += 1;
     stops.push({
       node,
       findingId: finding.id,
       title: finding.title,
       basis: finding.basis,
-      caption: stopCaption(valid, finding, numbered ? n : 0),
+      caption: stopCaption(valid, finding, order.get(finding.id)),
       evidence: finding.evidence.map((ref) => ({
         sourceId: ref.sourceId, name: names.get(ref.sourceId) ?? ref.sourceId,
         startLine: ref.startLine, endLine: ref.endLine,
@@ -328,6 +390,72 @@ function keepClearOfZones(doc, nodeIds, noteIds, membersOfZone) {
   throw Error('Could not place the security illustration without undeclared containment; the board was left unchanged.');
 }
 
+// The generic assistant placer is hub-oriented. Security views instead follow
+// the stated directed graph, top to bottom, with branching findings side by
+// side. Only this build moves; old boards and illustrations remain untouched.
+function placeIllustration(doc, snapshot, nodesByFinding, layers, noteIds, zones) {
+  const existing = contentBounds(snapshot);
+  const originX = existing ? Math.ceil((existing.x + existing.w + COL_GAP) / 8) * 8 : 40;
+  const originY = existing ? Math.ceil(existing.y / 8) * 8 : 40;
+  const groups = new Map();
+  for (const [finding, node] of nodesByFinding) {
+    const layer = layers.get(finding) ?? 0;
+    if (!groups.has(layer)) groups.set(layer, []);
+    groups.get(layer).push(node);
+  }
+  let y = originY, right = originX;
+  for (const layer of [...groups.keys()].sort((a, b) => a - b)) {
+    const nodes = groups.get(layer);
+    for (let offset = 0; offset < nodes.length; offset += 3) {
+      const row = nodes.slice(offset, offset + 3);
+      let x = originX, height = 0;
+      for (const node of row) {
+        const size = nodeRect(node);
+        node.x = snap(x);
+        node.y = snap(y);
+        x = node.x + size.w + COL_GAP;
+        height = Math.max(height, size.h);
+        right = Math.max(right, node.x + size.w);
+      }
+      y = Math.ceil((y + height + 112) / 8) * 8;
+    }
+  }
+  for (const [zoneId, members] of zones) {
+    const zone = doc.zones.find(item => item.id === zoneId);
+    fitZone(doc, zone, [...members]);
+    right = Math.max(right, zone.x + zone.w);
+  }
+  // A domain moves as one block. Moving one of its members out of another
+  // domain would silently invalidate its own declared containment.
+  for (const [zoneId, members] of zones) {
+    const zone = doc.zones.find(item => item.id === zoneId);
+    const moving = doc.nodes.filter(node => members.has(node.id));
+    const obstacles = [
+      ...doc.nodes.filter(node => !members.has(node.id)).map(nodeRect),
+      ...doc.zones.filter(item => item.id !== zoneId),
+      ...snapshot.notes.map(note => ({ x: note.x, y: note.y, w: NOTE_W, h: noteHeight(note.text) })),
+    ];
+    for (let attempt = 0; attempt <= obstacles.length; attempt++) {
+      const hit = obstacles.find(box => rectsIntersect(zone, box));
+      if (!hit) break;
+      const dx = Math.ceil((hit.x + hit.w + COL_GAP - zone.x) / 8) * 8;
+      zone.x += dx;
+      for (const node of moving) node.x += dx;
+    }
+    if (obstacles.some(box => rectsIntersect(zone, box))) {
+      throw Error('Could not separate security domains while preserving declared membership.');
+    }
+    right = Math.max(right, zone.x + zone.w);
+  }
+  let noteY = originY;
+  for (const id of noteIds) {
+    const note = doc.notes.find(item => item.id === id);
+    note.x = Math.ceil((right + COL_GAP) / 8) * 8;
+    note.y = noteY;
+    noteY = Math.ceil((noteY + noteHeight(note.text) + ROW_GAP) / 8) * 8;
+  }
+}
+
 // Builds the editable illustration for one view on the board and returns the
 // same doc plus the updated analysis and the generated ids. Existing chapters,
 // stops, cards and wiring are preserved: the illustration is appended, and a
@@ -348,7 +476,7 @@ export function buildSecurityIllustration(doc, analysis, options = {}) {
   if (!SECURITY_ILLUSTRATION_VIEWS.includes(view)) {
     throw Error(`Unknown illustration view "${view}"; use one of ${SECURITY_ILLUSTRATION_VIEWS.join(', ')}.`);
   }
-  const { included, cards, order, rels } = planIncluded(valid, view);
+  const { included, cards, order, rels, layers } = planIncluded(valid, view);
   if (!included.length) throw Error(noFindingsMessage(valid, view));
 
   // Boundary membership is consumed from the contract's explicit
@@ -490,6 +618,17 @@ export function buildSecurityIllustration(doc, analysis, options = {}) {
     return isCardFinding(id) ? refFor.get(id) ?? null : null;
   };
 
+  // Metadata remains a note, never an invented attack stage. Preserve any
+  // relationship that cannot be a wire in one of its note endpoints instead.
+  const hasCard = id => isCardFinding(id) || (boundaryIds.has(id) && boundaryPlan.get(id).wired.length > 0);
+  const noteRelationships = new Map();
+  for (const relation of rels) {
+    if (hasCard(relation.from) && hasCard(relation.to)) continue;
+    const endpoint = hasCard(relation.from) ? relation.to : relation.from;
+    if (!noteRelationships.has(endpoint)) noteRelationships.set(endpoint, []);
+    noteRelationships.get(endpoint).push(relation);
+  }
+
   const zonePlan = new Map(); // zone ref -> [member refs]
   for (const finding of included) {
     if (finding.kind !== 'boundary' && !NOTE_KINDS.has(finding.kind)) continue;
@@ -539,6 +678,15 @@ export function buildSecurityIllustration(doc, analysis, options = {}) {
     const ref = nextRef();
     refFor.set(finding.id, ref);
     const op = { op: 'add_note', ref, text: noteText(valid, finding) };
+    for (const relation of noteRelationships.get(finding.id) || []) {
+      const from = findingById.get(relation.from), to = findingById.get(relation.to);
+      const refs = evidenceLines(valid, relation, 6);
+      op.text += `\nRelationship: ${from.title} → ${to.title}: ${relation.label} [${relation.basis}]`;
+      if (refs.length) op.text += `\nEvidence: ${refs.join('; ')}`;
+    }
+    if (op.text.length > MAX_TEXT) {
+      throw Error(`Security metadata exceeds the ${MAX_TEXT.toLocaleString('en-US')}-character board note limit; split the finding or its relationships before illustrating. The board was left unchanged.`);
+    }
     const anchor = (neighbors.get(finding.id) || []).find((id) => kindOf.has(id));
     if (anchor) op.near = cardRefOf(anchor);
     ops.push(op);
@@ -549,7 +697,7 @@ export function buildSecurityIllustration(doc, analysis, options = {}) {
   if (anchorRef) {
     ops.push({
       op: 'add_note', ref: nextRef(), near: anchorRef,
-      text: `${chapterMark(view)} ${VIEW_TITLES[view]} for ${viewTitle(valid)} — ${DISCLAIMER}`,
+      text: `${chapterMark(view)} ${viewTitle(valid)}\nStatic reading; not executed.\n[source] cited · [inference] inferred · [unknown] unassessed`,
     });
   }
 
@@ -587,8 +735,11 @@ export function buildSecurityIllustration(doc, analysis, options = {}) {
     const k = laneOf.get(key) || 0;
     laneOf.set(key, k + 1);
     const [lo, hi] = key.split('\u0000');
-    const portLo = SIDES[k % SIDES.length];
-    const portHi = SIDES[Math.floor(k / SIDES.length) % SIDES.length];
+    const loLayer = layers.get(lo), hiLayer = layers.get(hi);
+    const loPorts = loLayer === hiLayer ? RIGHT_PORTS : loLayer < hiLayer ? DOWN_PORTS : UP_PORTS;
+    const hiPorts = loLayer === hiLayer ? LEFT_PORTS : loLayer < hiLayer ? UP_PORTS : DOWN_PORTS;
+    const portLo = loPorts[k % SIDES.length];
+    const portHi = hiPorts[Math.floor(k / SIDES.length) % SIDES.length];
     const bothFlow = FLOW_SIDED.has(kindOf.get(r.from)) && FLOW_SIDED.has(kindOf.get(r.to));
     ops.push({
       op: 'connect',
@@ -625,7 +776,6 @@ export function buildSecurityIllustration(doc, analysis, options = {}) {
       throw Error(`Security illustration rejected, board unchanged: ${res.errors.map((e) => `#${e.index}: ${e.message}`).join('; ')}`);
     }
     refToId = { ...refToId, ...res.refs };
-    placeNew(doc, res.layout);
   };
   if (ops.length <= MAX_OPS) {
     runBatch(ops);
@@ -650,7 +800,22 @@ export function buildSecurityIllustration(doc, analysis, options = {}) {
     .filter(Boolean);
   const generatedNoteIds = doc.notes.filter(note => generated.has(note.id)).map(note => note.id);
   try {
+    const nodesByFinding = new Map([...kindOf.keys()].map(finding => [
+      finding, doc.nodes.find(node => node.id === refToId[boundaryCardRef.get(finding) ?? refFor.get(finding)]),
+    ]).filter(([, node]) => node));
+    placeIllustration(doc, snapshot, nodesByFinding, layers, generatedNoteIds, zoneMembersById);
     keepClearOfZones(doc, generatedNodeIds, generatedNoteIds, zoneMembersById);
+    for (const [zoneId, members] of zoneMembersById) {
+      const zone = doc.zones.find(item => item.id === zoneId);
+      for (const node of doc.nodes) {
+        const rect = nodeRect(node);
+        const inside = rect.x >= zone.x && rect.y >= zone.y
+          && rect.x + rect.w <= zone.x + zone.w && rect.y + rect.h <= zone.y + zone.h;
+        if (members.has(node.id) ? !inside : rectsIntersect(rect, zone)) {
+          throw Error('Security domain placement contradicted declared membership; the board was left unchanged.');
+        }
+      }
+    }
   } catch (error) {
     Object.assign(doc, snapshot);
     throw error;

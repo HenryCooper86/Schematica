@@ -10,6 +10,7 @@ import { runGuideChecks } from './guide.mjs';
 import { runAssistantFocusChecks } from './assistant-focus.mjs';
 import { runAssistantHistoryChecks } from './assistant-history.mjs';
 import { runSecurityChecks } from './security.mjs';
+import { runPanelMovementChecks } from './panel-movement.mjs';
 import { runSkillChecks } from './assistant-skills.mjs';
 import { runWorkflowChecks } from './workflows.mjs';
 import { runPerformance } from './performance.mjs';
@@ -336,6 +337,8 @@ try {
     await runGuideChecks({ send, js, check, origin, sleep });
   } else if (process.env.SECURITY_E2E_ONLY) {
     await runSecurityChecks({ send, js, check, sleep, origin, capture: teamTools.capture });
+  } else if (process.env.PANELS_E2E_ONLY) {
+    await runPanelMovementChecks({ js, check, send, key, drag, click, center, mouse, sleep, waitFor });
   } else if (process.env.HISTORY_E2E_ONLY) {
     await send('Page.navigate', { url: 'about:blank' });
     await runAssistantHistoryChecks({ send, js, check, sleep, fakeSeen, capture: teamTools.capture, origin });
@@ -1475,6 +1478,7 @@ try {
   await runAssistantHistoryChecks({ send, js, check, sleep, fakeSeen, capture: teamTools.capture, origin });
   await runGuideChecks({ send, js, check, origin, sleep });
   await runSecurityChecks({ send, js, check, sleep, origin, capture: teamTools.capture });
+  await runPanelMovementChecks({ js, check, send, key, drag, click, center, mouse, sleep, waitFor });
   await runMediaReliabilityChecks({ js, check, sleep, send, origin });
   await runReliabilityChecks({ ...teamTools, send, origin, sleep });
   }

@@ -2,10 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   snap, nodeRect, nodeSize, nodeMeta, portPosition, wireGeom, wireGeomToPoint, curvePoint, wireLanes, WIRE_FAN,
-  rectsIntersect, normRect, wrapText, noteHeight, NOTE_W, contentBounds, textUnits,
+  rectsIntersect, normRect, wrapText, noteHeight, NOTE_W, contentBounds, textUnits, wireLabelRect, SHAPE_LINE_H,
+  measureShapeText,
 } from '../src/geometry.js';
 import { EXAMPLE_OVERLAYS_ZH } from '../src/examples.js';
 import { normalizePart, partOf } from '../src/custom.js';
+
+// nodeSize now also returns the wrapped label/meta lines render.js draws, so
+// sizing assertions compare only the box; the line fields get their own tests.
+const size = (node) => { const s = nodeSize(node); return { w: s.w, h: s.h }; };
 
 for (const side of ['top', 'bottom']) {
   test(`64 supported ${side} ports remain individually spaced on a custom card`, () => {
@@ -131,14 +136,88 @@ test('rect helpers', () => {
 // net_draw card sizing: 104x74 at minimum, wider for long labels (capped at
 // 240), 12.5px taller per meta line. Stored sizes are gone; nodeRect derives.
 test('nodeSize follows the content like net_draw', () => {
-  assert.deepEqual(nodeSize({ label: 'MCU' }), { w: 104, h: 74 });
-  assert.deepEqual(nodeSize({ label: 'MCU', sublabel: 'ESP32-S3', addr: '0x76' }), { w: 104, h: 99 });
-  assert.deepEqual(nodeSize({ label: 'MCU', sublabel: 'a', addr: 'b', rail: 'c' }), { w: 104, h: 111.5 });
-  assert.equal(nodeSize({ label: 'Flight controller unit' }).w, 22 * 6.8 + 24, 'label widens the card');
-  assert.equal(nodeSize({ label: 'x', sublabel: 'y'.repeat(20) }).w, 20 * 5.9 + 26, 'meta lines widen it too');
-  assert.equal(nodeSize({ label: 'x'.repeat(80) }).w, 240, 'width is capped');
+  assert.deepEqual(size({ label: 'MCU' }), { w: 104, h: 74 });
+  assert.deepEqual(size({ label: 'MCU', sublabel: 'ESP32-S3', addr: '0x76' }), { w: 104, h: 99 });
+  assert.deepEqual(size({ label: 'MCU', sublabel: 'a', addr: 'b', rail: 'c' }), { w: 104, h: 111.5 });
+  assert.equal(size({ label: 'Flight controller unit' }).w, 22 * 6.8 + 24, 'label widens the card');
+  assert.equal(size({ label: 'x', sublabel: 'y'.repeat(20) }).w, 20 * 5.9 + 26, 'meta lines widen it too');
+  assert.equal(size({ label: 'x'.repeat(80) }).w, 240, 'width is capped');
   assert.deepEqual(nodeMeta({ label: 'a', sublabel: ' ', addr: '0x1', rail: '' }), [{ field: 'addr', text: '0x1' }], 'blank meta lines are skipped');
   assert.deepEqual(nodeRect({ x: 10, y: 20, label: 'MCU' }), { x: 10, y: 20, w: 104, h: 74 });
+});
+
+// A long title wraps inside the 240px cap instead of spilling out: the width
+// stays capped, the card grows taller per wrapped line, and every wrapped
+// line fits the label's text area (24px padding, 6.8px per text unit).
+test('a long title wraps within the width cap and grows the card taller', () => {
+  const text = 'CVE-2026-31431 in-place AF_ALG AEAD leads to file corruption and root privilege escalation';
+  const s = nodeSize({ label: text });
+  assert.equal(s.w, 240, 'width stays capped');
+  assert.ok(s.h > 74, 'the card grows taller for the extra lines');
+  assert.ok(s.labelLines.length > 1, 'the title wraps onto more than one line');
+  assert.equal(s.labelLines.join(' '), text, 'full semantic text preserved');
+  for (const line of s.labelLines) assert.ok(textUnits(line) * 6.8 <= 240 - 24, `"${line}" fits the label area`);
+});
+
+test('a long unbroken identifier and a long CJK run wrap without losing characters', () => {
+  const idText = 'SUPERCALIFRAGILISTICEXPIALIDOCIOUS'.repeat(2);
+  const id = nodeSize({ label: idText });
+  assert.ok(id.labelLines.length > 1);
+  assert.equal(id.labelLines.join(''), idText, 'identifier preserved');
+  for (const line of id.labelLines) assert.ok(textUnits(line) * 6.8 <= 240 - 24, `"${line}" fits`);
+
+  const cjkText = '安全漏洞：原地操作使用不同的内存映射导致文件损坏并获得root权限'.repeat(2);
+  const cjk = nodeSize({ label: cjkText });
+  assert.ok(cjk.labelLines.length > 1, 'a long CJK title wraps too');
+  assert.equal(cjk.labelLines.join(''), cjkText, 'CJK characters preserved');
+  for (const line of cjk.labelLines) assert.ok(textUnits(line) * 6.8 <= 240 - 24, `"${line}" fits`);
+});
+
+test('long meta lines wrap too and push the card taller', () => {
+  const s = nodeSize({ label: 'V', sublabel: 'x'.repeat(50) });
+  assert.equal(s.w, 240, 'capped by the long sublabel');
+  const sub = s.metaLines.find((m) => m.field === 'sublabel');
+  assert.ok(sub.lines.length > 1, 'the sublabel wraps');
+  assert.equal(sub.lines.join(''), 'x'.repeat(50), 'full meta text preserved');
+  for (const line of sub.lines) assert.ok(textUnits(line) * 5.9 <= 240 - 26, `"${line}" fits the meta area`);
+  assert.ok(s.h >= 74 + 2 * 12.5, 'wrapped meta lines add height');
+});
+
+test('a wrapped label keeps its ports on the resulting taller card', () => {
+  const part = { name: 'C', category: 'misc', accent: null, icon: { text: 'C' }, ports: [{ id: 'p', name: 'P', side: 'left', bus: 'gpio', required: false }], fields: [] };
+  const node = { kind: 'custom', label: 'a'.repeat(80), part, x: 0, y: 0 };
+  const s = nodeSize(node);
+  assert.ok(s.h > 74, 'the wrapped label grows the card');
+  const rect = nodeRect(node);
+  const pos = portPosition(rect, { side: 'left', offset: 0.5 });
+  assert.equal(pos.y, rect.y + rect.h * 0.5, 'ports track the grown height');
+});
+
+test('a long wire label wraps into a bounded multiline pill with the full text', () => {
+  const geo = wireGeom({ x: 0, y: 0, w: 104, h: 74 }, { x: 600, y: 0, w: 104, h: 74 });
+  const text = 'in-place operation with different mappings leads to file corruption and root privilege escalation (per Red Hat) [source]';
+  const label = wireLabelRect({ bus: 'gpio', label: text }, geo, 0, []);
+  assert.ok(label.w <= 220, `pill bounded at ${label.w}`);
+  assert.ok(label.lines.length > 1, 'the description wraps');
+  assert.equal(label.lines.join(' '), text, 'full semantic text preserved');
+  assert.ok(label.h > 20, 'a wrapped pill is taller than a single line');
+  assert.ok(Math.abs((label.y + label.h / 2) - label.at.y) < 1e-9, 'the pill stays centered on its anchor point');
+});
+
+test('a short wire label keeps its exact single-line pill', () => {
+  const geo = wireGeom({ x: 0, y: 0, w: 104, h: 74 }, { x: 600, y: 0, w: 104, h: 74 });
+  const label = wireLabelRect({ bus: 'i2c', label: '' }, geo, 0, []);
+  assert.equal(label.lines.length, 1);
+  assert.equal(label.h, 20);
+  assert.equal(label.w, Math.round((textUnits('I2C') * 6.4 + 22) * 100) / 100);
+});
+
+test('a wrapped label avoids an obstacle using its full multiline height', () => {
+  const geo = wireGeom({ x: 0, y: 0, w: 104, h: 74 }, { x: 600, y: 0, w: 104, h: 74 });
+  const obstacle = { x: 200, y: -30, w: 60, h: 100 };
+  const label = wireLabelRect({ bus: 'gpio', label: 'a very long description that must wrap into several lines to stay readable' }, geo, 0, [obstacle]);
+  assert.ok(label.lines.length > 1);
+  assert.equal(rectsIntersect(label, obstacle), false, 'the taller pill slides clear of the obstacle');
 });
 
 test('wrapText wraps at maxChars and never returns empty', () => {
@@ -405,15 +484,54 @@ test('zoneMembers lists the cards whose center sits inside the zone, plus notes 
 // Process-flow shapes size like net_draw's: label-driven widths within 96–290,
 // fixed heights per shape, and a square connector.
 test('nodeSize sizes process-flow shapes like net_draw', () => {
-  assert.deepEqual(nodeSize({ kind: 'process', label: 'Process' }), { w: 96, h: 54 });
-  assert.deepEqual(nodeSize({ kind: 'decision', label: 'Decision?' }), { w: 137.5, h: 76 });
-  assert.deepEqual(nodeSize({ kind: 'dataio', label: 'Data / I-O' }), { w: 140, h: 54 });
-  assert.deepEqual(nodeSize({ kind: 'document', label: 'Document' }), { w: 100, h: 62 });
-  assert.deepEqual(nodeSize({ kind: 'connector', label: 'A' }), { w: 46, h: 46 });
-  assert.equal(nodeSize({ kind: 'process', label: 'x'.repeat(80) }).w, 290, 'capped');
-  assert.deepEqual(nodeSize({ kind: 'process', label: 'Process', sublabel: 'ignored', addr: 'too' }), { w: 96, h: 54 }, 'shapes carry no meta lines');
-  assert.deepEqual(nodeSize({ kind: 'router', label: 'Core Router', fields: { ip: '10.0.0.1' } }), { w: 104, h: 86.5 }, 'network devices are ordinary cards sized by their fields');
-  assert.deepEqual(nodeSize({ kind: 'router', label: 'Core Router', addr: '10.0.0.1' }), { w: 104, h: 74 }, 'the hardware address is not one of their lines');
+  assert.deepEqual(size({ kind: 'process', label: 'Process' }), { w: 96, h: 54 });
+  assert.deepEqual(size({ kind: 'decision', label: 'Decision?' }), { w: 137.5, h: 76 });
+  assert.deepEqual(size({ kind: 'dataio', label: 'Data / I-O' }), { w: 140, h: 54 });
+  assert.deepEqual(size({ kind: 'document', label: 'Document' }), { w: 100, h: 62 });
+  assert.deepEqual(size({ kind: 'connector', label: 'A' }), { w: 46, h: 46 });
+  assert.equal(size({ kind: 'process', label: 'x'.repeat(80) }).w, 290, 'capped');
+  assert.deepEqual(size({ kind: 'process', label: 'Process', sublabel: 'ignored', addr: 'too' }), { w: 96, h: 54 }, 'shapes carry no meta lines');
+  assert.deepEqual(size({ kind: 'router', label: 'Core Router', fields: { ip: '10.0.0.1' } }), { w: 104, h: 86.5 }, 'network devices are ordinary cards sized by their fields');
+  assert.deepEqual(size({ kind: 'router', label: 'Core Router', addr: '10.0.0.1' }), { w: 104, h: 74 }, 'the hardware address is not one of their lines');
+});
+
+// A connector's label is an editable arbitrary string (not just the default
+// letter), so a long one must wrap and the disc must grow around the block.
+// Containment is checked with the same measured width the geometry uses
+// (measureShapeText — the 1em-per-unit fallback outside the browser), never
+// the average 7px-per-unit estimate, so a run of wide glyphs is not missed.
+test('a long connector label wraps inside a grown circle with the full text', () => {
+  assert.deepEqual(size({ kind: 'connector', label: 'A' }), { w: 46, h: 46 }, 'a single letter keeps its circle');
+  const text = 'Long connector label requiring multiple wrapped lines';
+  const s = nodeSize({ kind: 'connector', label: text });
+  assert.ok(s.labelLines.length > 1, 'the label wraps');
+  assert.equal(s.labelLines.join(' '), text, 'full text preserved');
+  assert.equal(s.w, s.h, 'the connector stays round');
+  assert.ok(s.w > 46, 'the circle grows to fit the block');
+  const r = s.w / 2;
+  for (let i = 0; i < s.labelLines.length; i++) {
+    const baseline = s.h / 2 + 4.2 + (i - (s.labelLines.length - 1) / 2) * SHAPE_LINE_H;
+    for (const y of [baseline - 9, baseline + 3]) {
+      const chordHalf = Math.sqrt(Math.max(0, r * r - (y - r) ** 2));
+      assert.ok(measureShapeText(s.labelLines[i]) / 2 <= chordHalf, `line ${i} stays inside the disc`);
+    }
+  }
+});
+
+test('a long decision label grows the diamond so every line stays inside the silhouette', () => {
+  const text = 'M'.repeat(240);
+  const s = nodeSize({ kind: 'decision', label: text });
+  assert.ok(s.labelLines.length > 1, 'the label wraps');
+  assert.equal(s.labelLines.join(''), text, 'full text preserved');
+  assert.equal(s.w, 290, 'width stays capped');
+  assert.ok(s.h > 76, 'the diamond grows taller');
+  for (let i = 0; i < s.labelLines.length; i++) {
+    const baseline = s.h / 2 + 4.2 + (i - (s.labelLines.length - 1) / 2) * SHAPE_LINE_H;
+    for (const y of [baseline - 9, baseline + 3]) {
+      const avail = s.w / 2 * (1 - 2 * Math.abs(y - s.h / 2) / s.h);
+      assert.ok(measureShapeText(s.labelLines[i]) / 2 <= avail, `line ${i} stays inside the diamond`);
+    }
+  }
 });
 
 test('nodeMeta shows a schema part\'s filled fields (never severity) and sizes the card by them', () => {
@@ -438,12 +556,12 @@ test('a network device lists its model, IP, and DNS name and drops the hardware 
 test('custom cards grow with the ports on their busiest sides; built-in cards do not change', () => {
   const def = (ports) => ({ name: 'C', category: 'misc', accent: null, icon: { text: 'C' }, ports, fields: [] });
   const side = (n, s) => Array.from({ length: n }, (_, i) => ({ id: `${s}${i}`, name: `${s}${i}`, side: s, bus: 'gpio', required: false }));
-  assert.deepEqual(nodeSize({ kind: 'custom', label: 'C', part: def([]) }), { w: 104, h: 74 });
-  assert.deepEqual(nodeSize({ kind: 'custom', label: 'C', part: def(side(4, 'left')) }), { w: 104, h: 75 });
-  assert.deepEqual(nodeSize({ kind: 'custom', label: 'C', part: def(side(8, 'right')) }), { w: 104, h: 135 });
-  assert.deepEqual(nodeSize({ kind: 'custom', label: 'C', part: def(side(6, 'top')) }), { w: 154, h: 74 });
-  assert.equal(nodeSize({ kind: 'custom', label: 'C', part: def(side(24, 'bottom')) }).w, 550, 'ports retain their spacing beyond the text width cap');
-  assert.deepEqual(nodeSize({ kind: 'mcu', label: 'MCU' }), { w: 104, h: 74 }, 'an MCU with nine ports keeps its size');
+  assert.deepEqual(size({ kind: 'custom', label: 'C', part: def([]) }), { w: 104, h: 74 });
+  assert.deepEqual(size({ kind: 'custom', label: 'C', part: def(side(4, 'left')) }), { w: 104, h: 75 });
+  assert.deepEqual(size({ kind: 'custom', label: 'C', part: def(side(8, 'right')) }), { w: 104, h: 135 });
+  assert.deepEqual(size({ kind: 'custom', label: 'C', part: def(side(6, 'top')) }), { w: 154, h: 74 });
+  assert.equal(size({ kind: 'custom', label: 'C', part: def(side(24, 'bottom')) }).w, 550, 'ports retain their spacing beyond the text width cap');
+  assert.deepEqual(size({ kind: 'mcu', label: 'MCU' }), { w: 104, h: 74 }, 'an MCU with nine ports keeps its size');
 });
 
 test('custom meta lines: part number, address, rail, then field values, three at most', () => {

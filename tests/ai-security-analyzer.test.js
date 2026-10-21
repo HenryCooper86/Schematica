@@ -286,3 +286,40 @@ test('reserved and rejected records keep applicability and attack relations unkn
     assert.equal(result.relationships[0].basis, 'unknown');
   }
 });
+
+test('CVE-relevant advisory excerpts retain absolute citations without legitimizing skipped lines', async () => {
+  const text = Array.from({ length: 500 }, (_, index) => index === 299
+    ? 'CVE-2026-31431: this advisory attributes an impact to its affected product.'
+    : `Source line ${index + 1}`).join('\n');
+  const retained = await source(text);
+  const result = await analyzeSecurity({
+    cveId: 'CVE-2026-31431', status: 'published', sources: [retained], allowTools: false,
+    provider: provider([reply(plan({ findings: [
+      finding({ id: 'focused', evidence: [{ sourceId: 's1', startLine: 300, endLine: 300 }] }),
+      finding({ id: 'skipped', evidence: [{ sourceId: 's1', startLine: 200, endLine: 200 }] }),
+      finding({ id: 'crosses-gap', evidence: [{ sourceId: 's1', startLine: 190, endLine: 300 }] }),
+    ] }))]),
+  });
+  assert.equal(result.findings.find(item => item.id === 'focused').basis, 'source');
+  assert.deepEqual(result.findings.find(item => item.id === 'focused').evidence,
+    [{ sourceId: 's1', startLine: 300, endLine: 300 }]);
+  assert.equal(result.findings.find(item => item.id === 'skipped').basis, 'unknown');
+  assert.equal(result.findings.find(item => item.id === 'crosses-gap').basis, 'unknown');
+  assert.deepEqual(result.sources, [retained], 'selection does not alter retained text or its identity');
+});
+
+test('the final admitted CVE window includes its matching line when the context budget is nearly full', async () => {
+  const matches = [100, 250, 450];
+  const retained = await source(Array.from({ length: 500 }, (_, index) => matches.includes(index + 1)
+    ? `CVE-2026-31431: attributed statement at line ${index + 1}.`
+    : `Background line ${index + 1}`).join('\n'));
+  const result = await analyzeSecurity({
+    cveId: 'CVE-2026-31431', status: 'published', sources: [retained], allowTools: false,
+    provider: provider([reply(plan({ findings: matches.map(line => finding({
+      id: `claim-${line}`, evidence: [{ sourceId: 's1', startLine: line, endLine: line }],
+    })) }))]),
+  });
+  for (const line of matches) {
+    assert.equal(result.findings.find(item => item.id === `claim-${line}`).basis, 'source');
+  }
+});

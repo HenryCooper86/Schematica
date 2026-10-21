@@ -14,7 +14,11 @@ export function snap(v, grid = 8) {
 const NODE_W = 104;
 const NODE_H = 74;
 const NODE_MAX_W = 240;
-const META_LINE_H = 12.5;
+export const META_LINE_H = 12.5;
+// Baseline spacing between wrapped card-label lines. It matches the 13px gap
+// net_draw leaves between the single-line label (baseline 62) and the first
+// meta line (baseline 75), so a card whose label fits one line is unchanged.
+export const LABEL_LINE_H = 13;
 
 // Custom cards grow so their port dots stay apart: 15px per port down the
 // left or right edge, 22px along the top or bottom. Built-in cards never
@@ -57,40 +61,107 @@ export function nodeMeta(node) {
 }
 
 // Process-flow shapes size like net_draw's: the label sets the width within
-// 96–290 (decisions and slanted shapes get extra room), heights are fixed per
-// shape, and a connector is a circle just big enough for its letter.
+// 96–290 (decisions and slanted shapes get extra room), and a connector is a
+// circle just big enough for its letter. A label that would overflow the cap
+// wraps onto extra lines and the shape grows taller; `labelLines` feeds
+// render.js so geometry and drawing share one wrap. Heights stay fixed per
+// shape until the label needs a second line.
+export const SHAPE_LINE_H = 14;
+const SHAPE_FONT_SIZE = 12;
+const SHAPE_FONT_WEIGHT = 600;
+let shapeMeasureContext;
+
+// Shared text width for shape labels: the same 12px/600 font render.js draws
+// (NOTE_FONT_FAMILY), measured with a canvas in the browser. Outside the
+// browser a conservative 1em-per-unit bound stands in so geometry and export
+// never under-size a wrapped line of wide glyphs (e.g. "MMMM").
+export function measureShapeText(text) {
+  if (shapeMeasureContext === undefined) {
+    try { shapeMeasureContext = typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d'); }
+    catch { shapeMeasureContext = null; }
+    if (shapeMeasureContext) shapeMeasureContext.font = `${SHAPE_FONT_WEIGHT} ${SHAPE_FONT_SIZE}px ${NOTE_FONT_FAMILY}`;
+  }
+  if (!shapeMeasureContext) return textUnits(text) * SHAPE_FONT_SIZE;
+  const metrics = shapeMeasureContext.measureText(String(text));
+  return Math.max(metrics.width, (metrics.actualBoundingBoxLeft || 0) + (metrics.actualBoundingBoxRight || 0));
+}
+
 function shapeSize(shape, label) {
   const L = textUnits(label);
   if (shape === 'connector') {
-    const r = Math.min(60, Math.max(23, L * 3.6 + 16));
-    return { w: r * 2, h: r * 2 };
+    // A connector is a disc big enough for its label. A short label keeps
+    // net_draw's one-line circle (a single letter is the 46px circle); a
+    // label past the diameter cap wraps — measured, so a run of wide glyphs
+    // breaks where it truly overflows — and the circle grows around the
+    // measured block (bounding-circle containment, not a centre-line box).
+    const singleR = Math.min(60, Math.max(23, L * 3.6 + 16));
+    if (L * 7 <= singleR * 2 - 8) {
+      return { w: singleR * 2, h: singleR * 2, labelLines: [label], metaLines: [] };
+    }
+    const lines = wrapLines(label, singleR * 2 - 8, measureShapeText);
+    const blockW = Math.max(...lines.map(measureShapeText)) + 4;
+    const blockH = (lines.length - 1) * SHAPE_LINE_H + 16;
+    const r = Math.max(60, Math.hypot(blockW, blockH) / 2 + 4);
+    return { w: r * 2, h: r * 2, labelLines: lines, metaLines: [] };
   }
   let w = L * 7 + 44;
   if (shape === 'decision') w = L * 7.5 + 70;
   if (shape === 'data' || shape === 'manual') w += 26;
   w = Math.min(290, Math.max(96, w));
-  const h = shape === 'decision' ? 76 : (shape === 'document' ? 62 : 54);
-  return { w, h };
+  // The width formula reserves `pad` px for the slanted/decision edges. A
+  // label that fits net_draw's one-line estimate keeps that exact shape; only
+  // a label past the cap wraps, and it wraps by measured glyph width (not the
+  // 7/7.5-per-unit estimate) so wide-glyph runs stay inside the shape.
+  const pad = shape === 'decision' || shape === 'data' || shape === 'manual' ? 70 : 44;
+  const per = shape === 'decision' ? 7.5 : 7;
+  const labelLines = L * per <= w - pad ? [label] : wrapLines(label, w - pad, measureShapeText);
+  const base = shape === 'decision' ? 76 : (shape === 'document' ? 62 : 54);
+  let h = base + (labelLines.length - 1) * SHAPE_LINE_H;
+  if (shape === 'decision' && labelLines.length > 1) {
+    // A diamond narrows to a point at top and bottom, so a wrapped block's
+    // outer lines have less room than the centre line. Grow the diamond until
+    // the centred text block's corners stay inside the silhouette — the exact
+    // convex containment is bw/W + bh/H <= 1. The block is measured, plus
+    // glyph ascent/descent and padding, so real glyphs (not baselines) stay
+    // inside the shape.
+    const bw = Math.max(...labelLines.map(measureShapeText)) + 4;
+    const bh = (labelLines.length - 1) * SHAPE_LINE_H + 16;
+    h = Math.max(h, Math.ceil(bh / Math.max(1e-6, 0.95 - bw / w)));
+  }
+  return { w, h, labelLines, metaLines: [] };
 }
 
 export function nodeSize(node) {
   const part = partOf(node);
   if (part.shape) return shapeSize(part.shape, String(node.label ?? ''));
   const meta = nodeMeta(node);
-  const need = Math.max(
-    NODE_W,
-    textUnits(node.label) * 6.8 + 24,
-    ...meta.map((m) => textUnits(m.text) * 5.9 + 26),
-  );
+  const labelNeed = textUnits(node.label) * 6.8 + 24;
+  const metaNeeds = meta.map((m) => textUnits(m.text) * 5.9 + 26);
+  const need = Math.max(NODE_W, labelNeed, ...metaNeeds);
   let w = Math.min(NODE_MAX_W, need);
-  let h = NODE_H + meta.length * META_LINE_H;
   if (part.custom) {
     const on = (side) => part.ports.filter((p) => p.side === side).length;
-    h = Math.max(h, PORT_GAP_Y * (Math.max(on('left'), on('right')) + 1));
     // Text width is capped, but supported ports need their full spacing.
     w = Math.max(w, PORT_GAP_X * (Math.max(on('top'), on('bottom')) + 1));
   }
-  return { w, h };
+  // A line wraps only when the card is narrower than that line's single-line
+  // width (the width cap, or a custom port row) — never the float boundary of
+  // a card that already fits. Reusing `labelNeed`/`metaNeeds` makes the check
+  // exact, so a label that sized its own card stays on one line.
+  const labelLines = w >= labelNeed
+    ? [String(node.label ?? '')]
+    : wrapLines(String(node.label ?? ''), w - 24, (s) => textUnits(s) * 6.8);
+  const metaLines = meta.map((m, i) => ({
+    field: m.field,
+    lines: w >= metaNeeds[i] ? [m.text] : wrapLines(m.text, w - 26, (s) => textUnits(s) * 5.9),
+  }));
+  const metaCount = metaLines.reduce((sum, m) => sum + m.lines.length, 0);
+  let h = NODE_H + (labelLines.length - 1) * LABEL_LINE_H + metaCount * META_LINE_H;
+  if (part.custom) {
+    const on = (side) => part.ports.filter((p) => p.side === side).length;
+    h = Math.max(h, PORT_GAP_Y * (Math.max(on('left'), on('right')) + 1));
+  }
+  return { w, h, labelLines, metaLines };
 }
 
 export function nodeRect(node) {
@@ -409,6 +480,16 @@ export function wrapText(text, maxChars = 22, measure = textUnits) {
   return lines;
 }
 
+// Wrap a string to a measured width and then re-break any line the closing-
+// punctuation carry pushed over budget: containment beats typography when a
+// card or pill has a fixed width. Shared by cards, shapes and wire labels so
+// their text never spills out of a measured box. An empty string stays a
+// single empty line, so an unnamed card keeps its minimum height.
+export function wrapLines(text, maxChars, measure = textUnits) {
+  return wrapText(text, maxChars, measure)
+    .flatMap(line => splitWideToken({ text: line, space: false }, maxChars, measure).map(t => t.text));
+}
+
 // ---- Swimlanes ----
 export const LANE_TITLE_H = 26;
 const LANE_SNAP = 18;
@@ -522,14 +603,21 @@ export function contentBounds(doc, scene = null) {
 }
 
 // Shared by rendering and layout checks: a label's geometry must have one owner.
+// Long labels wrap onto a bounded pill: `lines` feeds render.js so the drawn
+// text and the pill's measured box can never disagree. A label that fits one
+// line keeps its exact 20px pill and position, so existing boards are stable.
+const WIRE_LABEL_MAX_W = 220;   // bounded pill width (px) for wrapped labels
+export const WIRE_LABEL_LINE_H = 16;   // px per extra wrapped line
 export function wireLabelRect(wire, geo, lane = 0, obstacles = []) {
   const bus = BUSES[wire.bus] || BUSES.gpio;
   const label = wire.label || (wire.style === 'sneakernet' ? '\u{1F45F} air gap' : (bus.silent ? '' : bus.short));
-  const w = Math.round((textUnits(label) * 6.4 + 22) * 100) / 100;
+  const lines = wrapLines(label, (WIRE_LABEL_MAX_W - 22) / 6.4, textUnits);
+  const w = lines.length > 1 ? WIRE_LABEL_MAX_W : Math.round((textUnits(label) * 6.4 + 22) * 100) / 100;
+  const h = 20 + (lines.length - 1) * WIRE_LABEL_LINE_H;
   const t = Math.min(0.8, Math.max(0.2, 0.5 + (lane / WIRE_FAN) * 0.15));
   const boxAt = t => {
     const at = curvePoint(geo, t);
-    return { label, at, x: r2(at.x - w / 2), y: r2(at.y - 10), w, h: 20 };
+    return { label, lines, at, x: r2(at.x - w / 2), y: r2(at.y - h / 2), w, h };
   };
   const cost = box => nearby(obstacles, growRect(box, 6)).reduce((sum, r) => {
     const padded = growRect(r, 6);
@@ -552,7 +640,7 @@ export function wireLabelRect(wire, geo, lane = 0, obstacles = []) {
     const before = curvePoint(geo, .48), after = curvePoint(geo, .52);
     const dx = after.x - before.x, dy = after.y - before.y, length = Math.hypot(dx, dy) || 1;
     const at = { x: r2(anchor.x - dy / length * distance * direction), y: r2(anchor.y + dx / length * distance * direction) };
-    const next = { label, anchor, at, x: r2(at.x - w / 2), y: r2(at.y - 10), w, h: 20 };
+    const next = { label, lines, anchor, at, x: r2(at.x - w / 2), y: r2(at.y - h / 2), w, h };
     const nextScore = cost(next);
     if (nextScore < score) { best = next; score = nextScore; }
     if (score === 0) return best;

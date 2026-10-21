@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { PARTS, CATEGORY_COLORS } from '../src/palette.js';
 import { diagramMarkup, defsMarkup, flowOffset, LOOP_MS, overlayMarkup } from '../src/render.js';
 import { EXAMPLES } from '../src/examples.js';
+import { buildExportSVG } from '../src/export.js';
 import { initI18n, setLang } from '../src/i18n.js';
 
 // Cards size to their content (net_draw): a one-letter label gives 104x74.
@@ -392,7 +393,7 @@ test('process-flow parts render as net_draw shapes with the label centered and n
   const d = nodeGroup(m, 'd');
   assert.ok(d.includes('<polygon class="card" points="68.75,0 137.5,38 68.75,76 0,38"'), 'diamond from the shape size');
   assert.ok(d.includes('fill="url(#cardGrad)" stroke="#fbbf24" stroke-opacity="0.7" stroke-width="1.4" filter="url(#nodeShadow)"'), 'accent stroke at 0.7');
-  assert.ok(d.includes('y="42.2" text-anchor="middle" font-size="12" font-weight="600" fill="#dbe4f0" data-edit="label">Decision?</text>'), 'label centered');
+  assert.ok(d.includes('y="42.2" text-anchor="middle" font-size="12" font-weight="600" font-family="system-ui, -apple-system, \'Segoe UI\', Roboto, sans-serif" fill="#dbe4f0" data-edit="label">Decision?</text>'), 'label centered with the measured font');
   assert.ok(!d.includes('opacity="0.13"'), 'no tinted badge on shapes');
   const s = nodeGroup(m, 's');
   assert.ok(s.includes('<rect class="card" width="96" height="54" rx="27"'), 'terminator is a full pill');
@@ -554,4 +555,22 @@ test('a zone name pill sizes by text units, not character count, so a Chinese la
     zonePillWidth(zh) > zonePillWidth(en),
     `a 12-character Chinese label (${zonePillWidth(zh)}) should size wider than a 13-character Latin one (${zonePillWidth(en)})`,
   );
+});
+
+test('wrapped labels remain inert text in canvas markup and standalone SVG exports', () => {
+  const hostile = 'Reference '.repeat(18) + '<svg/onload=alert(1)>' + ' retained evidence'.repeat(18);
+  const doc = {
+    ...sampleDoc(),
+    nodes: [node('a', 'mcu', 0, 0, { label: hostile, sublabel: hostile }),
+      node('b', 'process', 500, 200, { label: hostile })],
+    wires: [{ id: 'edge', bus: 'link', from: { node: 'a', port: 'i2c' },
+      to: { node: 'b', port: 'w' }, label: hostile, arrow: 'fwd', style: null }],
+  };
+  const markup = diagramMarkup(doc);
+  const svg = buildExportSVG(doc);
+  assert.doesNotMatch(markup, /<svg\b/i, 'source text cannot introduce a nested active SVG');
+  assert.equal((svg.match(/<svg\b/gi) || []).length, 1, 'the export has only its trusted outer SVG');
+  for (const output of [markup, svg]) {
+    assert.ok(output.includes('&lt;svg/onload=alert(1)&gt;'), 'the payload is displayed as literal source text');
+  }
 });

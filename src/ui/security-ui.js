@@ -21,6 +21,7 @@ import { contentBounds, nodeRect, NOTE_W, noteHeight } from '../geometry.js';
 import { uid, findItem } from '../state.js';
 import { escAttr, toast, keepFocus } from './press.js';
 import { panelHeader, bindCollapsible } from './collapsible.js';
+import { makePanelDraggable, raisePanel } from './panel-drag.js';
 import { tr, onLanguageChange, getLang } from '../i18n.js';
 
 // The contract caps a retained collection at 20 sources / 500k characters;
@@ -85,6 +86,9 @@ export function initSecurityAnalysis({ store, tools, render, svg, library = null
   panel.setAttribute('aria-labelledby', 'security-heading');
   panel.hidden = true;
   document.getElementById('canvas-wrap').append(panel);
+  // The panel floats freely: dragged by its header anywhere in the viewport,
+  // with the position remembered per panel like the collapsed flag.
+  const drag = makePanelDraggable(panel, 'security');
 
   // Session state. Sources are canonical contract objects; `selection` keeps
   // the per-source retain checkbox without polluting what Analyze sends.
@@ -211,6 +215,7 @@ export function initSecurityAnalysis({ store, tools, render, svg, library = null
     heading.id = 'security-heading';
     heading.insertAdjacentHTML('beforeend', `<span class="sec-tools"><button id="sec-close" class="ai-icon-btn" type="button" title="${escAttr(tr('Close (Esc)'))}" aria-label="${escAttr(tr('Close the security panel'))}">&#215;</button></span>`);
     bindCollapsible(panel, 'security');
+    drag.bindHandle();
     if (shellLang) {
       for (const [key, id] of [['cve', 'sec-cve-input'], ['url', 'sec-url-input'], ['pasteName', 'sec-paste-name'], ['paste', 'sec-paste-input'], ['notes', 'sec-notes']]) {
         const node = el(`#${id}`);
@@ -978,6 +983,8 @@ export function initSecurityAnalysis({ store, tools, render, svg, library = null
       if (app.classList.contains('panels-hidden')) document.getElementById('btn-panels').click();
       if (shellLang !== getLang()) renderShell();
       panel.hidden = false;
+      raisePanel(panel);
+      drag.ensure();
       renderAll();
       const first = busy ? null : el('#sec-cve-input');
       if (first) first.focus({ preventScroll: true });

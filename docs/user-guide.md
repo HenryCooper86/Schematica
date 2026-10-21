@@ -290,6 +290,12 @@ by **static reading only**. It never runs code, installs dependencies or tests
 a target. Configure the provider in **Assistant**; both panels share its settings
 and memory-only key. Provider requests may be billed by that provider.
 
+Drag the **Assistant** or **Security analysis** title bar to move either panel
+anywhere across the page, including over the palette. Each panel remembers its
+position on this device. Focus the title bar and use arrow keys to nudge it;
+hold Shift for larger moves. Header controls remain independent of dragging.
+Window resizing and collapsing keep a draggable part of the header reachable.
+
 1. Enter a CVE identifier and choose **Look up CVE**, enter a public source
    **URL**, choose **Add files**, or **Add pasted source**. CVE lookup and URL
    reading require the Node-backed edition. Published CVE records can bring in
@@ -301,6 +307,9 @@ and memory-only key. Provider requests may be billed by that provider.
    sources and your note are eligible for the configured model. Inspect the
    resulting summary, findings, logical relationships and unknowns. The model
    receives bounded excerpts and, when supported, requested retained line ranges.
+   Initial CVE excerpts keep the source introduction and context around references
+   to the requested CVE, rather than spending the entire excerpt on navigation.
+   Citation line numbers remain absolute; gaps between excerpts remain unread.
    **Source retention and model-read coverage** distinguishes stored text from
    complete lines actually delivered to the model. Undelivered retained lines
    remain unassessed, even when targeted reads were available. Delivery does not
@@ -313,6 +322,9 @@ and memory-only key. Provider requests may be billed by that provider.
    prerequisites, steps, impact, severity, mitigations, unknowns and PoC/advisory
    consistency. An omitted area is labeled **not assessed**, not silently filled
    with a conclusion. Consistency means evidence agreement, not a working exploit.
+   Keep vendor-specific scope, severity and impact claims attributed separately;
+   a multi-CVE advisory's overall severity or a neighboring CVE's description
+   does not establish this CVE's impact.
    For reserved/rejected records, vulnerability-specific findings and relationships
    remain **Unknown**; record-state facts and rejection reasons can still cite sources.
 5. Choose **Save analysis with board**, or preview an **Architecture**,
@@ -323,6 +335,12 @@ and memory-only key. Provider requests may be billed by that provider.
    Illustrations append editable cards, logical connections and Journey chapters
    without removing existing work. Building the same view again appends another
    illustration rather than replacing your edited cards.
+   Long labels wrap inside their cards and connection pills. New illustrations
+   follow directed relationship layers instead of a generic hub layout; only
+   attack actions are numbered in exploit views, not prerequisites or root causes.
+   Relationships involving metadata remain annotations rather than invented
+   attack stages. Oversized metadata is rejected before changing the board,
+   rather than silently truncating a relationship.
    Trust-zone membership requires explicit inside/outside/crossing metadata, not
    adjacency or a guessed interpretation of a relationship label. Ambiguous
    membership remains visible as boundary cards and labeled connections.

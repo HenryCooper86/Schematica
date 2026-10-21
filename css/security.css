@@ -36,7 +36,16 @@
   align-items: center;
   gap: 8px;
   border-bottom: 1px solid var(--line);
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
 }
+/* The header doubles as the drag handle (src/ui/panel-drag.js): grab cursor,
+   no selection or touch scrolling under it, and a focus ring for the arrow-
+   key nudging. */
+#security-panel h3.dragging { cursor: grabbing; }
+#security-panel h3.panel-drag-handle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 #security-panel.collapsed { height: auto; }
 #security-panel.collapsed .sec-scroll { display: none; }
 #security-panel.collapsed h3 { border-bottom: 0; }

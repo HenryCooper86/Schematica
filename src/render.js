@@ -8,7 +8,8 @@ import { BUSES } from './buses.js';
 import { CATEGORY_COLORS, DISPOSITIONS, SEVERITY_COLORS } from './palette.js';
 import {
   portPosition, wireGeomToPoint, noteLines, noteHeight,
-  nodeRect, nodeSize, nodeMeta, NOTE_W, NOTE_FONT_SIZE, NOTE_FONT_FAMILY, LANE_TITLE_H, textUnits,
+  nodeRect, nodeSize, NOTE_W, NOTE_FONT_SIZE, NOTE_FONT_FAMILY, LANE_TITLE_H, textUnits,
+  LABEL_LINE_H, META_LINE_H, SHAPE_LINE_H, WIRE_LABEL_LINE_H,
 } from './geometry.js';
 
 // The canvas mirrors net_draw's look one to one: gradient cards with a drop
@@ -260,7 +261,7 @@ function haloMarkup(node, W, H, animating, now) {
 function nodeMarkup(node, selected, ui, animating, now, wires) {
   const part = displayPart(node, wires);
   const acc = node.color || part.accent || CATEGORY_COLORS[part.category] || ACCENT;
-  const { w: W, h: H } = nodeSize(node);
+  const { w: W, h: H, labelLines, metaLines } = nodeSize(node);
   let s = `<g class="node" data-id="${esc(node.id)}" data-type="node" transform="translate(${node.x} ${node.y})">`;
   const flags = (node.flags || []).filter((f) => FLAG_META[f]);
   s += haloMarkup(node, W, H, animating, now);
@@ -270,8 +271,15 @@ function nodeMarkup(node, selected, ui, animating, now, wires) {
   }
   if (part.shape) {
     s += shapeMarkup(part, W, H, acc, selected);
-    s += `<text x="${W / 2}" y="${H / 2 + 4.2}" text-anchor="middle" font-size="12" font-weight="600"`
-      + ` fill="#dbe4f0" data-edit="label">${esc(node.label)}</text>`;
+    if (labelLines.length === 1) {
+      s += `<text x="${W / 2}" y="${H / 2 + 4.2}" text-anchor="middle" font-size="12" font-weight="600" font-family="${NOTE_FONT_FAMILY}"`
+        + ` fill="#dbe4f0" data-edit="label">${esc(labelLines[0])}</text>`;
+    } else {
+      const firstY = H / 2 + 4.2 - (labelLines.length - 1) * SHAPE_LINE_H / 2;
+      s += `<text x="${W / 2}" y="${firstY}" text-anchor="middle" font-size="12" font-weight="600" font-family="${NOTE_FONT_FAMILY}" fill="#dbe4f0" data-edit="label">`
+        + labelLines.map((line, j) => `<tspan x="${W / 2}" dy="${j ? SHAPE_LINE_H : 0}">${esc(line)}</tspan>`).join('')
+        + '</text>';
+    }
   } else {
     // Threat types wear net_draw's dashed red border until selected.
     const threat = !!part.threat && !selected;
@@ -279,12 +287,23 @@ function nodeMarkup(node, selected, ui, animating, now, wires) {
       + ` stroke="${selected ? esc(acc) : (threat ? 'rgba(248,113,113,0.4)' : CARD_LINE)}"`
       + ` stroke-width="${selected ? 1.6 : 1}" filter="url(#nodeShadow)"${threat ? ' stroke-dasharray="5 3.5"' : ''}/>`;
     s += badgeMarkup(W, acc, part);
-    s += `<text x="${W / 2}" y="62" text-anchor="middle" font-size="11.5" font-weight="600"`
-      + ` fill="${TEXT}" data-edit="label">${esc(node.label)}</text>`;
-    nodeMeta(node).forEach((m, i) => {
-      s += `<text data-detail="${m.field === 'sublabel' ? 'context' : 'fine'}" x="${W / 2}" y="${75 + i * 12.5}" text-anchor="middle" font-size="9.5" fill="${META}"`
-        + ` font-family="${MONO}" data-edit="${m.field}">${esc(m.text)}</text>`;
-    });
+    if (labelLines.length === 1) {
+      s += `<text x="${W / 2}" y="62" text-anchor="middle" font-size="11.5" font-weight="600"`
+        + ` fill="${TEXT}" data-edit="label">${esc(labelLines[0])}</text>`;
+    } else {
+      s += `<text x="${W / 2}" y="62" text-anchor="middle" font-size="11.5" font-weight="600" fill="${TEXT}" data-edit="label">`
+        + labelLines.map((line, j) => `<tspan x="${W / 2}" dy="${j ? LABEL_LINE_H : 0}">${esc(line)}</tspan>`).join('')
+        + '</text>';
+    }
+    let metaY = 62 + labelLines.length * LABEL_LINE_H;
+    for (const m of metaLines) {
+      const open = `<text data-detail="${m.field === 'sublabel' ? 'context' : 'fine'}" x="${W / 2}" y="${metaY}" text-anchor="middle" font-size="9.5" fill="${META}"`
+        + ` font-family="${MONO}" data-edit="${m.field}">`;
+      s += m.lines.length === 1
+        ? open + esc(m.lines[0]) + '</text>'
+        : open + m.lines.map((line, j) => `<tspan x="${W / 2}" dy="${j ? META_LINE_H : 0}">${esc(line)}</tspan>`).join('') + '</text>';
+      metaY += m.lines.length * META_LINE_H;
+    }
   }
   s += tagsMarkup(node, animating, now);
   s += flagBadgesMarkup(flags, W);
@@ -334,14 +353,20 @@ function wireMarkup(index, wire, selected, ui, animating, now) {
         + ' pointer-events="none">\u{1F463}</text>';
     }
   }
-  const { label, x, y, w, h, at, anchor } = index.labels.get(wire.id);
+  const { label, lines, x, y, w, h, at, anchor } = index.labels.get(wire.id);
   if (label) {
     if (anchor) s += `<path class="label-leader" data-detail="context" d="M ${anchor.x} ${anchor.y} L ${at.x} ${at.y}"`
       + ` fill="none" stroke="${LABEL_LINE}" stroke-width="1" pointer-events="none"/>`;
     s += `<rect data-detail="context" x="${x}" y="${y}" width="${w}" height="${h}" rx="9"`
       + ` fill="${LABEL_BG}" stroke="${LABEL_LINE}" stroke-width="1"/>`;
-    s += `<text x="${at.x}" y="${Math.round((at.y + 3.6) * 100) / 100}" text-anchor="middle" font-size="10.5" fill="${LABEL_TEXT}" data-detail="context"`
-      + ` data-edit="label">${esc(label)}</text>`;
+    if (lines.length === 1) {
+      s += `<text x="${at.x}" y="${Math.round((at.y + 3.6) * 100) / 100}" text-anchor="middle" font-size="10.5" fill="${LABEL_TEXT}" data-detail="context"`
+        + ` data-edit="label">${esc(label)}</text>`;
+    } else {
+      s += `<text x="${at.x}" y="${Math.round((y + 13.6) * 100) / 100}" text-anchor="middle" font-size="10.5" fill="${LABEL_TEXT}" data-detail="context" data-edit="label">`
+        + lines.map((line, j) => `<tspan x="${at.x}" dy="${j ? WIRE_LABEL_LINE_H : 0}">${esc(line)}</tspan>`).join('')
+        + '</text>';
+    }
   }
   // A selected wire grows a handle at each end; dragging one onto another
   // port re-attaches that end (tools.js).

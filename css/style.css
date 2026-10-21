@@ -636,7 +636,16 @@ g.node:hover .ports,
   align-items: center;
   gap: 8px;
   border-bottom: 1px solid var(--line);
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
 }
+/* The header doubles as the drag handle (src/ui/panel-drag.js): grab cursor,
+   no selection or touch scrolling under it, and a focus ring for the arrow-
+   key nudging. */
+#assistant h3.dragging { cursor: grabbing; }
+#assistant h3.panel-drag-handle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .ai-ic { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 .ai-badge {
   display: inline-flex;

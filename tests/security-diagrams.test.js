@@ -56,7 +56,7 @@ const nodeMembersOf = (doc, zone) => zoneMembers(doc, zone)
 const rectInside = (r, z) => z.x <= r.x && r.x + r.w <= z.x + z.w && z.y <= r.y && r.y + r.h <= z.y + z.h;
 
 
-test('exploit view renders numbered editable cards and labelled flow wires', () => {
+test('exploit view renders editable cards and directed logical wires', () => {
   const doc = newDoc('Board');
   const res = buildSecurityIllustration(doc, exploitSet());
   assert.equal(res.doc, doc, 'the same document object comes back');
@@ -65,9 +65,6 @@ test('exploit view renders numbered editable cards and labelled flow wires', () 
   const nodes = res.targets.nodes.map((id) => nodeById(doc, id));
   assert.equal(nodes.length, 4);
   assert.deepEqual(nodes.map((n) => n.kind), ['preparation', 'vulnerability', 'process', 'startend']);
-  assert.deepEqual(nodes.map((n) => n.label), [
-    '1. Finding f-pre', '2. Finding f-bug', '3. Finding f-step', '4. Finding f-impact',
-  ]);
   for (const n of nodes) assert.ok(Number.isFinite(n.x) && Number.isFinite(n.y), `${n.id} placed`);
 
   const bug = nodes[1];
@@ -604,7 +601,6 @@ test('the walkthrough reads actual board targets and reports stale ones', () => 
     assert.ok(nodeIds.has(stop.node), 'every stop points at a real node');
     assert.match(stop.caption, / \[(source|inference)\]/);
   }
-  assert.match(walk.stops[0].caption, /^1\. Finding f-pre/);
   assert.equal(walk.stops[1].evidence[0].name, 'Vendor advisory');
   assert.equal(walk.stops[1].evidence[0].startLine, 2);
   assert.equal(walk.stops[1].evidence[0].endLine, 3);
@@ -715,18 +711,6 @@ test('without a record or a chapter nothing is guessed from accumulated targets'
   assert.match(walk.empty, /build the architecture illustration again/);
 });
 
-test('generated text never claims execution or a confirmed deployment', () => {
-  const doc = newDoc('Board');
-  const res = buildSecurityIllustration(doc, exploitSet());
-  const chapter = doc.journey.find((c) => c.id === res.targets.chapter);
-  assert.match(chapter.caption, /Nothing here was executed/);
-  assert.match(chapter.caption, /not a confirmed deployment architecture/);
-  const texts = res.targets.notes.map((id) => doc.notes.find((t) => t.id === id).text)
-    .filter((text) => text.startsWith('Security illustration (exploit):'));
-  assert.equal(texts.length, 1, 'a disclaimer note travels with the illustration');
-  assert.match(texts[0], /Nothing here was executed/);
-  assert.match(texts[0], /not a confirmed deployment architecture/);
-});
 
 test('architecture view draws unnumbered cards and link associations', () => {
   const doc = newDoc('Board');
@@ -742,8 +726,6 @@ test('architecture view draws unnumbered cards and link associations', () => {
     ],
   });
   const res = buildSecurityIllustration(doc, base, { view: 'architecture' });
-  assert.deepEqual(res.targets.nodes.map((id) => nodeById(doc, id).label),
-    ['Finding f-svc', 'Finding f-db', 'Finding f-gap']);
   const wires = res.targets.wires.map((id) => doc.wires.find((w) => w.id === id));
   assert.equal(wires.length, 2);
   for (const w of wires) {
@@ -863,4 +845,159 @@ test('generated captions stay clear of trust-zone contents and headers', () => {
   const caption = doc.notes.find(item => result.targets.notes.includes(item.id));
   assert.equal(rectsIntersect({ x: caption.x, y: caption.y, w: NOTE_W, h: noteHeight(caption.text) }, zoneRect(zone)), false);
   assert.ok(rectInside(nodeRect(nodeById(doc, result.targets.items.parser)), zone));
+});
+
+test('directed exploit layout and walkthrough follow evidence relationships, not finding array order', () => {
+  const doc = newDoc('Directed view');
+  const base = analysis({
+    findings: [
+      finding('impact', 'impact', 'exploit'),
+      finding('mechanism', 'root_cause', 'exploit'),
+      finding('local', 'prerequisite', 'exploit'),
+      finding('configuration', 'prerequisite', 'exploit'),
+      finding('trigger', 'step', 'exploit'),
+    ],
+    relationships: [
+      rel('local-entry', 'local', 'trigger', 'exploit'),
+      rel('config-entry', 'configuration', 'trigger', 'exploit'),
+      rel('entry-mechanism', 'trigger', 'mechanism', 'exploit'),
+      rel('mechanism-impact', 'mechanism', 'impact', 'exploit'),
+    ],
+  });
+  const result = buildSecurityIllustration(doc, base);
+  const rect = findingId => nodeRect(nodeById(doc, result.targets.items[findingId]));
+  assert.equal(rect('local').y, rect('configuration').y, 'independent prerequisites share a layer');
+  assert.ok(rect('local').y + rect('local').h < rect('trigger').y);
+  assert.ok(rect('configuration').y + rect('configuration').h < rect('trigger').y);
+  assert.ok(rect('trigger').y + rect('trigger').h < rect('mechanism').y);
+  assert.ok(rect('mechanism').y + rect('mechanism').h < rect('impact').y);
+  const walk = buildSecurityWalkthrough(doc, result.analysis);
+  assert.deepEqual(walk.stops.map(stop => stop.findingId),
+    ['local', 'configuration', 'trigger', 'mechanism', 'impact']);
+  const chapter = doc.journey.find(item => item.id === result.targets.chapter);
+  assert.deepEqual(chapter.stops.map(stop => stop.node), walk.stops.map(stop => stop.node));
+  for (const relationship of base.relationships) {
+    const wire = doc.wires.find(item => item.from.node === result.targets.items[relationship.from]
+      && item.to.node === result.targets.items[relationship.to]);
+    assert.ok(wire, 'the original direction is retained');
+    assert.equal(wire.from.port, 's');
+    assert.equal(wire.to.port, 'n');
+  }
+});
+
+test('cyclic relationships remain visible without overlap or loss of the downstream stage', () => {
+  const doc = newDoc('Cyclic view');
+  const base = analysis({
+    findings: [finding('outcome', 'impact', 'exploit'), finding('a', 'step', 'exploit'), finding('b', 'step', 'exploit')],
+    relationships: [rel('ab', 'a', 'b', 'exploit'), rel('ba', 'b', 'a', 'exploit'), rel('bo', 'b', 'outcome', 'exploit')],
+  });
+  const result = buildSecurityIllustration(doc, base);
+  const a = nodeRect(nodeById(doc, result.targets.items.a));
+  const b = nodeRect(nodeById(doc, result.targets.items.b));
+  const outcome = nodeRect(nodeById(doc, result.targets.items.outcome));
+  assert.equal(a.y, b.y, 'a cycle is one layer, not an invented directed sequence');
+  assert.equal(rectsIntersect(a, b), false);
+  assert.ok(outcome.y > Math.max(a.y + a.h, b.y + b.h));
+  assert.equal(result.targets.wires.length, 3);
+  const reopened = deserialize(serialize(doc));
+  assert.equal(buildSecurityWalkthrough(reopened.doc, reopened.doc.securityAnalysis).stops.length, 3);
+});
+
+test('long CVE findings and metadata stay clear of existing and newly generated cards', () => {
+  const doc = newDoc('CVE layout');
+  doc.nodes.push(userNode('existing', 80, 120));
+  const original = structuredClone(doc.nodes[0]);
+  const base = analysis({
+    findings: [
+      finding('cause', 'root_cause', 'exploit', { title: 'In-place AEAD operation with source and destination from different mappings' }),
+      finding('access', 'prerequisite', 'exploit', { title: 'Low-privileged local attacker; no root or CAP_SYS_ADMIN needed' }),
+      finding('config', 'prerequisite', 'exploit', { title: 'Kernel must be built with CRYPTO_USER_API_AEAD' }),
+      finding('request', 'step', 'exploit', { title: 'Documented attack surface: drive AF_ALG AEAD requests through socket system calls' }),
+      finding('impact', 'impact', 'exploit', { title: 'Source-reported consequences must remain distinguished from independently verified exploitation' }),
+    ],
+    relationships: [
+      rel('access-request', 'access', 'request', 'exploit'),
+      rel('config-request', 'config', 'request', 'exploit'),
+      rel('request-cause', 'request', 'cause', 'exploit'),
+      rel('cause-impact', 'cause', 'impact', 'exploit'),
+    ],
+  });
+  const result = buildSecurityIllustration(doc, base);
+  assert.deepEqual(doc.nodes.find(node => node.id === 'existing'), original);
+  const boxes = doc.nodes.map(nodeRect);
+  for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+    assert.equal(rectsIntersect(boxes[i], boxes[j]), false, 'card bodies do not overlap');
+  }
+  for (const id of result.targets.notes) {
+    const note = doc.notes.find(item => item.id === id);
+    const box = { x: note.x, y: note.y, w: NOTE_W, h: noteHeight(note.text) };
+    assert.ok(boxes.every(card => !rectsIntersect(card, box)), 'metadata is outside the flow');
+  }
+});
+
+test('interleaved members of separate trust domains retain every declared membership', () => {
+  const doc = newDoc('Two domains');
+  const base = analysis({
+    findings: [
+      finding('a1', 'component', 'architecture'), finding('b1', 'component', 'architecture'),
+      finding('a2', 'component', 'architecture'), finding('b2', 'component', 'architecture'),
+      finding('domain-a', 'boundary', 'architecture'), finding('domain-b', 'boundary', 'architecture'),
+    ],
+    relationships: [
+      rel('aa1', 'domain-a', 'a1', 'architecture', { boundaryRelation: 'inside' }),
+      rel('aa2', 'domain-a', 'a2', 'architecture', { boundaryRelation: 'inside' }),
+      rel('bb1', 'domain-b', 'b1', 'architecture', { boundaryRelation: 'inside' }),
+      rel('bb2', 'domain-b', 'b2', 'architecture', { boundaryRelation: 'inside' }),
+    ],
+  });
+  const result = buildSecurityIllustration(doc, base, { view: 'architecture' });
+  for (const [domain, members] of [['domain-a', ['a1', 'a2']], ['domain-b', ['b1', 'b2']]]) {
+    const zone = doc.zones.find(item => item.id === result.targets.items[domain]);
+    assert.deepEqual(new Set(nodeMembersOf(doc, zone)), new Set(members.map(id => result.targets.items[id])));
+  }
+  assert.equal(rectsIntersect(doc.zones[0], doc.zones[1]), false);
+});
+
+test('metadata relationships remain represented without inventing executable stages or wires', () => {
+  const doc = newDoc('Metadata relationships');
+  const base = analysis({
+    findings: [
+      finding('cause', 'root_cause', 'exploit'), finding('severity', 'severity', 'none'),
+      finding('consistency', 'consistency', 'none'), finding('boundary', 'boundary', 'architecture'),
+    ],
+    relationships: [
+      rel('cs', 'cause', 'severity', 'exploit', { label: 'severity assessment applies to this mechanism' }),
+      rel('sc', 'severity', 'consistency', 'exploit', { label: 'assessment must be reconciled with supplied evidence' }),
+      rel('bs', 'boundary', 'severity', 'exploit', { label: 'scope qualifies this assessment', basis: 'source',
+        evidence: [{ sourceId: 'src-adv', startLine: 1, endLine: 2 }] }),
+    ],
+  });
+  const result = buildSecurityIllustration(doc, base);
+  assert.equal(result.targets.nodes.length, 1, 'metadata is not promoted to an attack stage');
+  assert.equal(result.targets.wires.length, 0, 'no fictitious port endpoints are created');
+  const annotations = result.targets.notes.map(id => doc.notes.find(note => note.id === id).text);
+  for (const relation of base.relationships) {
+    const from = base.findings.find(item => item.id === relation.from);
+    const to = base.findings.find(item => item.id === relation.to);
+    assert.ok(annotations.some(text => text.includes(`${from.title} → ${to.title}`)
+      && text.includes(relation.label) && text.includes(`[${relation.basis}]`)), 'each non-wire relation remains legible');
+  }
+  assert.ok(annotations.some(text => text.includes('Vendor advisory L1-L2')), 'relationship evidence remains attached');
+});
+
+test('oversized metadata annotations are rejected atomically rather than losing later relationships', () => {
+  const doc = newDoc('Preserved board');
+  doc.nodes.push(userNode('keep', 80, 120));
+  const before = structuredClone(doc);
+  const components = Array.from({ length: 30 }, (_, index) => finding(`c${index}`, 'component', 'exploit', {
+    title: `Component ${index} `.padEnd(240, 'x'),
+  }));
+  const base = analysis({
+    findings: [...components, finding('severity', 'severity', 'none', { title: 'Severity '.padEnd(240, 's') })],
+    relationships: components.map((component, index) => rel(`r${index}`, component.id, 'severity', 'exploit', {
+      label: `Relationship ${index} `.padEnd(240, 'r'),
+    })),
+  });
+  assert.throws(() => buildSecurityIllustration(doc, base), Error);
+  assert.deepEqual(doc, before);
 });

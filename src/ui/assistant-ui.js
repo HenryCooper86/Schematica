@@ -23,6 +23,7 @@ import { checkDoc } from '../drc.js';
 import { contentBounds, nodeRect, NOTE_W, noteHeight } from '../geometry.js';
 import { findItem } from '../state.js';
 import { panelHeader, bindCollapsible } from './collapsible.js';
+import { makePanelDraggable, raisePanel } from './panel-drag.js';
 import { escAttr, toast, onPress } from './press.js';
 import { initAssistantDocuments } from './assistant-documents.js';
 import { tr, trd, onLanguageChange, getLang } from '../i18n.js';
@@ -46,6 +47,9 @@ export function initAssistant({ store, tools, render, svg, library = null, setti
   let busy = null;           // AbortController while a request runs
 
   const el = (id) => document.getElementById(id);
+  // The panel floats freely: dragged by its header anywhere in the viewport,
+  // with the position remembered per panel like the collapsed flag.
+  const drag = makePanelDraggable(panel, 'assistant');
   // The whole chrome is rebuilt when the interface language changes, so every
   // element inside the panel is a fresh node afterwards: the references live
   // here and bindChrome() re-resolves them and rebinds their listeners. What
@@ -99,6 +103,7 @@ export function initAssistant({ store, tools, render, svg, library = null, setti
       + `<button id="ai-gear" class="ai-icon-btn" type="button" title="${escAttr(tr('Settings'))}" aria-label="${escAttr(tr('Assistant settings'))}">${icon('settings')}</button></span>`);
     h3.querySelector('.panel-toggle').insertAdjacentHTML('afterend', `<button id="ai-close" class="ai-icon-btn" type="button" title="${escAttr(tr('Close (A)'))}" aria-label="${escAttr(tr('Close the assistant'))}">${icon('close')}</button>`);
     bindCollapsible(panel, 'assistant');
+    drag.bindHandle();
     bindChrome();
     if (draft) { input.value = draft; grow(); }
     if (optionsOpen !== undefined) el('ai-options').open = optionsOpen;
@@ -359,6 +364,8 @@ export function initAssistant({ store, tools, render, svg, library = null, setti
     const app = document.getElementById('app');
     if (app.classList.contains('panels-hidden')) document.getElementById('btn-panels').click();
     panel.hidden = false;
+    raisePanel(panel);
+    drag.ensure();
     grow();
     btn.classList.add('active');
     btn.setAttribute('aria-pressed', 'true');
