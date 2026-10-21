@@ -210,5 +210,16 @@ export function reconstructIncident(parsed) {
     doc.journey.push(chapter);
   }
 
-  return { doc, timeline, phases };
+  // Per-day action volume, in UTC, for the replay dashboard.
+  const dayCounts = new Map();
+  for (const action of actions) {
+    const d = new Date(action.ts);
+    const key = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    dayCounts.set(key, (dayCounts.get(key) || 0) + 1);
+  }
+  const days = [...dayCounts.entries()].map(([ts, count]) => ({
+    ts, label: `${String(new Date(ts).getUTCMonth() + 1).padStart(2, '0')}-${String(new Date(ts).getUTCDate()).padStart(2, '0')}`, count,
+  })).sort((a, b) => a.ts - b.ts);
+
+  return { doc, timeline, phases, days };
 }

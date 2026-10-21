@@ -2011,4 +2011,6 @@ export default {
   'Incident replay': '事件回放',
   'Reconstruct incident from log…': '从日志重建事件…',
   'Replay position': '回放位置',
+  'Volume per day': '每日数量',
+  'Phase activity': '阶段活动',
 };

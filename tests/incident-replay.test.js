@@ -83,6 +83,12 @@ test('reconstructed boards round-trip through serialize and deserialize', () => 
   for (const node of round.doc.nodes) assert.ok(Number.isFinite(node.x) && Number.isFinite(node.y));
 });
 
+test('reconstructIncident reports per-day action volume for the dashboard', () => {
+  const result = reconstructIncident(parseIncidentLog(JSON.stringify(log())));
+  assert.deepEqual(result.days.map((d) => d.count), [3, 1]);
+  assert.deepEqual(result.days.map((d) => d.label), ['07-09', '07-10']);
+});
+
 test('a log with no actor-to-target edges still reconstructs and replays', () => {
   const result = reconstructIncident(parseIncidentLog(JSON.stringify({
     actions: [{ ts: '2026-07-09T02:28:00Z', actor: 'solo', action: 'check', note: 'probe' }],

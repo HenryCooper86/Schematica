@@ -21,6 +21,45 @@ function timeLabel(ts) {
   return `${mm}-${dd} ${hh}:${mi}`;
 }
 
+// Bar chart of actions per day (UTC). Self-contained SVG, theme-aware via vars.
+function volumeChart(days) {
+  if (!days.length) return '';
+  const w = 320, h = 88, pad = 8;
+  const max = Math.max(1, ...days.map((d) => d.count));
+  const slot = (w - pad * 2) / days.length;
+  const barW = Math.max(3, Math.min(34, slot - 6));
+  const bars = days.map((d, i) => {
+    const x = pad + i * slot + (slot - barW) / 2;
+    const bh = (d.count / max) * (h - pad * 2 - 18);
+    const y = h - pad - 16 - bh;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="2" style="fill:var(--accent,#38bdf8)"/>`
+      + `<text x="${(x + barW / 2).toFixed(1)}" y="${h - pad - 6}" text-anchor="middle" font-size="8" style="fill:var(--muted,#8b9bb4)">${esc(d.label)}</text>`
+      + `<text x="${(x + barW / 2).toFixed(1)}" y="${(y - 2).toFixed(1)}" text-anchor="middle" font-size="8" style="fill:var(--muted,#8b9bb4)">${d.count}</text>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" role="img" aria-label="${escAttr(tr('Volume per day'))}">${bars}</svg>`;
+}
+
+// Horizontal first-seen → last-seen bars, one per phase, across the incident span.
+function phaseChart(phases) {
+  if (!phases.length) return '';
+  const w = 320, pad = 8, labelW = 96, rowH = 18;
+  const t0 = Math.min(...phases.map((p) => p.firstSeen));
+  const t1 = Math.max(...phases.map((p) => p.lastSeen));
+  const span = (t1 - t0) || 1;
+  const chartW = w - pad * 2 - labelW;
+  const h = pad * 2 + phases.length * rowH;
+  const rows = phases.map((p, i) => {
+    const y = pad + i * rowH;
+    const x0 = pad + labelW + ((p.firstSeen - t0) / span) * chartW;
+    const x1 = pad + labelW + ((p.lastSeen - t0) / span) * chartW;
+    const bw = Math.max(2, x1 - x0);
+    return `<text x="${pad}" y="${y + 12}" font-size="9" style="fill:var(--text,#cbd5e1)">${esc(p.name)}</text>`
+      + `<text x="${pad + labelW - 6}" y="${y + 12}" text-anchor="end" font-size="8" style="fill:var(--muted,#8b9bb4)">${p.count}</text>`
+      + `<rect x="${x0.toFixed(1)}" y="${y + 4}" width="${bw.toFixed(1)}" height="8" rx="3" style="fill:var(--accent,#38bdf8)"/>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" role="img" aria-label="${escAttr(tr('Phase activity'))}">${rows}</svg>`;
+}
+
 export function initIncidentReplay({ store, tools, render, svg }) {
   const panel = document.createElement('section');
   panel.id = 'incident-replay-panel';
@@ -55,9 +94,15 @@ export function initIncidentReplay({ store, tools, render, svg }) {
       <span id="ir-counter" style="margin-left:auto;color:var(--muted,#8b9bb4)"></span>
     </div>
     <ol id="ir-stream" style="list-style:none;margin:0;padding:0;max-height:180px;overflow:auto"></ol>
+    <div style="margin-top:8px;border-top:1px solid var(--line,#334155);padding-top:8px">
+      <div style="color:var(--muted,#8b9bb4);margin-bottom:4px">${esc(tr('Volume per day'))}</div>
+      <div id="ir-volume"></div>
+      <div style="color:var(--muted,#8b9bb4);margin:8px 0 4px">${esc(tr('Phase activity'))}</div>
+      <div id="ir-phase-chart"></div>
+    </div>
   `;
 
-  let state = null; // { title, timeline, phases }
+  let state = null; // { title, timeline, phases, days }
   let index = -1;
 
   const speed = () => Number(panel.querySelector('#ir-speed').value) || 1;
@@ -143,9 +188,11 @@ export function initIncidentReplay({ store, tools, render, svg }) {
       const parsed = parseIncidentLog(text);
       const reconstructed = reconstructIncident(parsed);
       if (store.replaceDoc(reconstructed.doc) === false) return;
-      state = { title: reconstructed.doc.title, timeline: reconstructed.timeline, phases: reconstructed.phases };
+      state = { title: reconstructed.doc.title, timeline: reconstructed.timeline, phases: reconstructed.phases, days: reconstructed.days };
       index = -1;
       panel.querySelector('#ir-title').textContent = state.title;
+      panel.querySelector('#ir-volume').innerHTML = volumeChart(state.days);
+      panel.querySelector('#ir-phase-chart').innerHTML = phaseChart(state.phases);
       playback.pause();
       panel.hidden = false;
       stepTo(0);
