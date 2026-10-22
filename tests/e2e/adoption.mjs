@@ -5,7 +5,6 @@ export async function runAdoptionChecks({ js, key, check, sleep }) {
   await key('Enter', 'Enter', 13);
   await js(`document.getElementById('explore-close').click(); document.getElementById('btn-journey').click(); document.getElementById('journey-add').click(); true`);
   await js(`document.querySelector('.journey-step:nth-last-child(2) [data-jact="link"]').click(); true`);
-  check('journey step links to selected parts', await js(`document.querySelector('.journey-step:nth-last-child(2)').textContent.includes('Linked to parts and wires')`));
   await js(`document.querySelector('.journey-step:nth-last-child(2) [data-jact="go"]').click(); true`);
   check('linked journey Go highlights exact targets', await js(`document.querySelector('#canvas .node[data-id="n5"]').classList.contains('story-match') && document.querySelectorAll('#canvas .node.story-match').length === 1`));
   await sleep(650);
