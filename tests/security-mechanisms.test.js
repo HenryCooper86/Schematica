@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { buildSecurityIllustration, buildSecurityWalkthrough } from '../src/security-diagrams.js';
 import { newDoc } from '../src/state.js';
 import { serialize, deserialize } from '../src/serialize.js';
-import { nodeRect, nodeMeta, rectsIntersect, contentBounds } from '../src/geometry.js';
+import { nodeRect, nodeMeta, rectsIntersect, contentBounds, zoneLabelLayout, zoneRect } from '../src/geometry.js';
 
 const finding = (id, basis = 'source') => ({ id, kind: 'root_cause', title: id, detail: `${id} static explanation`,
   basis, view: 'none', evidence: basis === 'source' ? [{ sourceId: 'code', startLine: 1, endLine: 1 }] : [], targets: [] });
@@ -97,7 +97,16 @@ test('long panel headings fit within their own zones and exported scene bounds',
   const scene = contentBounds(doc);
   assert.ok(first.x + first.w < second.x);
   assert.ok(second.x + second.w <= scene.x + scene.w);
-  assert.ok(first.w > 240 * 6.2);
+  for (const zone of [first, second]) {
+    const header = zoneLabelLayout(zone);
+    assert.ok(header.lines.length > 1);
+    assert.ok(header.width <= zone.w - 24);
+    assert.equal(header.lines.join(' ').replaceAll(' ', ''), header.label.replaceAll(' ', ''));
+    assert.ok(zoneRect(zone).y >= scene.y);
+    for (const node of doc.nodes) if (node.x >= zone.x && node.x < zone.x + zone.w) {
+      assert.ok(node.y >= zone.y + header.bottom);
+    }
+  }
 });
 
 test('state snapshots, aligned comparisons and interaction lanes use different spatial organization', () => {
@@ -129,6 +138,30 @@ test('state snapshots, aligned comparisons and interaction lanes use different s
   const [sequenceA, sequenceC, sequenceB] = layout('sequence');
   assert.equal(sequenceA.x, sequenceC.x);
   assert.ok(sequenceA.y < sequenceB.y && sequenceB.y < sequenceC.y);
+});
+
+test('unequal wrapped panel headings cannot reorder interactions or misalign comparison rows', () => {
+  for (const kind of ['sequence', 'comparison']) {
+    const a = analysis(kind);
+    a.explanations[0].panels = [
+      { id: 'left', title: 'W'.repeat(240), items: [item('a'), item('c')] },
+      { id: 'right', title: 'R', items: [item('b'), item('d')] },
+    ];
+    a.explanations[0].links = [
+      { from: 'a', to: 'b', label: 'first exchange', findingIds: ['copy'] },
+      { from: 'b', to: 'c', label: 'return', findingIds: ['copy'] },
+    ];
+    const doc = newDoc();
+    buildSecurityIllustration(doc, a);
+    const node = label => doc.nodes.find(node => node.label.startsWith(`${label} [`));
+    if (kind === 'comparison') {
+      assert.equal(node('a').y, node('b').y);
+      assert.equal(node('c').y, node('d').y);
+    } else {
+      assert.ok(node('a').y < node('b').y && node('b').y < node('c').y && node('c').y < node('d').y);
+      assert.deepEqual(doc.journey[0].stops.map(stop => doc.nodes.find(node => node.id === stop.node).label.split(' ')[0]), ['a', 'b', 'c', 'd']);
+    }
+  }
 });
 
 function figurePlan(kind = 'attack') {
@@ -211,6 +244,20 @@ test('unestablished or unsupported mechanism asset hints cannot depict a concret
     assert.equal(actor.part.icon.kind, undefined);
   }
 });
+
+test('default builds use the recorded illustrated overview rather than generic finding graphs', () => {
+  const doc = newDoc(), a = figurePlan();
+  const built = buildSecurityIllustration(doc, a);
+  const actor = doc.nodes.find(node => node.kind === 'attacker');
+  const request = doc.nodes.find(node => node.kind === 'httprequest');
+  assert.ok(actor && request);
+  assert.ok(actor.x < request.x);
+  assert.equal(built.targets.view, 'mechanism');
+  const reopened = deserialize(serialize(doc)).doc;
+  assert.equal(buildSecurityWalkthrough(reopened, reopened.securityAnalysis).view, 'mechanism');
+  assert.ok(reopened.securityAnalysis.findings.find(f => f.id === 'attacker').targets.includes(actor.id));
+});
+
 
 test('row-specific and shared actors do not overlap and a tall shared actor remains centered', () => {
   for (const mixed of [false, true]) {

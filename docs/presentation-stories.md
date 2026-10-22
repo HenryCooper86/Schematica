@@ -19,6 +19,13 @@ in the story, shows a missing-part message, and uses the saved camera. Links to 
 removed stop open its surviving chapter overview. A missing chapter does not open
 a presentation.
 
+Linked targets can explicitly include zones as well as parts and wires. A zone
+target frames its caption-inclusive visual bounds; it does not implicitly add
+all its members to a chapter or change containment. Generated security scene
+overviews record their own panels, while individual stops still focus on the
+part and its direct relationships. Zone targets survive saving and interactive
+HTML export; deleted targets remain visible as missing links.
+
 Playback includes every chapter overview and stop, then ends. Manual navigation
 pauses playback; changing speed replaces the pending tick. Hidden tabs pause,
 reduced motion jumps the camera, and document replacement exits the presentation.

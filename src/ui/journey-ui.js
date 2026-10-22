@@ -94,7 +94,7 @@ export function initJourney({ svg, store, tools, render, recorder, propsPanel })
         + `<div class="step-head"><span class="step-num">${i + 1}</span>`
         + `<input type="text" data-jfield="label" value="${escAttr(s.label)}"></div>`
         + `<textarea data-jfield="caption" placeholder="${escAttr(tr('Caption shown while presenting'))}">${escAttr(s.caption)}</textarea>`
-        + (s.targets ? `<small>${escAttr(resolveStep(store.doc, s).missing ? tr('Some linked items are missing; the saved view is the fallback.') : tr('Linked to parts and wires'))}</small>` : '')
+        + (s.targets ? `<small>${escAttr(resolveStep(store.doc, s).missing ? tr('Some linked items are missing; the saved view is the fallback.') : tr('Linked to parts, wires or zones'))}</small>` : '')
         + (s.stops || []).map((stop, si) => `<div class="journey-stop" data-stop="${si}"><strong>${si + 1}. ${escAttr(store.doc.nodes.find(n => n.id === stop.node)?.label || tr('Missing part'))}</strong><textarea data-stop-caption placeholder="${escAttr(tr('Stop caption'))}">${escAttr(stop.caption)}</textarea><button data-stop-action="up" aria-label="${escAttr(tr('Move stop up'))}">↑</button><button data-stop-action="down" aria-label="${escAttr(tr('Move stop down'))}">↓</button><button data-stop-action="remove" aria-label="${escAttr(tr('Remove stop'))}">×</button></div>`).join('')
         + '<div class="step-actions">'
         + `<button data-jact="stops"${store.doc.nodes.some(n => store.selection.has(n.id)) ? '' : ' disabled'}>${escAttr(tr('Add selected parts as stops'))}</button>`
@@ -287,7 +287,7 @@ export function initJourney({ svg, store, tools, render, recorder, propsPanel })
   function showAll() {
     linkRequest++;
     playback.pause();
-    goToStep({ view: currentCenter(), targets: { nodes: store.doc.nodes.map(n => n.id), wires: store.doc.wires.map(w => w.id) } });
+    goToStep({ view: currentCenter(), targets: { nodes: store.doc.nodes.map(n => n.id), wires: store.doc.wires.map(w => w.id), zones: store.doc.zones.map(z => z.id) } });
     tools.ui.story = null; render();
     presentState.showingAll = true;
     document.getElementById('present-title').textContent = store.doc.title;

@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {
   snap, nodeRect, nodeSize, nodeMeta, portPosition, wireGeom, wireGeomToPoint, curvePoint, wireLanes, WIRE_FAN,
   rectsIntersect, normRect, wrapText, noteHeight, NOTE_W, contentBounds, textUnits, wireLabelRect, SHAPE_LINE_H,
-  measureShapeText,
+  measureShapeText, measureFigureLabelText, measureFigureMetaText, FIGURE_LABEL_LINE_H, FIGURE_META_LINE_H, FIGURE_LAYOUT,
+  zoneLabelLayout, ZONE_LABEL_LINE_H, measureZoneLabelText, zoneRect,
 } from '../src/geometry.js';
 import { EXAMPLE_OVERLAYS_ZH } from '../src/examples.js';
 import { normalizePart, partOf } from '../src/custom.js';
@@ -414,7 +415,7 @@ test('noteHeight grows with lines', () => {
   assert.ok(noteHeight('a very long note that definitely wraps onto multiple lines for sure') > 32);
 });
 
-test('contentBounds covers nodes, zones, notes; null when empty', () => {
+test('contentBounds covers nodes, zones, zone headers and notes; null when empty', () => {
   const doc = {
     nodes: [{ x: 100, y: 100, w: 50, h: 50 }],
     zones: [{ x: 0, y: 0, w: 80, h: 80 }],
@@ -423,10 +424,20 @@ test('contentBounds covers nodes, zones, notes; null when empty', () => {
   };
   const b = contentBounds(doc);
   assert.equal(b.x, 0);
-  assert.equal(b.y, 0);
+  // The zone's header pill rises above its top edge — at least the 9px
+  // straddle, more where the caption wraps — and that visible extent
+  // (zoneRect) belongs to the board Fit and exports frame.
+  assert.equal(b.y, zoneRect(doc.zones[0]).y);
+  assert.ok(b.y <= -9);
   assert.equal(b.w, 200 + NOTE_W);
   assert.ok(b.h >= 150);
   assert.equal(contentBounds({ nodes: [], zones: [], notes: [], wires: [] }), null);
+  // A swimlane's title lives inside its rectangle, so it adds nothing.
+  const lane = contentBounds({
+    nodes: [], notes: [], wires: [],
+    zones: [{ x: 0, y: 0, w: 320, h: 220, kind: 'swimlane', orient: 'h', lanes: ['A'], label: 'P' }],
+  });
+  assert.equal(lane.y, 0);
 });
 
 test('laneSnapPoint pulls the cross-axis onto lane centerlines inside a swimlane', async () => {
@@ -481,6 +492,136 @@ test('zoneMembers lists the cards whose center sits inside the zone, plus notes 
   assert.deepEqual(zoneMembers(doc, zone).sort(), ['in', 't-in'], 'a card whose center (312, 157) lies outside is not carried');
 });
 
+
+// ---- Zone captions ----
+// The header pill is bounded by the zone it titles: a caption too long for
+// one line wraps (same tokenizer as cards, notes and wire pills), keeps every
+// character, and never crosses the zone's side edges — measured in the same
+// 10px/700 font the canvas draws (the conservative 1em-per-unit bound outside
+// the browser), so a run of wide bold glyphs cannot overflow either. A short
+// caption keeps at least net_draw's estimated straddling pill, so existing
+// boards never shrink.
+const captionFits = (cap) => {
+  for (const line of cap.lines) {
+    assert.ok(measureZoneLabelText(line) <= cap.width - 18 + 1e-9, `line fits the pill: ${line}`);
+  }
+};
+
+test('a long zone caption wraps inside the zone, growing upward from a pinned bottom', () => {
+  const label = 'Internal network segment · segmented VLAN carrying user traffic [source: network-policy.txt]';
+  const zone = { x: 40, y: 200, w: 300, h: 240, label };
+  const cap = zoneLabelLayout(zone);
+  assert.ok(cap.lines.length > 1, `a 300px zone cannot hold the caption on one line (${cap.lines.length} lines)`);
+  assert.equal(cap.lines.join(' '), label, 'the caption is fully retained, never truncated');
+  assert.ok(cap.x + cap.width <= zone.w - 12, `pill stays inside the side edges (${cap.x}+${cap.width} ≤ ${zone.w - 12})`);
+  assert.equal(cap.height, 18 + (cap.lines.length - 1) * ZONE_LABEL_LINE_H, 'each wrapped line adds its height');
+  // Wrapped lines stack above the edge, never below it: members of boards
+  // laid out at the historic y+36 gap stay clear without any migration.
+  assert.equal(cap.bottom, 9, 'the pill bottom is pinned 9px below zone.y');
+  assert.equal(cap.y, 9 - cap.height, 'extra lines extend upward over the edge');
+  captionFits(cap);
+});
+
+test('a short zone caption keeps at least net_draw\'s single-line straddling pill', () => {
+  const label = 'Plant network';
+  const cap = zoneLabelLayout({ x: 0, y: 0, w: 300, h: 200, label });
+  assert.deepEqual(cap.lines, [label]);
+  assert.ok(cap.width >= textUnits(label) * 6.2 + 18 - 1e-9, `never narrower than the estimate (${cap.width})`);
+  assert.ok(cap.width >= measureZoneLabelText(label) + 18 - 1e-9, 'never narrower than its measured text');
+  assert.ok(cap.width <= 300 - 24, 'bounded by the zone');
+  assert.equal(cap.height, 18);
+  assert.equal(cap.y, -9);
+  assert.equal(cap.bottom, 9);
+  const fallback = zoneLabelLayout({ w: 300 });
+  assert.deepEqual(fallback.lines, ['Zone'], 'an unnamed zone titles itself');
+});
+
+test('a run of wide bold glyphs cannot overflow the pill', () => {
+  const single = zoneLabelLayout({ x: 0, y: 0, w: 300, h: 200, label: 'W'.repeat(10) });
+  assert.equal(single.lines.length, 1, 'ten W fit one line');
+  captionFits(single);
+  assert.ok(single.width > textUnits('W'.repeat(10)) * 6.2 + 18, 'wide glyphs widen the pill past the average estimate');
+  const wrapped = zoneLabelLayout({ x: 0, y: 0, w: 300, h: 200, label: 'W'.repeat(60) });
+  assert.ok(wrapped.lines.length > 1, 'sixty W wrap');
+  assert.equal(wrapped.lines.join(''), 'W'.repeat(60), 'no glyphs lost');
+  assert.equal(wrapped.width, 300 - 24);
+  captionFits(wrapped);
+});
+
+test('CJK captions, unbreakable runs and tiny or locked zones all stay bounded', () => {
+  const zh = zoneLabelLayout({ x: 0, y: 0, w: 260, h: 200, label: '按普渡层级划分的工厂网络边界与隔离区' });
+  assert.ok(zh.lines.length > 1, 'a CJK caption wraps per character');
+  assert.equal(zh.lines.join(''), '按普渡层级划分的工厂网络边界与隔离区', 'no characters lost');
+  assert.ok(zh.x + zh.width <= 260 - 12, 'the CJK pill stays inside');
+  captionFits(zh);
+
+  const url = zoneLabelLayout({ x: 0, y: 0, w: 200, h: 200, label: 'boundary=https://boundary.example.internal/corporate/trust/edge' });
+  assert.equal(url.lines.join(''), 'boundary=https://boundary.example.internal/corporate/trust/edge', 'a long URL breaks without losing characters');
+  assert.ok(url.lines.length > 1);
+  assert.ok(url.x + url.width <= 200 - 12);
+  captionFits(url);
+
+  // The editor's minimum zone: a caption longer than the zone is never cut.
+  const tiny = zoneLabelLayout({ x: 0, y: 0, w: 90, h: 70, label: 'DMZ boundary between office and plant networks' });
+  assert.equal(tiny.width, 90 - 24);
+  // Words wider than the 66px pill break by grapheme rather than truncate.
+  assert.equal(tiny.lines.join('').replace(/ /g, ''), 'DMZboundarybetweenofficeandplantnetworks');
+  assert.ok(tiny.x + tiny.width <= 90 - 12);
+  captionFits(tiny);
+
+  const locked = zoneLabelLayout({ x: 0, y: 0, w: 200, h: 200, label: 'Locked trust boundary', locked: true });
+  assert.ok(locked.x + locked.width <= 200 - 24, 'a locked zone keeps the padlock clear of the text');
+  captionFits(locked);
+});
+
+test('zone caption layout is deterministic for repeated Arrange and Fit', () => {
+  const zone = { x: 0, y: 0, w: 320, h: 200, label: 'Trust boundary · internal segmented VLAN [source: policy.txt]' };
+  assert.deepEqual(zoneLabelLayout(zone), zoneLabelLayout({ ...zone }));
+});
+
+test('sub-minimum saved widths keep the caption inside with full text retained', () => {
+  const label = 'DMZ boundary';
+  for (const w of [1, 20, 45]) {
+    for (const locked of [false, true]) {
+      const cap = zoneLabelLayout({ x: 0, y: 0, w, h: 70, label, locked });
+      assert.ok(cap.x >= -1e-9 && cap.x + cap.width <= w + 1e-9,
+        `the pill fits a ${w}px ${locked ? 'locked' : 'unlocked'} frame (${cap.x}+${cap.width} ≤ ${w})`);
+      assert.equal(cap.lines.join('').replace(/ /g, ''), 'DMZboundary', `no character dropped at w=${w}`);
+      assert.equal(cap.bottom, 9, 'the bottom stays pinned whatever the width');
+      assert.equal(cap.height, 18 + (cap.lines.length - 1) * ZONE_LABEL_LINE_H);
+      assert.ok(cap.textWidth > 0 && cap.textWidth <= cap.width + 1e-9, 'the text budget sits inside the pill');
+      for (const line of cap.lines) {
+        if (measureZoneLabelText(line) > cap.textWidth + 0.5) {
+          assert.equal([...line].length, 1, `only a lone indivisible grapheme may exceed the budget: ${line}`);
+        }
+      }
+    }
+  }
+  // Continuity at the thresholds and unchanged ordinary output above them.
+  const long = 'A caption far too long for any of these widths to hold on one line';
+  assert.equal(zoneLabelLayout({ x: 0, y: 0, w: 48, h: 70, label: long }).width, 24, 'unlocked: the historic floor at 48px');
+  assert.equal(zoneLabelLayout({ x: 0, y: 0, w: 48, h: 70, label: long }).x, 12);
+  assert.equal(zoneLabelLayout({ x: 0, y: 0, w: 66, h: 70, label: long, locked: true }).width, 24, 'locked: the historic floor at 66px');
+  assert.equal(zoneLabelLayout({ x: 0, y: 0, w: 90, h: 70, label: 'DMZ boundary between office and plant networks' }).width, 90 - 24,
+    'an ordinary zone keeps its exact historic pill');
+});
+
+test('zoneRect frames the caption outset while the frame bottom and sides stay put', () => {
+  const label = 'Internal network segment · segmented VLAN carrying user traffic [source: network-policy.txt]';
+  const zone = { x: 40, y: 200, w: 300, h: 240, label };
+  const cap = zoneLabelLayout(zone);
+  assert.ok(cap.lines.length > 1, 'the caption wraps');
+  const visual = zoneRect(zone);
+  assert.equal(visual.x, zone.x, 'the frame\'s left edge is the visual left edge');
+  assert.equal(visual.w, zone.w);
+  assert.equal(visual.y, zone.y + cap.y, 'the caption\'s upward outset leads the extent');
+  assert.equal(visual.y + visual.h, zone.y + zone.h, 'the frame\'s bottom never moves');
+  // A single-line caption still straddles 9px above the edge.
+  assert.equal(zoneRect({ x: 0, y: 100, w: 300, h: 200, label: 'Plant network' }).y, 91);
+  // A swimlane's title lives inside its frame: the plain rect, whatever the label.
+  const lane = { x: 0, y: 0, w: 400, h: 300, kind: 'swimlane', orient: 'h', lanes: ['A'], label: 'A swimlane title far too long for any ordinary zone pill to hold' };
+  assert.deepEqual(zoneRect(lane), { x: 0, y: 0, w: 400, h: 300 });
+});
 // Process-flow shapes size like net_draw's: label-driven widths within 96–290,
 // fixed heights per shape, and a square connector.
 test('nodeSize sizes process-flow shapes like net_draw', () => {
@@ -614,9 +755,12 @@ test('Chinese flow-shape labels widen the shape', () => {
 // ---- Catalogue figures (security illustration vocabulary) ----
 // A figure presents as a large illustrated card: every presentation is far
 // past the 104x74 badge-card minimum, width is fixed per presentation so
-// composed scenes align, and height grows only as the shared label/meta
-// lines wrap — a line can never exceed the text budget the card reserves.
-const FIGURE_MIN_W = { attacker: 210, httprequest: 236, servermemory: 156, processcrash: 196 };
+// composed scenes align, and height grows only as the label/meta lines wrap
+// — a line can never exceed the text budget the card reserves. Figures carry
+// their own larger typography (15px/600 label, 12px mono context), so their
+// line heights and measured budgets are the figure metrics, not the badge
+// card's.
+const FIGURE_MIN_W = { attacker: 210, httprequest: 260, servermemory: 180, processcrash: 212 };
 
 test('figure parts size as large illustrations, not badge cards', () => {
   for (const [kind, minW] of Object.entries(FIGURE_MIN_W)) {
@@ -624,8 +768,10 @@ test('figure parts size as large illustrations, not badge cards', () => {
     assert.ok(w >= minW && w < minW + 1, `${kind} keeps its fixed presentation width ${w}`);
     assert.ok(w > 104 && h > 74, `${kind} is larger than a badge card (${w}x${h})`);
   }
-  const actor = size({ kind: 'attacker', label: 'X' });
-  assert.ok(actor.h >= 84 + 22 + 12 + 15 + 18, `the actor pictogram area survives (${actor.h})`);
+  const A = FIGURE_LAYOUT.actor;
+  assert.equal(size({ kind: 'attacker', label: 'X' }).h,
+    A.padTop + A.glyph + A.gap + FIGURE_LABEL_LINE_H + A.padBottom,
+    'the actor reserves its full pictogram box plus the label block');
 });
 
 test('figure labels and meta lines wrap inside the card budget and grow it taller', () => {
@@ -636,21 +782,23 @@ test('figure labels and meta lines wrap inside the card budget and grow it talle
   assert.ok(long.h > short.h, `wrapped lines grow the card (${long.h} > ${short.h})`);
   assert.ok(long.labelLines.length > 1, 'the label wrapped');
   const budget = short.w - 2 * 30;
-  for (const line of long.labelLines) assert.ok(measureShapeText(line) <= budget, `line fits: ${line}`);
+  for (const line of long.labelLines) assert.ok(measureFigureLabelText(line) <= budget, `line fits: ${line}`);
   assert.equal(long.labelLines.join('').replace(/ /g, ''), 'Unattributedremoteattackerwithastolencredential', 'no text lost');
 
   const meta = nodeSize({ ...base, label: 'A', sublabel: 'POST /upload.php?debug=1&trace=all&verbose=yes' });
   const sub = meta.metaLines.find((m) => m.field === 'sublabel');
   assert.ok(sub.lines.length > 1, 'meta lines wrap too');
+  for (const line of sub.lines) assert.ok(measureFigureMetaText(line) <= budget, `meta line fits: ${line}`);
+  assert.equal(sub.lines.join('').replace(/ /g, ''), 'POST/upload.php?debug=1&trace=all&verbose=yes', 'no meta text lost');
   assert.ok(meta.h > nodeSize({ ...base, label: 'A' }).h, 'wrapped meta grows the card');
 });
 
 test('a CJK figure label wraps per character and stays inside the budget', () => {
   const s = nodeSize({ kind: 'phpapp', label: '面向请求的应用程序服务器端渲染组件' });
-  assert.equal(s.w, 156, 'tile width is fixed');
+  assert.equal(s.w, 180, 'tile width is fixed');
   assert.ok(s.labelLines.length > 1, 'the CJK run wrapped');
-  const budget = 156 - 2 * 22;
-  for (const line of s.labelLines) assert.ok(measureShapeText(line) <= budget, `line fits: ${line}`);
+  const budget = 180 - 2 * 22;
+  for (const line of s.labelLines) assert.ok(measureFigureLabelText(line) <= budget, `line fits: ${line}`);
   assert.equal(s.labelLines.join(''), '面向请求的应用程序服务器端渲染组件', 'no characters lost');
 });
 

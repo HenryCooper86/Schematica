@@ -136,31 +136,67 @@ function shapeSize(shape, label) {
 
 // ---- Catalogue figures (security illustration vocabulary) ----
 // A `figure` part presents as a large illustrated card, not a badge card: a
-// big pictogram with the wrapped label and the same mono meta metrics under
-// it (a capsule sets its text beside the pictogram inside a pill). Every
-// presentation fixes its width — composed scenes keep aligned columns — and
-// the card grows only downward as lines wrap, so a label or meta value can
-// never clip out of the drawn box. render.js reads the same numbers, so the
-// drawn figure and this geometry cannot disagree.
-export const FIGURE_LABEL_LINE_H = 15;
+// big pictogram with the wrapped label and the figure's own mono meta metrics
+// under it (a capsule sets its text beside the pictogram inside a pill).
+// Figures are the illustration's reading type, so their text is larger than a
+// badge card's — a 15px/600 label and 12px mono context — with line heights
+// and measured wrapping to match; ordinary card typography is untouched.
+// Every presentation fixes its width — composed scenes keep aligned columns —
+// and the card grows only downward as lines wrap, so a label or meta value
+// can never clip out of the drawn box. render.js reads the same numbers, so
+// the drawn figure and this geometry cannot disagree.
+export const FIGURE_LABEL_FONT_SIZE = 15;
+export const FIGURE_LABEL_LINE_H = 18;
+export const FIGURE_META_FONT_SIZE = 12;
+export const FIGURE_META_LINE_H = 15;
 export const FIGURE_LAYOUT = Object.freeze({
-  actor: { w: 210, glyph: 84, padX: 30, padTop: 22, gap: 12, padBottom: 18, rx: 18 },
-  capsule: { w: 236, glyph: 52, padX: 28, padTop: 14, gap: 12, padBottom: 14, side: true, rx: 0 },
-  tile: { w: 156, glyph: 64, padX: 22, padTop: 16, gap: 10, padBottom: 14, rx: 14 },
-  outcome: { w: 196, glyph: 72, padX: 26, padTop: 18, gap: 11, padBottom: 16, rx: 16 },
+  actor: { w: 210, glyph: 128, padX: 30, padTop: 22, gap: 12, padBottom: 18, rx: 18 },
+  capsule: { w: 260, glyph: 68, padX: 28, padTop: 14, gap: 12, padBottom: 14, side: true, rx: 0 },
+  tile: { w: 180, glyph: 88, padX: 22, padTop: 16, gap: 10, padBottom: 14, rx: 14 },
+  outcome: { w: 212, glyph: 88, padX: 26, padTop: 18, gap: 11, padBottom: 16, rx: 16 },
 });
+
+// The fonts figureMarkup draws: a 15px/600 label and a 12px mono context,
+// each measured with a canvas in the browser. Outside the browser a
+// conservative 1em-per-unit bound stands in so geometry and export never
+// under-size a wrapped line of wide glyphs (the measureShapeText convention).
+const FIGURE_META_FONT_FAMILY = 'ui-monospace, Consolas, monospace';
+let figureLabelMeasureContext;
+let figureMetaMeasureContext;
+
+export function measureFigureLabelText(text) {
+  if (figureLabelMeasureContext === undefined) {
+    try { figureLabelMeasureContext = typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d'); }
+    catch { figureLabelMeasureContext = null; }
+    if (figureLabelMeasureContext) figureLabelMeasureContext.font = `600 ${FIGURE_LABEL_FONT_SIZE}px ${NOTE_FONT_FAMILY}`;
+  }
+  if (!figureLabelMeasureContext) return textUnits(text) * FIGURE_LABEL_FONT_SIZE;
+  const metrics = figureLabelMeasureContext.measureText(String(text));
+  return Math.max(metrics.width, (metrics.actualBoundingBoxLeft || 0) + (metrics.actualBoundingBoxRight || 0));
+}
+
+export function measureFigureMetaText(text) {
+  if (figureMetaMeasureContext === undefined) {
+    try { figureMetaMeasureContext = typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d'); }
+    catch { figureMetaMeasureContext = null; }
+    if (figureMetaMeasureContext) figureMetaMeasureContext.font = `${FIGURE_META_FONT_SIZE}px ${FIGURE_META_FONT_FAMILY}`;
+  }
+  if (!figureMetaMeasureContext) return textUnits(text) * FIGURE_META_FONT_SIZE;
+  const metrics = figureMetaMeasureContext.measureText(String(text));
+  return Math.max(metrics.width, (metrics.actualBoundingBoxLeft || 0) + (metrics.actualBoundingBoxRight || 0));
+}
 
 function figureSize(figure, label, meta) {
   const P = FIGURE_LAYOUT[figure] ?? FIGURE_LAYOUT.tile;
   let budget = P.w - P.padX * 2;
   if (P.side) budget -= P.glyph + P.gap;
-  const labelLines = wrapLines(String(label ?? ''), budget, measureShapeText);
+  const labelLines = wrapLines(String(label ?? ''), budget, measureFigureLabelText);
   const metaLines = meta.map((m) => ({
     field: m.field,
-    lines: wrapLines(m.text, budget, (s) => textUnits(s) * 5.9),
+    lines: wrapLines(m.text, budget, measureFigureMetaText),
   }));
   const labelBlock = labelLines.length * FIGURE_LABEL_LINE_H;
-  const metaBlock = metaLines.reduce((sum, m) => sum + m.lines.length * META_LINE_H, 0);
+  const metaBlock = metaLines.reduce((sum, m) => sum + m.lines.length * FIGURE_META_LINE_H, 0);
   const textBlock = labelBlock + (metaBlock ? metaBlock + 4 : 0);
   let h;
   if (P.side) h = Math.max(P.glyph, textBlock) + P.padTop + P.padBottom;
@@ -585,6 +621,109 @@ export function zoneMembers(doc, zone) {
   return ids;
 }
 
+// ---- Zone captions (the ordinary zone's header pill) ----
+// One owner for the caption a zone draws on its top edge, measured with the
+// font the canvas actually draws it in (10px/700, the root SVG's UI sans
+// stack). A caption that fits one line keeps at least net_draw's estimated
+// pill — textUnits * 6.2 + 18 wide, 18 tall, straddling the top edge — so
+// short headers on existing boards never shrink, while a run of wide bold
+// glyphs ("WWWW") widens the pill to its measured width instead of spilling
+// out. A caption that cannot fit wraps onto extra lines (the same tokenizer
+// cards, notes and wire pills use: Latin words stay whole, every CJK
+// character and any unbreakable run wider than the pill splits by grapheme)
+// and the pill widens only to the zone's inner width, so its visible bounds
+// always stay between the zone's side edges. Wrapped lines grow UPWARD: the
+// pill's bottom stays 9px below the top edge whatever the caption wraps to,
+// so members of existing, locked or merely relabelled boards — sitting at
+// the historic y+36 gap — are never covered and no stored coordinate has to
+// migrate; layout that needs headroom reserves the upward outset itself.
+// Nothing is ever truncated: the joined lines reproduce the source caption
+// exactly. render.js, contentBounds and exporters all read these numbers, so
+// the drawn caption and every bound that frames it cannot disagree. A locked
+// zone reserves a little more on the right so the padlock badge never covers
+// the text.
+export const ZONE_LABEL_H = 18;        // single-line pill height
+export const ZONE_LABEL_LINE_H = 12;   // px per extra wrapped caption line
+export const ZONE_LABEL_FONT_SIZE = 10;
+export const ZONE_LABEL_FONT_WEIGHT = 700;
+const ZONE_LABEL_FONT_FAMILY = "ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif";
+const ZONE_LABEL_INSET = 12;           // pill's inset from each side edge
+const ZONE_LABEL_LOCK_INSET = 30;      // right inset that clears the padlock
+const ZONE_LABEL_PER_UNIT = 6.2;       // net_draw's px-per-unit estimate, kept as the pill's floor
+const ZONE_LABEL_MIN_INNER = 24;       // historic floor; below it insets scale down
+const ZONE_LABEL_PAD_X = 18;           // horizontal padding inside the pill
+let zoneLabelMeasureContext;
+
+// The caption's glyph width in the drawn font, measured with a canvas in the
+// browser. Outside the browser a conservative 1em-per-unit bound stands in so
+// geometry, layout and export never under-size a line of wide glyphs (the
+// measureShapeText convention).
+export function measureZoneLabelText(text) {
+  if (zoneLabelMeasureContext === undefined) {
+    try { zoneLabelMeasureContext = typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d'); }
+    catch { zoneLabelMeasureContext = null; }
+    if (zoneLabelMeasureContext) zoneLabelMeasureContext.font = `${ZONE_LABEL_FONT_WEIGHT} ${ZONE_LABEL_FONT_SIZE}px ${ZONE_LABEL_FONT_FAMILY}`;
+  }
+  if (!zoneLabelMeasureContext) return textUnits(text) * ZONE_LABEL_FONT_SIZE;
+  const metrics = zoneLabelMeasureContext.measureText(String(text));
+  return Math.max(metrics.width, (metrics.actualBoundingBoxLeft || 0) + (metrics.actualBoundingBoxRight || 0));
+}
+
+// The pill's box in coordinates local to the zone: `x`/`y` are offsets from
+// the zone's top-left corner, `bottom` is the header's lowest extent relative
+// to `zone.y` — pinned at +9 so wrapped lines grow upward over the edge
+// instead of down onto the members — and `lines` are the wrapped caption
+// lines render.js draws verbatim, top line first.
+export function zoneLabelLayout(zone) {
+  const label = zone.label || 'Zone';
+  const w = Math.max(0, zone.w || 0);
+  // A saved board may hold any positive finite width — below the editor's
+  // 90px minimum included. There the insets and the pill's padding shrink
+  // proportionally (each keeps the share it claims on a minimum-width zone),
+  // so the pill always fits between the side edges without growing the frame
+  // or moving anything. Ordinary zones — unlocked from 48px, locked from
+  // 66px — keep the exact historic numbers.
+  const rightBase = zone.locked ? ZONE_LABEL_LOCK_INSET : ZONE_LABEL_INSET;
+  const scale = Math.min(1, w / (ZONE_LABEL_INSET + rightBase + ZONE_LABEL_MIN_INNER));
+  const insetL = ZONE_LABEL_INSET * scale;
+  const insetR = rightBase * scale;
+  const padX = ZONE_LABEL_PAD_X * scale;
+  const inner = w - insetL - insetR;
+  const lines = wrapLines(label, inner - padX, measureZoneLabelText);
+  const width = lines.length > 1
+    ? inner
+    : Math.min(inner, Math.max(
+      textUnits(label) * ZONE_LABEL_PER_UNIT * scale + padX,
+      measureZoneLabelText(label) + padX,
+    ));
+  const height = ZONE_LABEL_H + (lines.length - 1) * ZONE_LABEL_LINE_H;
+  return {
+    label, lines,
+    x: r2(insetL),
+    y: ZONE_LABEL_H / 2 - height,
+    width: r2(width),
+    height,
+    bottom: ZONE_LABEL_H / 2,
+    // The pill's text budget. A line can only exceed it when a single
+    // indivisible grapheme is wider than the whole pill (a physically tiny
+    // zone): render.js squeezes exactly that line with textLength.
+    textWidth: r2(width - padX),
+  };
+}
+
+// A zone's visible extent: the frame plus, for ordinary zones, the header
+// pill's upward outset — a single-line caption already straddles 9px above
+// the edge and wrapped lines rise further, so this is the rectangle Fit,
+// exports, snapshots, camera framing and zone separation must clear. The
+// frame's bottom and side edges never move. Membership and editing stay on
+// the raw frame (zoneMembers, resizeZone), so a caption never adopts
+// members; a swimlane's title lives inside its frame, so it adds nothing.
+export function zoneRect(zone) {
+  if (zone.kind === 'swimlane') return { x: zone.x, y: zone.y, w: zone.w, h: zone.h };
+  const y = zone.y + zoneLabelLayout(zone).y;
+  return { x: zone.x, y, w: zone.w, h: zone.h + (zone.y - y) };
+}
+
 export const NOTE_W = 160;
 export const NOTE_FONT_SIZE = 11.5;
 export const NOTE_FONT_FAMILY = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
@@ -620,11 +759,14 @@ export function noteHeight(text) {
   return 16 + noteLines(text).length * 16;
 }
 
-// Include routed detours and label pills so Fit, snapshots and exports agree.
+// Include routed detours, label pills and zone header pills so Fit, snapshots
+// and exports agree. zoneRect carries a zone's visible extent (caption
+// included), but membership never follows it: zoneMembers still tests card
+// centers against the raw frame alone.
 export function contentBounds(doc, scene = null) {
   const rects = [
     ...doc.nodes.map(nodeRect),
-    ...doc.zones.map((z) => ({ x: z.x, y: z.y, w: z.w, h: z.h })),
+    ...doc.zones.map(zoneRect),
     ...doc.notes.map((n) => ({ x: n.x, y: n.y, w: NOTE_W, h: noteHeight(n.text) })),
   ];
   if (doc.wires?.length) {

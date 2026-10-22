@@ -8,9 +8,10 @@ import { BUSES } from './buses.js';
 import { CATEGORY_COLORS, DISPOSITIONS, SEVERITY_COLORS } from './palette.js';
 import {
   portPosition, wireGeomToPoint, noteLines, noteHeight,
-  nodeRect, nodeSize, NOTE_W, NOTE_FONT_SIZE, NOTE_FONT_FAMILY, LANE_TITLE_H, textUnits,
+  nodeRect, nodeSize, NOTE_W, NOTE_FONT_SIZE, NOTE_FONT_FAMILY, LANE_TITLE_H,
   LABEL_LINE_H, META_LINE_H, SHAPE_LINE_H, WIRE_LABEL_LINE_H,
-  FIGURE_LABEL_LINE_H, FIGURE_LAYOUT,
+  FIGURE_LABEL_LINE_H, FIGURE_LABEL_FONT_SIZE, FIGURE_META_LINE_H, FIGURE_META_FONT_SIZE, FIGURE_LAYOUT,
+  zoneLabelLayout, ZONE_LABEL_H, ZONE_LABEL_LINE_H, ZONE_LABEL_FONT_SIZE, ZONE_LABEL_FONT_WEIGHT, measureZoneLabelText,
 } from './geometry.js';
 
 // The canvas mirrors net_draw's look one to one: gradient cards with a drop
@@ -143,27 +144,29 @@ function figureMarkup(part, W, H, acc, selected, labelLines, metaLines) {
   const gy = P.side ? (H - P.glyph) / 2 : P.padTop;
   s += `<g transform="translate(${Math.round(gx * 100) / 100} ${Math.round(gy * 100) / 100}) scale(${Math.round(gs * 1000) / 1000})"`
     + ` fill="none" stroke="${c}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" color="${c}">${part.glyph}</g>`;
-  // Text: the wrapped label, then the mono meta lines (shared with cards).
+  // Text: the wrapped label, then the mono meta lines — figures carry their
+  // own larger metrics (15px/600 label, 12px context), shared with geometry.
   const labelBlock = labelLines.length * FIGURE_LABEL_LINE_H;
-  const metaBlock = metaLines.reduce((sum, m) => sum + m.lines.length * META_LINE_H, 0);
+  const metaBlock = metaLines.reduce((sum, m) => sum + m.lines.length * FIGURE_META_LINE_H, 0);
   const textBlock = labelBlock + (metaBlock ? metaBlock + 4 : 0);
   const x = P.side ? P.padX + P.glyph + P.gap : W / 2;
   const anchor = P.side ? 'start' : 'middle';
+  const baseline = FIGURE_LABEL_LINE_H * 0.75;
   const labelY = P.side
-    ? Math.max(P.padTop, (H - textBlock) / 2) + 12
-    : P.padTop + P.glyph + P.gap + 12;
-  s += `<text x="${x}" y="${labelY}" text-anchor="${anchor}" font-size="12" font-weight="600" font-family="${NOTE_FONT_FAMILY}"`
+    ? Math.max(P.padTop, (H - textBlock) / 2) + baseline
+    : P.padTop + P.glyph + P.gap + baseline;
+  s += `<text x="${x}" y="${Math.round(labelY * 100) / 100}" text-anchor="${anchor}" font-size="${FIGURE_LABEL_FONT_SIZE}" font-weight="600" font-family="${NOTE_FONT_FAMILY}"`
     + ` fill="${TEXT}" data-edit="label">`
     + labelLines.map((line, j) => `<tspan x="${x}" dy="${j ? FIGURE_LABEL_LINE_H : 0}">${esc(line)}</tspan>`).join('')
     + '</text>';
-  let metaY = labelY + (labelLines.length - 1) * FIGURE_LABEL_LINE_H + 16;
+  let metaY = labelY + labelLines.length * FIGURE_LABEL_LINE_H + 1;
   for (const m of metaLines) {
     const open = `<text data-detail="${m.field === 'sublabel' ? 'context' : 'fine'}" x="${x}" y="${Math.round(metaY * 100) / 100}" text-anchor="${anchor}"`
-      + ` font-size="9.5" fill="${META}" font-family="${MONO}" data-edit="${m.field}">`;
+      + ` font-size="${FIGURE_META_FONT_SIZE}" fill="${META}" font-family="${MONO}" data-edit="${m.field}">`;
     s += m.lines.length === 1
       ? open + esc(m.lines[0]) + '</text>'
-      : open + m.lines.map((line, j) => `<tspan x="${x}" dy="${j ? META_LINE_H : 0}">${esc(line)}</tspan>`).join('') + '</text>';
-    metaY += m.lines.length * META_LINE_H;
+      : open + m.lines.map((line, j) => `<tspan x="${x}" dy="${j ? FIGURE_META_LINE_H : 0}">${esc(line)}</tspan>`).join('') + '</text>';
+    metaY += m.lines.length * FIGURE_META_LINE_H;
   }
   return s;
 }
@@ -537,12 +540,27 @@ function zoneMarkup(zone, selected) {
     + ` stroke-width="${selected ? 2 : 1.5}"${selected ? '' : ' stroke-dasharray="6 5"'}/>`;
   s += `<rect x="${zone.x}" y="${zone.y}" width="${zone.w}" height="${zone.h}" rx="14"`
     + ` fill="none" stroke="transparent" stroke-width="12" pointer-events="stroke"/>`;
-  const label = zone.label || 'Zone';
-  const w = textUnits(label) * 6.2 + 18;
-  s += `<rect x="${zone.x + 12}" y="${zone.y - 9}" width="${w}" height="18" rx="9"`
+  const label = zoneLabelLayout(zone);
+  const lx = zone.x + label.x;
+  // Wrapped lines grow upward from the pinned bottom (+9), so the pill top
+  // leads the geometry: the first line centres the pill's top band, and a
+  // single-line caption still centres exactly on the zone's edge.
+  const top = zone.y + label.y;
+  s += `<rect x="${lx}" y="${top}" width="${label.width}" height="${label.height}" rx="9"`
     + ` fill="${CHIP_BG}" stroke="${esc(color)}" stroke-opacity="0.8"/>`;
-  s += `<text x="${zone.x + 12 + w / 2}" y="${zone.y}" text-anchor="middle" dominant-baseline="central"`
-    + ` font-size="10" font-weight="700" fill="${esc(color)}" data-edit="label">${esc(label)}</text>`;
+  const cx = lx + label.width / 2;
+  // A line can only be wider than the pill's text budget when a single
+  // indivisible grapheme cannot fit at 10px — a physically tiny saved zone.
+  // Exactly that line is squeezed to the budget (all characters kept); an
+  // ordinary zone's lines always measure inside it and render untouched.
+  const squeeze = (line) => label.textWidth > 0 && measureZoneLabelText(line) > label.textWidth + 0.5
+    ? ` textLength="${label.textWidth}" lengthAdjust="spacingAndGlyphs"` : '';
+  s += `<text x="${cx}" y="${top + ZONE_LABEL_H / 2}" text-anchor="middle" dominant-baseline="central"`
+    + ` font-size="${ZONE_LABEL_FONT_SIZE}" font-weight="${ZONE_LABEL_FONT_WEIGHT}" fill="${esc(color)}" data-edit="label"${label.lines.length === 1 ? squeeze(label.lines[0]) : ''}>`
+    + (label.lines.length === 1
+      ? esc(label.lines[0])
+      : label.lines.map((line, j) => `<tspan x="${cx}" dy="${j ? ZONE_LABEL_LINE_H : 0}"${squeeze(line)}>${esc(line)}</tspan>`).join(''))
+    + '</text>';
   if (zone.locked) s += lockMarkup(zone.x + zone.w - 18, zone.y - 6);
   if (selected && !zone.locked) s += zoneHandlesMarkup(zone);
   s += '</g>';

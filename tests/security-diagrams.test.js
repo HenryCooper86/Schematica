@@ -840,16 +840,6 @@ test('architecture view draws unnumbered cards and link associations', () => {
   assert.ok(chapter.stops.every((s) => !/^\d+\./.test(s.caption)), 'architecture stops are not numbered');
 });
 
-test('mitigation view numbers its controls', () => {
-  const doc = newDoc('Board');
-  const base = analysis({
-    findings: [finding('m1', 'mitigation', 'mitigation'), finding('m2', 'mitigation', 'mitigation')],
-    relationships: [rel('rm', 'm1', 'm2', 'mitigation')],
-  });
-  const res = buildSecurityIllustration(doc, base, { view: 'mitigation' });
-  assert.deepEqual(res.targets.nodes.map((id) => nodeById(doc, id).label), ['1. Finding m1', '2. Finding m2']);
-  assert.equal(doc.wires.find((w) => w.id === res.targets.wires[0]).arrow, 'fwd');
-});
 
 test('walkthrough=false updates targets without adding a chapter', () => {
   const doc = newDoc('Board');

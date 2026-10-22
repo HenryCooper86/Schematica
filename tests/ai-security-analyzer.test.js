@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { analyzeSecurity, sha256Hex, SECURITY_READ_ROUNDS, READ_SPAN_CHARS } from '../src/ai/security.js';
+import { buildSecurityIllustration } from '../src/security-diagrams.js';
+import { newDoc } from '../src/state.js';
+import { serialize, deserialize } from '../src/serialize.js';
 
 const time = '2026-10-20T00:00:00.000Z';
 async function source(text = 'The parser trusts the supplied length.\nThe fix checks the buffer size.') {
@@ -517,6 +520,34 @@ test('scene item asset hints survive only on exact same-asset non-unknown ground
   assert.match(warnings, /asset "webserver" was omitted/);
 });
 
+test('actor hint completion never resurrects a rejected hint or promotes uncertain grounding', async () => {
+  for (const variation of ['omitted', 'null', 'unsupported', 'incompatible', 'unknown', 'ambiguous', 'other-panel']) {
+    const retained = await source('An external attacker and an insider send input.');
+    const actor = finding({ id: 'actor', kind: 'component', view: 'architecture', assetKind: 'attacker' });
+    if (variation === 'unknown') { actor.basis = 'unknown'; actor.evidence = []; }
+    const cell = { id: 'actor-cell', label: 'External actor', value: '', role: 'input', findingIds: ['actor'] };
+    if (variation === 'null') cell.assetKind = null;
+    if (variation === 'unsupported') cell.assetKind = 'invented-actor';
+    if (variation === 'incompatible') cell.assetKind = 'insider';
+    const findings = [actor];
+    if (variation === 'ambiguous') {
+      findings.push(finding({ id: 'insider', kind: 'component', assetKind: 'insider' }));
+      cell.findingIds.push('insider');
+    }
+    const result = await analyzeSecurity({ sources: [retained], provider: provider([reply(plan({
+      findings, explanations: [scene({ kind: 'attack', links: [], panels: [{
+        id: 'actor-panel', title: 'Actor', placement: variation === 'other-panel' ? 'target' : 'actor', items: [cell],
+      }] })],
+    }))]) });
+    const doc = newDoc();
+    buildSecurityIllustration(doc, result);
+    const rendered = doc.nodes.find(node => node.label.startsWith('External actor ['));
+    assert.equal(rendered.kind, variation === 'omitted' ? 'attacker' : 'custom', variation);
+    const saved = deserialize(serialize(doc)).doc.securityAnalysis.explanations[0].panels[0].items[0];
+    assert.equal(saved.assetKind, variation === 'omitted' ? 'attacker' : undefined, variation);
+  }
+});
+
 test('attack and parallel compositions keep placements and rows or drop the scene whole', async () => {
   const retained = await source();
   const attack = { id: 'attack-scene', title: 'Oversized request against the host', kind: 'attack',
@@ -580,3 +611,4 @@ test('malformed link collections cannot discard an uncertain narrative dependenc
     assert.equal(result.findings.find(finding => finding.id === 'uncertain').basis, 'unknown');
   }
 });
+

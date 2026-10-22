@@ -34,10 +34,10 @@ import { fitZone, COL_GAP, ROW_GAP } from './ai/layout.js';
 import { resolveStep } from './journey.js';
 import { uid } from './state.js';
 import { MAX_TEXT } from './serialize.js';
-import { nodeRect, rectsIntersect, snap, NOTE_W, noteHeight, contentBounds } from './geometry.js';
+import { nodeRect, zoneRect, rectsIntersect, snap, NOTE_W, noteHeight, contentBounds } from './geometry.js';
 import { PARTS } from './palette.js';
 import { tr } from './i18n.js';
-import { securityAssetCard as assetCard } from './security-assets.js';
+import { securityAssetCard as assetCard, isSecurityActorAsset } from './security-assets.js';
 import { buildSecurityMechanisms, mechanismFindingIds } from './security-mechanisms.js';
 
 export const SECURITY_ILLUSTRATION_VIEWS = ['architecture', 'exploit', 'mitigation', 'mechanism'];
@@ -92,7 +92,6 @@ const SCENE_LABEL = {
 };
 const ATTACK_GLYPHS = new Set(['vulnerability', 'exploit', 'preparation', 'startend', 'process',
   'httprequest', 'payload', 'memorydump', 'processcrash', 'codeexec']);
-const ACTOR_KINDS = new Set(['threatactor', 'insider', 'attacker']);
 // Catalogue "security" parts split: these actively enforce or monitor, the
 // rest (web/application servers, CDN, gateways) are service infrastructure
 // and belong with the network scene rather than being labelled controls.
@@ -103,7 +102,7 @@ const SCENE_GAP = 48;
 
 function sceneOf(kind, view) {
   const part = PARTS[kind] ?? PARTS.generic;
-  if (ACTOR_KINDS.has(kind) || part.category === 'people') return 'actors';
+  if (isSecurityActorAsset(kind)) return 'actors';
   if (view !== 'architecture' && ATTACK_GLYPHS.has(kind)) return 'attack';
   if (CONTROL_KINDS.has(kind)) return 'controls';
   if (part.category === 'network' || NETWORK_SERVICE_KINDS.has(kind)) return 'network';
@@ -411,7 +410,7 @@ function moveClearOfZone(doc, item, zone, isNote = false) {
   const step = Math.max(8, snap(size.h + ROW_GAP));
   const obstacles = [
     ...doc.nodes.filter((n) => n.id !== item.id).map(nodeRect),
-    ...doc.zones.filter((z) => z.id !== zone.id).map((z) => ({ x: z.x, y: z.y, w: z.w, h: z.h })),
+    ...doc.zones.filter((z) => z.id !== zone.id).map(zoneRect),
     ...doc.notes.filter((t) => t.id !== item.id).map((t) => ({ x: t.x, y: t.y, w: NOTE_W, h: noteHeight(t.text) })),
   ];
   const free = (y) => !obstacles.some((o) => rectsIntersect(
@@ -439,7 +438,7 @@ function keepClearOfZones(doc, nodeIds, noteIds, membersOfZone) {
     let moved = false;
     for (const zone of zones) {
       const members = membersOfZone.get(zone.id);
-      const rect = { x: zone.x, y: zone.y, w: zone.w, h: zone.h };
+      const rect = zoneRect(zone);
       for (const id of nodeIds) {
         if (members.has(id)) continue;
         const node = doc.nodes.find((n) => n.id === id);
@@ -565,17 +564,17 @@ function placeIllustration(doc, snapshot, nodesByFinding, layers, noteIds, zones
     const moving = doc.nodes.filter(node => members.has(node.id));
     const obstacles = [
       ...doc.nodes.filter(node => !members.has(node.id)).map(nodeRect),
-      ...doc.zones.filter(item => item.id !== zoneId),
+      ...doc.zones.filter(item => item.id !== zoneId).map(zoneRect),
       ...snapshot.notes.map(note => ({ x: note.x, y: note.y, w: NOTE_W, h: noteHeight(note.text) })),
     ];
     for (let attempt = 0; attempt <= obstacles.length; attempt++) {
-      const hit = obstacles.find(box => rectsIntersect(zone, box));
+      const hit = obstacles.find(box => rectsIntersect(zoneRect(zone), box));
       if (!hit) break;
       const dx = Math.ceil((hit.x + hit.w + COL_GAP - zone.x) / 8) * 8;
       zone.x += dx;
       for (const node of moving) node.x += dx;
     }
-    if (obstacles.some(box => rectsIntersect(zone, box))) {
+    if (obstacles.some(box => rectsIntersect(zoneRect(zone), box))) {
       throw Error('Could not separate security domains while preserving declared membership.');
     }
     right = Math.max(right, zone.x + zone.w);
@@ -603,7 +602,7 @@ function placeIllustration(doc, snapshot, nodesByFinding, layers, noteIds, zones
 export function buildSecurityIllustration(doc, analysis, options = {}) {
   const valid = validateSecurityAnalysis(analysis);
   const opts = options || {};
-  const view = opts.view === undefined ? 'exploit' : opts.view;
+  const view = opts.view === undefined ? (valid.explanations?.length ? 'mechanism' : 'exploit') : opts.view;
   if (view === 'mechanism') return buildSecurityMechanisms(doc, valid, {
     walkthrough: opts.walkthrough === undefined || opts.walkthrough === true,
   });
@@ -729,7 +728,7 @@ export function buildSecurityIllustration(doc, analysis, options = {}) {
     const number = order.get(finding.id);
     const op = {
       op: 'add_part', ref, kind: card.kind,
-      label: `${number ? `${number}. ` : ''}${finding.title}${PARTS[card.kind]?.threat || PARTS[card.kind]?.shape ? ` — ${card.name} [${finding.basis}]` : ''}`,
+      label: `${number ? `${number}. ` : ''}${finding.title} [${finding.basis}]`,
       sublabel: `${card.name} · ${BASIS_TEXT[finding.basis]}`,
       notes: noteText(valid, finding),
     };

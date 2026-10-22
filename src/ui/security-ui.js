@@ -17,7 +17,7 @@ import { createEditPreview } from '../ai/preview.js';
 import { showEditPreview } from './ai-preview.js';
 import { download, buildExportSVG } from '../export.js';
 import { BACKEND } from '../ai/runtime.js';
-import { contentBounds, nodeRect, NOTE_W, noteHeight } from '../geometry.js';
+import { contentBounds, nodeRect, zoneRect, NOTE_W, noteHeight } from '../geometry.js';
 import { uid, findItem } from '../state.js';
 import { escAttr, toast, keepFocus } from './press.js';
 import { panelHeader, bindCollapsible } from './collapsible.js';
@@ -34,8 +34,8 @@ const BASIS_LABELS = () => ({
 });
 const STATES = () => ({ unset: tr('Set up'), untested: tr('Untested'), ready: tr('Ready'), single: tr('Single-shot') });
 // Label factories resolve the current language when rendered.
-const ORIGIN_LABELS = () => ({ cve: tr('CVE record'), url: tr('URL'), file: tr('File'), paste: tr('Pasted') });
-const VIEW_LABELS = () => ({ architecture: tr('Architecture'), exploit: tr('Exploit path'), mitigation: tr('Mitigation'), mechanism: tr('Mechanism') });
+const ORIGIN_LABELS = () => ({ cve: tr('CVE record'), url: tr('URL'), file: tr('File'), paste: tr('Pasted'), analysis: tr('Analysis') });
+const VIEW_LABELS = () => ({ architecture: tr('Architecture'), exploit: tr('Exploit path'), mitigation: tr('Mitigation'), mechanism: tr('Visual explanation') });
 
 function browserStorage() {
   try { return window.localStorage; } catch { return null; }
@@ -108,6 +108,10 @@ export function initSecurityAnalysis({ store, tools, render, svg, library = null
   let pendingPreview = false;
   let boardAnalysisError = '';
   let generation = store.generation;
+  // Auto-framing follows the existing history snapshots, not every edit.
+  // Weak keys share history's lifetime; subsequent user navigation wins.
+  let frameTransitions = new WeakMap();
+  let lastRedoCount = store.redoStack.length;
 
   const el = (selector) => panel.querySelector(selector);
   const isOpen = () => !panel.hidden;
@@ -156,7 +160,7 @@ export function initSecurityAnalysis({ store, tools, render, svg, library = null
     }
     const restore = keepFocus(panel);
     const viewLabels = VIEW_LABELS();
-    const viewButtons = SECURITY_VIEWS.map(view =>
+    const viewButtons = SECURITY_VIEWS.filter(view => view !== 'mechanism').map(view =>
       `<button type="button" data-sec-view="${escAttr(view)}" title="${escAttr(tr('Preview a {view} illustration of the findings. Applied only through the edit preview.', { view: viewLabels[view] }))}">${escAttr(tr('{view} illustration', { view: viewLabels[view] }))}</button>`).join('');
     panel.innerHTML = panelHeader(tr('Security analysis'), 'security')
       + '<div class="sec-scroll">'
@@ -186,6 +190,17 @@ export function initSecurityAnalysis({ store, tools, render, svg, library = null
       + '<div id="sec-status-lines" class="sec-status-lines"></div>'
       + `<p id="sec-error" class="sec-error" role="alert" hidden></p>`
       + '</div></details>'
+      + `<details class="sec-section" id="sec-diagram-details"${open['sec-diagram-details'] === false ? '' : ' open'} hidden>`
+      + `<summary>${escAttr(tr('Illustrations'))}</summary>`
+      + '<div class="sec-section-body">'
+      + `<button type="button" class="sec-primary sec-visual-primary" data-sec-view="mechanism">${escAttr(tr('Preview visual explanation'))}</button>`
+      + '<p id="sec-visual-state" class="sec-view-note" role="status"></p>'
+      + `<button type="button" id="sec-restore-sources" data-sec="restore-sources">${escAttr(tr('Restore analysis sources'))}</button>`
+      + `<p class="sec-view-note">${escAttr(tr('Visual explanations use large supported actors, request/response capsules, targets and conditional outcomes, or source-specific memory and lifetime panels. Analysis plans these scenes without special notes. A picture or product name alone never establishes a vulnerability. Preview first; Apply focuses the first scene, and one Undo removes the build.'))}</p>`
+      + `<details class="sec-technical-views"><summary>${escAttr(tr('Technical finding views'))}</summary><p class="sec-view-note">${escAttr(tr('Architecture, Exploit path and Mitigation are detailed finding graphs, not the illustrated overview. They remain available for evidence review.'))}</p><div class="sec-view-row">${viewButtons}</div></details>`
+      + `<button type="button" id="sec-walkthrough" data-sec="walkthrough">${escAttr(tr('Show walkthrough'))}</button>`
+      + '<div id="sec-walkthrough-view" class="sec-walkthrough"></div>'
+      + '</div></details>'
       + `<details class="sec-section" id="sec-results-details"${open['sec-results-details'] === false ? '' : ' open'} hidden>`
       + `<summary>${escAttr(tr('Findings'))}</summary>`
       + '<div class="sec-section-body">'
@@ -195,14 +210,6 @@ export function initSecurityAnalysis({ store, tools, render, svg, library = null
       + '<div id="sec-selection" class="sec-selection" hidden></div>'
       + '<div id="sec-findings"></div>'
       + '<div id="sec-evidence" class="sec-evidence" hidden></div>'
-      + '</div></details>'
-      + `<details class="sec-section" id="sec-diagram-details"${open['sec-diagram-details'] === false ? '' : ' open'} hidden>`
-      + `<summary>${escAttr(tr('Illustrations'))}</summary>`
-      + '<div class="sec-section-body">'
-      + `<div class="sec-view-row">${viewButtons}</div>`
-      + `<p class="sec-view-note">${escAttr(tr('Illustrations use supported catalogue assets and cited logical connections. Mechanism adds large illustrated attackers, request/response capsules, applications, memory, secrets and conditional outcomes to its memory, structure, sequence, state and comparison scenes. Ask for an attack scene or parallel target rows in the analysis notes. Assets require grounded findings; a picture or product name alone does not establish a vulnerability. Reanalyze older results for scenes and asset selection. Preview first; nothing changes until Apply, and one Undo removes it.'))}</p>`
-      + `<button type="button" id="sec-walkthrough" data-sec="walkthrough">${escAttr(tr('Show walkthrough'))}</button>`
-      + '<div id="sec-walkthrough-view" class="sec-walkthrough"></div>'
       + '</div></details>'
       + `<details class="sec-section" id="sec-export-details"${open['sec-export-details'] === false ? '' : ' open'} hidden>`
       + `<summary>${escAttr(tr('Report'))}</summary>`
@@ -255,6 +262,15 @@ export function initSecurityAnalysis({ store, tools, render, svg, library = null
     el('#sec-remove-analysis').addEventListener('click', () => removeAnalysis());
     el('#sec-undo-apply').addEventListener('click', undoApply);
     el('#sec-walkthrough').addEventListener('click', showWalkthrough);
+    el('#sec-restore-sources').addEventListener('click', () => {
+      if (busy || pendingPreview) return;
+      const analysis = currentAnalysis();
+      if (!analysis) return;
+      addSources(structuredClone(analysis.sources), 'analysis');
+      if (!el('#sec-cve-input').value.trim() && analysis.cveId) el('#sec-cve-input').value = analysis.cveId;
+      el('#sec-sources-details').open = true;
+      el('#sec-sources-details').scrollIntoView({ block: 'nearest' });
+    });
     el('#sec-download').addEventListener('click', downloadReport);
     el('#sec-print').addEventListener('click', printReport);
     for (const btn of panel.querySelectorAll('[data-sec-view]')) {
@@ -403,6 +419,10 @@ export function initSecurityAnalysis({ store, tools, render, svg, library = null
       return;
     }
     if (!analysis) { syncActions(); return; }
+    const scenes = analysis.explanations?.length ?? 0;
+    el('#sec-visual-state').textContent = scenes
+      ? tr('{n} visual scene(s) ready. Existing board content is preserved.', { n: scenes })
+      : tr('This analysis has no visual scenes. Reanalyze the retained sources to plan an illustrated explanation; existing finding cards are not automatically redrawn.');
     const state = appliedState(analysis);
     const header = el('#sec-analysis-header');
     header.innerHTML = `<h4>${escAttr(analysis.title)}</h4>`
@@ -582,7 +602,10 @@ export function initSecurityAnalysis({ store, tools, render, svg, library = null
     const undo = el('#sec-undo-apply');
     if (undo) undo.hidden = !(undoSnap && store.canUndo() && store.undoStack.at(-1) === undoSnap);
     set('#sec-walkthrough', !idle || !analysis);
-    for (const btn of panel.querySelectorAll('[data-sec-view]')) btn.disabled = !idle || !analysis;
+    set('#sec-restore-sources', !idle || !analysis?.sources.length, !!analysis?.explanations?.length);
+    for (const btn of panel.querySelectorAll('[data-sec-view]')) {
+      btn.disabled = !idle || !analysis || btn.dataset.secView === 'mechanism' && !analysis.explanations?.length;
+    }
     set('#sec-download', !idle || !analysis);
     set('#sec-print', !idle || !analysis);
   }
@@ -781,11 +804,13 @@ export function initSecurityAnalysis({ store, tools, render, svg, library = null
       renderWalkthrough();
       syncActions();
       el('#sec-results-details').open = true;
+      el('#sec-diagram-details').open = true;
+      el('#sec-diagram-details').scrollIntoView({ block: 'nearest' });
     });
   }
 
   // ---- Board persistence (always through the shared edit preview) ----
-  function commitPreview(mutate, { toast: appliedToast, workingAfter, illustrationView }) {
+  function commitPreview(mutate, { toast: appliedToast, workingAfter, illustrationView, focusAfter }) {
     const preview = createEditPreview(store);
     try {
       mutate(preview.draft);
@@ -815,6 +840,11 @@ export function initSecurityAnalysis({ store, tools, render, svg, library = null
           walkthroughView = buildSecurityWalkthrough(store.doc, currentAnalysis(), { view: illustrationView });
         }
         if (appliedToast) toast(appliedToast);
+        if (focusAfter) {
+          const previousView = { ...tools.view };
+          focusBoard(focusAfter(), { fit: true });
+          if (undoSnap) frameTransitions.set(undoSnap, { from: { ...tools.view }, to: previousView });
+        }
       }
       renderAll();
     });
@@ -861,6 +891,12 @@ export function initSecurityAnalysis({ store, tools, render, svg, library = null
       toast: tr('{view} illustration applied. One Undo removes it.', { view: VIEW_LABELS()[view] || view }),
       workingAfter: () => result?.analysis || null,
       illustrationView: view,
+      focusAfter: () => {
+        if (view === 'mechanism') close();
+        const frame = result?.targets.scenes?.[0];
+        return frame ? [...frame.nodes, ...frame.zones, ...frame.notes]
+          : [...(result?.targets.nodes ?? []), ...(result?.targets.zones ?? [])];
+      },
     });
   }
 
@@ -947,25 +983,39 @@ export function initSecurityAnalysis({ store, tools, render, svg, library = null
     const n = doc.nodes.find(x => x.id === id);
     if (n) return nodeRect(n);
     const z = doc.zones.find(x => x.id === id);
-    if (z) return { x: z.x, y: z.y, w: z.w, h: z.h };
+    if (z) return zoneRect(z);
     const t = doc.notes.find(x => x.id === id);
     if (t) return { x: t.x, y: t.y, w: NOTE_W, h: noteHeight(t.text) };
     return null;
   }
 
-  function focusBoard(ids) {
+  function focusBoard(ids, { fit = false } = {}) {
     const present = ids.filter(id => findItem(store.doc, id));
     if (!present.length) return;
     tools.ui.highlight.clear();
-    for (const id of present) tools.ui.highlight.add(id);
+    if (!fit) {
+      for (const id of present) tools.ui.highlight.add(id);
+      store.setSelection(present);
+    } else {
+      store.clearSelection();
+    }
     render('overlay');
-    store.setSelection(present);
     const rects = present.map(itemRect).filter(Boolean);
     if (!rects.length) return;
-    const b = contentBounds({ nodes: [], zones: rects, notes: [] });
+    const x = Math.min(...rects.map(rect => rect.x)), y = Math.min(...rects.map(rect => rect.y));
+    const b = { x, y, w: Math.max(...rects.map(rect => rect.x + rect.w)) - x,
+      h: Math.max(...rects.map(rect => rect.y + rect.h)) - y };
     const r = svg.getBoundingClientRect();
     const { zoom } = tools.view;
     const M = 40;
+    if (fit) {
+      const z = Math.max(0.2, Math.min(1.5, (r.width - 96) / Math.max(1, b.w), (r.height - 96) / Math.max(1, b.h)));
+      tools.view.zoom = z;
+      tools.view.x = r.width / 2 - (b.x + b.w / 2) * z;
+      tools.view.y = r.height / 2 - (b.y + b.h / 2) * z;
+      render('view');
+      return;
+    }
     const sx1 = b.x * zoom + tools.view.x;
     const sy1 = b.y * zoom + tools.view.y;
     const sx2 = (b.x + b.w) * zoom + tools.view.x;
@@ -1029,6 +1079,7 @@ export function initSecurityAnalysis({ store, tools, render, svg, library = null
     close();
   });
   store.subscribe(() => {
+    const redoCount = store.redoStack.length;
     if (store.generation !== generation) {
       generation = store.generation;
       busy?.controller.abort();
@@ -1043,10 +1094,25 @@ export function initSecurityAnalysis({ store, tools, render, svg, library = null
       selectedEvidence = null;
       undoSnap = null;
       boardAnalysisError = '';
+      frameTransitions = new WeakMap();
+      lastRedoCount = redoCount;
       statusLine = tr('The board was replaced; sources and results were cleared.');
       if (isOpen()) renderAll();
       return;
     }
+    const transition = frameTransitions.get(store.doc);
+    if (transition) {
+      frameTransitions.delete(store.doc);
+      const { from, to } = transition;
+      if (tools.view.x === from.x && tools.view.y === from.y && tools.view.zoom === from.zoom) {
+        const inverse = redoCount > lastRedoCount ? store.redoStack.at(-1)
+          : redoCount < lastRedoCount ? store.undoStack.at(-1) : null;
+        if (inverse) frameTransitions.set(inverse, { from: to, to: from });
+        Object.assign(tools.view, to);
+        render('view');
+      }
+    }
+    lastRedoCount = redoCount;
     if (isOpen()) {
       boardAnalysisError = '';
       renderResults();

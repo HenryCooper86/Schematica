@@ -76,7 +76,7 @@ export const EDIT_SCHEMA = {
               id: { type: 'string', description: 'Existing chapter id; omit for a new chapter' },
               label: { type: 'string', maxLength: 4000 }, caption: { type: 'string', maxLength: 4000 },
               view: { type: 'object', properties: { cx: { type: 'number' }, cy: { type: 'number' }, zoom: { type: 'number' } }, required: ['cx', 'cy', 'zoom'], additionalProperties: false },
-              targets: { type: 'object', properties: { nodes: { type: 'array', maxItems: 500, items: { type: 'string' } }, wires: { type: 'array', maxItems: 500, items: { type: 'string' } } }, additionalProperties: false },
+              targets: { type: 'object', properties: { nodes: { type: 'array', maxItems: 500, items: { type: 'string' } }, wires: { type: 'array', maxItems: 500, items: { type: 'string' } }, zones: { type: 'array', maxItems: 500, items: { type: 'string' }, description: 'Zone ids or refs to frame with their caption' } }, additionalProperties: false },
               stops: { type: 'array', maxItems: 100, items: { type: 'object', additionalProperties: false, required: ['node'], properties: {
                 id: { type: 'string', description: 'Existing stop id within this chapter; omit for a new stop' },
                 node: { type: 'string', description: 'Existing node id or earlier batch ref' }, caption: { type: 'string', maxLength: 4000 },
@@ -401,8 +401,16 @@ HANDLERS.set_presentation = (ctx, op) => {
         if (!Array.isArray(keys) || keys.length > 500) fail('Too many chapter targets');
         result.targets[kind] = [...new Set(keys.map(key => (kind === 'nodes' ? findNode(ctx, key) : findWire(ctx, key)).id))];
       }
+      // Zone targets are additive, as in a saved file: the key appears only
+      // when the chapter actually frames zones, so zone-free chapters keep
+      // their existing { nodes, wires } shape.
+      const zoneKeys = targets.zones ?? [];
+      if (!Array.isArray(zoneKeys) || zoneKeys.length > 500) fail('Too many chapter targets');
+      const zones = [...new Set(zoneKeys.map(key => findZone(ctx, key).id))];
+      if (zones.length) result.targets.zones = zones;
     } else if (previous?.targets) result.targets = structuredClone(previous.targets);
-    if (!previous && !stops.length && !result.targets?.nodes?.length && !result.targets?.wires?.length) fail('New chapters need linked parts or wires');
+    if (!previous && !stops.length && !result.targets?.nodes?.length && !result.targets?.wires?.length
+      && !result.targets?.zones?.length) fail('New chapters need linked parts, wires or zones');
     for (const stop of stops) ctx.touched.add(stop.node);
     return result;
   });

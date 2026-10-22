@@ -381,9 +381,10 @@ export const PARTS = {
   // asset. The application windows are original window/code/module imagery
   // standing for the named platform, never vendor logos.
   attacker: nd('attacker', 'threats', 'Attacker', '#ef4444',
-    '<path d="M12 2.2c-4.2 0-7.2 3.1-7.2 7.2v1.2c0 .5-.2 1-.5 1.4l-1 1.3c-.6.8 0 1.9 1 1.9h15.4c1 0 1.6-1.1 1-1.9l-1-1.3a2.3 2.3 0 0 1-.5-1.4V9.4c0-4.1-3-7.2-7.2-7.2z"/>'
-      + '<path d="M8.4 10.2c2.3-1.2 4.9-1.2 7.2 0"/>'
-      + '<rect x="6.8" y="15" width="10.4" height="5.4" rx="1"/><path d="M5 21.6h14"/>',
+    '<path d="M5.5 13c-1.7-1.4-1.8-3.8-.7-6.2C6.2 3.6 8.8 1.5 12 1.5s5.8 2.1 7.2 5.3c1.1 2.4 1 4.8-.7 6.2"/>'
+      + '<path d="M8 8.5c2.4-1.5 5.6-1.5 8 0v1.3c0 2-1.8 3.7-4 3.7s-4-1.7-4-3.7z" fill="currentColor" fill-opacity=".14"/>'
+      + '<path d="M7 13c-2.7 1.3-4.4 3.8-5 7h3.8M17 13c2.7 1.3 4.4 3.8 5 7h-3.8"/>'
+      + '<path d="M5 15h14l-1.2 7H6.2z" fill="currentColor" fill-opacity=".14"/><path d="M4.5 22h15"/>',
     sides('link', 'LINK'), { threat: true, figure: 'actor', defaultLabel: 'Attacker',
       fields: [f('origin', 'Origin', { placeholder: 'e.g. 203.0.113.7' }), SEVERITY] }),
   httprequest: nd('httprequest', 'flow', 'HTTP request', '#38bdf8',

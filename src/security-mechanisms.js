@@ -3,7 +3,7 @@
 // panels, never executable drawing code or coordinates.
 import { validateSecurityAnalysis, SECURITY_ANALYSIS_SCHEMA, SECURITY_EXPLANATION_PLACEMENTS } from './security-analysis.js';
 import { applyEdits } from './ai/ops.js';
-import { nodeRect, contentBounds, NOTE_W, noteHeight, snap, textUnits } from './geometry.js';
+import { nodeRect, zoneRect, contentBounds, NOTE_W, noteHeight, snap, zoneLabelLayout } from './geometry.js';
 import { resolveStep } from './journey.js';
 import { uid } from './state.js';
 import { MAX_COORD } from './serialize.js';
@@ -76,20 +76,23 @@ function placeFigureScene(scene, panels, nodeFor, x, y, basis) {
     const assignedWidth = Math.max(0, ...assigned.map(row => row.w));
     const splitActors = shared.length > 0 && assigned.length > 0;
     const width = splitActors ? sharedWidth + 48 + assignedWidth
-      : Math.max(...rows.map(row => row.w), ['target', 'outcome'].includes(panel.placement) ? textUnits(`${panel.title} · schematic`) * 6.2 + 42 : 0);
+      : Math.max(...rows.map(row => row.w));
     return { panel, rows, w: width + PAD * 2, splitActors, sharedWidth, assignedWidth,
       h: parallel ? Math.max(totalRows, ...shared.map(row => row.h))
         : rows.reduce((sum, row) => sum + row.h, 0) + Math.max(0, rows.length - 1) * 64 };
   });
   const height = Math.max(totalRows, ...blocks.map(block => block.h));
-  const bandTop = y + 48 + (height - totalRows) / 2;
+  const outset = Math.max(0, ...blocks.filter(block => ['target', 'outcome'].includes(block.panel.placement))
+    .map(block => -zoneLabelLayout({ w: block.w, label: `${block.panel.title} · schematic` }).y));
+  const frameY = y + outset, header = 48;
+  const bandTop = frameY + header + (height - totalRows) / 2;
   const zones = [];
   for (const block of blocks) {
-    let localY = y + 48 + (height - block.h) / 2;
+    let localY = frameY + header + (height - block.h) / 2;
     for (const row of block.rows) {
       const aligned = parallel && row.row !== undefined;
       const rowY = aligned ? bandTop + rowOffsets.get(row.row)
-        : parallel ? y + 48 + (height - row.h) / 2 : localY;
+        : parallel ? frameY + header + (height - row.h) / 2 : localY;
       const rowHeight = aligned ? rowHeights.get(row.row) : row.h;
       const regionWidth = block.splitActors ? (aligned ? block.assignedWidth : block.sharedWidth) : block.w - PAD * 2;
       let itemX = x + PAD + (block.splitActors && aligned ? block.sharedWidth + 48 : 0) + (regionWidth - row.w) / 2;
@@ -102,14 +105,14 @@ function placeFigureScene(scene, panels, nodeFor, x, y, basis) {
       localY += row.h + 64;
     }
     if (['target', 'outcome'].includes(block.panel.placement)) {
-      zones.push({ id: uid('z'), x, y, w: block.w, h: height + 48 + PAD,
+      zones.push({ id: uid('z'), x, y: frameY, w: block.w, h: height + header + PAD,
         label: `${block.panel.title} · schematic`, color: block.panel.placement === 'outcome' ? '#f87171' : '#818cf8' });
     }
     x = snap(x + block.w + GAP);
   }
   const note = { id: uid('t'), x: blocks.length ? nodeFor(ordered[0].items[0].ref).x : x,
-    y: snap(y + height + 48 + PAD + 48),
-    text: `${scene.title} [${basis}]\nStatic source reading; not executed.\nSchematic scenario, not a verified deployment or outcome.\nFull explanation and citations: Security analysis and scene walkthrough.\n[source] cited · [inference] inferred · [unknown] unassessed` };
+    y: snap(frameY + height + header + PAD + 48),
+    text: `${scene.title} [${basis}]\nStatic reading; not executed.\nSchematic, not a verified deployment.\n[source] cited · [inference] inferred · [unknown] unassessed` };
   return { zones, note, bottom: note.y + noteHeight(note.text) };
 }
 
@@ -216,20 +219,25 @@ export function buildSecurityMechanisms(doc, analysis, { walkthrough = true } = 
   const existing = contentBounds(doc);
   const startX = snap(existing ? Math.max(40, existing.x + existing.w + 160) : 40);
   let y = 40;
-  const zones = [], notes = [];
+  const zones = [], notes = [], frames = [];
   for (const { scene, panels } of scenes) {
     const sceneFindings = referenced(valid, explanationRefs(scene));
     const sceneBasis = basisOf(sceneFindings);
+    const frame = { nodes: panels.flatMap(panel => panel.items.map(({ ref }) => refToId.get(ref))), zones: [], notes: [] };
+    frames.push(frame);
     if (isFigureScene(scene)) {
       const composition = placeFigureScene(scene, panels, nodeFor, startX, y, sceneBasis);
       zones.push(...composition.zones);
       notes.push(composition.note);
+      frame.zones.push(...composition.zones.map(zone => zone.id));
+      frame.notes.push(composition.note.id);
       y = snap(composition.bottom + 120);
       continue;
     }
     const summary = { id: uid('t'), x: startX + PAD, y: y + 52,
       text: summaryText(scene, sceneBasis) };
     notes.push(summary);
+    frame.notes.push(summary.id);
     const panelStartX = snap(startX + NOTE_W + PAD * 2);
     const allItems = panels.flatMap(panel => panel.items);
     const sizes = new Map(allItems.map(({ item, ref }) => [item.id, nodeRect(nodeFor(ref))]));
@@ -240,20 +248,35 @@ export function buildSecurityMechanisms(doc, analysis, { walkthrough = true } = 
     const sequenceStride = Math.max(...[...sizes.values()].map(size => size.h)) + 80;
     const comparisonRows = Array.from({ length: Math.max(...panels.map(panel => panel.items.length)) }, (_, index) =>
       Math.max(...panels.map(panel => panel.items[index] ? sizes.get(panel.items[index].item.id).h : 0)));
-    const comparisonWidth = Math.max(...[...sizes.values()].map(size => size.w),
-      ...panels.map(({ panel }) => textUnits(`${panel.title} · schematic`) * 6.2 + 42)) + PAD * 2;
+    const comparisonWidth = Math.max(...[...sizes.values()].map(size => size.w)) + PAD * 2;
     let x = panelStartX, panelY = y + 52, bottom = summary.y + noteHeight(summary.text);
-    for (const { panel, items } of panels) {
-      const panelX = x;
-      let right = panelX, itemY = panelY + 48, rowH = 0;
+    const layouts = panels.map(({ panel, items }) => {
+      const label = `${panel.title} · schematic`;
+      const widths = items.map(({ item }) => sizes.get(item.id).w);
+      let contentWidth = Math.max(...widths);
+      if (scene.kind === 'state') contentWidth = widths.reduce((sum, w) => sum + w, 0) + (widths.length - 1) * 48;
+      if (scene.kind === 'structure') {
+        contentWidth = 0;
+        for (let i = 0; i < widths.length; i += 3) {
+          const row = widths.slice(i, i + 3);
+          contentWidth = Math.max(contentWidth, row.reduce((sum, w) => sum + w, 0) + (row.length - 1) * 12);
+        }
+      }
+      const width = Math.max(contentWidth + PAD * 2, scene.kind === 'comparison' ? comparisonWidth : 0);
+      return { panel, items, label, width, outset: -zoneLabelLayout({ w: width, label }).y };
+    });
+    const sharedOutset = Math.max(...layouts.map(layout => layout.outset));
+    for (const { panel, items, label, width, outset } of layouts) {
+      const panelX = x, frameY = panelY + (scene.kind === 'state' ? outset : sharedOutset), header = 48;
+      let right = panelX, itemY = frameY + header, rowH = 0;
       for (let index = 0; index < items.length; index++) {
         const { ref, item } = items[index], node = nodeFor(ref), size = sizes.get(item.id);
         if (scene.kind === 'sequence') {
           node.x = panelX + PAD;
-          node.y = panelY + 48 + sequenceOrder.get(item.id) * sequenceStride;
+          node.y = frameY + header + sequenceOrder.get(item.id) * sequenceStride;
         } else if (scene.kind === 'comparison') {
           node.x = panelX + PAD;
-          node.y = panelY + 48 + comparisonRows.slice(0, index).reduce((sum, height) => sum + height + 48, 0);
+          node.y = frameY + header + comparisonRows.slice(0, index).reduce((sum, height) => sum + height + 48, 0);
         } else if (scene.kind === 'state') {
           node.x = index ? right + 48 : panelX + PAD;
           node.y = itemY;
@@ -274,11 +297,11 @@ export function buildSecurityMechanisms(doc, analysis, { walkthrough = true } = 
       const panelNodes = items.map(item => nodeFor(item.ref));
       const maxRight = Math.max(...panelNodes.map(node => node.x + nodeRect(node).w));
       const maxBottom = Math.max(...panelNodes.map(node => node.y + nodeRect(node).h));
-      const label = `${panel.title} · schematic`;
-      const zone = { id: uid('z'), x: panelX, y: panelY,
-        w: Math.max(maxRight - panelX + PAD, textUnits(label) * 6.2 + 42, scene.kind === 'comparison' ? comparisonWidth : 0),
-        h: maxBottom - panelY + PAD, label, color: '#818cf8' };
+      const zone = { id: uid('z'), x: panelX, y: frameY,
+        w: Math.max(maxRight - panelX + PAD, width),
+        h: maxBottom - frameY + PAD, label, color: '#818cf8' };
       zones.push(zone);
+      frame.zones.push(zone.id);
       bottom = Math.max(bottom, zone.y + zone.h);
       if (scene.kind === 'state') panelY = snap(zone.y + zone.h + GAP);
       else x = snap(zone.x + zone.w + GAP);
@@ -290,7 +313,7 @@ export function buildSecurityMechanisms(doc, analysis, { walkthrough = true } = 
   work.notes.push(...notes);
   for (const item of [...work.nodes, ...zones, ...notes]) {
     const r = Object.hasOwn(item, 'text') ? { ...item, w: NOTE_W, h: noteHeight(item.text) }
-      : Object.hasOwn(item, 'kind') ? nodeRect(item) : item;
+      : Object.hasOwn(item, 'kind') ? nodeRect(item) : zoneRect(item);
     if ([r.x, r.y, r.x + r.w, r.y + r.h].some(n => !Number.isFinite(n) || Math.abs(n) > MAX_COORD)) {
       throw Error('The mechanism illustration does not fit within board coordinates. Move existing content or use a new board.');
     }
@@ -298,7 +321,7 @@ export function buildSecurityMechanisms(doc, analysis, { walkthrough = true } = 
   const nodes = itemBindings.map(binding => refToId.get(binding.ref));
   const wires = wireBindings.map(binding => refToId.get(binding.ref));
   let chapter = null;
-  if (walkthrough) for (const { scene, panels } of scenes) {
+  if (walkthrough) for (const [sceneIndex, { scene, panels }] of scenes.entries()) {
     const members = panels.flatMap(panel => panel.items);
     if (scene.kind === 'sequence') members.sort((a, b) => nodeFor(a.ref).y - nodeFor(b.ref).y);
     if (scene.kind === 'parallel') {
@@ -312,7 +335,8 @@ export function buildSecurityMechanisms(doc, analysis, { walkthrough = true } = 
     const sceneBasis = basisOf(referenced(valid, explanationRefs(scene)));
     const next = { id: uid('j'), label: `Security illustration (mechanism): ${scene.title}`,
       caption: `Static source explanation [${sceneBasis}]; no PoC was executed. ${scene.detail}`.slice(0, 4000),
-      view: { cx: 0, cy: 0, zoom: 1 }, targets: { nodes: sceneNodes, wires: sceneWires },
+      view: { cx: 0, cy: 0, zoom: 1 }, targets: { nodes: sceneNodes, wires: sceneWires,
+        ...(frames[sceneIndex].zones.length ? { zones: frames[sceneIndex].zones } : {}) },
       stops: members.map(({ ref, item }) => ({ id: uid('s'), node: refToId.get(ref),
         caption: `${item.label} [${basisOf(referenced(valid, item.findingIds))}]: ${item.value}` })) };
     next.view = resolveStep(work, next).view;
@@ -331,7 +355,7 @@ export function buildSecurityMechanisms(doc, analysis, { walkthrough = true } = 
   work.securityAnalysis = updated;
   Object.assign(doc, work);
   return { doc, analysis: updated, targets: { view: 'mechanism', chapter: chapter?.id ?? null,
-    nodes, wires, zones: zones.map(zone => zone.id), notes: notes.map(note => note.id), items, boundaryCards: {} } };
+    nodes, wires, zones: zones.map(zone => zone.id), notes: notes.map(note => note.id), scenes: frames, items, boundaryCards: {} } };
 }
 
 export function mechanismFindingIds(analysis) {

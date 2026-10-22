@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PARTS, CATEGORY_COLORS } from '../src/palette.js';
-import { diagramMarkup, defsMarkup, flowOffset, LOOP_MS, overlayMarkup } from '../src/render.js';
+import { diagramMarkup, overlayMarkup, defsMarkup, flowOffset, LOOP_MS } from '../src/render.js';
+import { nodeSize, FIGURE_LAYOUT } from '../src/geometry.js';
 import { EXAMPLES } from '../src/examples.js';
 import { buildExportSVG } from '../src/export.js';
 import { initI18n, setLang } from '../src/i18n.js';
@@ -45,6 +46,15 @@ function nodeGroup(markup, id) {
   return markup.slice(at, next < 0 ? markup.indexOf('<g class="layer-notes"') : next);
 }
 
+// Wrapping replaces spacing with line breaks; compare the visible character
+// sequence, not whether the renderer chose a single text node or tspans.
+function editableCharacters(markup, field) {
+  const body = markup.match(new RegExp(`<text\\b[^>]*data-edit="${field}"[^>]*>([\\s\\S]*?)</text>`))?.[1] ?? '';
+  const entities = { lt: '<', gt: '>', quot: '"', '#39': "'", apos: "'", amp: '&' };
+  return body.replace(/<\/?tspan\b[^>]*>/g, '')
+    .replace(/&(lt|gt|quot|#39|apos|amp);/g, (_, entity) => entities[entity]).replace(/\s/g, '');
+}
+
 // The markup of one (unselected, so unnested) zone group.
 function zoneGroup(markup, id) {
   const at = markup.indexOf(`<g class="zone" data-id="${id}"`);
@@ -52,8 +62,12 @@ function zoneGroup(markup, id) {
   return markup.slice(at, markup.indexOf('</g>', at) + 4);
 }
 
-// The zone's name-pill rect width (the only rect with height="18" rx="9").
-const zonePillWidth = (group) => Number(group.match(/width="([\d.]+)" height="18" rx="9"/)[1]);
+// The zone's name-pill rect (the only rx="9" rounded rect in a zone group).
+const zonePill = (group) => {
+  const m = group.match(/<rect x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)" rx="9"/);
+  assert.ok(m, 'zone pill rendered');
+  return { x: Number(m[1]), y: Number(m[2]), width: Number(m[3]), height: Number(m[4]) };
+};
 
 // The wire's label-pill rect width (the only rect inside a wire group).
 const wirePillWidth = (group) => Number(group.match(/width="([\d.]+)" height="20" rx="9"/)[1]);
@@ -549,12 +563,62 @@ test('a wire label pill sizes by text units, not character count, so a Chinese l
 
 test('a zone name pill sizes by text units, not character count, so a Chinese label gets a wider pill', () => {
   const zone = (label) => ({ id: 'z', x: 0, y: 100, w: 200, h: 200, label, color: '#4a90d9' });
-  const zh = zoneGroup(diagramMarkup({ ...sampleDoc(), zones: [zone('按普渡层级划分的工厂网络')] }), 'z');
-  const en = zoneGroup(diagramMarkup({ ...sampleDoc(), zones: [zone('Plant network')] }), 'z');
+  const zh = zonePill(zoneGroup(diagramMarkup({ ...sampleDoc(), zones: [zone('按普渡层级划分的工厂网络')] }), 'z'));
+  const en = zonePill(zoneGroup(diagramMarkup({ ...sampleDoc(), zones: [zone('Plant network')] }), 'z'));
   assert.ok(
-    zonePillWidth(zh) > zonePillWidth(en),
-    `a 12-character Chinese label (${zonePillWidth(zh)}) should size wider than a 13-character Latin one (${zonePillWidth(en)})`,
+    zh.width > en.width,
+    `a 12-character Chinese label (${zh.width}) should size wider than a 13-character Latin one (${en.width})`,
   );
+  assert.ok(zh.x + zh.width <= 200 - 12, 'the Chinese pill stays inside its zone');
+  assert.equal(en.height, 18, 'the Latin label still fits its single-line pill');
+});
+
+test('a long zone caption wraps inside the zone instead of running past its edge', () => {
+  const doc = sampleDoc();
+  const label = 'Trust boundary · internal segmented VLAN carrying user traffic [source: network-policy.txt]';
+  doc.zones.push({ id: 'z1', x: 100, y: 200, w: 320, h: 240, label, color: '#4a90d9' });
+  const g = zoneGroup(diagramMarkup(doc), 'z1');
+  const pill = zonePill(g);
+  assert.ok(pill.height > 18, `the caption wrapped onto a taller pill (${pill.height})`);
+  assert.ok(pill.y < 200, 'the wrapped pill grows upward over the edge');
+  assert.equal(pill.y + pill.height, 209, 'the pill bottom stays 9px below the top edge, clear of members at the historic gap');
+  assert.ok(pill.x >= 100 && pill.x + pill.width <= 100 + 320 - 12,
+    `the pill stays between the zone's side edges (${pill.x}+${pill.width} in [100, 408])`);
+  const lines = [...g.slice(g.indexOf('data-edit="label"')).matchAll(/<tspan[^>]*>([^<]*)<\/tspan>/g)].map((m) => m[1]);
+  assert.ok(lines.length > 1, 'the caption draws as wrapped lines');
+  assert.equal(lines.join(' '), label, 'the drawn caption keeps every character');
+});
+
+test('a wrapped zone caption stays inert escaped text', () => {
+  const doc = sampleDoc();
+  doc.zones.push({
+    id: 'z1', x: 0, y: 100, w: 300, h: 200, color: '#4a90d9',
+    label: 'Boundary notes <svg/onload=alert(1)> & "quoted" evidence retained in the pill',
+  });
+  const g = zoneGroup(diagramMarkup(doc), 'z1');
+  assert.ok(g.includes('&lt;svg/onload=alert(1)&gt;'), 'the payload displays as literal source text');
+  assert.ok(g.includes('&amp;'), 'ampersands escape');
+  assert.ok(g.includes('&quot;'), 'quotes escape');
+  assert.doesNotMatch(g, /<svg\b/i, 'source text cannot introduce a nested active SVG');
+});
+
+test('a sub-minimum saved zone squeezes overwide graphemes instead of spilling', () => {
+  const doc = sampleDoc();
+  doc.zones.push({ id: 'tiny', x: 0, y: 100, w: 45, h: 70, label: 'DMZ', color: '#4a90d9' });
+  doc.zones.push({ id: 'wide', x: 200, y: 100, w: 320, h: 240, label: 'Trust boundary · internal segmented VLAN carrying user traffic [source: network-policy.txt]', color: '#4a90d9' });
+  const m = diagramMarkup(doc);
+  const tiny = zoneGroup(m, 'tiny');
+  const pill = zonePill(tiny);
+  assert.ok(pill.x + pill.width <= 45 + 1e-9, `the pill fits the 45px frame (${pill.x}+${pill.width})`);
+  const spans = [...tiny.slice(tiny.indexOf('data-edit="label"')).matchAll(/<tspan[^>]*>([^<]*)<\/tspan>/g)].map((x) => x[1]);
+  assert.equal(spans.join(''), 'DMZ', 'every character is still drawn');
+  assert.equal((tiny.match(/lengthAdjust="spacingAndGlyphs"/g) || []).length, 3, 'each lone overwide grapheme is compressed to the pill budget');
+  const lengths = [...tiny.matchAll(/textLength="([^"]+)"/g)].map(match => Number(match[1]));
+  assert.ok(lengths.every(length => length > 0 && length < pill.width), 'squeezed text stays within the pill');
+  // An ordinary zone's lines always measure inside their budget: no squeeze there.
+  const wide = zoneGroup(m, 'wide');
+  assert.ok(wide.includes('<tspan'), 'the long caption wraps');
+  assert.equal(wide.includes('textLength'), false, 'ordinary zones never compress text');
 });
 
 test('wrapped labels remain inert text in canvas markup and standalone SVG exports', () => {
@@ -588,14 +652,16 @@ test('catalogue figures render as large illustrations with editable text', () =>
   doc.wires = [];
   const m = diagramMarkup(doc);
   const atk = nodeGroup(m, 'atk');
-  assert.ok(atk.includes('width="210"'), 'the actor keeps its presentation width');
-  assert.ok(atk.includes('translate(63 22) scale(3.5)'), 'the 24-unit pictogram draws at illustration scale');
+  const A = FIGURE_LAYOUT.actor;
+  const glyph = `translate(${Math.round(((A.w - A.glyph) / 2) * 100) / 100} ${A.padTop}) scale(${Math.round((A.glyph / 24) * 1000) / 1000})`;
+  assert.ok(atk.includes(`width="${A.w}"`), 'the actor keeps its presentation width');
+  assert.ok(atk.includes(glyph), `the 24-unit pictogram fills the layout's glyph box (${glyph})`);
   assert.ok(atk.includes('opacity="0.13"'), 'the pictogram panel carries the badge tint');
   assert.ok(atk.includes('stroke-dasharray="5 3.5"'), 'a threat figure keeps the threat border');
   assert.ok(atk.includes('data-edit="label">'), 'the label stays editable');
-  assert.ok(atk.includes('data-edit="sublabel">POST /upload.php</text>'), 'the stated value shows under the label');
+  assert.equal(editableCharacters(atk, 'sublabel'), doc.nodes[0].sublabel.replace(/\s/g, ''), 'the stated value is visible across wrapped lines');
   const req = nodeGroup(m, 'req');
-  assert.ok(req.includes('rx="40"'), 'a capsule is a pill');
+  assert.ok(req.includes(`rx="${nodeSize(doc.nodes[1]).h / 2}"`), 'a capsule is a pill (rx half its height)');
   assert.ok(req.includes('text-anchor="start"'), 'capsule text sits beside the pictogram');
   assert.ok(!req.includes('stroke-dasharray="5 3.5"'), 'a capsule is not a threat');
   const crash = nodeGroup(m, 'crash');
@@ -606,6 +672,8 @@ test('figure labels and meta stay inert text on the canvas', () => {
   const hostile = 'Reference '.repeat(9) + '<svg/onload=alert(1)>';
   const doc = { ...sampleDoc(), nodes: [node('atk', 'attacker', 0, 0, { label: hostile, sublabel: hostile })], wires: [] };
   const markup = diagramMarkup(doc);
-  assert.ok(markup.includes('&lt;svg/onload=alert(1)&gt;'), 'the payload is displayed as literal source text');
+  for (const field of ['label', 'sublabel']) {
+    assert.equal(editableCharacters(markup, field), hostile.replace(/\s/g, ''), 'all untrusted text characters remain visible');
+  }
   assert.doesNotMatch(markup, /<svg\b/i, 'source text cannot introduce a nested active SVG');
 });

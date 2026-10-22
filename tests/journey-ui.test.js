@@ -95,3 +95,17 @@ test('moment share encoding failures produce feedback rather than rejecting the 
   assert.equal(h.get('toast').textContent, 'This share link is too large to open.');
   assert.equal(h.get('story-link-dialog').open, false);
 });
+
+test('show-all frames wrapped zone captions above the zone top edge', async t => {
+  const { zoneRect } = await import('../src/geometry.js');
+  const h = setup(t);
+  h.store.doc.zones = [{ id: 'z', x: 0, y: 0, w: 300, h: 120, label: 'A caption long enough to wrap onto several lines above the zone', color: '#4a90d9' }];
+  h.get('present-all').click();
+  const rect = zoneRect(h.store.doc.zones[0]);
+  assert.ok(rect.y < 0, 'the wrapped caption rises above the zone rectangle');
+  const zoom = Math.max(0.2, Math.min(1.5, (800 - 120) / rect.w, (600 - 44 - 160) / rect.h));
+  const cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2;
+  assert.equal(h.tools.view.zoom, zoom);
+  assert.ok(Math.abs(h.tools.view.x - (800 / 2 - cx * zoom)) < 0.5, 'the camera centres on the zone visual extent');
+  assert.ok(Math.abs(h.tools.view.y - ((600 - 44) / 2 - cy * zoom)) < 0.5, 'the camera rises to include the caption');
+});

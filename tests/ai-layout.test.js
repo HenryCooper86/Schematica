@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { layoutAll, pickHub, adjacency, COL_GAP, fitZone, pushApart, placeNote, arrangeAll, ZONE_PAD, placeNew, ROW_GAP } from '../src/ai/layout.js';
 import { EXAMPLES } from '../src/examples.js';
-import { nodeRect, rectsIntersect, zoneMembers } from '../src/geometry.js';
+import { nodeRect, rectsIntersect, zoneMembers, zoneLabelLayout, zoneRect } from '../src/geometry.js';
 import { getPart } from '../src/palette.js';
 import { newDoc } from '../src/state.js';
 import { applyEdits } from '../src/ai/ops.js';
@@ -105,6 +105,57 @@ test('fitZone wraps its members with padding on the grid', () => {
   assert.equal(fitZone(doc, zone, ['nope']), false);
 });
 
+test('fitZone keeps its historic padding whatever the caption wraps to', () => {
+  const doc = newDoc('F');
+  doc.nodes.push(node('a', 'mcu', { x: 100, y: 100 }), node('b', 'temp', { x: 300, y: 260 }));
+  const zone = {
+    id: 'z', x: 0, y: 0, w: 0, h: 0, color: '#4a90d9',
+    label: 'Internal network segment · segmented VLAN carrying user traffic [source: network-policy.txt]',
+  };
+  assert.equal(fitZone(doc, zone, ['a', 'b']), true);
+  assert.equal(zone.y, 64, 'the historic top padding (100-28-8) is unchanged');
+  for (const v of [zone.x, zone.y, zone.w, zone.h]) assert.equal(v % 8, 0, 'fitted on the grid');
+  // The wrapped header grows upward from a bottom pinned at +9, so members
+  // placed at the historic gap clear every header row without any migration.
+  const header = zoneLabelLayout(zone);
+  assert.ok(header.lines.length > 1, `the caption wraps at the fitted width (${header.lines.length} lines)`);
+  assert.equal(header.bottom, 9);
+  for (const id of ['a', 'b']) {
+    const r = nodeRect(doc.nodes.find((n) => n.id === id));
+    assert.ok(r.y >= zone.y + header.bottom + 27, `${id} keeps the historic 27px clearance under the header (${r.y})`);
+    assert.ok(contains(zone, r), `${id} still inside the zone`);
+  }
+  // The rectangle depends only on member rects, so refitting is stable.
+  const repeat = { ...zone };
+  fitZone(doc, repeat, ['a', 'b']);
+  assert.deepEqual(repeat, zone, 'a second fit lands on the same rectangle');
+});
+
+test('a locked zone is never refitted, whatever its caption', () => {
+  const doc = newDoc('F');
+  doc.nodes.push(node('a', 'mcu', { x: 100, y: 100 }));
+  const zone = { id: 'z', x: 16, y: 16, w: 300, h: 200, label: 'A trust boundary caption far too long for one line', color: '#4a90d9', locked: true };
+  const pinned = { ...zone };
+  assert.equal(fitZone(doc, pinned, ['a']), false);
+  assert.deepEqual(pinned, zone, 'a locked zone keeps its rectangle and its members keep their coordinates');
+});
+
+test('a card placed into a zone with a tall caption clears the pinned header', () => {
+  const doc = newDoc('F');
+  doc.nodes.push(node('a', 'mcu', { x: 128, y: 200 }));
+  const zone = { id: 'z1', x: 96, y: 160, w: 320, h: 260, label: 'Trust boundary · internal segmented VLAN carrying user traffic [source: policy.txt]', color: '#4a90d9' };
+  doc.zones.push(zone);
+  doc.nodes.push(node('n', 'temp'));
+  placeNew(doc, { nodes: ['n'], zones: [], notes: [], hints: new Map([['n', { zone: 'z1', near: 'a' }]]), refit: [{ id: 'z1', members: ['a', 'n'] }] });
+  const header = zoneLabelLayout(zone);
+  assert.ok(header.lines.length > 1, 'the caption really wraps at the fitted width');
+  assert.equal(header.bottom, 9, 'however tall it grew, its bottom is pinned at +9');
+  const placed = nodeRect(doc.nodes.find((n) => n.id === 'n'));
+  assert.ok(placed.y >= zone.y + 36, `the new card starts at the historic gap (${placed.y} ≥ ${zone.y}+36)`);
+  assert.ok(zone.y + header.bottom + 27 <= placed.y, 'and clears the whole header with the historic clearance');
+  assert.ok(contains(zone, placed), 'and stays inside the zone');
+});
+
 test('pushApart moves a later zone and its members below an earlier one', () => {
   const doc = newDoc('P');
   doc.nodes.push(node('a', 'mcu', { x: 100, y: 100 }), node('b', 'temp', { x: 120, y: 120 }));
@@ -117,6 +168,27 @@ test('pushApart moves a later zone and its members below an earlier one', () => 
   pushApart(doc, [{ id: 'zA', members: ['a'] }, { id: 'zB', members: ['b'] }]);
   assert.ok(!rectsIntersect(zA, zB));
   assert.ok(contains(zB, nodeRect(doc.nodes[1])), 'b moved with its zone');
+  assert.deepEqual([doc.nodes[0].x, doc.nodes[0].y], [100, 100], 'a did not move');
+});
+
+test('pushApart separates a later zone\'s tall caption from the zone above', () => {
+  const doc = newDoc('S');
+  doc.nodes.push(node('a', 'mcu', { x: 100, y: 100 }), node('b', 'temp', { x: 100, y: 300 }));
+  const zA = { id: 'zA', x: 0, y: 0, w: 0, h: 0, label: 'A', color: '#4a90d9' };
+  const zB = {
+    id: 'zB', x: 0, y: 0, w: 0, h: 0, color: '#4a90d9',
+    label: 'Internal network segment · segmented VLAN carrying user traffic between the plant floor and the corporate office [source: network-policy.txt §4.2]',
+  };
+  doc.zones.push(zA, zB);
+  fitZone(doc, zA, ['a']);
+  fitZone(doc, zB, ['b']);
+  assert.ok(!rectsIntersect(zA, zB), 'the raw frames never met');
+  assert.ok(rectsIntersect(zoneRect(zA), zoneRect(zB)), 'but the later zone\'s wrapped caption reaches the zone above');
+  pushApart(doc, [{ id: 'zA', members: ['a'] }, { id: 'zB', members: ['b'] }]);
+  const vB = zoneRect(zB);
+  assert.ok(vB.y >= zA.y + zA.h + 16, `the visual extent now clears the earlier zone with the gap (${vB.y} ≥ ${zA.y + zA.h + 16})`);
+  assert.ok(!rectsIntersect(vB, nodeRect(doc.nodes[0])), 'the caption no longer covers the earlier zone\'s member');
+  assert.ok(contains(zB, nodeRect(doc.nodes[1])), 'b moved with its zone, inside the raw frame');
   assert.deepEqual([doc.nodes[0].x, doc.nodes[0].y], [100, 100], 'a did not move');
 });
 

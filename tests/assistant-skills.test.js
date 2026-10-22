@@ -132,3 +132,19 @@ test('story limits and malformed cameras/targets reject the complete batch', () 
     assert.equal(serialize(doc),before);
   }
 });
+test('set_presentation resolves zone targets by ref and rejects unknown or wrong-typed zones atomically', () => {
+  const doc = newDoc(); applyEdits(doc, ops);
+  const batch = [
+    { op: 'add_zone', ref: 'rail', label: 'Power rail', color: '#4a90d9', members: [doc.nodes[0].id] },
+    { op: 'set_presentation', chapters: [{ label: 'Zoned', stops: [], targets: { zones: ['rail'] } }] },
+  ];
+  assert.equal(applyEdits(doc, batch).ok, true);
+  assert.deepEqual(doc.journey.at(-1).targets, { nodes: [], wires: [], zones: [doc.zones[0].id] });
+  assert.deepEqual(deserialize(serialize(doc)).doc.journey[0].targets, doc.journey[0].targets);
+  for (const chapters of [[{ label: 'Missing zone', stops: [], targets: { zones: ['absent'] } }],
+    [{ label: 'Wrong type', stops: [], targets: { zones: 'rail' } }]]) {
+    const before = serialize(doc);
+    assert.equal(applyEdits(doc, [{ op: 'set_presentation', chapters }]).ok, false);
+    assert.equal(serialize(doc), before);
+  }
+});

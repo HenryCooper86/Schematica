@@ -1,4 +1,4 @@
-import { nodeRect } from './geometry.js';
+import { nodeRect, zoneRect } from './geometry.js';
 import { uid } from './state.js';
 import { BUSES } from './buses.js';
 import { tr } from './i18n.js';
@@ -74,12 +74,17 @@ export function normalizeTargets(value) {
   const clean = (ids) => Array.isArray(ids)
     ? [...new Set(ids.filter((id) => typeof id === 'string' && id.length && id.length <= 200))].slice(0, 500) : [];
   const targets = { nodes: clean(value.nodes), wires: clean(value.wires) };
-  return targets.nodes.length || targets.wires.length ? targets : null;
+  // Zone targets are additive: a step authored before zones existed keeps its
+  // exact { nodes, wires } shape unless zone ids are actually present.
+  const zones = clean(value.zones);
+  if (zones.length) targets.zones = zones;
+  return targets.nodes.length || targets.wires.length || zones.length ? targets : null;
 }
 
 export function selectedTargets(doc, selection) {
   return normalizeTargets({ nodes: doc.nodes.filter(n => selection.has(n.id)).map(n => n.id),
-    wires: doc.wires.filter(w => selection.has(w.id)).map(w => w.id) });
+    wires: doc.wires.filter(w => selection.has(w.id)).map(w => w.id),
+    zones: doc.zones.filter(z => selection.has(z.id)).map(z => z.id) });
 }
 
 export function resolveStep(doc, step, viewport = { width: 1000, height: 700 }) {
@@ -87,6 +92,7 @@ export function resolveStep(doc, step, viewport = { width: 1000, height: 700 }) 
   const ids = new Set();
   const nodes = new Map(doc.nodes.map(n => [n.id, n]));
   const wires = new Map(doc.wires.map(w => [w.id, w]));
+  const zones = new Map((doc.zones || []).map(z => [z.id, z]));
   let missing = 0;
   for (const id of targets?.nodes || []) {
     if (nodes.has(id)) ids.add(id); else missing++;
@@ -97,6 +103,15 @@ export function resolveStep(doc, step, viewport = { width: 1000, height: 700 }) 
     ids.add(id); ids.add(wire.from.node); ids.add(wire.to.node);
   }
   const rects = [...ids].filter(id => nodes.has(id)).map(id => nodeRect(nodes.get(id)));
+  // A targeted zone frames its whole visual extent — the rectangle plus a
+  // caption that wraps upward past the top edge — but never enters the
+  // node/wire highlight set: the story highlight dims anything untargeted,
+  // and a zone on its own must not mute its members. A deleted zone stays
+  // an explicit missing target instead of silently falling back to the view.
+  for (const id of targets?.zones || []) {
+    const zone = zones.get(id);
+    if (zone) rects.push(zoneRect(zone)); else missing++;
+  }
   if (!rects.length) return { view: { ...step.view }, ids, missing };
   const x = Math.min(...rects.map(r => r.x)), y = Math.min(...rects.map(r => r.y));
   const w = Math.max(...rects.map(r => r.x + r.w)) - x;

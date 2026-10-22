@@ -101,6 +101,7 @@ export function stableBoardIds(built, analysis) {
     if (step.targets) {
       step.targets.nodes = step.targets.nodes?.map(stable);
       step.targets.wires = step.targets.wires?.map(stable);
+      step.targets.zones = step.targets.zones?.map(stable);
     }
     for (const stop of step.stops ?? []) { stop.id = stable(stop.id); stop.node = stable(stop.node); }
   }
@@ -129,7 +130,7 @@ export function securityExample(id, name, title, analysis, intro) {
   };
   const built = buildSecurityIllustration(doc, structuredClone(analysis), { view: 'mechanism', walkthrough: true });
   const [overview, links] = built.doc.journey;
-  overview.view = resolveStep(built.doc, { view: overview.view, targets: { nodes: built.targets.nodes } }).view;
+  overview.view = resolveStep(built.doc, { view: overview.view, targets: { nodes: built.targets.nodes, zones: built.targets.zones } }).view;
   links.view = resolveStep(built.doc, { view: links.view, targets: { wires: built.targets.wires } }).view;
   stableBoardIds(built, analysis);
   return { id, name, group: 'Security', doc: built.doc };

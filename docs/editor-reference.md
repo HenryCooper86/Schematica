@@ -51,7 +51,7 @@ start with [Getting started](getting-started.md).
 | Share | Share button — the whole board compressed into a copyable URL; opening the link loads it, no backend. Opened over a board you were working on, the link loads at once, keeps your board as a backup, and the notice offers to restore it |
 | Check | Check button — design rule checks: I2C address conflicts, unconnected power pins, floating parts, bus mismatches, lifecycle risks, power budgets (the sensor starter still needs structured interface declarations), plus Layout quality and a read-only Power tab listing every rail |
 | Assistant | `A` or the sparkle button — describe a board and it builds it, ask for a change and it edits the board, press Fix on a check finding or "Fix checks" and it resolves them, "Fill in details" fills part numbers from presets. Add files, a folder, or drop individual files to use local documents as sources; review, select, preview, or remove them before Send. Bring your own key: Claude by default, plus OpenRouter, Z.AI GLM, Moonshot Kimi, and any OpenAI-compatible endpoint. With `npm start`, your own backend calls the official provider URLs and streams replies, including Ollama Cloud via `https://ollama.com/v1`. The static edition still supports the optional worker in `relay/`. Each reply is one undo step and what it touched glows until your next click. The key is forwarded to your configured provider, saved in this browser only if you tick remember, and never included in the board, autosave, or share links |
-| Security analysis | Shield button — read a CVE, advisory, PoC, patch or pasted source; analyze checked sources with the Assistant provider; inspect citations; preview four editable illustration views — Architecture, Exploit path, Mitigation, and Mechanism (recorded explanation scenes for source-only C/C++/Python analyses) — with guided stops; save or export a cited explanation. Static analysis only: no code execution or target testing, and a CVE record is optional for source-only work. |
+| Security analysis | Shield button — retain a CVE, advisory, PoC, patch or pasted source; analyze checked sources with the Assistant provider; inspect citations; use **Preview visual explanation** for source-supported illustrated scenes with guided stops. **Technical finding views** keeps Architecture, Exploit path and Mitigation graphs for evidence review. Save or export a cited explanation. Static analysis only: no code execution or target testing; a CVE is optional for source-only C/C++/Python work. |
 | Wire options | Select a wire — bus, label, arrowheads (→ or ↔), line style (solid, dashed, dotted, air gap), traffic flow, delete |
 | Custom parts | **+ New** under My parts in the palette defines a part: name, category, accent, an icon (a built-in one, initials, or an SVG path), typed ports on any side, and extra fields. It is saved to My parts (this browser) and placed on the board. **Customize…** on any built-in card starts from its definition, so an MCU with a second CAN port keeps its wires. **Edit part…** on a custom card changes it and, when it came from a template, offers to update its siblings. Export and Import move My parts between machines as a JSON file. Custom parts in a board file travel with it; an older build of the app opens them as custom boxes |
 
@@ -322,8 +322,9 @@ opening a board never invents past reads or illustration provenance.
   remain visible even when a geometric zone would be misleading.
   Shared membership uses boundary cards and explicit connections rather than
   forcing overlapping or nested zones whose geometry is not established.
-- An analysis may carry up to 6 optional explanation scenes for the Mechanism
-  view: `{id,title,kind,detail,panels,links}` with `kind` one of memory,
+- An analysis may carry up to 6 explanation scenes, shown by **Preview visual
+  explanation** (stored view ID `mechanism`): `{id,title,kind,detail,panels,links}`,
+  with `kind` one of memory,
   structure, sequence, state, comparison, attack or parallel, 1–4 panels of 1–8 items each, and
   up to 24 links whose endpoints name distinct items of the same scene. Every
   item and link cites 1–8 existing finding ids; the renderer derives each
@@ -341,11 +342,17 @@ opening a board never invents past reads or illustration provenance.
   and removing an unsupported decoration never drops the scene. Target and
   outcome panels render as labelled disjoint schematic groups compatible
   with native Arrange; actor and exchange capsules stay ungrouped, and the
-  scene summary note sits below the composition. Mechanism has no generic
-  fallback: analyses without explanation scenes keep the three finding views.
-  A mechanism build appends one walkthrough chapter per scene with an
-  item-level stop list, and its evidence links share the 200-association
-  illustration cap.
+  scene summary note sits below the composition. Normal analysis plans one
+  concise grounded overview without special notes; additional scenes explain
+  distinct mechanisms. There is no generic fallback when scenes are absent:
+  restore the analysis's retained sources and reanalyze rather than expecting
+  old finding cards to acquire actors automatically.
+  Captions wrap within their panel widths instead of widening the whole scene.
+  Zone captions grow above the frame, preserving existing members' coordinates;
+  Fit, Arrange and scene chapter cameras include that visual extent without
+  changing geometric membership. A build appends one walkthrough chapter per
+  scene with explicit panel-zone targets and item-level stops; its evidence
+  links share the 200-association illustration cap.
 - Finding links accumulate across appended illustrations, up to 200 per finding.
   Missing targets remain reported. Existing cards, wires and presentation
   chapters are not removed by generation. Each applied preview is one undo step.

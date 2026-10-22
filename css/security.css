@@ -275,6 +275,10 @@
 
 /* Illustrations and walkthrough. */
 .sec-view-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.sec-visual-primary { width: 100%; min-height: 36px; font-weight: 600; }
+.sec-technical-views { border-top: 1px solid var(--line); padding-top: 8px; }
+.sec-technical-views > summary { color: var(--muted); font-size: 12px; cursor: pointer; }
+.sec-technical-views .sec-view-row { margin-top: 8px; }
 .sec-stops { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
 .sec-stop {
   display: grid;

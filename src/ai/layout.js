@@ -5,7 +5,7 @@
 // already has a position. Same input, same output; ties break on id.
 import { CATEGORIES } from '../palette.js';
 import { partOf } from '../custom.js';
-import { nodeSize, nodeRect, snap, contentBounds, zoneMembers, NOTE_W, noteHeight, rectsIntersect } from '../geometry.js';
+import { nodeSize, nodeRect, snap, contentBounds, zoneMembers, NOTE_W, noteHeight, rectsIntersect, zoneRect } from '../geometry.js';
 
 export const COL_GAP = 96;
 export const ROW_GAP = 40;
@@ -154,10 +154,15 @@ export function layoutAll(doc, zoneOf = new Map()) {
 const down = (v) => Math.floor(v / 8) * 8;
 const up = (v) => Math.ceil(v / 8) * 8;
 const noteRect = (t) => ({ x: t.x, y: t.y, w: NOTE_W, h: noteHeight(t.text) });
-const zoneRect = (z) => ({ x: z.x, y: z.y, w: z.w, h: z.h });
+// The raw frame for placement obstacles; `zoneRect` (geometry) is the
+// caption-inclusive visual extent for separation and framing.
+const zoneFrame = (z) => ({ x: z.x, y: z.y, w: z.w, h: z.h });
 
 // The zone rectangle around its members: padding all round plus room for
-// the title pill on the top edge.
+// the title pill on the top edge. The header's wrapped lines grow upward
+// from a bottom pinned at +9 (zoneLabelLayout), so the historic padding
+// already keeps every member clear of the whole pill whatever the caption
+// wraps to — no reservation, no coordinate migration for existing boards.
 export function fitZone(doc, zone, memberIds) {
   if (zone.locked) return false; // resizing a zone is a move of its edges
   const rects = memberIds.map((id) => doc.nodes.find((n) => n.id === id)).filter(Boolean).map(nodeRect);
@@ -171,9 +176,12 @@ export function fitZone(doc, zone, memberIds) {
 }
 
 // Zones that overlap after placement: the later one in id order moves
-// down with its members, then is fitted again. A push whose moved cards
-// would land on a card that did not move is undone: cards never overlap,
-// zone rectangles occasionally do.
+// down with its members, then is fitted again. Separation uses the visual
+// extents (zoneRect): an ordinary zone's caption rises above its frame, so
+// the later zone's header must clear the earlier zone too, not just the
+// rectangles — while the raw zone and its members still move together.
+// A push whose moved cards would land on a card that did not move is
+// undone: cards never overlap, zone rectangles occasionally do.
 export function pushApart(doc, zones) {
   const byId = new Map(doc.zones.map((z) => [z.id, z]));
   const nodeById = new Map(doc.nodes.map((n) => [n.id, n]));
@@ -182,8 +190,11 @@ export function pushApart(doc, zones) {
     for (let j = i + 1; j < ordered.length; j++) {
       const zi = byId.get(ordered[i].id);
       const zj = byId.get(ordered[j].id);
-      if (!zi || !zj || !rectsIntersect(zi, zj)) continue;
-      const dy = up(zi.y + zi.h + NOTE_GAP - zj.y);
+      if (!zi || !zj) continue;
+      const vi = zoneRect(zi);
+      const vj = zoneRect(zj);
+      if (!rectsIntersect(vi, vj)) continue;
+      const dy = up(vi.y + vi.h + NOTE_GAP - vj.y);
       const moved = ordered[j].members.map((id) => nodeById.get(id)).filter(Boolean);
       // A locked zone, or one holding a locked card, is not pushed anywhere.
       if (zj.locked || moved.some((n) => n.locked)) continue;
@@ -284,7 +295,7 @@ function placeOne(doc, nodeId, hint = {}, skip = new Set(), newZoneIds = new Set
   const obstacles = [
     ...placed.map(nodeRect),
     ...doc.notes.filter((t) => !skip.has(t.id)).map(noteRect),
-    ...doc.zones.filter((z) => z.id !== zone?.id && !skip.has(z.id)).map(zoneRect),
+    ...doc.zones.filter((z) => z.id !== zone?.id && !skip.has(z.id)).map(zoneFrame),
   ];
   let x;
   let startY;

@@ -331,22 +331,25 @@ Window resizing and collapsing keep a draggable part of the header reachable.
    does not establish this CVE's impact.
    For reserved/rejected records, vulnerability-specific findings and relationships
    remain **Unknown**; record-state facts and rejection reasons can still cite sources.
-5. Choose **Save analysis with board**, or preview an **Architecture**,
-   **Exploit path**, **Mitigation** or **Mechanism illustration**. Nothing
-   changes the board until **Apply changes**; normal Undo/Redo also covers
-   analysis-only saves.
-   Applied results follow restored board history, including their diagram links;
-   a separately generated unsaved result remains independent of that history.
-   Illustrations append editable cards, logical connections and Journey chapters
-   without removing existing work. Building the same view again appends another
-   illustration rather than replacing your edited cards.
-   **Mechanism illustration** draws an analysis's recorded explanation scenes
-   — memory, structure, sequence, state, comparison, attack or parallel panels — as native cards
-   with labelled links and one walkthrough chapter per scene; every card and
-   link shows the weakest basis of the findings it cites. It needs an analysis
-   that carries explanation scenes: ask the model to explain the source's memory,
-   data, interactions or lifetime rather than only its control flow. Older results
-   without scenes keep the three finding views; mechanism has no generic fallback.
+5. Choose **Preview visual explanation** for the illustrated overview. Under
+   **Technical finding views**, **Architecture**, **Exploit path** and **Mitigation**
+   remain detailed finding graphs for evidence review, not alternate illustrated styles.
+   **Save analysis with board** saves the retained analysis without drawing a scene.
+   Nothing changes the board until **Apply changes**; normal Undo/Redo also covers
+   analysis-only saves. Applied results follow restored board history, including
+   their diagram links; a separately generated unsaved result remains independent.
+   Applying a visual explanation closes the drawer and frames the first new scene,
+   including its panel captions, instead of fitting every older diagram on the board.
+   Other scenes are available through Journey. Existing cards, connections and
+   chapters are preserved; one Undo removes the new build.
+   Ordinary analysis plans a concise source-supported overview without special
+   notes: an actor/request/target/outcome composition, or memory, structure,
+   sequence, state and comparison panels appropriate to the source. Every card
+   and link shows the weakest basis of its grounding findings.
+   Older analyses without scenes show **Restore analysis sources**. Restore,
+   review the checked sources, and **Analyze retained sources** before previewing
+   again. There is no invented fallback scene, and existing cards are not
+   automatically redrawn.
    Incomplete or ambiguously grounded scenes are omitted whole with warnings,
    so removing an uncertain dependency cannot make their narrative source-backed.
    Review the warnings and reanalyze rather than treating an omitted scene as assessed.

@@ -118,6 +118,72 @@ test('linked steps follow moved parts and exact wire endpoints, round-trip, and 
   assert.deepEqual(store.doc.journey[0].targets, { nodes: [], wires: ['w'] });
 });
 
+test('zone targets frame the full visual extent and stay out of the highlight set', async () => {
+  const { resolveStep } = await import('../src/journey.js');
+  const { zoneRect, nodeRect } = await import('../src/geometry.js');
+  const doc = {
+    nodes: [{ id: 'a', kind: 'mcu', label: 'A', x: 40, y: 40 }],
+    wires: [],
+    zones: [{ id: 'z', x: 0, y: 0, w: 320, h: 120, label: 'A caption long enough to wrap onto several lines above the zone edge', color: '#4a90d9' }],
+  };
+  const step = { view: view(0, 0), targets: { nodes: ['a'], zones: ['z', 'gone'] } };
+  const rect = zoneRect(doc.zones[0]);
+  assert.ok(rect.y < doc.zones[0].y, 'a wrapped caption rises above the zone top edge');
+  const resolved = resolveStep(doc, step);
+  assert.equal(resolved.missing, 1, 'a deleted zone stays an explicit missing target');
+  assert.deepEqual([...resolved.ids], ['a'], 'zone targets frame but never enter the highlight ids');
+  const nr = nodeRect(doc.nodes[0]);
+  const top = Math.min(rect.y, nr.y);
+  const h = Math.max(rect.y + rect.h, nr.y + nr.h) - top;
+  assert.ok(Math.abs(resolved.view.cy - h / 2 - top) < 0.5, 'the camera rises to include the caption');
+});
+
+test('selectedTargets captures explicitly selected zones and old shapes keep no zones key', async () => {
+  const { selectedTargets, normalizeTargets } = await import('../src/journey.js');
+  const doc = { nodes: [{ id: 'a' }], wires: [], zones: [{ id: 'z' }] };
+  assert.deepEqual(selectedTargets(doc, new Set(['a', 'z'])), { nodes: ['a'], wires: [], zones: ['z'] });
+  assert.deepEqual(selectedTargets(doc, new Set(['a'])), { nodes: ['a'], wires: [] });
+  assert.deepEqual(normalizeTargets({ zones: ['z', 'z', ''] }), { nodes: [], wires: [], zones: ['z'] });
+  assert.equal(normalizeTargets({ zones: [] }), null);
+  assert.equal(normalizeTargets({ zones: 5 }), null);
+});
+
+test('zone targets survive serialize round-trip and node-only chapters keep their exact shape', async () => {
+  const { serialize, deserialize } = await import('../src/serialize.js');
+  const store = new Store();
+  store.doc.nodes = [{ id: 'a', kind: 'mcu', label: 'A', x: 0, y: 0 }];
+  store.doc.zones = [{ id: 'z', x: 0, y: 0, w: 100, h: 80, label: 'Zone', color: '#4a90d9' }];
+  const zoned = addStep(store, view(10, 20));
+  updateStep(store, zoned, { targets: { nodes: ['a'], zones: ['z'] } });
+  assert.deepEqual(store.doc.journey[0].targets, { nodes: ['a'], wires: [], zones: ['z'] });
+  const nodeOnly = addStep(store, view(0, 0));
+  updateStep(store, nodeOnly, { targets: { nodes: ['a'] } });
+  const restored = deserialize(serialize(store.doc)).doc;
+  assert.deepEqual(restored.journey[0].targets, { nodes: ['a'], wires: [], zones: ['z'] });
+  assert.deepEqual(restored.journey[1].targets, { nodes: ['a'], wires: [] });
+});
+
+test('stop-level views stay local to the node and its wires when the chapter targets zones', async () => {
+  const { resolveStoryStop } = await import('../src/journey.js');
+  const { nodeRect, zoneRect } = await import('../src/geometry.js');
+  const doc = {
+    nodes: [{ id: 'a', kind: 'mcu', label: 'A', x: 0, y: 0 }, { id: 'b', kind: 'temp', label: 'B', x: 500, y: 0 }],
+    wires: [],
+    zones: [{ id: 'z', x: 0, y: -800, w: 1200, h: 1800, label: 'Huge', color: '#4a90d9' }],
+  };
+  const step = { view: view(0, 0), targets: { nodes: ['a'], zones: ['z'] }, stops: [{ node: 'a' }, { node: 'b' }] };
+  const stop0 = resolveStoryStop(doc, step, 0);
+  assert.deepEqual([...stop0.ids], ['a']);
+  const nr = nodeRect(doc.nodes[0]);
+  assert.ok(Math.abs(stop0.view.cy - (nr.y + nr.h / 2)) < 0.5, 'the stop camera stays local to the node');
+  const overview = resolveStoryStop(doc, step, -1);
+  const zr = zoneRect(doc.zones[0]);
+  assert.ok(zr.y < doc.zones[0].y, 'the caption extent rises above the zone rectangle');
+  const top = Math.min(zr.y, nr.y);
+  const bottom = Math.max(zr.y + zr.h, nr.y + nr.h);
+  assert.ok(Math.abs(overview.view.cy - (bottom - top) / 2 - top) < 0.5, 'the chapter overview still frames the zone caption extent');
+});
+
 test('ordered stops round-trip with stable IDs, clamp hostile input, and remain undoable', async () => {
   const { normalizeStops, addStops, resolveStoryStop } = await import('../src/journey.js');
   const { serialize, deserialize } = await import('../src/serialize.js');

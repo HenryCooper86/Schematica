@@ -1,7 +1,7 @@
 import { getTheme } from './theme.js';
 import { buildExportSVG, exportBounds } from './export.js';
 import { esc } from './render.js';
-import { nodeRect } from './geometry.js';
+import { nodeRect, zoneRect } from './geometry.js';
 import { resolveStep, resolveStoryStop, storyRelationshipText, nextStoryPosition, readStoryMoment } from './journey.js';
 import { createPlayback } from './playback.js';
 import { connectionFocus, nodeHaystack } from './explore.js';
@@ -107,7 +107,8 @@ function offlineViewer(data, focusGraph, makePlayback, nextPosition, readMoment)
     document.getElementById('copy-moment').disabled = false;
     paint();
     const r = svg.getBoundingClientRect();
-    const rects = data.nodes.filter(n => target.ids.includes(n.id)).map(n => n.rect);
+    const rects = [...data.nodes.filter(n => target.ids.includes(n.id)).map(n => n.rect),
+      ...(data.zones || []).filter(z => target.targets?.zones?.includes(z.id)).map(z => z.rect)];
     let v = target.view;
     if (rects.length) {
       const x = Math.min(...rects.map(r => r.x)), y = Math.min(...rects.map(r => r.y));
@@ -243,6 +244,7 @@ export function buildHTML(doc, options = {}) {
   const data = { doc, bounds: exportBounds(doc), labels: { results: tr('Choose a matching part'), play: tr('Play'), pause: tr('Pause'), offlineLink: tr('For an offline file, send the HTML file together with this moment fragment.'), linkHelp: tr('Copy this link to open this chapter and stop.') },
     nodes: doc.nodes.map(n => ({ id: n.id, label: [n.label, n.sublabel].filter(Boolean).join(' — '), rect: nodeRect(n),
       search: nodeHaystack(n) })),
+    zones: doc.zones.map(z => ({ id: z.id, rect: zoneRect(z) })),
     steps: (doc.journey || []).map(s => { const r = resolveStep(doc, s); return { ...s, view: r.view, ids: [...r.ids], stops: (s.stops || []).map((stop,i) => {
       const result = resolveStoryStop(doc,s,i), node = doc.nodes.find(n => n.id === stop.node);
       return {...stop, label: node?.label || tr('Missing part'), view: result.view, ids: [...result.ids], relationship: storyRelationshipText(doc,s,i), caption: (node ? '' : tr('Missing part') + ': ' + stop.node + '. ') + (stop.caption || s.caption || '')};

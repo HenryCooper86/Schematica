@@ -28,6 +28,10 @@ const DEFAULT_ASSET_BY_KIND = Object.freeze({
 });
 const NEUTRAL_ASSET = 'decision';
 
+export function isSecurityActorAsset(kind) {
+  return kind === 'attacker' || kind === 'threatactor' || kind === 'insider' || PARTS[kind]?.category === 'people';
+}
+
 // Resolve the catalogue kind a finding illustrates as. An explicit assetKind is
 // honoured only when it names an eligible kind and the finding's applicability
 // is established (basis "source" or "inference"): basis "unknown" findings —
