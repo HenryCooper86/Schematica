@@ -574,3 +574,38 @@ test('wrapped labels remain inert text in canvas markup and standalone SVG expor
     assert.ok(output.includes('&lt;svg/onload=alert(1)&gt;'), 'the payload is displayed as literal source text');
   }
 });
+
+// Catalogue figures (security illustration vocabulary): large illustrated
+// cards whose label and meta lines stay editable inert text, like the badge
+// cards they stand beside.
+test('catalogue figures render as large illustrations with editable text', () => {
+  const doc = sampleDoc();
+  doc.nodes = [
+    node('atk', 'attacker', 0, 0, { label: 'Unattributed attacker', sublabel: 'POST /upload.php' }),
+    node('req', 'httprequest', 320, 0, { label: 'Request' }),
+    node('crash', 'processcrash', 620, 0, { label: 'Crash' }),
+  ];
+  doc.wires = [];
+  const m = diagramMarkup(doc);
+  const atk = nodeGroup(m, 'atk');
+  assert.ok(atk.includes('width="210"'), 'the actor keeps its presentation width');
+  assert.ok(atk.includes('translate(63 22) scale(3.5)'), 'the 24-unit pictogram draws at illustration scale');
+  assert.ok(atk.includes('opacity="0.13"'), 'the pictogram panel carries the badge tint');
+  assert.ok(atk.includes('stroke-dasharray="5 3.5"'), 'a threat figure keeps the threat border');
+  assert.ok(atk.includes('data-edit="label">'), 'the label stays editable');
+  assert.ok(atk.includes('data-edit="sublabel">POST /upload.php</text>'), 'the stated value shows under the label');
+  const req = nodeGroup(m, 'req');
+  assert.ok(req.includes('rx="40"'), 'a capsule is a pill');
+  assert.ok(req.includes('text-anchor="start"'), 'capsule text sits beside the pictogram');
+  assert.ok(!req.includes('stroke-dasharray="5 3.5"'), 'a capsule is not a threat');
+  const crash = nodeGroup(m, 'crash');
+  assert.ok(crash.includes('L-13 '), 'an outcome callout points a tail');
+});
+
+test('figure labels and meta stay inert text on the canvas', () => {
+  const hostile = 'Reference '.repeat(9) + '<svg/onload=alert(1)>';
+  const doc = { ...sampleDoc(), nodes: [node('atk', 'attacker', 0, 0, { label: hostile, sublabel: hostile })], wires: [] };
+  const markup = diagramMarkup(doc);
+  assert.ok(markup.includes('&lt;svg/onload=alert(1)&gt;'), 'the payload is displayed as literal source text');
+  assert.doesNotMatch(markup, /<svg\b/i, 'source text cannot introduce a nested active SVG');
+});

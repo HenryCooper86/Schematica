@@ -5,9 +5,17 @@
 import { SECURITY_ASSET_KINDS } from './security-assets.js';
 
 export const SECURITY_KINDS = ['affected', 'root_cause', 'prerequisite', 'step', 'impact', 'mitigation', 'severity', 'mapping', 'contradiction', 'unknown', 'component', 'boundary', 'consistency'];
-export const SECURITY_VIEWS = ['architecture', 'exploit', 'mitigation'];
+export const SECURITY_VIEWS = ['architecture', 'exploit', 'mitigation', 'mechanism'];
 export const SECURITY_BOUNDARY_RELATIONS = ['none', 'inside', 'outside', 'crosses'];
 export const SECURITY_COVERAGE_RANGES_LIMIT = 1000;   // canonical read ranges per source
+export const SECURITY_EXPLANATION_KINDS = ['memory', 'structure', 'sequence', 'state', 'comparison', 'attack', 'parallel'];
+export const SECURITY_EXPLANATION_ROLES = ['input', 'storage', 'pointer', 'operation', 'guard', 'invalid', 'result', 'neutral'];
+// Panel placements of the composed kinds ("attack", "parallel"): the semantic
+// role a panel plays in the composition. Hints only — never physical network,
+// containment or coordinate claims; no coords, HTML or SVG exist here.
+export const SECURITY_EXPLANATION_PLACEMENTS = ['actor', 'exchange', 'target', 'outcome'];
+export const SECURITY_EXPLANATION_ROW_MAX = 7;        // highest parallel row index
+export const SECURITY_EXPLANATIONS_LIMIT = 6;         // mechanism scenes per analysis
 const BASES = ['source', 'inference', 'unknown'];
 const STATUSES = ['published', 'reserved', 'rejected', 'unknown', 'not-provided'];
 const stringSchema = (maxLength, extra = {}) => ({ type: 'string', maxLength, ...extra });
@@ -21,6 +29,29 @@ const coverageRangeSchema = objectSchema({ startLine: lineSchema, endLine: lineS
 const coverageEntrySchema = objectSchema({ sourceId: idSchema, ranges: arraySchema(coverageRangeSchema, SECURITY_COVERAGE_RANGES_LIMIT) });
 const illustrationItemSchema = objectSchema({ findingId: idSchema, target: idSchema });
 const illustrationSchema = objectSchema({ view: { type: 'string', enum: SECURITY_VIEWS }, chapter: stringSchema(120), items: arraySchema(illustrationItemSchema, 200) });
+// Optional mechanism explanations: schematic scenes grounded in normal
+// findings — findingIds is the only citation channel, so evidence basis and
+// citations are derived from the referenced findings, never asserted here.
+const explanationFindingRefs = arraySchema(idSchema, 8);
+// Items and panels may carry presentation hints: an optional item assetKind
+// (an illustration asset, drawn only when the renderer can ground it in a
+// referenced finding — a saved ungrounded hint stays inert data), an optional
+// parallel row index, and an optional panel placement for the composed kinds.
+// All are semantic composition hints grounded through findingIds, never a
+// separate citation channel and never coordinates or markup.
+const explanationItemSchema = objectSchema({ id: idSchema, label: stringSchema(240, { minLength: 1 }),
+  value: stringSchema(1000), role: { type: 'string', enum: SECURITY_EXPLANATION_ROLES },
+  assetKind: { type: 'string', enum: [...SECURITY_ASSET_KINDS] },
+  row: { type: 'integer', minimum: 0, maximum: SECURITY_EXPLANATION_ROW_MAX },
+  findingIds: explanationFindingRefs }, ['assetKind', 'row']);
+const explanationPanelSchema = objectSchema({ id: idSchema, title: stringSchema(240, { minLength: 1 }),
+  placement: { type: 'string', enum: SECURITY_EXPLANATION_PLACEMENTS },
+  items: arraySchema(explanationItemSchema, 8) }, ['placement']);
+const explanationLinkSchema = objectSchema({ from: idSchema, to: idSchema, label: stringSchema(240, { minLength: 1 }),
+  findingIds: explanationFindingRefs });
+const explanationSchema = objectSchema({ id: idSchema, title: stringSchema(240, { minLength: 1 }),
+  kind: { type: 'string', enum: SECURITY_EXPLANATION_KINDS }, detail: stringSchema(4000),
+  panels: arraySchema(explanationPanelSchema, 4), links: arraySchema(explanationLinkSchema, 24) });
 export const SECURITY_ANALYSIS_SCHEMA = objectSchema({
   version: { type: 'integer', enum: [1] }, id: idSchema, title: stringSchema(240, { minLength: 1 }),
   cveId: stringSchema(64), status: { type: 'string', enum: STATUSES }, summary: stringSchema(8000), generatedAt: stringSchema(40),
@@ -38,7 +69,8 @@ export const SECURITY_ANALYSIS_SCHEMA = objectSchema({
   warnings: arraySchema(stringSchema(2000), 50),
   readCoverage: arraySchema(coverageEntrySchema, 20),
   illustrations: arraySchema(illustrationSchema, 100),
-}, ['readCoverage', 'illustrations']);
+  explanations: arraySchema(explanationSchema, SECURITY_EXPLANATIONS_LIMIT),
+}, ['readCoverage', 'illustrations', 'explanations']);
 
 function checkShape(value, schema, path) {
   if (schema.type === 'object') {
@@ -55,7 +87,8 @@ function checkShape(value, schema, path) {
     if (typeof value !== 'string' || value.length > schema.maxLength || value.length < (schema.minLength || 0)
       || (schema.minLength && !value.trim()) || /\u0000/.test(value)) throw Error(`${path} is invalid or exceeds its text limit.`);
   } else if (schema.type === 'integer') {
-    if (!Number.isSafeInteger(value) || value < (schema.minimum ?? -Number.MAX_SAFE_INTEGER)) throw Error(`${path} must be a safe integer.`);
+    if (!Number.isSafeInteger(value) || value < (schema.minimum ?? -Number.MAX_SAFE_INTEGER)
+      || value > (schema.maximum ?? Number.MAX_SAFE_INTEGER)) throw Error(`${path} must be a safe integer.`);
   } else if (schema.type === 'boolean' && typeof value !== 'boolean') throw Error(`${path} must be boolean.`);
   if (schema.enum && !schema.enum.includes(value)) throw Error(`${path} has an unsupported value.`);
 }
@@ -92,6 +125,19 @@ export function securityEvidence(analysis, ref) {
   const text = lines.slice(ref.startLine - source.startLine, ref.endLine - source.startLine + 1).join('\n');
   if (text.length > 20000) throw Error('An evidence reference may include at most 20,000 characters.');
   return { source, text, startLine: ref.startLine, endLine: ref.endLine };
+}
+
+// Explanation items and links ground every visible claim in existing
+// findings: nonempty, duplicate-free findingIds only, never a separate
+// citation channel.
+function checkExplanationGrounding(findingIds, element, label) {
+  if (!element.findingIds.length) throw Error(`${label} must reference at least one existing finding id.`);
+  const seen = new Set();
+  for (const id of element.findingIds) {
+    if (seen.has(id)) throw Error(`${label} repeats finding id ${id}.`);
+    seen.add(id);
+    if (!findingIds.has(id)) throw Error(`${label} references an unknown finding: ${id}.`);
+  }
 }
 
 export function validateSecurityAnalysis(value) {
@@ -150,6 +196,45 @@ export function validateSecurityAnalysis(value) {
     }
   }
   for (const finding of value.findings) if (new Set(finding.targets).size !== finding.targets.length) throw Error(`Duplicate board targets in ${finding.id}.`);
+  if (value.explanations !== undefined) {
+    // Scene ids are unique across the analysis; panel ids per scene and item
+    // ids across each scene's panels. Grounding and endpoints are checked
+    // against findings and items that actually exist, with the offending id
+    // named so a rejected save points at the exact scene element.
+    distinct(value.explanations, 'explanation');
+    for (const scene of value.explanations) {
+      if (!scene.panels.length) throw Error(`Explanation "${scene.id}" requires at least one panel.`);
+      distinct(scene.panels, `panel of explanation "${scene.id}"`);
+      const itemIds = new Set();
+      for (const panel of scene.panels) {
+        if (!panel.items.length) throw Error(`Panel "${panel.id}" of explanation "${scene.id}" requires at least one item.`);
+        // Composed kinds place every panel; parallel aligns its non-actor
+        // items with an explicit row. Presence only — enum, type and the 0..7
+        // range are already enforced by the schema. Item assetKind is
+        // deliberately not grounding-checked here: a structurally valid but
+        // ungrounded saved hint stays data that renderers suppress, so
+        // historical records never become invalid.
+        if ((scene.kind === 'attack' || scene.kind === 'parallel') && panel.placement === undefined) {
+          throw Error(`Panel "${panel.id}" of ${scene.kind} explanation "${scene.id}" requires a placement (${SECURITY_EXPLANATION_PLACEMENTS.join('|')}).`);
+        }
+        for (const item of panel.items) {
+          if (itemIds.has(item.id)) throw Error(`Duplicate item id in explanation "${scene.id}": ${item.id}.`);
+          itemIds.add(item.id);
+          if (scene.kind === 'parallel' && panel.placement !== 'actor' && item.row === undefined) {
+            throw Error(`Non-actor item "${item.id}" of parallel explanation "${scene.id}" requires a row (0-${SECURITY_EXPLANATION_ROW_MAX}).`);
+          }
+          checkExplanationGrounding(findingIds, item, `Item "${item.id}" of explanation "${scene.id}"`);
+        }
+      }
+      for (const link of scene.links) {
+        if (link.from === link.to) throw Error(`Link in explanation "${scene.id}" must join two distinct items, not ${link.from} twice.`);
+        for (const endpoint of [link.from, link.to]) {
+          if (!itemIds.has(endpoint)) throw Error(`Link in explanation "${scene.id}" references an unknown item: ${endpoint}.`);
+        }
+        checkExplanationGrounding(findingIds, link, `Link "${link.from} -> ${link.to}" of explanation "${scene.id}"`);
+      }
+    }
+  }
   if (value.illustrations !== undefined) {
     for (const [i, illustration] of value.illustrations.entries()) {
       for (const item of illustration.items) {
@@ -208,6 +293,60 @@ function coverageDisclosure(analysis, source) {
   return `<p>Complete lines delivered to the model (delivery is not proof of comprehension): ${delivered}.${unassessed}</p>`;
 }
 
+const EXPLANATION_KIND_LABELS = { memory: 'Memory / object layout', structure: 'Data / payload structure',
+  sequence: 'Interaction sequence', state: 'Object / program states', comparison: 'Before / after comparison',
+  attack: 'Illustrated attack scene', parallel: 'Parallel target scenarios' };
+const PLACEMENT_LABELS = { actor: 'Actor', exchange: 'Exchange', target: 'Target', outcome: 'Outcome' };
+const BASIS_RANK = { source: 0, inference: 1, unknown: 2 };
+// Scenes carry no basis of their own: the visible basis of every panel item
+// and link is the weakest basis among the findings it references, so a scene
+// built on a downgraded or not-assessed finding can never read as established.
+const weakestBasis = findings => findings.length
+  ? findings.reduce((weakest, f) => BASIS_RANK[f.basis] > BASIS_RANK[weakest] ? f.basis : weakest, 'source')
+  : 'unknown';
+
+// Structured mechanism scenes render in every report, before (and regardless
+// of) any illustration build. Citations are the referenced findings' own
+// evidence, deduplicated — never ranges guessed from the wording.
+function explanationSection(analysis, citation) {
+  const byId = new Map(analysis.findings.map(f => [f.id, f]));
+  const grounding = ids => {
+    const findings = ids.map(id => byId.get(id)).filter(Boolean);
+    const refs = new Map();
+    for (const finding of findings) for (const ref of finding.evidence) {
+      refs.set(`${ref.sourceId}:${ref.startLine}-${ref.endLine}`, ref);
+    }
+    return { basis: weakestBasis(findings), citations: [...refs.values()], findings };
+  };
+  return '<h3>Mechanism explanations</h3>'
+    + '<p>Schematic readings of the retained sources by static analysis only: nothing was compiled, executed or observed at runtime, and layouts are interpretations, not ABI-accurate addresses. Every item and link shows the weakest evidence basis of the findings that ground it, followed by those findings\u2019 citations. Attack and parallel scenes are semantic compositions of the referenced findings: they claim no physical network, containment or deployment layout, and uncertain outcomes stay visibly uncertain.</p>'
+    + analysis.explanations.map(scene => {
+      const items = scene.panels.flatMap(panel => panel.items);
+      const labelOf = new Map(items.map(item => [item.id, item.label]));
+      const entry = (label, role, value, ids, arrow, hints = '') => {
+        const g = grounding(ids);
+        return `<li>${arrow ? `${esc(labelOf.get(arrow.from) || arrow.from)} → ${esc(labelOf.get(arrow.to) || arrow.to)}: ` : ''}<strong>${esc(label)}</strong>${role ? ` · ${esc(role)}` : ''}${hints ? ` · ${esc(hints)}` : ''}${value ? ` — ${esc(value)}` : ''} (${esc(basisLabel(g.basis))})${g.citations.map(citation).join('')}</li>`;
+      };
+      // Composition hints are disclosed, never asserted: an asset hint its own
+      // findings do not ground (the exact same assetKind on a referenced
+      // non-unknown finding, every reference non-unknown) is reported as not
+      // drawn, matching what illustrations render.
+      const assetHint = item => {
+        if (!item.assetKind) return '';
+        const refs = item.findingIds.map(id => byId.get(id)).filter(Boolean);
+        return refs.every(f => f.basis !== 'unknown') && refs.some(f => f.assetKind === item.assetKind)
+          ? `asset ${item.assetKind}` : `ungrounded asset hint (${item.assetKind}), not drawn as an illustration asset`;
+      };
+      const hintsOf = item => [item.row !== undefined ? `row ${item.row}` : '', assetHint(item)].filter(Boolean).join(' · ');
+      const sceneBasis = weakestBasis(grounding([...new Set([...items.flatMap(i => i.findingIds), ...scene.links.flatMap(l => l.findingIds)])]).findings);
+      return `<article><h4>${esc(scene.title)}</h4><p><strong>${esc(basisLabel(sceneBasis))}</strong> · ${esc(EXPLANATION_KIND_LABELS[scene.kind])}</p>`
+        + (scene.detail ? `<p class="narrative">${esc(scene.detail)}</p>` : '')
+        + scene.panels.map(panel => `<p><strong>${esc(panel.title)}</strong>${panel.placement ? ` · ${esc(PLACEMENT_LABELS[panel.placement])} placement` : ''}</p><ul>${panel.items.map(item => entry(item.label, item.role, item.value, item.findingIds, undefined, hintsOf(item))).join('')}</ul>`).join('')
+        + (scene.links.length ? `<p>Relationships within the scene:</p><ul>${scene.links.map(link => entry(link.label, '', '', link.findingIds, link)).join('')}</ul>` : '')
+        + '</article>';
+    }).join('');
+}
+
 // Shared safe fragment for the standalone explainer and project technical report.
 export function securityAnalysisSection(value, { includeSources = false, prefix = 'security' } = {}) {
   const analysis = validateSecurityAnalysis(value);
@@ -226,6 +365,7 @@ export function securityAnalysisSection(value, { includeSources = false, prefix 
     + `<p class="narrative">${esc(analysis.summary)}</p>`
     + `<ul>${analysis.warnings.map(w => `<li>${esc(w)}</li>`).join('')}${['reserved', 'rejected'].includes(analysis.status) ? `<li>The CVE record is ${esc(analysis.status)}; associated code is not proof of an established vulnerability.</li>` : ''}</ul>`
     + analysis.findings.map((finding, i) => `<article><h4>${i + 1}. ${esc(finding.title)}</h4>${nonEstablished}<p><strong>${esc(basisLabel(finding.basis))}</strong> · ${esc(finding.kind)} · ${esc(finding.view)}</p><p class="narrative">${esc(finding.detail)}</p>${finding.evidence.map(citation).join('')}<p>Board references: ${esc(finding.targets.join(', ') || 'Not illustrated')}</p></article>`).join('')
+    + (analysis.explanations?.length ? explanationSection(analysis, citation) : '')
     + (analysis.relationships.length ? '<h3>Logical relationships</h3><ul>' + analysis.relationships.map(r => `<li>${esc(analysis.findings.find(f => f.id === r.from).title)} → ${esc(analysis.findings.find(f => f.id === r.to).title)}: ${esc(r.label)} (${esc(basisLabel(r.basis))})${r.evidence.map(citation).join('')}</li>`).join('') + '</ul>' : '')
     + '<h3>Sources and coverage</h3><p>Evidence excerpts are included above. Full retained source text is ' + (includeSources ? 'included below; review before sharing.' : 'omitted from this report.') + '</p>'
     + analysis.sources.map(source => `<article id="${esc(sourceAnchors.get(source.id))}"><h4>${esc(source.name)}</h4>${source.url ? `<p><a href="${esc(source.url)}" rel="noopener noreferrer">${esc(source.url)}</a></p>` : ''}<p>Retrieved: ${esc(source.retrievedAt)} · SHA-256: <code>${esc(source.hash)}</code></p><p>Included lines ${source.startLine}–${source.startLine + source.text.split('\n').length - 1} of ${source.totalLines}${source.partial ? ' · PARTIAL SOURCE — omitted content was not analyzed' : ' · Retained source complete; linked files were not automatically read'}</p>${coverageDisclosure(analysis, source)}<ul>${source.warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul>${includeSources ? `<details open><summary>Retained source text</summary><pre class="narrative">${esc(source.text)}</pre></details>` : ''}</article>`).join('');

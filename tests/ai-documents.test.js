@@ -9,6 +9,15 @@ test('reads Unicode and preserves relative names, separates duplicate basenames'
  assert.equal(out.documents.length,2); assert.match(out.documents[0].text,/电源: 5V/); assert.equal(out.documents[0].name,'project/a/requirements.md');
  assert.match(documentContext(out.documents).text,/project\/a\/requirements.md/); assert.match(SUPPORTED_ACCEPT,/\.docx/);
 });
+test('C, C++ and Python source extensions import as inert text', async () => {
+  const names = ['gateway.cc', 'gateway.cxx', 'gateway.c++', 'io.hh', 'io.hxx', 'script.pyw'];
+  const out = await importDocuments(names.map((n, i) => file(`line ${i + 1}\n`, n)));
+  assert.deepEqual(out.issues, []);
+  assert.deepEqual(out.documents.map(d => d.name), names);
+  assert.ok(out.documents.every((d, i) => d.text === `line ${i + 1}\n` && d.kind === 'text'));
+  const accept = SUPPORTED_ACCEPT.split(',');
+  for (const ext of ['cc', 'cxx', 'c++', 'hh', 'hxx', 'pyw']) assert.ok(accept.includes(`.${ext}`), ext);
+});
 test('rejects unsupported, binary disguised as text, invalid and private paths without discarding success', async () => {
  const names=['x.exe','x.doc','.env','id_rsa','secret.pem','credentials.json','.git/a.md','node_modules/a.md','a/.private/a.md','../a.md','/a.md','C:\\a.md','x'.repeat(513)+'.md'];
  const out=await importDocuments([...names.map(n=>file('bad',n,n)),file('abc\0def','nul.txt'),file('good','ok.txt')]);

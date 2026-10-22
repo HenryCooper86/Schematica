@@ -610,3 +610,68 @@ test('Chinese flow-shape labels widen the shape', () => {
   assert.ok(cjk.w > latin.w, `${cjk.w} > ${latin.w}`);
   assert.equal(cjk.h, latin.h);
 });
+
+// ---- Catalogue figures (security illustration vocabulary) ----
+// A figure presents as a large illustrated card: every presentation is far
+// past the 104x74 badge-card minimum, width is fixed per presentation so
+// composed scenes align, and height grows only as the shared label/meta
+// lines wrap — a line can never exceed the text budget the card reserves.
+const FIGURE_MIN_W = { attacker: 210, httprequest: 236, servermemory: 156, processcrash: 196 };
+
+test('figure parts size as large illustrations, not badge cards', () => {
+  for (const [kind, minW] of Object.entries(FIGURE_MIN_W)) {
+    const { w, h } = size({ kind, label: 'X' });
+    assert.ok(w >= minW && w < minW + 1, `${kind} keeps its fixed presentation width ${w}`);
+    assert.ok(w > 104 && h > 74, `${kind} is larger than a badge card (${w}x${h})`);
+  }
+  const actor = size({ kind: 'attacker', label: 'X' });
+  assert.ok(actor.h >= 84 + 22 + 12 + 15 + 18, `the actor pictogram area survives (${actor.h})`);
+});
+
+test('figure labels and meta lines wrap inside the card budget and grow it taller', () => {
+  const base = { kind: 'attacker', sublabel: '', addr: '', rail: '' };
+  const short = nodeSize({ ...base, label: 'Attacker' });
+  const long = nodeSize({ ...base, label: 'Unattributed remote attacker with a stolen credential' });
+  assert.equal(short.w, long.w, 'width stays the presentation width');
+  assert.ok(long.h > short.h, `wrapped lines grow the card (${long.h} > ${short.h})`);
+  assert.ok(long.labelLines.length > 1, 'the label wrapped');
+  const budget = short.w - 2 * 30;
+  for (const line of long.labelLines) assert.ok(measureShapeText(line) <= budget, `line fits: ${line}`);
+  assert.equal(long.labelLines.join('').replace(/ /g, ''), 'Unattributedremoteattackerwithastolencredential', 'no text lost');
+
+  const meta = nodeSize({ ...base, label: 'A', sublabel: 'POST /upload.php?debug=1&trace=all&verbose=yes' });
+  const sub = meta.metaLines.find((m) => m.field === 'sublabel');
+  assert.ok(sub.lines.length > 1, 'meta lines wrap too');
+  assert.ok(meta.h > nodeSize({ ...base, label: 'A' }).h, 'wrapped meta grows the card');
+});
+
+test('a CJK figure label wraps per character and stays inside the budget', () => {
+  const s = nodeSize({ kind: 'phpapp', label: '面向请求的应用程序服务器端渲染组件' });
+  assert.equal(s.w, 156, 'tile width is fixed');
+  assert.ok(s.labelLines.length > 1, 'the CJK run wrapped');
+  const budget = 156 - 2 * 22;
+  for (const line of s.labelLines) assert.ok(measureShapeText(line) <= budget, `line fits: ${line}`);
+  assert.equal(s.labelLines.join(''), '面向请求的应用程序服务器端渲染组件', 'no characters lost');
+});
+
+test('a catalogue figure keeps its sublabel even as a threat; a plain threat still hides it', () => {
+  const figure = nodeMeta({ kind: 'attacker', sublabel: 'POST /upload.php', addr: '', rail: '' });
+  assert.ok(figure.some((m) => m.field === 'sublabel' && m.text === 'POST /upload.php'),
+    'the illustrated attacker shows the stated value');
+  const outcome = nodeMeta({ kind: 'processcrash', sublabel: 'child exits', addr: '', rail: '' });
+  assert.ok(outcome.some((m) => m.field === 'sublabel'), 'an outcome callout shows the condition');
+  const threat = nodeMeta({ kind: 'threatactor', sublabel: 'APT-29', addr: '', rail: '' });
+  assert.ok(!threat.some((m) => m.field === 'sublabel'), 'the badge-card threat keeps hiding it');
+});
+
+test('every figure part exposes the four logical link ports the wire lanes address', () => {
+  for (const kind of ['attacker', 'httprequest', 'payload', 'memorydump', 'servermemory', 'secretstore',
+    'memorylimit', 'processcrash', 'codeexec', 'phpapp', 'wordpressapp', 'drupalapp', 'joomlaapp']) {
+    const part = partOf({ kind });
+    const ports = Object.fromEntries(part.ports.map((p) => [p.id, p]));
+    for (const id of ['n', 'e', 's', 'w']) {
+      assert.ok(ports[id], `${kind}.${id} exists`);
+      assert.equal(ports[id].bus, 'link', `${kind}.${id} is a logical link`);
+    }
+  }
+});

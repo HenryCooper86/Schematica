@@ -371,3 +371,212 @@ test('reserved and rejected records never gain speculative concrete assets', asy
     assert.equal(result.findings.find(f => f.id === 'state').basis, 'source');
   }
 });
+
+function scene(overrides = {}) {
+  return { id: 'layout', title: 'Buffer layout', kind: 'memory', detail: 'Schematic reading of the retained lines.',
+    panels: [{ id: 'cells', title: 'Declared storage', items: [
+      { id: 'len', label: 'Supplied length', value: 'attacker-chosen', role: 'input', findingIds: ['cause'] },
+      { id: 'buf', label: 'Fixed buffer', value: '', role: 'storage', findingIds: ['cause'] },
+    ] }],
+    links: [{ from: 'len', to: 'buf', label: 'overwrites when unchecked', findingIds: ['cause'] }], ...overrides };
+}
+
+test('valid explanation plans survive analysis while omitted explanations stay absent', async () => {
+  const retained = await source();
+  const result = await analyzeSecurity({ sources: [retained], provider: provider([reply(plan({ explanations: [scene()] }))]) });
+  assert.deepEqual(result.explanations, [{
+    id: 'layout', title: 'Buffer layout', kind: 'memory', detail: 'Schematic reading of the retained lines.',
+    panels: [{ id: 'cells', title: 'Declared storage', items: [
+      { id: 'len', label: 'Supplied length', value: 'attacker-chosen', role: 'input', findingIds: ['cause'] },
+      { id: 'buf', label: 'Fixed buffer', value: '', role: 'storage', findingIds: ['cause'] },
+    ] }],
+    links: [{ from: 'len', to: 'buf', label: 'overwrites when unchecked', findingIds: ['cause'] }],
+  }]);
+  const without = await analyzeSecurity({ sources: [retained], provider: provider([reply(plan())]) });
+  assert.equal(without.explanations, undefined, 'model-omitted explanations are not fabricated');
+});
+
+test('malformed scenes are dropped whole without changing independent valid scenes', async () => {
+  const retained = await source();
+  const result = await analyzeSecurity({ sources: [retained], provider: provider([reply(plan({ explanations: [
+    scene({ id: 'valid' }),
+    scene({ id: 'ghost-item', links: [], panels: [{ id: 'p', title: 'P', items: [
+      { id: 'len', label: 'Supplied length', value: '', role: 'input', findingIds: ['ghost'] }] }] }),
+    scene({ id: 'dangling-link', links: [{ from: 'len', to: 'absent', label: 'flows into', findingIds: ['cause'] }] }),
+    scene({ id: 'bad-kind', kind: 'layout' }),
+    scene({ id: 'bad-role', links: [], panels: [{ id: 'p', title: 'P', items: [
+      { id: 'len', label: 'Length', value: '', role: 'widget', findingIds: ['cause'] }] }] }),
+  ] }))]) });
+  assert.deepEqual(result.explanations.map(scene => scene.id), ['valid']);
+});
+
+test('duplicate model item ids never silently re-link a scene', async () => {
+  const retained = await source();
+  const result = await analyzeSecurity({ sources: [retained], provider: provider([reply(plan({ explanations: [scene({
+    id: 'dup', links: [{ from: 'cell', to: 'len', label: 'flows into', findingIds: ['cause'] }],
+    panels: [{ id: 'p', title: 'P', items: [
+      { id: 'cell', label: 'First cell', value: '', role: 'storage', findingIds: ['cause'] },
+      { id: 'cell', label: 'Second cell', value: '', role: 'storage', findingIds: ['cause'] },
+      { id: 'len', label: 'Supplied length', value: '', role: 'input', findingIds: ['cause'] },
+    ] }],
+  })] }))]) });
+  assert.equal(result.explanations, undefined, 'an ambiguous scene cannot preserve the narrative grounding');
+});
+
+test('over-limit scenes are dropped whole rather than keeping a partially grounded narrative', async () => {
+  const retained = await source();
+  const pairs = [];
+  for (let a = 0; a < 8 && pairs.length < 25; a++) for (let b = a + 1; b < 8 && pairs.length < 25; b++) pairs.push([`i-${a}`, `i-${b}`]);
+  const wide = scene({ id: 'wide', links: pairs.map(([from, to], n) => ({ from, to, label: `Link ${n}`, findingIds: ['cause'] })),
+    panels: [{ id: 'p', title: 'P', items: Array.from({ length: 9 }, (_, n) => ({ id: `i-${n}`, label: `Item ${n}`, value: '', role: 'neutral', findingIds: ['cause'] })) }] });
+  const result = await analyzeSecurity({ sources: [retained], provider: provider([reply(plan({
+    explanations: [wide, ...Array.from({ length: 7 }, (_, i) => scene({ id: `scene-${i + 1}` }))],
+  }))]) });
+  assert.equal(result.explanations.length, 5);
+  assert.equal(result.explanations.some(scene => scene.id === 'wide'), false);
+  assert.equal(result.explanations.every(scene => scene.panels[0].items.length === 2), true);
+});
+
+test('reserved records keep scenes only through downgraded findings, never confident grounds', async () => {
+  const retained = await source('Record state: RESERVED.\nAssociated material does not establish applicability to this identifier.');
+  const result = await analyzeSecurity({ sources: [retained], cveId: 'CVE-2026-99008', status: 'reserved',
+    provider: provider([reply(plan({ explanations: [scene()] }))]) });
+  assert.equal(result.explanations.length, 1);
+  const grounding = new Set(result.explanations.flatMap(e => [
+    ...e.panels.flatMap(p => p.items.flatMap(i => i.findingIds)), ...e.links.flatMap(l => l.findingIds)]));
+  assert.ok(grounding.size > 0);
+  for (const id of grounding) {
+    assert.equal(result.findings.find(f => f.id === id).basis, 'unknown',
+      'the scene can only be grounded in findings whose applicability was downgraded');
+  }
+});
+
+test('partial, pruned or ambiguous finding grounding drops the element instead of strengthening it', async () => {
+  const retained = await source();
+  // Partial grounding: one valid ref beside one unknown ref must not survive
+  // as a lone (and now source-backed) ref.
+  const partial = await analyzeSecurity({ sources: [retained], provider: provider([reply(plan({
+    explanations: [scene({ id: 'partial', links: [], panels: [{ id: 'p', title: 'P', items: [
+      { id: 'len', label: 'Supplied length', value: '', role: 'input', findingIds: ['cause', 'ghost'] },
+      { id: 'buf', label: 'Fixed buffer', value: '', role: 'storage', findingIds: ['cause'] },
+    ] }] })],
+  }))]) });
+  assert.equal(partial.explanations, undefined, 'the unchanged scene narrative must not survive loss of its uncertain dependency');
+
+  // A finding pruned by the 100-finding cap, referenced beside a surviving
+  // one, is equally fatal to the element.
+  const pruned = await analyzeSecurity({ sources: [retained], allowTools: false, provider: provider([reply(plan({
+    findings: [...Array.from({ length: 100 }, (_, i) => finding({ id: `cause-${i}` })), finding({ id: 'pruned-tail' })],
+    explanations: [scene({ id: 'pruned', links: [], panels: [{ id: 'p', title: 'P', items: [
+      { id: 'len', label: 'Supplied length', value: '', role: 'input', findingIds: ['cause-0', 'pruned-tail'] },
+    ] }] })],
+  }))]) });
+  assert.equal(pruned.explanations, undefined, 'the scene cannot keep its lone item on partial grounding');
+  assert.match(pruned.warnings.join('\n'), /finding "pruned-tail" did not survive validation/);
+
+  // Duplicate model finding ids: a ref to the shared id must not attach to
+  // whichever duplicate kept the id after renaming.
+  const duplicated = await analyzeSecurity({ sources: [retained], provider: provider([reply(plan({
+    findings: [finding(), finding({ id: 'cause', kind: 'impact', title: 'Same id, second claim', view: 'exploit' }),
+      finding({ id: 'anchor', kind: 'impact', view: 'exploit' })],
+    explanations: [scene({ id: 'dupes', links: [], panels: [{ id: 'p', title: 'P', items: [
+      { id: 'len', label: 'Supplied length', value: '', role: 'input', findingIds: ['cause'] },
+      { id: 'buf', label: 'Fixed buffer', value: '', role: 'storage', findingIds: ['anchor'] },
+    ] }] })],
+  }))]) });
+  assert.equal(duplicated.explanations, undefined, 'the unchanged scene narrative cannot resolve ambiguous grounding');
+});
+
+test('scene item asset hints survive only on exact same-asset non-unknown grounding', async () => {
+  const retained = await source();
+  const result = await analyzeSecurity({ sources: [retained], provider: provider([reply(plan({
+    findings: [
+      finding({ id: 'host', kind: 'component', view: 'architecture', assetKind: 'webserver' }),
+      finding({ id: 'plain', kind: 'component', view: 'architecture' }),
+      finding({ id: 'downgraded', kind: 'component', view: 'architecture', assetKind: 'webserver',
+        evidence: [{ sourceId: 's1', startLine: 1, endLine: 999 }] }),
+    ],
+    explanations: [scene({ id: 'assets', links: [], panels: [{ id: 'p', title: 'P', items: [
+      { id: 'drawn', label: 'Described host', value: '', role: 'neutral', assetKind: 'webserver', findingIds: ['host'] },
+      { id: 'no-match', label: 'Plain component', value: '', role: 'neutral', assetKind: 'webserver', findingIds: ['plain'] },
+      { id: 'mixed', label: 'Mixed grounding', value: '', role: 'neutral', assetKind: 'webserver', findingIds: ['host', 'downgraded'] },
+      { id: 'invented', label: 'Invented asset', value: '', role: 'neutral', assetKind: 'quantum-router', findingIds: ['host'] },
+    ] }] })],
+  }))]) });
+  const items = result.explanations[0].panels[0].items;
+  assert.equal(items.length, 4, 'asset-only omissions never drop items or poison the scene narrative');
+  assert.equal(items.find(i => i.id === 'drawn').assetKind, 'webserver',
+    'the same assetKind on the grounding finding and the scene item rides through');
+  assert.equal(items.find(i => i.id === 'no-match').assetKind, undefined,
+    'a hint no referenced finding carries is omitted, not adopted');
+  assert.equal(items.find(i => i.id === 'mixed').assetKind, undefined,
+    'an unknown-basis reference omits the hint; a finding downgrade never upgrades evidence');
+  assert.equal(items.find(i => i.id === 'invented').assetKind, undefined);
+  const warnings = result.warnings.join('\n');
+  assert.match(warnings, /unsupported assetKind "quantum-router" was omitted/);
+  assert.match(warnings, /asset "webserver" was omitted/);
+});
+
+test('attack and parallel compositions keep placements and rows or drop the scene whole', async () => {
+  const retained = await source();
+  const attack = { id: 'attack-scene', title: 'Oversized request against the host', kind: 'attack',
+    detail: 'Semantic composition of the referenced findings.',
+    panels: [
+      { id: 'a-actor', title: 'Requester', placement: 'actor', items: [
+        { id: 'a-who', label: 'Requesting client', value: 'sends the length', role: 'input', findingIds: ['cause'] }] },
+      { id: 'a-exchange', title: 'Request', placement: 'exchange', items: [
+        { id: 'a-req', label: 'Oversized length', value: '', role: 'input', findingIds: ['cause'] }] },
+      { id: 'a-target', title: 'Parser host', placement: 'target', items: [
+        { id: 'a-host', label: 'Parser buffer', value: '', role: 'storage', row: 0, assetKind: 'webserver', findingIds: ['cause'] }] },
+    ],
+    links: [{ from: 'a-req', to: 'a-host', label: 'overflows when unchecked', findingIds: ['cause'] }] };
+  const parallel = { id: 'parallel-scene', title: 'Same mechanism across deployments', kind: 'parallel',
+    detail: 'One row per described deployment.',
+    panels: [
+      { id: 'p-actor', title: 'Shared requester', placement: 'actor', items: [
+        { id: 'p-who', label: 'Requesting client', value: '', role: 'input', findingIds: ['cause'] }] },
+      { id: 'p-targets', title: 'Affected deployments', placement: 'target', items: [
+        { id: 'p-t0', label: 'Deployment A', value: '', role: 'storage', row: 0, findingIds: ['cause'] },
+        { id: 'p-t1', label: 'Deployment B', value: '', role: 'storage', row: 7, findingIds: ['cause'] }] },
+      { id: 'p-outcomes', title: 'Conditional outcomes', placement: 'outcome', items: [
+        { id: 'p-o1', label: 'Parser failure', value: '', role: 'result', row: 1, findingIds: ['cause'] }] },
+    ],
+    links: [] };
+  const kept = await analyzeSecurity({ sources: [retained], provider: provider([reply(plan({
+    findings: [finding({ assetKind: 'webserver' })], explanations: [attack, parallel] }))]) });
+  assert.deepEqual(kept.explanations, [attack, parallel],
+    'fully supported placements, rows and grounded item assets persist without any rewriting');
+
+  const withRow = value => ({ ...parallel, panels: parallel.panels.map((panel, i) => i === 1
+    ? { ...panel, items: panel.items.map((item, n) => n === 0 ? { ...item, row: value } : item) } : panel) });
+  const broken = [
+    [{ ...attack, id: 'no-placement', panels: attack.panels.map(({ placement, ...panel }) => panel) }, /place every panel/],
+    [{ ...attack, id: 'bad-placement', panels: attack.panels.map((panel, i) => i === 1 ? { ...panel, placement: 'network' } : panel) }, /placement "network"/],
+    [{ ...parallel, id: 'no-row', panels: parallel.panels.map((panel, i) => i === 1
+      ? { ...panel, items: panel.items.map((item, n) => n === 0 ? (({ row, ...rest }) => rest)(item) : item) } : panel) }, /non-actor items of parallel scenes need an explicit row/],
+    [{ ...withRow(8), id: 'row-high' }, /row must be an integer 0-7/],
+    [{ ...withRow(1.5), id: 'row-fraction' }, /row must be an integer 0-7/],
+    [{ ...withRow('2'), id: 'row-text' }, /row must be an integer 0-7/],
+  ];
+  for (const [variant, pattern] of broken) {
+    const result = await analyzeSecurity({ sources: [retained], provider: provider([reply(plan({
+      findings: [finding({ assetKind: 'webserver' })], explanations: [scene({ id: 'valid' }), variant] }))]) });
+    assert.deepEqual(result.explanations.map(s => s.id), ['valid'],
+      'an incompletely composed scene drops whole instead of saving a partial layout');
+    assert.match(result.warnings.join('\n'), pattern);
+  }
+});
+
+test('malformed link collections cannot discard an uncertain narrative dependency', async () => {
+  const retained = await source();
+  for (const links of [undefined, null, 'not a collection',
+    { from: 'len', to: 'buf', label: 'may permit an unestablished outcome', findingIds: ['uncertain'] }]) {
+    const result = await analyzeSecurity({ sources: [retained], provider: provider([reply(plan({
+      findings: [finding(), finding({ id: 'uncertain', kind: 'unknown', basis: 'unknown', view: 'none', evidence: [] })],
+      explanations: [scene({ id: 'valid-empty-links', links: [] }),
+        scene({ id: 'malformed', detail: 'The uncertain link is essential to this scene.', links })],
+    }))]) });
+    assert.deepEqual(result.explanations.map(scene => scene.id), ['valid-empty-links']);
+    assert.equal(result.findings.find(finding => finding.id === 'uncertain').basis, 'unknown');
+  }
+});

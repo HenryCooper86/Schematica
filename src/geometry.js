@@ -45,7 +45,10 @@ export function nodeMeta(node) {
   // extra data (the power budget's currents), not a replacement identity.
   // At most three lines.
   const lines = [];
-  if (!part.threat) lines.push(['sublabel', node.sublabel]);
+  // A catalogue `figure` keeps its sublabel even as a threat: figure cards
+  // are large illustrations whose sublabel line carries the scene's stated
+  // value (a request path, a condition), not a part number to suppress.
+  if (!part.threat || part.figure) lines.push(['sublabel', node.sublabel]);
   if (part.custom) {
     lines.push(['addr', node.addr], ['rail', node.rail]);
     for (const fd of part.fields || []) lines.push([`fields.${fd.id}`, node.fields?.[fd.id]]);
@@ -131,8 +134,43 @@ function shapeSize(shape, label) {
   return { w, h, labelLines, metaLines: [] };
 }
 
+// ---- Catalogue figures (security illustration vocabulary) ----
+// A `figure` part presents as a large illustrated card, not a badge card: a
+// big pictogram with the wrapped label and the same mono meta metrics under
+// it (a capsule sets its text beside the pictogram inside a pill). Every
+// presentation fixes its width — composed scenes keep aligned columns — and
+// the card grows only downward as lines wrap, so a label or meta value can
+// never clip out of the drawn box. render.js reads the same numbers, so the
+// drawn figure and this geometry cannot disagree.
+export const FIGURE_LABEL_LINE_H = 15;
+export const FIGURE_LAYOUT = Object.freeze({
+  actor: { w: 210, glyph: 84, padX: 30, padTop: 22, gap: 12, padBottom: 18, rx: 18 },
+  capsule: { w: 236, glyph: 52, padX: 28, padTop: 14, gap: 12, padBottom: 14, side: true, rx: 0 },
+  tile: { w: 156, glyph: 64, padX: 22, padTop: 16, gap: 10, padBottom: 14, rx: 14 },
+  outcome: { w: 196, glyph: 72, padX: 26, padTop: 18, gap: 11, padBottom: 16, rx: 16 },
+});
+
+function figureSize(figure, label, meta) {
+  const P = FIGURE_LAYOUT[figure] ?? FIGURE_LAYOUT.tile;
+  let budget = P.w - P.padX * 2;
+  if (P.side) budget -= P.glyph + P.gap;
+  const labelLines = wrapLines(String(label ?? ''), budget, measureShapeText);
+  const metaLines = meta.map((m) => ({
+    field: m.field,
+    lines: wrapLines(m.text, budget, (s) => textUnits(s) * 5.9),
+  }));
+  const labelBlock = labelLines.length * FIGURE_LABEL_LINE_H;
+  const metaBlock = metaLines.reduce((sum, m) => sum + m.lines.length * META_LINE_H, 0);
+  const textBlock = labelBlock + (metaBlock ? metaBlock + 4 : 0);
+  let h;
+  if (P.side) h = Math.max(P.glyph, textBlock) + P.padTop + P.padBottom;
+  else h = P.padTop + P.glyph + P.gap + textBlock + P.padBottom;
+  return { w: P.w, h, labelLines, metaLines };
+}
+
 export function nodeSize(node) {
   const part = partOf(node);
+  if (part.figure) return figureSize(part.figure, String(node.label ?? ''), nodeMeta(node));
   if (part.shape) return shapeSize(part.shape, String(node.label ?? ''));
   const meta = nodeMeta(node);
   const labelNeed = textUnits(node.label) * 6.8 + 24;

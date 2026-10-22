@@ -35,7 +35,7 @@ const BASIS_LABELS = () => ({
 const STATES = () => ({ unset: tr('Set up'), untested: tr('Untested'), ready: tr('Ready'), single: tr('Single-shot') });
 // Label factories resolve the current language when rendered.
 const ORIGIN_LABELS = () => ({ cve: tr('CVE record'), url: tr('URL'), file: tr('File'), paste: tr('Pasted') });
-const VIEW_LABELS = () => ({ architecture: tr('Architecture'), exploit: tr('Exploit path'), mitigation: tr('Mitigation') });
+const VIEW_LABELS = () => ({ architecture: tr('Architecture'), exploit: tr('Exploit path'), mitigation: tr('Mitigation'), mechanism: tr('Mechanism') });
 
 function browserStorage() {
   try { return window.localStorage; } catch { return null; }
@@ -173,6 +173,7 @@ export function initSecurityAnalysis({ store, tools, render, svg, library = null
       + `<div class="sec-paste"><label>${escAttr(tr('Title'))} <input id="sec-paste-name" maxlength="80" placeholder="${escAttr(tr('Pasted note'))}" aria-label="${escAttr(tr('Title for the pasted source'))}"></label>`
       + `<textarea id="sec-paste-input" rows="3" placeholder="${escAttr(tr('Paste source text (advisory, code, transcript)…'))}" aria-label="${escAttr(tr('Source text to retain'))}"></textarea>`
       + `<button type="button" id="sec-paste-add" data-sec="add-paste">${escAttr(tr('Add pasted source'))}</button></div>`
+      + `<p class="sec-privacy">${escAttr(tr('Source-only workflow: paste or import C, C++ or Python source (.c .h .cpp .hpp .cc .cxx .hh .hxx .c++ .py .pyw) as plain text — it is read statically, never compiled or run. A CVE is optional: leave the field empty and analyze the retained source alone.'))}</p>`
       + '<div id="sec-sources" class="sec-source-list"></div>'
       + '<p id="sec-notices" class="sec-notices" role="status"></p>'
       + '</div></details>'
@@ -199,7 +200,7 @@ export function initSecurityAnalysis({ store, tools, render, svg, library = null
       + `<summary>${escAttr(tr('Illustrations'))}</summary>`
       + '<div class="sec-section-body">'
       + `<div class="sec-view-row">${viewButtons}</div>`
-      + `<p class="sec-view-note">${escAttr(tr('Illustrations use catalogue assets for supported systems, software, actors and controls, grouped into labelled colour-coded scene bands with logical connections. Reanalyze older results for asset selection. Preview first; nothing changes until Apply, and one Undo removes it.'))}</p>`
+      + `<p class="sec-view-note">${escAttr(tr('Illustrations use supported catalogue assets and cited logical connections. Mechanism adds large illustrated attackers, request/response capsules, applications, memory, secrets and conditional outcomes to its memory, structure, sequence, state and comparison scenes. Ask for an attack scene or parallel target rows in the analysis notes. Assets require grounded findings; a picture or product name alone does not establish a vulnerability. Reanalyze older results for scenes and asset selection. Preview first; nothing changes until Apply, and one Undo removes it.'))}</p>`
       + `<button type="button" id="sec-walkthrough" data-sec="walkthrough">${escAttr(tr('Show walkthrough'))}</button>`
       + '<div id="sec-walkthrough-view" class="sec-walkthrough"></div>'
       + '</div></details>'

@@ -38,7 +38,7 @@ start with [Getting started](getting-started.md).
 | Export | Export button — PNG at any pixel size, SVG, single-page PDF, or a seamless loop GIF, cropped to content |
 | Record | Rec button — WebM/MP4 video (optional mic or music audio) or animated GIF |
 | Journey | Save chapters and ordered part stops with captions; Present has chapter navigation, play/pause, speed, restart, show all, and exact moment links (arrow keys, Space, Esc) |
-| Examples | Examples menu — built-in boards from sensor nodes to edge-to-cloud, including D-Robotics RDK X3, X5 and S100 robots and perception nodes, Horizon Mono 2, Journey 6 and SuperDrive HSD 600 ADAS stacks, a sensor starter for general design checks, vehicle OTA and ADAS security boards that mix threat actors, controls, and response flowcharts with the hardware, an EV battery management system, a plant network segmented by Purdue level on a swimlane, and a secure boot chain, journeys included. Additional boards cover signed AI model delivery, robot command trust boundaries, RDK X3 USB vision, RDK X5 visual inspection, Horizon Journey 6 sensor replay and diagnostic access |
+| Examples | Examples menu — built-in boards from sensor nodes to edge-to-cloud, including D-Robotics RDK X3, X5 and S100 robots and perception nodes, Horizon Mono 2, Journey 6 and SuperDrive HSD 600 ADAS stacks, a sensor starter for general design checks, vehicle OTA and ADAS security boards that mix threat actors, controls, and response flowcharts with the hardware, an EV battery management system, a plant network segmented by Purdue level on a swimlane, and a secure boot chain, journeys included. Additional boards cover signed AI model delivery, robot command trust boundaries, RDK X3 USB vision, RDK X5 visual inspection, Horizon Journey 6 sensor replay and diagnostic access, plus three source-only PoC teaching boards (C stack copy, C++ dangling reference, Python queue gateway) with retained source, authored findings and mechanism illustrations, and two figure-composition boards — a hypothetical PHP memory-snapshot attack scene and parallel application-outcome rows — built from synthetic scenario sources with grounded asset hints and conditional outcomes, clearly labelled teaching material rather than product claims |
 | Language | 中文 / EN button in the toolbar — switches the interface, palette, checker messages, the copilot's replies, and the built-in example boards between English and Simplified Chinese; English by default; remembered on this device; your own boards' text is never translated |
 | Presets | Part number field — on AI SBCs, automotive SoCs, ADAS controllers, cameras, depth cameras, LiDARs, and serial servos, pick a vendor part (D-Robotics RDK boards and camera modules, Horizon Journey chips and Mono / SuperDrive tiers, and more) to fill the rail and a spec note |
 | Threat details | Threat parts carry their own fields instead of the part-number trio: STIX vocabularies (actor type, sophistication, motivation, malware type), references (CVE, CVSS, ATT&CK technique), and a severity from info to critical that shows as a colored tag. Every part can also carry a disposition (friendly, partner, neutral, unknown, suspicious, adversary, victim), shown as a tag beside the lifecycle status; adversaries and suspicious objects glow with a halo that pulses whatever the Animate toggle says, victims wear a steady one, and the properties panel is headed by the part's name. Network, Security & Edge, and System & Cloud host parts (server, database, cloud, host PC) carry IP address and DNS name fields under their part number |
@@ -51,7 +51,7 @@ start with [Getting started](getting-started.md).
 | Share | Share button — the whole board compressed into a copyable URL; opening the link loads it, no backend. Opened over a board you were working on, the link loads at once, keeps your board as a backup, and the notice offers to restore it |
 | Check | Check button — design rule checks: I2C address conflicts, unconnected power pins, floating parts, bus mismatches, lifecycle risks, power budgets (the sensor starter still needs structured interface declarations), plus Layout quality and a read-only Power tab listing every rail |
 | Assistant | `A` or the sparkle button — describe a board and it builds it, ask for a change and it edits the board, press Fix on a check finding or "Fix checks" and it resolves them, "Fill in details" fills part numbers from presets. Add files, a folder, or drop individual files to use local documents as sources; review, select, preview, or remove them before Send. Bring your own key: Claude by default, plus OpenRouter, Z.AI GLM, Moonshot Kimi, and any OpenAI-compatible endpoint. With `npm start`, your own backend calls the official provider URLs and streams replies, including Ollama Cloud via `https://ollama.com/v1`. The static edition still supports the optional worker in `relay/`. Each reply is one undo step and what it touched glows until your next click. The key is forwarded to your configured provider, saved in this browser only if you tick remember, and never included in the board, autosave, or share links |
-| Security analysis | Shield button — read a CVE, advisory, PoC, patch or pasted source; analyze checked sources with the Assistant provider; inspect citations; preview three editable illustration views and guided stops; save or export a cited explanation. Static analysis only: no code execution or target testing. |
+| Security analysis | Shield button — read a CVE, advisory, PoC, patch or pasted source; analyze checked sources with the Assistant provider; inspect citations; preview four editable illustration views — Architecture, Exploit path, Mitigation, and Mechanism (recorded explanation scenes for source-only C/C++/Python analyses) — with guided stops; save or export a cited explanation. Static analysis only: no code execution or target testing, and a CVE record is optional for source-only work. |
 | Wire options | Select a wire — bus, label, arrowheads (→ or ↔), line style (solid, dashed, dotted, air gap), traffic flow, delete |
 | Custom parts | **+ New** under My parts in the palette defines a part: name, category, accent, an icon (a built-in one, initials, or an SVG path), typed ports on any side, and extra fields. It is saved to My parts (this browser) and placed on the board. **Customize…** on any built-in card starts from its definition, so an MCU with a second CAN port keeps its wires. **Edit part…** on a custom card changes it and, when it came from a template, offers to update its siblings. Export and Import move My parts between machines as a JSON file. Custom parts in a board file travel with it; an older build of the app opens them as custom boxes |
 
@@ -276,8 +276,10 @@ opening a board never invents past reads or illustration provenance.
 
 - Up to 20 retained sources, 100,000 characters per source and 500,000 in total.
   File/PDF extraction retains the existing 10 MiB/file, 40 MiB/import collection,
-  100-page PDF and 30-second extraction limits. `.diff`, `.patch`, `.ps1` and
-  `.pl` are also supported as text; archives, repository cloning and OCR are not.
+  100-page PDF and 30-second extraction limits. `.diff`, `.patch`, `.ps1`,
+  `.pl`, and the C/C++/Python source extensions `.cc`, `.cxx`, `.c++`, `.hh`,
+  `.hxx`, `.pyw` (besides `.c`, `.h`, `.cpp`, `.hpp`, `.py`) are also
+  supported as inert text; archives, repository cloning and OCR are not.
 - Initial model context is bounded to 56,000 source characters and 120 lines per
   source. Tool-capable models can request retained windows: at most 400
   lines/24,000 characters per read, 200,000 characters of tool results, and eight
@@ -302,7 +304,14 @@ opening a board never invents past reads or illustration provenance.
   without changing existing illustrations. Assets lacking the four logical side ports
   are editable custom cards referencing the built-in icon, with logical link ports
   rather than fabricated physical interfaces. Asset selections and icons survive board
-  saving, reopening and export. Views without trust zones group cards into labelled
+  saving, reopening and export. The catalogue also ships illustrated security
+  figure assets with four logical link ports: an adversary behind a laptop,
+  request and response capsules, payload and memory-dump capsules,
+  process-memory and secret-store tiles, a memory-limit gauge, crash and
+  code-execution outcome callouts, and original application illustrations
+  labelled PHP, WordPress, Drupal and Joomla (original artwork and names,
+  never vendor logos). They stay native editable parts across the palette,
+  light/dark themes and exports. Views without trust zones group cards into labelled
   swimlane scene bands (Actors, Attack sequence, Security controls, Network & services,
   Systems & platforms, Devices, Facilities, Related findings) by catalogue category and
   role glyph; bands are presentation only, never containment, and trust-zone views keep
@@ -313,6 +322,30 @@ opening a board never invents past reads or illustration provenance.
   remain visible even when a geometric zone would be misleading.
   Shared membership uses boundary cards and explicit connections rather than
   forcing overlapping or nested zones whose geometry is not established.
+- An analysis may carry up to 6 optional explanation scenes for the Mechanism
+  view: `{id,title,kind,detail,panels,links}` with `kind` one of memory,
+  structure, sequence, state, comparison, attack or parallel, 1–4 panels of 1–8 items each, and
+  up to 24 links whose endpoints name distinct items of the same scene. Every
+  item and link cites 1–8 existing finding ids; the renderer derives each
+  card's basis from those findings (weakest wins) and never guesses from
+  wording. Scenes describe schematic interpretation, never observed runtime,
+  ABI layouts or addresses. Attack and parallel scenes are figure
+  compositions: every panel names a semantic `placement` (`actor`,
+  `exchange`, `target` or `outcome`) and parallel items carry an explicit
+  `row` (0–7) that aligns request, target and outcome cards across columns,
+  with a shared row-less actor centered beside the rows. Placements and rows
+  are composition hints only — they assert no network path or containment.
+  An item's `assetKind` figure hint is honoured only when at least one cited
+  finding claims the same asset kind at a non-unknown basis and every cited
+  finding is non-unknown; otherwise the card keeps its neutral role symbol,
+  and removing an unsupported decoration never drops the scene. Target and
+  outcome panels render as labelled disjoint schematic groups compatible
+  with native Arrange; actor and exchange capsules stay ungrouped, and the
+  scene summary note sits below the composition. Mechanism has no generic
+  fallback: analyses without explanation scenes keep the three finding views.
+  A mechanism build appends one walkthrough chapter per scene with an
+  item-level stop list, and its evidence links share the 200-association
+  illustration cap.
 - Finding links accumulate across appended illustrations, up to 200 per finding.
   Missing targets remain reported. Existing cards, wires and presentation
   chapters are not removed by generation. Each applied preview is one undo step.

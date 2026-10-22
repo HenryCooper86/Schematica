@@ -3,7 +3,9 @@ import { TEACHING_EXAMPLES } from './examples-teaching.js';
 import { attachExampleStories, localizeExampleStories } from './example-stories.js';
 import { EXTENDED_EXAMPLES } from './examples-extended.js';
 import { RDK_EXAMPLES } from './rdk/examples.js';
+import { POC_EXAMPLES } from './examples-poc.js';
 import EXAMPLE_OVERLAYS_ZH from './i18n/examples.zh.js';
+import { SECURITY_FIGURES_EXAMPLES } from './examples-security-figures.js';
 export { EXAMPLE_OVERLAYS_ZH };
 
 // Built-in example boards. Every document must round-trip through
@@ -1054,6 +1056,8 @@ export const EXAMPLES = [
       ],
     },
   },
+  ...POC_EXAMPLES,
+  ...SECURITY_FIGURES_EXAMPLES,
 ];
 
 attachExampleStories(EXAMPLES);

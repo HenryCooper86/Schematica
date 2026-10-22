@@ -10,6 +10,7 @@ import {
   portPosition, wireGeomToPoint, noteLines, noteHeight,
   nodeRect, nodeSize, NOTE_W, NOTE_FONT_SIZE, NOTE_FONT_FAMILY, LANE_TITLE_H, textUnits,
   LABEL_LINE_H, META_LINE_H, SHAPE_LINE_H, WIRE_LABEL_LINE_H,
+  FIGURE_LABEL_LINE_H, FIGURE_LAYOUT,
 } from './geometry.js';
 
 // The canvas mirrors net_draw's look one to one: gradient cards with a drop
@@ -101,6 +102,68 @@ function shapeMarkup(part, W, H, acc, selected) {
     case 'document': s = `<path class="card" d="M0 0 H ${W} V ${H - 10} C ${W * 0.7} ${H - 22}, ${W * 0.3} ${H + 10}, 0 ${H - 8} Z" ${style}/>`; break;
     case 'connector': s = `<circle class="card" cx="${W / 2}" cy="${H / 2}" r="${W / 2}" ${style}/>`; break;
     default: s = `<rect class="card" width="${W}" height="${H}" rx="9" ${style}/>`;
+  }
+  return s;
+}
+
+// Catalogue figure parts (the security illustration vocabulary) draw as
+// large illustrations on the numbers geometry.js owns (FIGURE_LAYOUT): a
+// pictogram at illustration scale with the wrapped label and the shared mono
+// meta lines under it — a capsule sets its text beside the pictogram inside a
+// pill, an outcome callout points a tail at what it concludes about. The
+// surface, text fills and threat dashes are the badge cards' own, so themes
+// and exports restyle both alike, and the label and meta stay editable text.
+function figureMarkup(part, W, H, acc, selected, labelLines, metaLines) {
+  const P = FIGURE_LAYOUT[part.figure];
+  const threat = !!part.threat && !selected;
+  const stroke = selected ? esc(acc) : (threat ? 'rgba(248,113,113,0.4)' : CARD_LINE);
+  const strokeW = selected ? 1.6 : 1;
+  const dash = threat ? ' stroke-dasharray="5 3.5"' : '';
+  const style = `fill="url(#cardGrad)" stroke="${stroke}" stroke-width="${strokeW}"${dash} filter="url(#nodeShadow)"`;
+  const c = esc(acc);
+  let s = '';
+  if (part.figure === 'capsule') {
+    s += `<rect class="card" width="${W}" height="${H}" rx="${H / 2}" ${style}/>`;
+  } else {
+    s += `<rect class="card" width="${W}" height="${H}" rx="${P.rx}" ${style}/>`;
+    if (part.figure === 'outcome') {
+      // The callout tail: an open triangle whose gradient fill covers the
+      // card's left border, leaving only its two stroked edges visible.
+      s += `<path d="M1.5 ${H / 2 - 9} L-13 ${H / 2} L1.5 ${H / 2 + 9}" fill="url(#cardGrad)" stroke="${stroke}"`
+        + ` stroke-width="${strokeW}"${dash} stroke-linejoin="round"/>`;
+    } else {
+      // A wide tinted panel behind the pictogram: the badge tint at figure scale.
+      const bw = P.glyph + 26;
+      s += `<rect x="${(W - bw) / 2}" y="${P.padTop - 8}" width="${bw}" height="${P.glyph + 16}" rx="16" fill="${c}" opacity="0.13"/>`;
+    }
+  }
+  // The pictogram: the catalogue's 24-unit glyph at figure scale.
+  const gs = P.glyph / 24;
+  const gx = P.side ? P.padX : (W - P.glyph) / 2;
+  const gy = P.side ? (H - P.glyph) / 2 : P.padTop;
+  s += `<g transform="translate(${Math.round(gx * 100) / 100} ${Math.round(gy * 100) / 100}) scale(${Math.round(gs * 1000) / 1000})"`
+    + ` fill="none" stroke="${c}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" color="${c}">${part.glyph}</g>`;
+  // Text: the wrapped label, then the mono meta lines (shared with cards).
+  const labelBlock = labelLines.length * FIGURE_LABEL_LINE_H;
+  const metaBlock = metaLines.reduce((sum, m) => sum + m.lines.length * META_LINE_H, 0);
+  const textBlock = labelBlock + (metaBlock ? metaBlock + 4 : 0);
+  const x = P.side ? P.padX + P.glyph + P.gap : W / 2;
+  const anchor = P.side ? 'start' : 'middle';
+  const labelY = P.side
+    ? Math.max(P.padTop, (H - textBlock) / 2) + 12
+    : P.padTop + P.glyph + P.gap + 12;
+  s += `<text x="${x}" y="${labelY}" text-anchor="${anchor}" font-size="12" font-weight="600" font-family="${NOTE_FONT_FAMILY}"`
+    + ` fill="${TEXT}" data-edit="label">`
+    + labelLines.map((line, j) => `<tspan x="${x}" dy="${j ? FIGURE_LABEL_LINE_H : 0}">${esc(line)}</tspan>`).join('')
+    + '</text>';
+  let metaY = labelY + (labelLines.length - 1) * FIGURE_LABEL_LINE_H + 16;
+  for (const m of metaLines) {
+    const open = `<text data-detail="${m.field === 'sublabel' ? 'context' : 'fine'}" x="${x}" y="${Math.round(metaY * 100) / 100}" text-anchor="${anchor}"`
+      + ` font-size="9.5" fill="${META}" font-family="${MONO}" data-edit="${m.field}">`;
+    s += m.lines.length === 1
+      ? open + esc(m.lines[0]) + '</text>'
+      : open + m.lines.map((line, j) => `<tspan x="${x}" dy="${j ? META_LINE_H : 0}">${esc(line)}</tspan>`).join('') + '</text>';
+    metaY += m.lines.length * META_LINE_H;
   }
   return s;
 }
@@ -269,7 +332,9 @@ function nodeMarkup(node, selected, ui, animating, now, wires) {
     s += `<rect x="-5" y="-5" width="${W + 10}" height="${H + 10}" rx="18" fill="none"`
       + ` stroke="${esc(acc)}" stroke-opacity="0.4" stroke-width="1.6"/>`;
   }
-  if (part.shape) {
+  if (part.figure) {
+    s += figureMarkup(part, W, H, acc, selected, labelLines, metaLines);
+  } else if (part.shape) {
     s += shapeMarkup(part, W, H, acc, selected);
     if (labelLines.length === 1) {
       s += `<text x="${W / 2}" y="${H / 2 + 4.2}" text-anchor="middle" font-size="12" font-weight="600" font-family="${NOTE_FONT_FAMILY}"`

@@ -3,7 +3,7 @@ import { tr } from '../i18n.js';
 export const LIMITS = Object.freeze({ documents: 20, fileBytes: 10 * 1024 * 1024,
   totalBytes: 40 * 1024 * 1024, textChars: 100000, contextChars: 60000,
   pdfPages: 100, nameChars: 512, timeoutMs: 30000 });
-const TEXT_EXTENSIONS = ['txt','md','markdown','csv','tsv','json','yaml','yml','xml','html','css','js','mjs','cjs','jsx','ts','tsx','py','java','c','h','cpp','hpp','cs','go','rs','rb','php','sh','sql','toml','ini','log','rst','diff','patch','ps1','pl'];
+const TEXT_EXTENSIONS = ['txt','md','markdown','csv','tsv','json','yaml','yml','xml','html','css','js','mjs','cjs','jsx','ts','tsx','py','pyw','java','c','h','cpp','cc','cxx','c++','hpp','hh','hxx','cs','go','rs','rb','php','sh','sql','toml','ini','log','rst','diff','patch','ps1','pl'];
 export const SUPPORTED_ACCEPT = [...TEXT_EXTENSIONS, 'pdf', 'docx'].map(x => `.${x}`).join(',');
 const abortError = () => new DOMException(tr('Document import cancelled.'), 'AbortError');
 function cancellable(promise, signal) {

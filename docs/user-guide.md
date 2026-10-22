@@ -300,6 +300,10 @@ Window resizing and collapsing keep a draggable part of the header reachable.
    **URL**, choose **Add files**, or **Add pasted source**. CVE lookup and URL
    reading require the Node-backed edition. Published CVE records can bring in
    up to two relevant advisory references; failures remain visible.
+   C, C++ and Python source files (`.c .h .cpp .hpp .cc .cxx .hh .hxx .c++ .py`
+   `.pyw`) import as plain text — static reading never compiles or runs them —
+   and a CVE record is optional: leave the field empty and analyze the
+   retained source alone.
 2. Review source names, coverage, hashes and warnings. Uncheck sources you do
    not want sent, or remove them. Files and pasted text remain local at this
    stage; CVE/URL reads contact the website server and public source hosts.
@@ -328,15 +332,42 @@ Window resizing and collapsing keep a draggable part of the header reachable.
    For reserved/rejected records, vulnerability-specific findings and relationships
    remain **Unknown**; record-state facts and rejection reasons can still cite sources.
 5. Choose **Save analysis with board**, or preview an **Architecture**,
-   **Exploit path** or **Mitigation illustration**. Nothing changes the board
-   until **Apply changes**; normal Undo/Redo also covers analysis-only saves.
+   **Exploit path**, **Mitigation** or **Mechanism illustration**. Nothing
+   changes the board until **Apply changes**; normal Undo/Redo also covers
+   analysis-only saves.
    Applied results follow restored board history, including their diagram links;
    a separately generated unsaved result remains independent of that history.
    Illustrations append editable cards, logical connections and Journey chapters
    without removing existing work. Building the same view again appends another
    illustration rather than replacing your edited cards.
+   **Mechanism illustration** draws an analysis's recorded explanation scenes
+   — memory, structure, sequence, state, comparison, attack or parallel panels — as native cards
+   with labelled links and one walkthrough chapter per scene; every card and
+   link shows the weakest basis of the findings it cites. It needs an analysis
+   that carries explanation scenes: ask the model to explain the source's memory,
+   data, interactions or lifetime rather than only its control flow. Older results
+   without scenes keep the three finding views; mechanism has no generic fallback.
+   Incomplete or ambiguously grounded scenes are omitted whole with warnings,
+   so removing an uncertain dependency cannot make their narrative source-backed.
+   Review the warnings and reanalyze rather than treating an omitted scene as assessed.
+   Two figure kinds extend those scenes. An **attack** scene places an
+   illustrated actor on the left, request and return capsules in the middle,
+   and a grouped target on the right — application, memory or secrets,
+   pressure and an optional outcome column. A **parallel** scene aligns
+   request, target and outcome rows beside one shared actor. Panels carry
+   semantic placement and row hints only — never coordinates — and an
+   illustrated asset is drawn only when a cited finding claims that same
+   asset with an established basis; an unsupported hint keeps the neutral
+   role symbol instead of decorating the picture.
    New analyses select icons from the asset library for supported operating systems,
-   servers, software packages, actors, hardware and controls—not just process boxes.
+   servers, software packages, actors, hardware and controls—not just process
+   boxes. The library also carries illustrated security figure assets: an
+   adversary behind a laptop, request and response capsules, payload and
+   memory-dump capsules, process-memory and secret-store tiles, a memory-limit
+   gauge, crash and code-execution outcome callouts, and original application
+   illustrations labelled PHP, WordPress, Drupal and Joomla — original artwork
+   and names, never vendor logos — each with four logical link ports and
+   legible captions in light, dark and exported figures.
    Views without trust zones arrange their cards into labelled, colour-coded scene
    bands (Actors, Attack sequence, Security controls, Network & services, Systems &
    platforms, Devices, Facilities), so the picture reads as a composition of scenes
@@ -378,6 +409,20 @@ retained source text in board files, autosave, revisions, and share links.
 Anyone receiving those copies can read the sources. Unapplied imports and
 analysis results stay in the current tab; reopening a saved board restores
 applied findings, citations and diagram links without another model request.
+
+The **Security** group of the Examples menu includes three small teaching
+boards — a C stack copy, a C++ dangling reference and a Python queue gateway —
+each carrying its retained source text, findings authored by static reading
+(no CVE, nothing executed, no model validation) and a ready-made mechanism
+illustration with a walkthrough. Two figure boards join them: a hypothetical
+PHP memory-snapshot attack composition — an unauthenticated caller, crafted
+request and returned-snapshot capsules, and a PHP host with interpreter
+memory, secrets, a 24M limit and conditional outcomes — and a parallel
+application-outcome composition with one shared caller and four aligned
+scenario rows. Both figure boards are synthetic teaching scenarios written
+for the examples; the WordPress, Drupal and Joomla row names are labels the
+retained scenario text itself disclaims, every outcome is conditional, and
+neither board is a PHP2Shell or CVE applicability assessment for any product.
 
 PoC behavior may be described or inferred, never verified by this workflow.
 Product/version/configuration applicability and deployment risk still require

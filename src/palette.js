@@ -371,6 +371,91 @@ export const PARTS = {
     sides('link', 'LINK'), { threat: true, accent: '#e879f9', fields: [f('channel', 'Channel', { options: ['HTTPS', 'DNS', 'cellular', 'USB', 'removable media', 'Bluetooth'] }), f('data', 'Data at risk', { placeholder: 'e.g. telemetry, keys' }), SEVERITY] }),
   physical: part('physical', 'threats', 'Physical tampering', 'M10.5 2.5 13.5 5.5 6 13 3 14 4 11z M9 4l3 3',
     sides('link', 'LINK'), { threat: true, accent: '#f87171', fields: [f('access', 'Access point', { options: ['debug port', 'OBD-II', 'ECU housing', 'harness', 'key fob', 'charging port'] }), SEVERITY] }),
+  // ---- Security figures ----
+  // Original illustrated vocabulary for security composition scenes: a hooded
+  // attacker behind a laptop, request/payload/dump capsules, target-side
+  // memory/secrets/limit tiles, application windows, and crash/execution
+  // outcomes. Each carries `figure` — the fixed catalogue presentation
+  // (actor | capsule | tile | outcome) geometry.js and render.js share — and
+  // the four logical link ports, so they compose with every other security
+  // asset. The application windows are original window/code/module imagery
+  // standing for the named platform, never vendor logos.
+  attacker: nd('attacker', 'threats', 'Attacker', '#ef4444',
+    '<path d="M12 2.2c-4.2 0-7.2 3.1-7.2 7.2v1.2c0 .5-.2 1-.5 1.4l-1 1.3c-.6.8 0 1.9 1 1.9h15.4c1 0 1.6-1.1 1-1.9l-1-1.3a2.3 2.3 0 0 1-.5-1.4V9.4c0-4.1-3-7.2-7.2-7.2z"/>'
+      + '<path d="M8.4 10.2c2.3-1.2 4.9-1.2 7.2 0"/>'
+      + '<rect x="6.8" y="15" width="10.4" height="5.4" rx="1"/><path d="M5 21.6h14"/>',
+    sides('link', 'LINK'), { threat: true, figure: 'actor', defaultLabel: 'Attacker',
+      fields: [f('origin', 'Origin', { placeholder: 'e.g. 203.0.113.7' }), SEVERITY] }),
+  httprequest: nd('httprequest', 'flow', 'HTTP request', '#38bdf8',
+    '<rect x="2" y="8" width="20" height="8" rx="4"/>'
+      + '<path d="M5.5 12h8"/><path d="M10.8 9.8 13 12l-2.2 2.2"/>',
+    sides('link', 'LINK'), { figure: 'capsule', defaultLabel: 'HTTP request',
+      fields: [f('method', 'Method', { options: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'] }), f('path', 'Path', { placeholder: 'e.g. /upload.php' })] }),
+  payload: nd('payload', 'flow', 'Payload', '#fb923c',
+    '<path d="M6 2.5h8.2L19 7.3V21.5H6z"/>'
+      + '<path d="M14 3v4.5h4.6"/>'
+      + '<path d="M9.6 12.2 7.8 14l1.8 1.8M13.4 12.2 15.2 14l-1.8 1.8"/>',
+    sides('link', 'LINK'), { figure: 'capsule', defaultLabel: 'Payload',
+      fields: [f('delivery', 'Delivery', { options: ['upload', 'query string', 'cookie', 'header', 'body'] }), f('content', 'Content', { placeholder: 'e.g. image carrying code' })] }),
+  memorydump: nd('memorydump', 'flow', 'Memory dump', '#e879f9',
+    '<rect x="4.5" y="3" width="15" height="11.5" rx="1.5"/>'
+      + '<path d="M7.5 6.5h9M7.5 9h9M7.5 11.5h5"/>'
+      + '<path d="M12 14.5v4"/><path d="M9.9 16.6 12 18.7l2.1-2.1"/><path d="M3 21.5h18"/>',
+    sides('link', 'LINK'), { figure: 'capsule', defaultLabel: 'Memory dump',
+      fields: [f('content', 'Contents', { placeholder: 'e.g. environment, temporary files' })] }),
+  servermemory: nd('servermemory', 'system', 'Server memory', '#22d3ee',
+    '<rect x="2.5" y="6" width="19" height="9.5" rx="1"/>'
+      + '<rect x="5.5" y="8.5" width="5" height="4.5" rx="0.6"/><rect x="13.5" y="8.5" width="5" height="4.5" rx="0.6"/>'
+      + '<path d="M5 15.5v2.8M8.5 15.5v2.8M12 15.5v2.8M15.5 15.5v2.8M19 15.5v2.8"/>',
+    sides('link', 'LINK'), { figure: 'tile', defaultLabel: 'Server memory',
+      fields: [f('size', 'Memory size', { placeholder: 'e.g. 8 GiB' }), f('role', 'Holds', { placeholder: 'e.g. request buffers' })] }),
+  secretstore: nd('secretstore', 'system', 'Secret store', '#fbbf24',
+    '<ellipse cx="8.5" cy="5.8" rx="6" ry="2.8"/>'
+      + '<path d="M2.5 5.8v6.4c0 1.55 2.7 2.8 6 2.8s6-1.25 6-2.8V5.8"/>'
+      + '<path d="M2.5 9c0 1.55 2.7 2.8 6 2.8s6-1.25 6-2.8"/>'
+      + '<circle cx="17.3" cy="16" r="2.6"/><path d="M17.3 18.6V22"/><path d="M17.3 20.4h2.7"/>',
+    sides('link', 'LINK'), { figure: 'tile', defaultLabel: 'Secret store',
+      fields: [f('kind', 'Secret type', { options: ['credentials', 'API keys', 'signing keys', 'session tokens', 'environment variables'] }), f('location', 'Location', { placeholder: 'e.g. /run/secrets' })] }),
+  memorylimit: nd('memorylimit', 'system', 'Memory limit', '#fb923c',
+    '<path d="M4 17a8.5 8.5 0 0 1 16 0"/>'
+      + '<path d="M12 17l4.3-5.7"/><circle cx="12" cy="17" r="1.7"/>'
+      + '<path d="M12 6.6v1.7M6.4 11l1.2 1.2M17.6 11l-1.2 1.2"/><path d="M5 20.5h14"/>',
+    sides('link', 'LINK'), { figure: 'tile', defaultLabel: 'Memory limit',
+      fields: [f('limit', 'Configured limit', { placeholder: 'e.g. memory_limit = 128M' })] }),
+  processcrash: nd('processcrash', 'threats', 'Process crash', '#f87171',
+    '<rect x="3" y="4" width="18" height="16" rx="2"/>'
+      + '<path d="M3 8.5h18"/><path d="M5.7 6.2h.01M8.1 6.2h.01"/>'
+      + '<path d="M9.4 12l5.2 5.2M14.6 12l-5.2 5.2"/>',
+    sides('link', 'LINK'), { threat: true, figure: 'outcome', defaultLabel: 'Process crash',
+      fields: [f('trigger', 'Trigger', { placeholder: 'e.g. oversized request' }), SEVERITY] }),
+  codeexec: nd('codeexec', 'threats', 'Code execution', '#f43f5e',
+    '<rect x="3" y="4" width="18" height="16" rx="2"/>'
+      + '<path d="M3 8.5h18"/><path d="M5.7 6.2h.01M8.1 6.2h.01"/>'
+      + '<path d="M6.4 11.8l2.6 2.4-2.6 2.4"/><path d="M11.6 16.6h6"/>',
+    sides('link', 'LINK'), { threat: true, figure: 'outcome', defaultLabel: 'Code execution',
+      fields: [f('precondition', 'Precondition', { placeholder: 'e.g. unsanitized include path' }), SEVERITY] }),
+  phpapp: nd('phpapp', 'system', 'PHP application', '#818cf8',
+    '<rect x="3" y="3.5" width="18" height="17" rx="2"/>'
+      + '<path d="M3 8h18"/><path d="M5.7 5.7h.01M8.1 5.7h.01"/>'
+      + '<path d="M10.2 11.4 7.8 13.8l2.4 2.4"/><path d="M13.8 11.4l2.4 2.4-2.4 2.4"/>',
+    sides('link', 'LINK'), { figure: 'tile', defaultLabel: 'PHP application', fields: [VERSION] }),
+  wordpressapp: nd('wordpressapp', 'system', 'WordPress application', '#60a5fa',
+    '<rect x="3" y="3.5" width="18" height="17" rx="2"/>'
+      + '<path d="M3 8h18"/><path d="M5.7 5.7h.01M8.1 5.7h.01"/>'
+      + '<path d="M6.5 11h11"/><rect x="6.5" y="13.5" width="4.6" height="4.6" rx="0.8"/><path d="M13.4 16.8h4.1M13.4 14.2h4.1"/>',
+    sides('link', 'LINK'), { figure: 'tile', defaultLabel: 'WordPress application', fields: [VERSION] }),
+  drupalapp: nd('drupalapp', 'system', 'Drupal application', '#2dd4bf',
+    '<rect x="3" y="3.5" width="18" height="17" rx="2"/>'
+      + '<path d="M3 8h18"/><path d="M5.7 5.7h.01M8.1 5.7h.01"/>'
+      + '<rect x="6.3" y="10.3" width="4.4" height="4.4" rx="0.8"/><rect x="13.3" y="10.3" width="4.4" height="4.4" rx="0.8"/>'
+      + '<rect x="6.3" y="15.5" width="4.4" height="3.4" rx="0.8"/><rect x="13.3" y="15.5" width="4.4" height="3.4" rx="0.8"/>',
+    sides('link', 'LINK'), { figure: 'tile', defaultLabel: 'Drupal application', fields: [VERSION] }),
+  joomlaapp: nd('joomlaapp', 'system', 'Joomla application', '#f97316',
+    '<rect x="3" y="3.5" width="18" height="17" rx="2"/>'
+      + '<path d="M3 8h18"/><path d="M5.7 5.7h.01M8.1 5.7h.01"/>'
+      + '<rect x="5" y="10.8" width="5.4" height="5.4" rx="1"/><rect x="13.6" y="10.8" width="5.4" height="5.4" rx="1"/>'
+      + '<path d="M10.4 13.5h3.2"/>',
+    sides('link', 'LINK'), { figure: 'tile', defaultLabel: 'Joomla application', fields: [VERSION] }),
   // Storage / Misc
   eeprom: part('eeprom', 'misc', 'EEPROM / Flash', 'M4 3h8v10H4z M4 6h8 M4 9h8 M2 5h2 M2 8h2 M2 11h2 M12 5h2 M12 8h2 M12 11h2',
     [...pwr(), p('spi', 'SPI', 'right', 0.35, 'spi'), p('i2c', 'I2C', 'right', 0.7, 'i2c')], DRAWS),

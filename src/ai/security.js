@@ -4,7 +4,9 @@
 import { BACKEND } from './runtime.js';
 import { extractPage } from './web.js';
 import { extractJson } from './agent.js';
-import { validateSecurityAnalysis, SECURITY_KINDS, SECURITY_VIEWS, SECURITY_BOUNDARY_RELATIONS, SECURITY_COVERAGE_RANGES_LIMIT } from '../security-analysis.js';
+import { validateSecurityAnalysis, SECURITY_KINDS, SECURITY_VIEWS, SECURITY_BOUNDARY_RELATIONS, SECURITY_COVERAGE_RANGES_LIMIT,
+  SECURITY_EXPLANATION_KINDS, SECURITY_EXPLANATION_ROLES, SECURITY_EXPLANATIONS_LIMIT,
+  SECURITY_EXPLANATION_PLACEMENTS, SECURITY_EXPLANATION_ROW_MAX } from '../security-analysis.js';
 import { PARTS } from '../palette.js';
 import { SECURITY_ASSET_KINDS } from '../security-assets.js';
 
@@ -372,6 +374,9 @@ Data rules:
 - Line numbers are absolute within each source (a source retaining lines 1-812 starts at 1); read_source output shows absolute line numbers.
 - Contradictions between sources, or between sources and the user text, become kind "contradiction" findings citing both sides; do not silently pick one. Quote only the minimal lines needed as evidence.
 - For multi-file code, explicitly map supported calls or data flow between the functional files with labeled relationships. A relationship asserting a cross-file call must cite the caller and callee source lines, not just a prose walkthrough. Keep evidence missing from either side unknown rather than inventing a connection.
+- Read source code (C, C++, Python) as static text: identify the entry points and functions the retained lines actually contain, where attacker-controlled input enters, the lifetimes of the data or objects it flows through, and the sizes, offsets and types the sources state. Record stated assumptions, external dependencies, and missing context — a call into code that is not retained stays unknown, never assumed safe or vulnerable.
+- Judge code by its retained lines, never by names: in C, unsafe copies and integer handling count only where the lines show the unbounded copy, missing bound or signedness/overflow path; in C++, ownership and lifetime problems count only where allocation, transfer or use the lines support (dangling references, invalidation, unmatched ownership); in Python, serialization and request-composition problems count only where untrusted data reaches a deserializer or a composed request in the retained text. A scary function or file name is not a finding; a familiar safe-sounding name is not a fix.
+- Never invent ABI layouts, addresses, exact struct offsets, allocation outcomes, actual runtime values or patches that are not in the retained sources; record such expectations as unknown or clearly-labeled inference findings.
 - A root-cause name alone is not an attack sequence. When an advisory gives no triggering input, reachable caller, or ordered PoC steps, record kind "step" with basis "unknown" and view "none"; do not turn general vulnerability knowledge into invented attack steps or causal edges.
 - Keep claims atomic and source-specific. Do not merge different vendors' products, version ranges, severity rationales or impact claims into one source-backed conclusion. If sources disagree about privilege escalation, confidentiality, authenticity or availability, give each attributed claim its own cited finding and add a contradiction explaining the disagreement; a list of all reported impacts is not a reconciled assessment.
 - Give each finding a short, descriptive title for a diagram card; keep full conditions, technical identifiers, explanations, attribution and uncertainty in detail. Use concise relationship labels such as "requires local access" or "corrupts authenticated output", not a second paragraph. Compact wording must never remove a qualifier that changes the claim.
@@ -381,9 +386,11 @@ Views (use purposefully): "exploit" for prerequisites, ordered attack steps and 
 
 Diagram assets: a finding may carry an optional "assetKind" naming one of Schematica's catalogue kinds, so its illustration draws the real thing instead of a generic box. Choose one only when the finding itself is that concrete asset and the retained sources support it: the affected deployment unit or host, its operating system, a network, server or security device, service, package, endpoint, facility, access control, or an acting threat (actor, malware) the sources actually describe as affected, present, deployed or acting. A product named only as a recommended fix, or a mitigation merely mentioned, is not deployed infrastructure. Never infer an asset from the CVE title, a vendor name or background knowledge; a generic term in the text ("the server", "a web application") does not identify a catalogue asset. Omit assetKind whenever the finding or the asset is not established, and never set it on basis "unknown" findings. Give source-backed structural findings their own cards too — kinds "component" and "boundary" in the architecture view, and concrete actors, targets and controls as "affected"/"prerequisite"/"impact"/"mitigation" findings — and join them with labeled relationships wherever the sources support the connection, not only along the action flow. This never adds findings or relationships without evidence; an unsupported structure stays an unknown. Catalogue kinds (id:name): ${ASSET_CATALOGUE}.
 
+Mechanism explanations (optional "explanations"): when the retained sources support it, add up to ${SECURITY_EXPLANATIONS_LIMIT} schematic scenes that explain the mechanism beyond the attack-chain views — kind "memory" (buffer/object layout), "structure" (payload or data layout), "sequence" (interaction order), "state" (object or program lifetime states), "comparison" (before/after or with/without guard), "attack" (illustrated actor → request/response → target composition) or "parallel" (aligned parallel target rows). Match the scene to the source language of the PoC code: a memory layout of the declared buffers for C, object lifetime states for C++, a structured payload or composed request for Python. Request an "attack" scene when the retained sources actually describe an acting party, its request or response, and a concrete target; request a "parallel" scene when they describe the same mechanism across several distinct named applications or targets. Never infer such a scene from a CVE title, vendor name, image or background knowledge alone, and never infer the applicability of a named product, a secret store, a crash or code execution from a name. Every panel of an "attack" or "parallel" scene carries "placement": "actor" (the acting party), "exchange" (requests/responses between actor and target), "target" (the affected application, host, service, memory or secrets) or "outcome" (resulting pressure or effect); placements are semantic composition roles, never network topology or containment claims. In "parallel" scenes every non-actor item carries "row": an integer 0-${SECURITY_EXPLANATION_ROW_MAX} aligning one target's request, target and outcome items into a row; a single shared actor item may omit row. An item may carry "assetKind" (one catalogue id from the Diagram assets list) only when at least one of the findings grounding exactly that item carries the same "assetKind" with basis "source" or "inference", and every finding grounding the item is non-unknown; otherwise omit the hint — Schematica removes ungrounded item asset hints instead of drawing them and never infers one from wording. Each scene has detail (schematic interpretation of the retained text, never observed runtime behavior) and 1-4 panels of 1-8 items with roles input|storage|pointer|operation|guard|invalid|result|neutral. Ground every item and link in the one or two existing finding ids that support exactly that claim — findingIds is the only citation channel in scenes, links to line numbers or URLs are not read, and padding grounding only obscures which finding supports what. Keep the whole plan small: the combined item and link references per finding must fit Schematica's 200 illustration evidence links, so prefer a few small scenes over many padded ones. Link endpoints are two different item ids of the same scene. Do not word an uncertain scene as established: Schematica derives and shows the weakest basis of the referenced findings, so scenes grounded in unknown or inferred findings display their uncertainty. ABI layouts, addresses and dependencies into code that is not retained stay distinct unknown findings — never folded into a scene as layout facts. Include no coordinates, SVG, HTML, scripts or tools; a scene you cannot ground in returned findings is omitted, not approximated, and omit "explanations" entirely when the sources do not support one.
+
 Reply format: after any read_source calls you need, reply with exactly one JSON object and no other text (no markdown fences, no prose):
-{"title": string (max 240), "summary": string (max 8000), "findings": [{"id": string (max 120, unique), "kind": one of affected|root_cause|prerequisite|step|impact|mitigation|severity|mapping|contradiction|unknown|component|boundary|consistency, "title": string (max 240), "detail": string (max 8000), "basis": "source"|"inference"|"unknown", "view": "architecture"|"exploit"|"mitigation"|"none", "assetKind": optional, one catalogue id from the Diagram assets list; omit unless the finding is that concrete, supported asset, "evidence": [{"sourceId": string, "startLine": integer, "endLine": integer}]}], "relationships": [{"id": string (max 120, unique), "from": finding id, "to": finding id, "label": string (max 240) naming the specific relation (enables, requires, mitigates, targets...), "basis": "source"|"inference"|"unknown", "view": "architecture"|"exploit"|"mitigation", "boundaryRelation": "none"|"inside"|"outside"|"crosses" (optional; describes the non-boundary endpoint relative to the boundary endpoint; use only when exactly one endpoint is a kind "boundary" finding, otherwise omit or use "none"), "evidence": [...]}], "warnings": [string]}
-Cover at least: what is affected (or an explicit unknown), root cause, exploitation prerequisites, ordered steps (kind "step"), impact, severity with its basis, mitigations, every material unknown, and a kind "consistency" assessment of whether the PoC/advisory text agrees or disagrees with the ordered steps. Consistency is evidence agreement, never proof of a working exploit: state agree/disagree/absent explicitly, and if it cannot be assessed record kind "consistency" with basis "unknown" saying it was not assessed — never fabricate a verdict. Relationships connect existing finding ids into an explicit labeled chain; never fabricate a causal link. Set "boundaryRelation" on a relationship only when exactly one endpoint is a kind "boundary" finding, describing whether the other endpoint lies inside, outside, or crosses the boundary (or "none"). Omit what you cannot support; do not pad. Do not include source metadata, cveId, status, generatedAt, targets, readCoverage or any fields beyond this schema: Schematica records those itself. Severity and CVSS scores come only from retained sources; without them record kind "severity" with basis "unknown".`;
+{"title": string (max 240), "summary": string (max 8000), "findings": [{"id": string (max 120, unique), "kind": one of affected|root_cause|prerequisite|step|impact|mitigation|severity|mapping|contradiction|unknown|component|boundary|consistency, "title": string (max 240), "detail": string (max 8000), "basis": "source"|"inference"|"unknown", "view": "architecture"|"exploit"|"mitigation"|"none", "assetKind": optional, one catalogue id from the Diagram assets list; omit unless the finding is that concrete, supported asset, "evidence": [{"sourceId": string, "startLine": integer, "endLine": integer}]}], "relationships": [{"id": string (max 120, unique), "from": finding id, "to": finding id, "label": string (max 240) naming the specific relation (enables, requires, mitigates, targets...), "basis": "source"|"inference"|"unknown", "view": "architecture"|"exploit"|"mitigation", "boundaryRelation": "none"|"inside"|"outside"|"crosses" (optional; describes the non-boundary endpoint relative to the boundary endpoint; use only when exactly one endpoint is a kind "boundary" finding, otherwise omit or use "none"), "evidence": [...]}], "explanations": optional, up to 6 mechanism scenes, each {"id", "title", "kind", "detail", "panels": [{"id", "title", "placement": actor|exchange|target|outcome (required on every panel of "attack"/"parallel" scenes), "items": [{"id", "label", "value", "role", "row": integer 0-7 (required on non-actor parallel items), "assetKind": optional grounded catalogue id, "findingIds": [finding id]}]}], "links": [{"from"→item id, "to": item id, "label", "findingIds": [finding id]}]} (see Mechanism explanations; omit the field entirely when the sources do not support one), "warnings": [string]}
+Cover at least: what is affected (or an explicit unknown), root cause, exploitation prerequisites, ordered steps (kind "step"), impact, severity with its basis, mitigations, every material unknown, and a kind "consistency" assessment of whether the PoC/advisory text agrees or disagrees with the ordered steps. Consistency is evidence agreement, never proof of a working exploit: state agree/disagree/absent explicitly, and if it cannot be assessed record kind "consistency" with basis "unknown" saying it was not assessed — never fabricate a verdict. Relationships connect existing finding ids into an explicit labeled chain; never fabricate a causal link. Set "boundaryRelation" on a relationship only when exactly one endpoint is a kind "boundary" finding, describing whether the other endpoint lies inside, outside, or crosses the boundary (or "none"). Omit what you cannot support; do not pad. Explanations reference only finding ids you actually returned; a scene element whose findings are missing is dropped, never re-grounded. Do not include source metadata, cveId, status, generatedAt, targets, readCoverage or any fields beyond this schema: Schematica records those itself. Severity and CVSS scores come only from retained sources; without them record kind "severity" with basis "unknown".`;
 
 const STATUS_CAVEATS = {
   reserved: 'The CVE record is RESERVED: no details are published. Never assert affected versions, exploitability or fixes as established; record unknowns explicitly.',
@@ -501,6 +508,10 @@ function coerceModelAnalysis(plan, meta, extraWarnings) {
   }
   const notes = [];
   const omissionNotes = [];
+  // Item asset-hint omissions are warnings about a decoration, never about
+  // grounding: they must not trigger the whole-scene narrative safeguard that
+  // compares notes/omissionNotes lengths, so they ride a separate channel.
+  const assetNotes = [];
   const nonEstablished = meta.status === 'reserved' || meta.status === 'rejected';
   const str = (v, limit) => (typeof v === 'string' ? v.slice(0, limit) : '');
   let citedTotal = 0;
@@ -536,6 +547,15 @@ function coerceModelAnalysis(plan, meta, extraWarnings) {
 
   const findings = [];
   const rawFindings = Array.isArray(plan?.findings) ? plan.findings : [];
+  // A finding id the model used more than once is ambiguous after the
+  // duplicate is renamed: explanation grounding must not attach to whichever
+  // duplicate kept the id.
+  const rawFindingIdCounts = new Map();
+  for (const f of rawFindings.slice(0, 100)) {
+    const raw = String(f?.id ?? '').trim().slice(0, 120);
+    if (raw) rawFindingIdCounts.set(raw, (rawFindingIdCounts.get(raw) ?? 0) + 1);
+  }
+  const ambiguousFindingIds = new Set([...rawFindingIdCounts].filter(([, count]) => count > 1).map(([id]) => id));
   for (const [i, f] of rawFindings.slice(0, 100).entries()) {
     if (!f || typeof f !== 'object' || typeof f.title !== 'string' || !f.title.trim()
       || typeof f.detail !== 'string' || !f.detail.trim()) throw Error('The analysis model returned a finding without an explanation.');
@@ -606,6 +626,7 @@ function coerceModelAnalysis(plan, meta, extraWarnings) {
 
   const findingIds = new Set(findings.map(f => f.id));
   const findingKindById = new Map(findings.map(f => [f.id, f.kind]));
+  const findingById = new Map(findings.map(f => [f.id, f]));
   const relationships = [];
   const rawRelations = Array.isArray(plan?.relationships) ? plan.relationships : [];
   for (const [i, r] of rawRelations.slice(0, 150).entries()) {
@@ -644,6 +665,209 @@ function coerceModelAnalysis(plan, meta, extraWarnings) {
     });
   }
   if (rawRelations.length > 150) omissionNotes.push(`Only the first 150 relationships were kept (${rawRelations.length} were returned).`);
+
+  // Mechanism scenes ride through only when every visible element grounds in
+  // findings that survived validation: ungrounded, partially grounded or
+  // ambiguously grounded items and links are dropped whole with a note (never
+  // re-grounded onto different findings), duplicate model item ids never
+  // re-link a scene, and over-limit scenes/panels/items/links are trimmed with
+  // an omission note instead of growing the contract. Reserved/rejected
+  // downgrades stay visible here: the scene keeps referencing its findings and
+  // the renderer derives the weaker basis. The one exemption is decoration:
+  // an item asset hint its findings do not ground is omitted alone (with an
+  // assetNote), never dropping the item or the scene narrative.
+  const explanations = [];
+  const rawExplanations = Array.isArray(plan?.explanations) ? plan.explanations : [];
+  for (const [i, e] of rawExplanations.slice(0, SECURITY_EXPLANATIONS_LIMIT).entries()) {
+    const label = `Explanation ${str(e?.id, 40) || str(e?.title, 40) || i + 1}`;
+    const sceneNotes = notes.length, sceneOmissions = omissionNotes.length;
+    if (!e || typeof e !== 'object' || Array.isArray(e) || typeof e.title !== 'string' || !e.title.trim()
+      || !SECURITY_EXPLANATION_KINDS.includes(e.kind) || !Array.isArray(e.panels) || !e.panels.length
+      || !Array.isArray(e.links)) {
+      notes.push(`${label} was dropped: a scene needs a title, a kind (${SECURITY_EXPLANATION_KINDS.join('|')}), at least one panel and a links array.`);
+      continue;
+    }
+    // Composed kinds ("attack", "parallel") place every panel explicitly, so
+    // their placement hints are required structure, not decoration.
+    const composed = e.kind === 'attack' || e.kind === 'parallel';
+    // Grounding is all-or-nothing: if any returned reference is missing,
+    // ambiguous (duplicate model finding ids) or over-limit, the element is
+    // dropped whole. Keeping only the surviving refs could silently upgrade a
+    // mixed claim to its strongest surviving basis (a pruned unknown finding
+    // leaving a lone source ref), and truncating to the limit would do the same.
+    const strictGrounding = (raw, elementLabel) => {
+      const refs = Array.isArray(raw) ? raw : [];
+      if (!refs.length) {
+        notes.push(`${elementLabel} was dropped: it referenced no findings at all.`);
+        return null;
+      }
+      if (refs.length > 8) {
+        notes.push(`${elementLabel} was dropped: ${refs.length} finding references exceed the maximum of 8; no partial grounding was kept.`);
+        return null;
+      }
+      const out = [];
+      for (const ref of refs) {
+        const id = typeof ref === 'string' ? ref.trim().slice(0, 120) : '';
+        if (!id || ambiguousFindingIds.has(id)) {
+          notes.push(`${elementLabel} was dropped: finding reference ${JSON.stringify(String(ref ?? '').slice(0, 80))} is missing or ambiguous among the surviving findings; no partial grounding was kept.`);
+          return null;
+        }
+        if (!findingIds.has(id)) {
+          notes.push(`${elementLabel} was dropped: finding "${id}" did not survive validation (omitted or renamed); no partial grounding was kept.`);
+          return null;
+        }
+        if (out.includes(id)) {
+          notes.push(`${elementLabel} was dropped: it repeats finding reference "${id}".`);
+          return null;
+        }
+        out.push(id);
+      }
+      return out;
+    };
+    const panelOut = [];
+    const itemByRawId = new Map();
+    const ambiguousIds = new Set();
+    const rawPanels = e.panels.slice(0, 4);
+    if (e.panels.length > 4) omissionNotes.push(`${label} kept only its first 4 panels (${e.panels.length} were returned).`);
+    for (const [p, panel] of rawPanels.entries()) {
+      const panelLabel = `Panel ${str(panel?.id, 40) || str(panel?.title, 40) || p + 1} of ${label}`;
+      if (!panel || typeof panel !== 'object' || Array.isArray(panel) || typeof panel.title !== 'string' || !panel.title.trim()
+        || !Array.isArray(panel.items) || !panel.items.length) {
+        notes.push(`${panelLabel} was dropped: a panel needs a title and at least one item.`);
+        continue;
+      }
+      // Placement is optional data on the five original kinds, but a panel of
+      // a composed scene without a valid placement would fail the saved
+      // contract, so an invalid or missing hint is a malformed panel and the
+      // scene drops whole through the existing safeguard.
+      let placement;
+      if (panel.placement !== undefined) {
+        if (!SECURITY_EXPLANATION_PLACEMENTS.includes(panel.placement)) {
+          notes.push(`${panelLabel} was dropped: placement "${str(panel.placement, 40)}" is not one of ${SECURITY_EXPLANATION_PLACEMENTS.join('|')}.`);
+          continue;
+        }
+        placement = panel.placement;
+      } else if (composed) {
+        notes.push(`${panelLabel} was dropped: ${e.kind} scenes place every panel (${SECURITY_EXPLANATION_PLACEMENTS.join('|')}).`);
+        continue;
+      }
+      const items = [];
+      const rawItems = panel.items.slice(0, 8);
+      if (panel.items.length > 8) omissionNotes.push(`${panelLabel} kept only its first 8 items (${panel.items.length} were returned).`);
+      for (const [n, item] of rawItems.entries()) {
+        const itemLabel = `Item ${str(item?.id, 40) || str(item?.label, 40) || n + 1} of ${panelLabel}`;
+        if (!item || typeof item !== 'object' || Array.isArray(item) || typeof item.label !== 'string' || !item.label.trim()
+          || !SECURITY_EXPLANATION_ROLES.includes(item.role)) {
+          notes.push(`${itemLabel} was dropped: an item needs a label and a role (${SECURITY_EXPLANATION_ROLES.join('|')}).`);
+          continue;
+        }
+        const rawId = String(item.id ?? '').trim().slice(0, 120);
+        if (rawId) {
+          if (itemByRawId.has(rawId)) ambiguousIds.add(rawId);
+          else itemByRawId.set(rawId, null); // claimed; final id filled once coerced below
+        }
+        const findingRefs = strictGrounding(item.findingIds, itemLabel);
+        if (!findingRefs) {
+          if (rawId && !ambiguousIds.has(rawId)) itemByRawId.delete(rawId);
+          continue;
+        }
+        // Rows are structure: a bad value, or a parallel non-actor item
+        // without one, cannot be saved as-is, so the item is dropped (and the
+        // scene with it) rather than repaired into a different alignment.
+        let row;
+        if (item.row !== undefined) {
+          if (!Number.isSafeInteger(item.row) || item.row < 0 || item.row > SECURITY_EXPLANATION_ROW_MAX) {
+            notes.push(`${itemLabel} was dropped: row must be an integer 0-${SECURITY_EXPLANATION_ROW_MAX}.`);
+            if (rawId && !ambiguousIds.has(rawId)) itemByRawId.delete(rawId);
+            continue;
+          }
+          row = item.row;
+        } else if (e.kind === 'parallel' && placement !== 'actor') {
+          notes.push(`${itemLabel} was dropped: non-actor items of parallel scenes need an explicit row 0-${SECURITY_EXPLANATION_ROW_MAX}.`);
+          if (rawId && !ambiguousIds.has(rawId)) itemByRawId.delete(rawId);
+          continue;
+        }
+        // Item asset hints are decorations grounded in the item's own
+        // findings: the exact same catalogue kind on at least one referenced
+        // finding, with every referenced finding non-unknown. Anything less is
+        // omitted with a warning — never inferred from wording, never
+        // re-grounded, and never fatal to the item or the scene narrative.
+        let assetKind;
+        if (item.assetKind !== undefined) {
+          if (!SECURITY_ASSET_KINDS.includes(item.assetKind)) {
+            assetNotes.push(`${itemLabel}: unsupported assetKind "${str(item.assetKind, 40)}" was omitted; no asset was inferred.`);
+          } else if (findingRefs.every(id => findingById.get(id).basis !== 'unknown')
+            && findingRefs.some(id => findingById.get(id).assetKind === item.assetKind)) {
+            assetKind = item.assetKind;
+          } else {
+            assetNotes.push(`${itemLabel} asset "${item.assetKind}" was omitted: no grounding finding carries that same established asset; no asset was inferred.`);
+          }
+        }
+        const finalItem = {
+          id: idFor(item.id, `explanation-${i + 1}-item-${panelOut.length + 1}-${n + 1}`),
+          label: str(item.label, 240).trim(), value: str(item.value, 1000),
+          role: item.role, findingIds: findingRefs,
+          ...(row !== undefined ? { row } : {}), ...(assetKind !== undefined ? { assetKind } : {}),
+        };
+        if (rawId && !ambiguousIds.has(rawId)) itemByRawId.set(rawId, finalItem.id);
+        items.push(finalItem);
+      }
+      if (!items.length) {
+        notes.push(`${panelLabel} was dropped: none of its items could be grounded in surviving findings.`);
+        continue;
+      }
+      panelOut.push({ id: idFor(panel.id, `explanation-${i + 1}-panel-${panelOut.length + 1}`),
+        title: str(panel.title, 240).trim(), ...(placement !== undefined ? { placement } : {}), items });
+    }
+    if (!panelOut.length) {
+      notes.push(`${label} was dropped: no panel survived grounding.`);
+      continue;
+    }
+    const keptItemIds = new Set(panelOut.flatMap(panel => panel.items.map(item => item.id)));
+    const endpointFor = (raw, linkLabel) => {
+      const key = String(raw ?? '').trim().slice(0, 120);
+      if (ambiguousIds.has(key)) {
+        notes.push(`${linkLabel} was dropped: endpoint ${key} was used for more than one returned item, so its target is ambiguous.`);
+        return null;
+      }
+      const id = itemByRawId.get(key);
+      if (!id || !keptItemIds.has(id)) {
+        notes.push(`${linkLabel} was dropped: endpoint ${String(raw).slice(0, 80)} is not a surviving item of the scene.`);
+        return null;
+      }
+      return id;
+    };
+    const links = [];
+    const rawLinks = e.links.slice(0, 24);
+    if (e.links.length > 24) omissionNotes.push(`${label} kept only its first 24 links (${e.links.length} were returned).`);
+    for (const [n, link] of rawLinks.entries()) {
+      if (!link || typeof link !== 'object' || Array.isArray(link)) {
+        notes.push(`Link ${n + 1} of ${label} was dropped: it is not an object.`);
+        continue;
+      }
+      const linkLabel = `Link ${str(link.from, 40)}->${str(link.to, 40) || n + 1} of ${label}`;
+      const from = endpointFor(link.from, linkLabel), to = endpointFor(link.to, linkLabel);
+      const findingRefs = strictGrounding(link.findingIds, linkLabel);
+      if (!from || !to || from === to || !findingRefs) {
+        if (from && to && from === to) notes.push(`${linkLabel} was dropped: both endpoints are the same item.`);
+        continue;
+      }
+      links.push({ from, to, label: str(link.label, 240).trim() || 'relates to', findingIds: findingRefs });
+    }
+    // Scene detail describes the whole plan. Keeping it after removing even
+    // one dependency can promote an uncertain narrative to source-backed.
+    if (notes.length !== sceneNotes || omissionNotes.length !== sceneOmissions || ambiguousIds.size) {
+      notes.push(`${label} was dropped whole: an incomplete scene cannot preserve the grounding of its narrative.`);
+      continue;
+    }
+    explanations.push({
+      id: idFor(e.id, `explanation-${i + 1}`), title: str(e.title, 240).trim(),
+      kind: e.kind, detail: str(e.detail, 4000), panels: panelOut, links,
+    });
+  }
+  if (rawExplanations.length > SECURITY_EXPLANATIONS_LIMIT) {
+    omissionNotes.push(`Only the first ${SECURITY_EXPLANATIONS_LIMIT} mechanism scenes were kept (${rawExplanations.length} were returned).`);
+  }
 
   // Authoritative delivery record for this run only: complete lines actually
   // delivered in the initial context or successful tool replies. Model- or
@@ -689,15 +913,19 @@ function coerceModelAnalysis(plan, meta, extraWarnings) {
 
   const modelWarnings = (Array.isArray(plan?.warnings) ? plan.warnings : [])
     .map(w => str(w, 2000).trim()).filter(Boolean).slice(0, 30);
-  const applicationWarnings = distinct([...extraWarnings, ...coverageWarnings, ...omissionNotes, ...notes.map(n => n.slice(0, 2000))]);
+  const applicationWarnings = distinct([...extraWarnings, ...coverageWarnings, ...omissionNotes, ...notes.map(n => n.slice(0, 2000)), ...assetNotes.map(n => n.slice(0, 2000))]);
   const warnings = applicationWarnings.length > 50
     ? [...applicationWarnings.slice(0, 49), `${applicationWarnings.length - 49} additional application warnings were omitted from this bounded warning list; affected findings remain labeled with their validated evidence basis.`]
     : distinct([...applicationWarnings, ...modelWarnings]).slice(0, 50);
   const summary = str(plan.summary, 8000).trim();
+  // Explanations stay absent (not an empty array) when the model omitted them
+  // or nothing survived grounding: absence is the honest record, and older
+  // analyses without the field remain valid.
   return {
     version: 1, id: meta.id, title: str(plan.title, 240).trim(),
     cveId: meta.cveId, status: meta.status, summary, generatedAt: meta.generatedAt,
     sources: meta.sources, findings, relationships, warnings, readCoverage,
+    ...(explanations.length ? { explanations } : {}),
   };
 }
 

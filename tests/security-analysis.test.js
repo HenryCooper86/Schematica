@@ -228,3 +228,158 @@ test('assetKind persists through validation and serialization while unsupported 
   assert.notEqual(securityAssetKind(kept.findings[0]), 'webserver',
     'an unknown-basis saved hint must not depict a concrete server');
 });
+
+function explanationAnalysis() {
+  const analysis = fixture();
+  analysis.findings.push({ id: 'uncertain', kind: 'unknown', title: 'Reachability not established',
+    detail: 'No retained line shows a caller reaching the parser.', basis: 'unknown', view: 'none', evidence: [], targets: [] });
+  analysis.explanations = [{
+    id: 'scene-1', title: 'Parser buffer layout', kind: 'memory',
+    detail: 'Schematic reading of the declared buffers; not an observed runtime layout.',
+    panels: [{ id: 'panel-1', title: 'Declared buffers', items: [
+      { id: 'item-length', label: 'Supplied length', value: 'length field', role: 'input', findingIds: ['cause'] },
+      { id: 'item-buffer', label: 'Fixed buffer', value: '', role: 'storage', findingIds: ['cause', 'uncertain'] },
+    ] }],
+    links: [{ from: 'item-length', to: 'item-buffer', label: 'overwrites when unchecked', findingIds: ['cause'] }],
+  }];
+  return analysis;
+}
+
+test('explanations validate grounding, endpoints and limits while staying optional', () => {
+  const analysis = explanationAnalysis();
+  assert.deepEqual(validateSecurityAnalysis(analysis).explanations, analysis.explanations);
+  assert.equal(validateSecurityAnalysis(fixture()).explanations, undefined,
+    'older analyses without explanations remain valid');
+  const rejects = [
+    [a => { a.explanations.push({ ...a.explanations[0] }); }, /Duplicate explanation id/],
+    [a => { a.explanations[0].panels = []; }, /requires at least one panel/],
+    [a => { a.explanations[0].panels[0].items = []; }, /requires at least one item/],
+    [a => { a.explanations[0].panels[0].items[1].id = 'item-length'; }, /Duplicate item id in explanation/],
+    [a => { a.explanations[0].panels[0].items[0].findingIds = []; }, /must reference at least one existing finding/],
+    [a => { a.explanations[0].panels[0].items[0].findingIds = ['ghost']; }, /references an unknown finding/],
+    [a => { a.explanations[0].panels[0].items[0].findingIds = ['cause', 'cause']; }, /repeats finding id/],
+    [a => { a.explanations[0].links[0].to = 'ghost-item'; }, /references an unknown item/],
+    [a => { a.explanations[0].links[0].to = 'item-length'; }, /distinct items/],
+    [a => { a.explanations[0].kind = 'layout'; }, /unsupported value/],
+    [a => { a.explanations[0].panels[0].items[0].role = 'widget'; }, /unsupported value/],
+    [a => { a.explanations.push(...Array.from({ length: 7 }, (_, i) => ({ ...a.explanations[0], id: `extra-${i}` }))); }, /collection limit/],
+    [a => { a.explanations[0].coordinates = '10,10'; }, /Unknown .* field/],
+  ];
+  for (const [mutate, pattern] of rejects) {
+    const value = explanationAnalysis();
+    mutate(value);
+    assert.throws(() => validateSecurityAnalysis(value), pattern);
+  }
+});
+
+test('reports show explanation panels, items and links with derived weakest basis and citations', () => {
+  const html = securityAnalysisHTML(explanationAnalysis());
+  assert.ok(html.includes('Mechanism explanations'));
+  assert.ok(html.includes('Parser buffer layout'));
+  assert.ok(html.includes('Memory / object layout'));
+  assert.ok(html.includes('Declared buffers'));
+  assert.ok(html.includes('Supplied length') && html.includes('Fixed buffer'));
+  assert.ok(html.includes('overwrites when unchecked'));
+  assert.ok(html.includes('Supplied length → Fixed buffer'), 'link endpoints render as item labels');
+  assert.ok(html.includes('Unknown — evidence missing'), 'the weakest referenced basis is visible');
+  assert.ok(html.includes('Source-backed statement'), 'a fully grounded item keeps its source basis');
+  assert.ok(html.includes('#security-source-1'), 'citations are the referenced findings own evidence');
+  assert.ok(!securityAnalysisHTML(fixture()).includes('Mechanism explanations'),
+    'analyses without explanations report no mechanism section');
+});
+
+test('explanations survive save and reopen; invalid saved explanations are dropped with a diagnostic', () => {
+  const store = new Store();
+  store.doc.securityAnalysis = explanationAnalysis();
+  const reopened = deserialize(serialize(store.doc));
+  assert.deepEqual(reopened.doc.securityAnalysis.explanations, explanationAnalysis().explanations);
+  store.doc.securityAnalysis = explanationAnalysis();
+  store.doc.securityAnalysis.explanations[0].links[0].to = 'ghost-item';
+  const broken = deserialize(serialize(store.doc));
+  assert.equal(broken.doc.securityAnalysis, undefined);
+  assert.match(broken.warnings.join('\n'), /references an unknown item/);
+  assert.deepEqual(broken.doc.nodes, []);
+});
+
+function composedAnalysis() {
+  const analysis = fixture();
+  analysis.findings[0].assetKind = 'webserver';
+  analysis.explanations = [
+    { id: 'attack-scene', title: 'Oversized request against the parser host', kind: 'attack',
+      detail: 'Semantic composition of the referenced findings; not a network or containment claim.',
+      panels: [
+        { id: 'a-actor', title: 'Requester', placement: 'actor', items: [
+          { id: 'a-who', label: 'Requesting client', value: 'sends the length', role: 'input', findingIds: ['cause'] }] },
+        { id: 'a-exchange', title: 'Request', placement: 'exchange', items: [
+          { id: 'a-req', label: 'Oversized length', value: '', role: 'input', findingIds: ['cause'] }] },
+        { id: 'a-target', title: 'Parser host', placement: 'target', items: [
+          { id: 'a-host', label: 'Parser buffer', value: '', role: 'storage', assetKind: 'webserver', findingIds: ['cause'] }] },
+        { id: 'a-outcome', title: 'Conditional outcome', placement: 'outcome', items: [
+          { id: 'a-crash', label: 'Parser failure', value: 'only if the described path is reached', role: 'result', findingIds: ['fix'] }] },
+      ],
+      links: [{ from: 'a-req', to: 'a-host', label: 'overflows when unchecked', findingIds: ['cause'] }] },
+    { id: 'parallel-scene', title: 'Same mechanism across deployments', kind: 'parallel',
+      detail: 'One row per described deployment; outcomes stay tied to their own findings.',
+      panels: [
+        { id: 'p-actor', title: 'Shared requester', placement: 'actor', items: [
+          { id: 'p-who', label: 'Requesting client', value: '', role: 'input', findingIds: ['cause'] }] },
+        { id: 'p-targets', title: 'Affected deployments', placement: 'target', items: [
+          { id: 'p-t0', label: 'Deployment A', value: '', role: 'storage', row: 0, findingIds: ['cause'] },
+          { id: 'p-t1', label: 'Deployment B', value: '', role: 'storage', row: 7, findingIds: ['cause'] }] },
+        { id: 'p-outcomes', title: 'Conditional outcomes', placement: 'outcome', items: [
+          { id: 'p-o1', label: 'Parser failure', value: '', role: 'result', row: 1, findingIds: ['fix'] }] },
+      ],
+      links: [] },
+  ];
+  return analysis;
+}
+
+test('composed scene kinds require placements and parallel rows while older scenes stay valid', () => {
+  const analysis = composedAnalysis();
+  assert.deepEqual(validateSecurityAnalysis(analysis).explanations, analysis.explanations,
+    'supported placements, rows and grounded item assets persist unchanged');
+  assert.equal(validateSecurityAnalysis(explanationAnalysis()).explanations[0].panels[0].placement, undefined,
+    'the five original kinds keep validating without placement or row');
+  const rejects = [
+    [a => { delete a.explanations[0].panels[1].placement; }, /requires a placement/],
+    [a => { a.explanations[0].panels[1].placement = 'network'; }, /unsupported value/],
+    [a => { delete a.explanations[1].panels[1].items[0].row; }, /requires a row/],
+    [a => { delete a.explanations[1].panels[2].items[0].row; }, /requires a row/],
+    [a => { a.explanations[1].panels[1].items[0].row = 8; }, /must be a safe integer/],
+    [a => { a.explanations[1].panels[1].items[0].row = -1; }, /must be a safe integer/],
+    [a => { a.explanations[1].panels[1].items[0].row = 1.5; }, /must be a safe integer/],
+    [a => { a.explanations[1].panels[1].items[0].row = '1'; }, /must be a safe integer/],
+    [a => { a.explanations[0].panels[2].items[0].assetKind = 'not-a-kind'; }, /unsupported value/],
+    [a => { a.explanations[0].panels[2].items[0].assetKind = 'generic'; }, /unsupported value/],
+    [a => { a.explanations[1].panels[1].items[0].x = 4; }, /Unknown .* field/],
+  ];
+  for (const [mutate, pattern] of rejects) {
+    const value = composedAnalysis();
+    mutate(value);
+    assert.throws(() => validateSecurityAnalysis(value), pattern);
+  }
+});
+
+test('ungrounded saved item asset hints stay inert data instead of invalidating the record', () => {
+  const noMatch = composedAnalysis();
+  delete noMatch.findings[0].assetKind;
+  assert.equal(validateSecurityAnalysis(noMatch).explanations[0].panels[2].items[0].assetKind, 'webserver',
+    'a structurally valid hint without a same-asset finding remains saved data for renderers to suppress');
+  const unknownBasis = composedAnalysis();
+  unknownBasis.findings[0].basis = 'unknown';
+  assert.equal(validateSecurityAnalysis(unknownBasis).explanations[0].panels[2].items[0].assetKind, 'webserver',
+    'an unknown-basis grounding finding also keeps the hint as data');
+});
+
+test('composed scenes save and reopen with their hints; invalid ones drop with a diagnostic', () => {
+  const store = new Store();
+  store.doc.securityAnalysis = composedAnalysis();
+  const reopened = deserialize(serialize(store.doc));
+  assert.deepEqual(reopened.doc.securityAnalysis.explanations, composedAnalysis().explanations);
+  store.doc.securityAnalysis = composedAnalysis();
+  store.doc.securityAnalysis.explanations[1].panels[1].items[0].row = 9;
+  const broken = deserialize(serialize(store.doc));
+  assert.equal(broken.doc.securityAnalysis, undefined);
+  assert.match(broken.warnings.join('\n'), /must be a safe integer/);
+});
+

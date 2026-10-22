@@ -122,7 +122,11 @@ test('network, security, process-flow, and threat parts follow the net_draw mode
     assert.ok((part.glyph && part.glyph.startsWith('<')) || (part.icon && part.icon.startsWith('M')), `${part.kind} glyph or icon`);
   }
   const SHAPES = new Set(['terminator', 'process', 'decision', 'data', 'document', 'predefined', 'prep', 'manual', 'delay', 'connector']);
-  for (const part of byCat('flow')) assert.ok(SHAPES.has(part.shape), `${part.kind} shape`);
+  // Figure capsules (the security vocabulary) are illustrated message cards,
+  // not flowchart symbols; geometry.js owns their presentation.
+  for (const part of byCat('flow')) assert.ok(part.figure || SHAPES.has(part.shape), `${part.kind} shape`);
+  const FIGURES = new Set(['actor', 'capsule', 'tile', 'outcome']);
+  for (const p of Object.values(PARTS)) if (p.figure) assert.ok(FIGURES.has(p.figure), `${p.kind} figure`);
   for (const part of byCat('threats')) assert.equal(part.threat, true, `${part.kind} threat`);
   assert.equal(PARTS.startend.defaultLabel, 'Start');
   assert.equal(PARTS.decision.defaultLabel, 'Decision?');

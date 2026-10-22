@@ -37,11 +37,12 @@ import { MAX_TEXT } from './serialize.js';
 import { nodeRect, rectsIntersect, snap, NOTE_W, noteHeight, contentBounds } from './geometry.js';
 import { PARTS } from './palette.js';
 import { tr } from './i18n.js';
-import { securityAssetKind } from './security-assets.js';
+import { securityAssetCard as assetCard } from './security-assets.js';
+import { buildSecurityMechanisms, mechanismFindingIds } from './security-mechanisms.js';
 
-export const SECURITY_ILLUSTRATION_VIEWS = ['architecture', 'exploit', 'mitigation'];
+export const SECURITY_ILLUSTRATION_VIEWS = ['architecture', 'exploit', 'mitigation', 'mechanism'];
 
-const VIEW_TITLES = { architecture: 'Architecture', exploit: 'Exploit path', mitigation: 'Mitigation' };
+const VIEW_TITLES = { architecture: 'Architecture', exploit: 'Exploit path', mitigation: 'Mitigation', mechanism: 'Mechanism' };
 const chapterMark = (view) => `Security illustration (${view}):`;
 // Finding kinds that become cards (every other kind is a note or a zone).
 // The glyph a card wears is the shared asset contract's answer, never a guess
@@ -55,18 +56,6 @@ const CARD_KINDS = new Set(['affected', 'component', 'root_cause', 'prerequisite
 // A consistency verdict is metadata about the PoC/advisory pair, never a step
 // of an exploit flow, so it draws as a note like the other note kinds.
 const NOTE_KINDS = new Set(['severity', 'mapping', 'contradiction', 'consistency']);
-// Every generated card exposes the four side ports the wire lanes address by
-// name, all on an untyped bus so a port carries any number of wires and a
-// card pair keeps its sixteen lanes. A catalogue kind that already offers
-// those ports on link or flow is placed as the real catalogue node — its
-// glyph, badge and fields stay catalogue data. Any other asset (an
-// Ethernet-sided host, a portless person, an MCU) becomes a custom card that
-// borrows only the catalogue's identity — name, category, accent and glyph
-// through icon:{kind}, never a hand-written path — over four logical link
-// ports, so a stated relationship can never become a physical Ethernet wire
-// and the global catalogue is never modified to make an asset fit.
-const SIDE_PORTS = ['n', 'e', 's', 'w'];
-const SIDE_OF = { n: 'top', e: 'right', s: 'bottom', w: 'left' };
 
 // Scene bands group a view's cards by what they are, not by invented
 // deployment semantics: actors and people, the attack-sequence glyphs,
@@ -101,8 +90,9 @@ const SCENE_LABEL = {
   facilities: () => tr('Facilities'),
   findings: () => tr('Related findings'),
 };
-const ATTACK_GLYPHS = new Set(['vulnerability', 'exploit', 'preparation', 'startend', 'process']);
-const ACTOR_KINDS = new Set(['threatactor', 'insider']);
+const ATTACK_GLYPHS = new Set(['vulnerability', 'exploit', 'preparation', 'startend', 'process',
+  'httprequest', 'payload', 'memorydump', 'processcrash', 'codeexec']);
+const ACTOR_KINDS = new Set(['threatactor', 'insider', 'attacker']);
 // Catalogue "security" parts split: these actively enforce or monitor, the
 // rest (web/application servers, CDN, gateways) are service infrastructure
 // and belong with the network scene rather than being labelled controls.
@@ -121,28 +111,6 @@ function sceneOf(kind, view) {
   if (part.category === 'endpoints' || part.category === 'sensors' || part.category === 'actuators') return 'devices';
   if (part.category === 'facilities') return 'facilities';
   return 'findings';
-}
-
-function assetCard(finding) {
-  const kind = securityAssetKind(finding);
-  const part = PARTS[kind] ?? PARTS.generic;
-  const sides = SIDE_PORTS.map((id) => part.ports.find((p) => p.id === id));
-  if (sides.every((p) => p && (p.bus === 'link' || p.bus === 'flow'))) {
-    return {
-      kind: part.kind, asset: part.kind, name: part.name, custom: null,
-      flow: sides.every((p) => p.bus === 'flow'),
-    };
-  }
-  return {
-    kind: 'custom', asset: part.kind, name: part.name, flow: false,
-    custom: {
-      name: part.name,
-      category: part.category,
-      ...(part.accent ? { accent: part.accent } : {}),
-      icon: { kind: part.kind },
-      ports: SIDE_PORTS.map((id) => ({ id, name: 'LINK', side: SIDE_OF[id], bus: 'link' })),
-    },
-  };
 }
 
 const BASIS_TEXT = { source: 'source-backed', inference: 'inferred', unknown: 'unknown basis' };
@@ -175,7 +143,7 @@ function ensureDoc(doc) {
 }
 
 function countsByView(findings) {
-  const counts = { architecture: 0, exploit: 0, mitigation: 0, none: 0 };
+  const counts = { architecture: 0, exploit: 0, mitigation: 0, mechanism: 0, none: 0 };
   for (const finding of findings) counts[finding.view] += 1;
   return counts;
 }
@@ -278,6 +246,11 @@ function findingLayers(findings, relationships) {
 // belongs, even when an endpoint finding is placed elsewhere). Directed layers
 // give the walkthrough a causal reading order without adding relationships.
 function planIncluded(analysis, view) {
+  if (view === 'mechanism') {
+    const ids = mechanismFindingIds(analysis);
+    const included = analysis.findings.filter(finding => ids.has(finding.id));
+    return { included, cards: included, order: new Map(), rels: [], layers: new Map() };
+  }
   const rels = analysis.relationships.filter((r) => r.view === view);
   const endpoints = new Set();
   for (const r of rels) {
@@ -312,6 +285,7 @@ function pickView(analysis, doc = null) {
     const view = SECURITY_ILLUSTRATION_VIEWS.find((v) => chapters[i].label.startsWith(chapterMark(v)));
     if (view) return view;
   }
+  if (analysis.explanations?.length) return 'mechanism';
   if (analysis.findings.some((f) => f.view === 'exploit')) return 'exploit';
   return SECURITY_ILLUSTRATION_VIEWS.find((view) => analysis.findings.some((f) => f.view === view)) || 'exploit';
 }
@@ -379,14 +353,21 @@ export function buildSecurityWalkthrough(doc, analysis, options = {}) {
   const names = new Map(valid.sources.map((s) => [s.id, s.name]));
   const stops = [];
   const missing = [];
+  const mechanismNodes = new Set(record ? record.items.map(item => item.target).filter(id => nodeIds.has(id)) : chapterNodes);
   for (const finding of included) {
     const live = targetsOf(finding).filter((id) => boardIds.has(id));
     if (!live.length) {
       missing.push({ findingId: finding.id, title: finding.title });
       continue;
     }
-    const node = CARD_KINDS.has(finding.kind) ? live.find((id) => nodeIds.has(id)) : null;
-    if (!node) continue; // illustrated as a zone, a note, or a boundary card: not a walkthrough stop
+    let node = view === 'mechanism' || CARD_KINDS.has(finding.kind) ? live.find((id) => nodeIds.has(id)) : null;
+    if (!node && view === 'mechanism') {
+      const wire = (doc.wires || []).find(wire => live.includes(wire.id)
+        && mechanismNodes.has(wire.from.node) && mechanismNodes.has(wire.to.node));
+      node = wire?.from.node;
+      if (!node) missing.push({ findingId: finding.id, title: finding.title });
+    }
+    if (!node) continue; // zones/notes have no native story-stop target
     stops.push({
       node,
       findingId: finding.id,
@@ -621,9 +602,12 @@ function placeIllustration(doc, snapshot, nodesByFinding, layers, noteIds, zones
 // wire.
 export function buildSecurityIllustration(doc, analysis, options = {}) {
   const valid = validateSecurityAnalysis(analysis);
-  ensureDoc(doc);
   const opts = options || {};
   const view = opts.view === undefined ? 'exploit' : opts.view;
+  if (view === 'mechanism') return buildSecurityMechanisms(doc, valid, {
+    walkthrough: opts.walkthrough === undefined || opts.walkthrough === true,
+  });
+  ensureDoc(doc);
   const walkthrough = opts.walkthrough === undefined ? true : opts.walkthrough === true;
   if (!SECURITY_ILLUSTRATION_VIEWS.includes(view)) {
     throw Error(`Unknown illustration view "${view}"; use one of ${SECURITY_ILLUSTRATION_VIEWS.join(', ')}.`);
