@@ -35,12 +35,27 @@ jobs:
           key: fonts-noto-cjk-ubuntu-22.04-v1
       - name: Download CJK fonts (cache miss only)
         if: steps.cjk-fonts.outputs.cache-hit != 'true'
-        timeout-minutes: 4
+        timeout-minutes: 6
         run: |
+          set -euo pipefail
           sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update
           cd "$RUNNER_TEMP"
-          apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 download fonts-noto-cjk
-          dpkg-deb -x fonts-noto-cjk_*.deb fonts-noto-cjk
+          # The runner's Azure mirror serves the package lists quickly but has
+          # stalled on this one large file, so fetch it from several mirrors
+          # in turn and keep only a copy whose SHA-256 matches the index.
+          info=$(apt-cache show --no-all-versions fonts-noto-cjk)
+          file=$(printf '%s\n' "$info" | awk '/^Filename:/{print $2}')
+          sum=$(printf '%s\n' "$info" | awk '/^SHA256:/{print $2}')
+          test -n "$file" && test -n "$sum"
+          for mirror in http://archive.ubuntu.com/ubuntu http://mirrors.edge.kernel.org/ubuntu http://azure.archive.ubuntu.com/ubuntu; do
+            if curl -fsSL --connect-timeout 15 --max-time 90 -o fonts.deb "$mirror/$file" \
+              && echo "$sum  fonts.deb" | sha256sum -c --quiet -; then
+              echo "Downloaded from $mirror"; break
+            fi
+            echo "No verified copy from $mirror"; rm -f fonts.deb
+          done
+          test -f fonts.deb
+          dpkg-deb -x fonts.deb fonts-noto-cjk
           mkdir -p ~/.local/share/fonts/noto-cjk
           find fonts-noto-cjk -type f \( -name '*.ttc' -o -name '*.otf' -o -name '*.ttf' \) -exec cp {} ~/.local/share/fonts/noto-cjk/ \;
           # The package's fontconfig rule ranks the right regional variant
