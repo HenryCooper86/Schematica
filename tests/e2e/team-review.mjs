@@ -19,7 +19,8 @@ export async function runTeamReviewChecks({js,check,sleep,navigate,capture,resiz
  const submit=async(id,values)=>{await js(`(()=>{const form=document.getElementById(${JSON.stringify(id)});for(const [key,value] of Object.entries(${JSON.stringify(values)}))form.elements[key].value=value;form.requestSubmit();return true})()`);await settled();};
  try{
   server=createAppServer({root});await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-  await navigate('http://127.0.0.1:'+server.address().port+'/');await wait(`!!document.getElementById('btn-team')`);
+  await navigate('http://127.0.0.1:'+server.address().port+'/');await wait(`!!document.getElementById('btn-team')`);await new Promise(r=>setTimeout(r,500));
+  check('a server with team reviews disabled shows no Team reviews button',await js(`document.getElementById('btn-team').hidden`));
   await js(`for(const d of document.querySelectorAll('dialog[open]'))d.close();true`);await click('btn-team');
   check('disabled server explains local review availability without requesting a credential',await js(`document.getElementById('team-body').textContent.includes('Local review packages remain available')&&!document.getElementById('team-login')`));
   await navigate('about:blank');await new Promise(resolve=>server.close(resolve));server=null;
@@ -27,7 +28,8 @@ export async function runTeamReviewChecks({js,check,sleep,navigate,capture,resiz
   const handle=server.listeners('request')[0];server.removeAllListeners('request');server.on('request',(req,res)=>{if(failNextList&&req.method==='GET'&&req.url==='/api/team/projects'){failNextList=false;res.writeHead(503,{'content-type':'application/json'});res.end(JSON.stringify({error:{message:'Temporary test outage'}}));return;}handle(req,res);});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const origin='http://127.0.0.1:'+server.address().port;
   const api=async(path,body,token=ownerToken)=>{const r=await fetch(origin+'/api/team'+path,{method:body?'POST':'GET',headers:{authorization:'Bearer '+token,'x-schematica-client':'1',...(body?{'content-type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});return {status:r.status,...await r.json()};};
-  await navigate(origin+'/');await wait(`!!document.getElementById('btn-team')`);
+  await navigate(origin+'/');await wait(`!!document.getElementById('btn-team')&&!document.getElementById('btn-team').hidden`);
+  check('an enabled server shows the Team reviews button',true);
   await js(`(async()=>{for(const d of document.querySelectorAll('dialog[open]'))d.close();const {EXAMPLES}=await import('/src/examples.js'),doc=EXAMPLES.find(e=>e.id==='declared-uart-reference').doc,input=document.getElementById('file-input'),dt=new DataTransfer();dt.items.add(new File([JSON.stringify(doc)],'team-source.json'));input.files=dt.files;input.dispatchEvent(new Event('change'));return true})()`);
   await wait(`document.querySelectorAll('#canvas .node').length>0`);
   await js(`(()=>{for(const d of document.querySelectorAll('dialog[open]'))d.close();document.getElementById('title').value='Local review source';document.getElementById('title').dispatchEvent(new Event('change'));return true})()`);

@@ -155,7 +155,7 @@ export async function runWorkflowChecks({ js, check, sleep, origin, screenshot }
     ),
   );
   await js(
-    `document.querySelector('[data-action=close]').click();document.getElementById('btn-guide').click();true`,
+    `document.querySelector('[data-action=close]').click();document.getElementById('btn-examples').click();document.getElementById('examples-guide').click();true`,
   );
   check(
     "first-project guidance is accessible with actionable steps",

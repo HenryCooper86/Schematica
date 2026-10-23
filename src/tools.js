@@ -579,6 +579,11 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
     }
     if (mod) return;
     const k = e.key.toLowerCase();
+    // Shift+C: wire with the Connect ports form instead of dragging.
+    if (k === 'c' && e.shiftKey) {
+      document.dispatchEvent(new CustomEvent('schematica:connect-ports'));
+      return;
+    }
     if (k === 'v') setTool('select');
     if (k === 'c') setTool('wire');
     if (k === 'z') setTool('zone');

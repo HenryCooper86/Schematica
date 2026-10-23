@@ -9,7 +9,10 @@ import {tr,onLanguageChange} from '../i18n.js';
 // Shared snapshots never replace the editor document. Auth lives only in this closure.
 export function initTeamReview({navigation}){
  const client=createTeamClient(),button=document.createElement('button');
- button.id='btn-team';document.getElementById('btn-connect').after(button);
+ button.id='btn-team';button.hidden=true;document.getElementById('palette-search').after(button);
+ // Shown only when the server reports team reviews enabled; static hosting
+ // and servers with the feature off never show a button that cannot work.
+ client.request('/status',undefined,{publicRequest:true}).then(r=>{button.hidden=!r?.enabled;}).catch(()=>{button.hidden=true;});
  const dialog=document.createElement('dialog');dialog.id='team-dialog';dialog.className='workflow-dialog';dialog.setAttribute('aria-labelledby','team-heading');
  dialog.innerHTML='<header><h2 id="team-heading"></h2><button id="team-close" type="button"></button></header><p id="team-error" role="alert"></p><div id="team-body"></div>';
  document.body.append(dialog);const body=dialog.querySelector('#team-body'),error=dialog.querySelector('#team-error');

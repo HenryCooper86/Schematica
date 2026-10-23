@@ -58,7 +58,7 @@ incompatible results as a group. Endpoint capabilities remain specific to each
 part and port; inspect and declare them separately. An existing wire arrow counts
 as a declared direction: reuse preserves it and ICD export includes it when the
 specification has no direction. An explicit specification direction takes precedence.
-The First project guide now
+The guided walkthrough now
 counts declaration and handoff steps only when current review readiness supports
 them. It still permits exporting a draft package before the board is ready.
 
@@ -353,9 +353,9 @@ The matrix exports CSV and is included in review packages. Old verified records
 without a verification stamp need review; evidence contents are not independently
 validated by the application.
 
-## First project
+## Guided walkthrough
 
-The palette's **First project** button offers an existing-board checklist, a
+**Examples → Guided walkthrough** offers an existing-board checklist, a
 sensor starter and **Start UART review walkthrough**. The walkthrough loads a
 declared teaching contract, introduces a receiver bandwidth mismatch, opens the
 existing interface editor for repair, and guides checks, export and Undo. See the

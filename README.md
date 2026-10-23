@@ -17,7 +17,7 @@ need an operator-configured server.
 
 ## Start here
 
-1. Open Schematica and choose **First project** in the left palette.
+1. Open Schematica and choose **Examples → Guided walkthrough**.
 2. Choose **Start UART review walkthrough** to learn how to find and repair an
    interface mismatch, or **Load sensor starter** to explore a larger board.
 3. Follow the guide, then use **Save** to download your editable board and

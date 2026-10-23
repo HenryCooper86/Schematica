@@ -337,7 +337,7 @@ try {
   } else if (process.env.KICAD_UPDATE_E2E_ONLY) {
     await runKiCadUpdateChecks({js,check,sleep});
   } else if (process.env.GUIDED_REVIEW_E2E_ONLY) {
-    await runGuidedReviewChecks({js,key,check,sleep});
+    await runGuidedReviewChecks({js,key,check,sleep,click,center});
   } else if (process.env.ENHANCEMENTS_E2E_ONLY) {
     await runEnhancementChecks({js,check});
   } else if (process.env.LAYOUT_E2E_ONLY) {
@@ -906,8 +906,8 @@ try {
   // (choosing one would confirm(), which the smoke test never does).
   await js(`document.getElementById('btn-examples').click(); true`);
   await sleep(100);
-  const menu = await js(`(() => { const m = document.getElementById('examples-menu'); return { hidden: m.hidden, headings: [...m.querySelectorAll('.menu-group')].map((h) => h.textContent), buttons: m.querySelectorAll('button').length }; })()`);
-  check('the Examples menu opens with Embedded, Vehicle, and Security headings over every built-in board', menu.hidden === false && JSON.stringify(menu.headings) === JSON.stringify(['Embedded', 'Vehicle', 'Security']) && menu.buttons === EXAMPLES.length, JSON.stringify(menu));
+  const menu = await js(`(() => { const m = document.getElementById('examples-menu'); return { hidden: m.hidden, headings: [...m.querySelectorAll('.menu-group')].map((h) => h.textContent), buttons: m.querySelectorAll('button[data-example]').length, guide: !!m.querySelector('#examples-guide') }; })()`);
+  check('the Examples menu opens with Embedded, Vehicle, and Security headings over every built-in board', menu.hidden === false && JSON.stringify(menu.headings) === JSON.stringify(['Embedded', 'Vehicle', 'Security']) && menu.buttons === EXAMPLES.length && menu.guide, JSON.stringify(menu));
   await key('Escape', 'Escape', 27);
   await sleep(100);
   check('Escape closes the Examples menu', (await js(`document.getElementById('examples-menu').hidden`)) === true);
@@ -1459,8 +1459,8 @@ try {
   await runAdoptionChecks({ js, key, check, sleep });
   // Adoption ends in an exported offline viewer; return to the editor for subsequent workflows.
   await send('Page.navigate',{url:origin+'/'});
-  await waitFor(`!!document.getElementById('btn-guide')`);
-  await runGuidedReviewChecks({js,key,check,sleep});
+  await waitFor(`!!document.getElementById('first-project')`);
+  await runGuidedReviewChecks({js,key,check,sleep,click,center});
   await runKiCadUpdateChecks({js,check,sleep});
   await runTeamReviewChecks(teamTools);
   await runAssistantHistoryChecks({ send, js, check, sleep, fakeSeen, capture: teamTools.capture, origin });

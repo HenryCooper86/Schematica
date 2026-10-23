@@ -34,6 +34,7 @@ function mount(t, store) {
     activeElement: button,
     createElement: tag => tag === 'button' ? button : dialog,
     getElementById: () => ({ after() {} }),
+    addEventListener() {},
     body: { append() {} },
   } });
   t.after(() => {

@@ -5,9 +5,8 @@ import { tr, trd, onLanguageChange } from '../i18n.js';
 import { escAttr as esc, openModal, toast } from './press.js';
 
 export function initConnections({ store }) {
-  const button = document.createElement('button');
-  button.id = 'btn-connect';
-  document.getElementById('palette-search').after(button);
+  // Opened from a selected card's Connect… button, Shift+C, or the guided
+  // walkthrough; there is no standing palette button.
   const dialog = document.createElement('dialog');
   dialog.id = 'connection-dialog';
   dialog.className = 'workflow-dialog';
@@ -79,9 +78,9 @@ export function initConnections({ store }) {
     openModal(dialog);
     dialog.querySelector('#connect-from-node').focus();
   }
-  dialog.addEventListener('close', () => { if (trigger?.isConnected) trigger.focus(); else button.focus(); });
-  button.onclick = open;
-  const translate = () => { button.textContent = tr('Connect ports'); if (dialog.open) dialog.close(); };
+  dialog.addEventListener('close', () => { if (trigger?.isConnected) trigger.focus(); else document.getElementById('canvas')?.focus?.(); });
+  document.addEventListener('schematica:connect-ports', () => { if (!dialog.open) open(); });
+  const translate = () => { if (dialog.open) dialog.close(); };
   onLanguageChange(translate);
   translate();
   return { open };

@@ -24,7 +24,10 @@ export function initExamplesMenu({ store }) {
       return;
     }
     const shown = EXAMPLES.map((ex) => localizedExample(ex, getLang()));
-    menu.innerHTML = EXAMPLE_GROUPS.map((group) => `<div class="menu-group">${escAttr(trd(group))}</div>`
+    // The guided walkthrough opens the First project panel, which loads its
+    // own starter boards; it sits above the example groups.
+    menu.innerHTML = `<button id="examples-guide" data-guide="1"><span class="example-name">${escAttr(tr('Guided walkthrough'))}</span> <small>${escAttr(tr('Start here'))}</small></button>`
+      + EXAMPLE_GROUPS.map((group) => `<div class="menu-group">${escAttr(trd(group))}</div>`
       + shown.filter((ex) => ex.group === group).map((ex) => `<button data-example="${escAttr(ex.id)}"><span class="example-name">${escAttr(ex.name)}</span>${ex.doc.journey.some(s => s.stops?.length) ? ` <small>${escAttr(tr('Guided story'))}</small>` : ''}</button>`).join('')).join('');
     const r = btn.getBoundingClientRect();
     menu.hidden = false;
@@ -39,6 +42,11 @@ export function initExamplesMenu({ store }) {
     menu.style.top = `${Math.max(gap, useBelow ? r.bottom + 6 : r.top - bounds.height - 6)}px`;
     menu.querySelectorAll('button').forEach((b) => {
       b.addEventListener('click', () => {
+        if (b.dataset.guide) {
+          close();
+          document.dispatchEvent(new CustomEvent('schematica:open-guide'));
+          return;
+        }
         const ex = shown.find((e2) => e2.id === b.dataset.example);
         close();
         if (!ex) return;

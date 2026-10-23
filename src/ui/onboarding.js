@@ -14,9 +14,9 @@ export function initOnboarding({
   tools,
   connections,
 }) {
-  const button = document.createElement("button");
-  button.id = "btn-guide";
-  document.getElementById("palette-search").after(button);
+  // Opened from Examples → Guided walkthrough (the schematica:open-guide
+  // event); there is no standing palette button.
+  const opener = () => document.getElementById("btn-examples");
   const panel = document.createElement("aside");
   panel.id = "first-project";
   panel.hidden = true;
@@ -30,8 +30,6 @@ export function initOnboarding({
     return { doc, ...firstProjectProgress(doc, { checked, exported }) };
   };
   function paint() {
-    button.textContent = tr("First project");
-    button.setAttribute("aria-expanded", String(!panel.hidden));
     if (panel.hidden) return;
     const restoreFocus = keepFocus(panel);
     const { checks, ready } = report();
@@ -55,7 +53,7 @@ export function initOnboarding({
     panel.querySelector("#guide-close").onclick = () => {
       panel.hidden = true;
       paint();
-      button.focus();
+      opener()?.focus();
     };
     const load = async id => {
       if (loading) return;
@@ -115,11 +113,11 @@ export function initOnboarding({
       paint();
     };
   }
-  button.onclick = () => {
-    panel.hidden = !panel.hidden;
+  document.addEventListener("schematica:open-guide", () => {
+    panel.hidden = false;
     paint();
-    if (!panel.hidden) panel.querySelector("#guide-starter").focus();
-  };
+    panel.querySelector("#guide-starter").focus();
+  });
   store.subscribe(() => {
     if (!store.isDragging()) paint();
   }, { documentOnly: true });

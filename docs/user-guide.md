@@ -40,7 +40,8 @@ paths appropriate to your design; use **Check** to identify incomplete work.
 
 ### Connect ports using the keyboard
 
-Choose **Connect ports** in the left palette. Select **From part**, **From port**,
+Select a card and choose **Connect…** in its properties, or press **Shift+C**.
+Select **From part**, **From port**,
 **To part**, **To port** and, when offered, **Bus type**. Press **Ctrl+Enter** or
 **Cmd+Enter**, or choose **Create connection**. Escape cancels and returns focus
 to the opening control. A successful connection is one undo step.
@@ -342,7 +343,7 @@ There are two distinct workflows:
 | Workflow | Location | Identity and storage |
 | --- | --- | --- |
 | Portable local review | **Engineering → Advanced → Review comments** | Names are entered locally; board/review files are exchanged manually |
-| Server-backed team review | **Team reviews** in the palette | An operator issues credentials and configures private server storage |
+| Server-backed team review | **Team reviews** in the palette (shown only when the server enables it) | An operator issues credentials and configures private server storage |
 
 For local review, start a revision review, add comments and resolve them before
 approving. A later design change makes the local approval stale. Export the
@@ -388,6 +389,7 @@ Ctrl on Windows/Linux and Command on macOS. Press **?** for the full shortcut li
 | Move selected items | Arrow keys; Shift+arrow for a grid step |
 | Lock / unlock | K |
 | Show/hide palette / right panels / assistant | B / P / A |
+| Open the Connect ports form | Shift+C |
 | Submit the Connect ports form | Ctrl+Enter or Cmd+Enter |
 | Close a dialog | Escape |
 

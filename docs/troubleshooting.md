@@ -69,7 +69,7 @@ a delayed load from replacing newer work.
 | --- | --- |
 | The palette or Properties panel disappeared | Click outside text fields; press **B** for the palette or **P** for right panels |
 | The board looks empty or cut off | Press **F** to fit it; choose **Reset exploration** if filters are active |
-| Ports are not visible | Hover over a card, or use **Connect ports** to choose endpoints by name |
+| Ports are not visible | Hover over a card, or select it and choose **Connect…** (Shift+C) to choose endpoints by name |
 | A part is absent from Connect ports | Check that it has supported ports and is unlocked; unlock it with **K** or Properties |
 | A part will not move or delete | Check its lock state; locked items are kept in mixed selections |
 | A shortcut types a letter instead | Finish the text edit and move focus out of the input |

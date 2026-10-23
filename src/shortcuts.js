@@ -20,6 +20,7 @@ export const SHORTCUT_GROUPS = [
     rows: [
       { keys: ['V'], desc: () => tr('Select / move'), hint: () => tr('select') },
       { keys: ['C'], desc: () => tr('Draw wire'), hint: () => tr('wire') },
+      { keys: ['Shift', 'C'], desc: () => tr('Connect ports with a form') },
       { keys: ['Z'], desc: () => tr('Draw zone'), hint: () => tr('zone') },
       { keys: ['L'], desc: () => tr('Draw swimlane'), hint: () => tr('lane') },
       { keys: ['N'], desc: () => tr('Add note'), hint: () => tr('note') },

@@ -38,7 +38,7 @@ it reports that this revision could not be saved, keep your file copy and use
 
 ## 3. Load the review example
 
-In the left palette, choose **First project → Start UART review walkthrough**.
+Open **Examples → Guided walkthrough**, then choose **Start UART review walkthrough**.
 Wait for the board to load. You should see a chain of serial-interface parts and
 **Ready for interface review** in the guide.
 
@@ -95,7 +95,7 @@ the `.schematica.json` file you saved at the start.
 ## Next: draw your own board
 
 Follow [Build and edit a board](user-guide.md#build-and-edit-a-board) to create a
-controller-and-sensor sketch. Or choose **First project → Load sensor starter**
+controller-and-sensor sketch. Or choose **Examples → Guided walkthrough → Load sensor starter**
 to explore a larger example. That starter has undeclared interface details;
 a drawing with no blocking design finding can still need interface review.
 

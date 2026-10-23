@@ -177,6 +177,9 @@ function nodeFields(item, doc) {
   else if (!part.shape) html += `<button id="props-customize" class="secondary">${escAttr(tr('Customize…'))}</button>`;
   html += rdkDetails(item, doc);
   html += lockField(item);
+  // The keyboard way to wire this card: the Connect ports form, opened with
+  // this card as the source (also Shift+C).
+  if (part.ports.length && !item.locked) html += `<button id="props-connect" class="secondary" title="${escAttr(tr('Connect ports with a form (Shift+C)'))}">${escAttr(tr('Connect…'))}</button>`;
   html += `<button id="props-delete-one" class="danger">${escAttr(tr('Delete node'))}</button>`;
   return html;
 }
@@ -243,6 +246,8 @@ export function createPropsPanel({ store, editor, tools }) {
       const cur = findItem(store.doc, item.id)?.item;
       if (cur?.part) editor.open({ def: cur.part, nodeId: cur.id, mode: 'edit' });
     });
+    const connect = props.querySelector('#props-connect');
+    if (connect) onPress(connect, () => document.dispatchEvent(new CustomEvent('schematica:connect-ports')));
     const customize = props.querySelector('#props-customize');
     if (customize) onPress(customize, () => {
       const cur = findItem(store.doc, item.id)?.item;
