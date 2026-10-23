@@ -1,7 +1,6 @@
 import REFERENCE_OVERLAY_ZH from './examples-reference.zh.js';
 import TEACHING_OVERLAYS_ZH from './examples-teaching.zh.js';
 import EXTENDED_OVERLAYS_ZH from './examples-extended.zh.js';
-import SECURITY_FIGURES_OVERLAYS_ZH from './examples-security-figures.zh.js';
 // Simplified Chinese overlays for the built-in example boards, keyed by
 // example id, then by node / zone / wire / note / journey id. Only text
 // translates: card labels and notes, zone labels and lane names, the
@@ -11,72 +10,10 @@ import SECURITY_FIGURES_OVERLAYS_ZH from './examples-security-figures.zh.js';
 // localizedExample() in src/examples.js applies an overlay to a copy.
 // The RDK software-stage cards share this note on every board.
 const RDK_STAGE_NOTE = '描述性处理阶段；流程箭头不会部署或执行软件包。运行时及具体示例集成需要验证。';
-// The PoC teaching boards repeat each card's cited finding verbatim inside
-// every note that cites it, so those Chinese lines are composed once here and
-// reused by the overlay entries at the bottom; the evidence citations stay
-// the authored file-and-line text, byte for byte. A card note reads
-// "scene / panel", the item's value, the static-reading line with its basis,
-// the translated finding, then the evidence.
-const pocNote = (scene, panel, value, basis, finding, evidence) =>
-  `${scene} / ${panel}\n${value}\n静态阅读；未执行。[${basis}]\n${finding}\n证据：${evidence}`;
-const C_SCENE = '调用方定帧载荷的栈拷贝';
-const C_PANELS = { input: '传入帧（发送方可控）', stack: 'parse_frame 栈帧（示意）', out: '当声明长度超过 32 时' };
-const C_DETAIL = '对 parse_frame 的示意阅读：传入帧是由发送方控制的字节序列；栈帧中保存头部副本、32 格的 payload 数组和循环计数器。格子顺序遵循源码阅读顺序，并非 ABI 或字节级精确布局。循环按声明长度逐字节拷贝，因此越过第 32 格的任何写入都画为无效，而更远处的内容保持为明确的未知。';
-const C_FINDINGS = {
-  entry: 'parse_frame 从调用方接收原始帧字节及其长度 [来源]：入口接收 input 和 input_len；两字节头部拷贝之后，载荷跟在同一个缓冲区中。',
-  length: 'header.length 来自发送方且从未与 FRAME_MAX 比较 [来源]：唯一的保护只是将 input_len 与两字节头部大小比较；随后拷贝循环的边界完全由发送方声明的长度字节决定。',
-  buffer: 'payload 是固定 32 字节的栈数组 [来源]：FRAME_MAX 为 32，payload[FRAME_MAX] 是 parse_frame 的局部数组，因此目标大小在编译期固定。',
-  copy: '循环按声明长度逐字节写入 payload [来源]：对每个小于 header.length 的 i，语句 payload[i] = input[sizeof(header) + i] 都存入一个发送方提供的字节。',
-  oob: '声明长度超过 32 时写出到数组之外 [来源]：header.length 是无符号字符，最多可声明 255 字节；C 的下标访问不带检查，payload[32] 及更远处都位于这个 32 字节对象之外。这样的写入会命中什么取决于编译产物，而非本源码。',
-  layout: 'payload 之外是哪些栈邻居并未确认 [未知]：文件未说明 ABI、编译选项或帧布局，因此对越过数组的写入会到达何处不作任何断言；该项保持未评估。',
-};
-const C_EVIDENCE = {
-  entry: 'sensor_gateway.c: 18-18; sensor_gateway.c: 27-27',
-  length: 'sensor_gateway.c: 13-13; sensor_gateway.c: 24-25; sensor_gateway.c: 30-30',
-  buffer: 'sensor_gateway.c: 9-9; sensor_gateway.c: 21-21',
-  copy: 'sensor_gateway.c: 30-31',
-  oob: 'sensor_gateway.c: 9-9; sensor_gateway.c: 30-31',
-  layout: '',
-};
-const CPP_SCENE = 'add() 调用前后的 Entry 引用';
-const CPP_PANELS = { bind: '状态 1 —— 引用绑定', add: '状态 2 —— add() 执行', after: '状态 3 —— 调用之后' };
-const CPP_DETAIL = '同一个引用的三个示意状态。首先它绑定到存活的 vector 存储；随后 add() 追加元素并可能扩容；调用结束后旧内存块可能已被释放，而引用仍被交回。重分配是 std::vector 扩容的固有行为，因此相关格子带有推断依据；面板顺序是阅读顺序，不是观测到的运行。';
-const CPP_FINDINGS = {
-  store: 'entries_ 是缓存的 vector 存储 [来源]：所有缓存的 Entry 对象都存放在 ConfigCache 的一个私有 std::vector 成员中。',
-  ref: 'find() 返回指向该存储的引用 [来源]：返回类型是 const Entry &，要么绑定到扫描中找到的元素，要么绑定到 entries_.back()。',
-  push: 'push_back 可能重分配 entries_ 并释放旧内存块 [推断]：当追加放不进当前容量时，std::vector 会扩容；这一次调用是否会重分配取决于运行时的容量，本文件既未说明也无法控制。',
-  use: 'cached() 让引用跨过 add() 并将其返回 [来源]：先绑定 ref，再执行 add()，随后不重新读取容器就把 ref 返回给调用方。',
-  lifetime: '重分配之后读取该引用是未定义行为 [推断]：如果 push_back 发生了重分配，该引用不再指代存活对象；文件没有展示调用方读取它的代码，因此后果按推断陈述，而非观测到的故障。',
-};
-const CPP_EVIDENCE = {
-  store: 'config_cache.cpp: 16-16',
-  ref: 'config_cache.cpp: 20-20; config_cache.cpp: 22-24',
-  push: 'config_cache.cpp: 30-30',
-  use: 'config_cache.cpp: 36-38',
-  lifetime: 'config_cache.cpp: 36-38',
-};
-const PY_SCENE = '跨信任边界的队列消息';
-const PY_PANELS = { request: '调用方一侧 —— 请求字段', message: '网关一侧 —— 队列消息', dispatch: 'dispatch() —— 检查与路由' };
-const PY_DETAIL = '示意结构，而非运行中的服务：左侧调用方的请求字段未经校验就成为内部队列消息的 type、payload 和 requested_by；随后 dispatch() 先解码载荷、后做尺寸检查，并按消息自带的 type 字段路由。分段遵循源码阅读顺序；这里没有任何对真实请求的观测。';
-const PY_FINDINGS = {
-  boundary: 'accept_request 把调用方字段搬过 API/队列边界 [来源]：请求的 type、data 和 user 字段被直接读取并写入内部队列消息，因此由调用方决定什么跨过边界。',
-  type: '请求的 type 字段成为分发键 [来源]：request["type"] 被原样复制进 message["type"]，dispatch() 随后用 handlers.get(message["type"]) 选择处理函数；调用方与注册表查找之间没有任何允许列表。',
-  payload: 'data 被序列化为 JSON 并做 base64 包装，无形状检查 [来源]：调用方发来的任何 JSON 都会被转储、编码并存为 payload；包装时既不检查大小，也不检查结构。',
-  guard: 'QUEUE_LIMIT 检查发生在载荷解码之后 [来源]：dispatch() 先重建并解码载荷，之后才把 len(message_text) 与 QUEUE_LIMIT 比较，因此该防护约束的是消息文本，而不是解码期间已经完成的工作。',
-  handlers: '可达的处理函数集合取决于每个调用方的注册表 [推断]：handlers 作为参数传入，而本文件从未展示其内容，因此按调用方选定的 type 路由会到达哪里，仍是从调用形状作出的推断。',
-};
-const PY_EVIDENCE = {
-  boundary: 'queue_gateway.py: 15-16; queue_gateway.py: 18-22',
-  type: 'queue_gateway.py: 15-15; queue_gateway.py: 19-19; queue_gateway.py: 36-36',
-  payload: 'queue_gateway.py: 16-16; queue_gateway.py: 20-20',
-  guard: 'queue_gateway.py: 31-31; queue_gateway.py: 33-34',
-  handlers: 'queue_gateway.py: 26-26; queue_gateway.py: 36-39',
-};
 export default {
   'declared-uart-reference': REFERENCE_OVERLAY_ZH,
   ...TEACHING_OVERLAYS_ZH,
   ...EXTENDED_OVERLAYS_ZH,
-  ...SECURITY_FIGURES_OVERLAYS_ZH,
   'weather-station': {
     name: '气象站',
     title: '气象站',
@@ -629,121 +566,5 @@ export default {
       j4: { label: '威胁', caption: '调试口探测遇到 RDP 2 级，被篡改的镜像通不过签名，回滚遇到计数器。' },
     },
     wires: { w1: '证明 + 密钥', w2: 'QSPI 镜像', w3: 'SWD（已锁定）', w5: '签名镜像 + 证书', w8: '是', w9: '否', w11: '是', w12: '否', w13: '重试', w14: '探测', w15: '在工站被替换', w16: '计数器阻止' },
-  },
-  // PoC teaching boards localize like every other built-in: every generated
-  // card label and note, every panel zone label, every word-like wire label,
-  // the scene summary note, the two authored overview chapters and the
-  // generated per-scene walkthrough chapter. The retained sources and the
-  // analysis record itself stay authored English; the generated ids are
-  // pinned to the authored analysis ids (items, "from>to" links, panels,
-  // scenes, "<scene>-chapter") by stableBoardIds in src/examples-poc.js, so
-  // these entries name real ids on every module load.
-  'poc-c-stack-copy': {
-    name: 'C 栈拷贝（内存布局）',
-    title: '传感器网关栈拷贝',
-    nodes: {
-      'c-in-type': { label: '类型字节 [来源]', notes: pocNote(C_SCENE, C_PANELS.input, 'header.type', '来源', C_FINDINGS.entry, C_EVIDENCE.entry) },
-      'c-in-len': { label: '声明长度 [来源]', notes: pocNote(C_SCENE, C_PANELS.input, 'header.length, 0-255', '来源', C_FINDINGS.length, C_EVIDENCE.length) },
-      'c-in-bytes': { label: '载荷字节 [来源]', notes: pocNote(C_SCENE, C_PANELS.input, 'input[2 …]', '来源', C_FINDINGS.entry, C_EVIDENCE.entry) },
-      'c-st-header': { label: '头部副本 [来源]', notes: pocNote(C_SCENE, C_PANELS.stack, 'memcpy of the first two bytes', '来源', C_FINDINGS.entry, C_EVIDENCE.entry) },
-      'c-st-buffer': { label: 'payload[32] [来源]', notes: pocNote(C_SCENE, C_PANELS.stack, 'FRAME_MAX = 32 cells', '来源', C_FINDINGS.buffer, C_EVIDENCE.buffer) },
-      'c-st-i': { label: 'i [来源]', notes: pocNote(C_SCENE, C_PANELS.stack, 'loop counter', '来源', C_FINDINGS.copy, C_EVIDENCE.copy) },
-      'c-st-copy': { label: '拷贝循环 [来源]', notes: pocNote(C_SCENE, C_PANELS.stack, 'payload[i] = input[2 + i]', '来源', C_FINDINGS.copy, C_EVIDENCE.copy) },
-      'c-out-past': { label: 'payload[31] 之后的格子 [来源]', notes: pocNote(C_SCENE, C_PANELS.out, 'written for every i of 32 and above', '来源', C_FINDINGS.oob, C_EVIDENCE.oob) },
-      'c-out-unknown': { label: '那里是什么 [未知]', notes: pocNote(C_SCENE, C_PANELS.out, 'not stated by this source', '未知', C_FINDINGS.layout, C_EVIDENCE.layout) },
-      'c-out-log': { label: 'log_payload [来源]', notes: pocNote(C_SCENE, C_PANELS.out, 'receives payload and the claimed length', '来源', C_FINDINGS.entry, C_EVIDENCE.entry) },
-    },
-    zones: {
-      'c-panel-input': { label: '传入帧（发送方可控） · 示意' },
-      'c-panel-stack': { label: 'parse_frame 栈帧（示意） · 示意' },
-      'c-panel-out': { label: '当声明长度超过 32 时 · 示意' },
-    },
-    notes: {
-      'c-scene-frame': `${C_SCENE} [未知]\n内存 / 对象布局\n${C_DETAIL}\n静态源码阅读；未执行。这是示意图，不是观测到的运行时，也不是 ABI 或字节级精确布局。\n[来源] 引用源码 · [推断] 推断得出 · [未知] 未评估`,
-    },
-    journey: {
-      j1: { label: '场景', caption: '示意图单元展示传入帧、parse_frame 的栈上拷贝，以及越过 32 字节缓冲区的写入。每个单元都引用保留的源码行；未编译、未执行。' },
-      j2: { label: '连线与证据', caption: '带标签的连线展示来源与去向：声明的长度约束循环，循环写到 payload[31] 之后，而再往后的内容保持为明确的未知。' },
-      'c-scene-frame-chapter': { label: '安全示意图（机制）：调用方定帧载荷的栈拷贝', caption: `静态源码解释 [未知]；未执行任何 PoC。${C_DETAIL}` },
-    },
-    wires: {
-      'c-in-len>c-st-copy': '约束循环 [来源]',
-      'c-in-bytes>c-st-copy': '拷贝的字节 [来源]',
-      'c-st-copy>c-out-past': '写到第 31 格之后 [来源]',
-      'c-out-past>c-out-unknown': '目标未知 [未知]',
-      'c-st-copy>c-out-log': '循环结束后 [来源]',
-    },
-  },
-  'poc-cpp-dangling-ref': {
-    name: 'C++ 悬垂引用（生命周期状态）',
-    title: '配置缓存悬垂引用',
-    nodes: {
-      'cpp-s1-store': { label: 'entries_ 存储 [来源]', notes: pocNote(CPP_SCENE, CPP_PANELS.bind, 'block owned by the vector', '来源', CPP_FINDINGS.store, CPP_EVIDENCE.store) },
-      'cpp-s1-find': { label: 'find("threshold") [来源]', notes: pocNote(CPP_SCENE, CPP_PANELS.bind, 'scans the entries', '来源', CPP_FINDINGS.ref, CPP_EVIDENCE.ref) },
-      'cpp-s1-ref': { label: 'ref [来源]', notes: pocNote(CPP_SCENE, CPP_PANELS.bind, 'const Entry & into the block', '来源', CPP_FINDINGS.ref, CPP_EVIDENCE.ref) },
-      'cpp-s2-add': { label: 'add("timeout", 30) [推断]', notes: pocNote(CPP_SCENE, CPP_PANELS.add, 'push_back appends an Entry', '推断', CPP_FINDINGS.push, CPP_EVIDENCE.push) },
-      'cpp-s2-guard': { label: '容量检查 [推断]', notes: pocNote(CPP_SCENE, CPP_PANELS.add, 'inside push_back, not in this file', '推断', CPP_FINDINGS.push, CPP_EVIDENCE.push) },
-      'cpp-s2-new': { label: '新存储 [推断]', notes: pocNote(CPP_SCENE, CPP_PANELS.add, 'fresh block when capacity grows', '推断', CPP_FINDINGS.push, CPP_EVIDENCE.push) },
-      'cpp-s3-old': { label: '旧内存块 [推断]', notes: pocNote(CPP_SCENE, CPP_PANELS.after, 'released after the move [inference]', '推断', CPP_FINDINGS.push, CPP_EVIDENCE.push) },
-      'cpp-s3-ref': { label: 'ref [推断]', notes: pocNote(CPP_SCENE, CPP_PANELS.after, 'dangling if storage moved', '推断', CPP_FINDINGS.lifetime, CPP_EVIDENCE.lifetime) },
-      'cpp-s3-ret': { label: '返回 ref [来源]', notes: pocNote(CPP_SCENE, CPP_PANELS.after, 'caller receives the reference', '来源', CPP_FINDINGS.use, CPP_EVIDENCE.use) },
-    },
-    zones: {
-      'cpp-panel-bind': { label: '状态 1 —— 引用绑定 · 示意' },
-      'cpp-panel-add': { label: '状态 2 —— add() 执行 · 示意' },
-      'cpp-panel-after': { label: '状态 3 —— 调用之后 · 示意' },
-    },
-    notes: {
-      'cpp-scene-lifetime': `${CPP_SCENE} [推断]\n对象 / 程序状态\n${CPP_DETAIL}\n静态源码阅读；未执行。这是示意图，不是观测到的运行时，也不是 ABI 或字节级精确布局。\n[来源] 引用源码 · [推断] 推断得出 · [未知] 未评估`,
-    },
-    journey: {
-      j1: { label: '生命周期状态', caption: '同一个引用的三个状态：绑定到 vector 存储、跨过 add() 保存、重分配后悬垂。扩容是对 std::vector 语义的推断，已明确标注。' },
-      j2: { label: '连线与证据', caption: '沿连线阅读：引用指向内存块、跨过 push_back 保存、可能比已释放的存储活得更久。之后再读取它属于未定义行为 [推断]。' },
-      'cpp-scene-lifetime-chapter': { label: '安全示意图（机制）：add() 调用前后的 Entry 引用', caption: `静态源码解释 [推断]；未执行任何 PoC。${CPP_DETAIL}` },
-    },
-    wires: {
-      'cpp-s1-ref>cpp-s1-store': '指向 [来源]',
-      'cpp-s1-ref>cpp-s2-add': '跨调用保留 [来源]',
-      'cpp-s2-guard>cpp-s2-new': '扩容触发重分配 [推断]',
-      'cpp-s2-new>cpp-s3-old': '旧内存块被释放 [推断]',
-      'cpp-s3-old>cpp-s3-ref': '引用比存储存活更久 [推断]',
-    },
-  },
-  'poc-py-queue-gateway': {
-    name: 'Python 队列网关（载荷结构）',
-    title: '队列网关载荷结构',
-    nodes: {
-      'py-req-type': { label: 'type [来源]', notes: pocNote(PY_SCENE, PY_PANELS.request, 'request["type"]', '来源', PY_FINDINGS.type, PY_EVIDENCE.type) },
-      'py-req-data': { label: 'data [来源]', notes: pocNote(PY_SCENE, PY_PANELS.request, 'request["data"], any JSON', '来源', PY_FINDINGS.payload, PY_EVIDENCE.payload) },
-      'py-req-user': { label: 'user [来源]', notes: pocNote(PY_SCENE, PY_PANELS.request, 'request["user"]', '来源', PY_FINDINGS.boundary, PY_EVIDENCE.boundary) },
-      'py-msg-type': { label: 'message["type"] [来源]', notes: pocNote(PY_SCENE, PY_PANELS.message, 'copied from the request', '来源', PY_FINDINGS.type, PY_EVIDENCE.type) },
-      'py-msg-payload': { label: 'payload [来源]', notes: pocNote(PY_SCENE, PY_PANELS.message, 'base64(json(data))', '来源', PY_FINDINGS.payload, PY_EVIDENCE.payload) },
-      'py-msg-by': { label: 'requested_by [来源]', notes: pocNote(PY_SCENE, PY_PANELS.message, 'caller-supplied name', '来源', PY_FINDINGS.boundary, PY_EVIDENCE.boundary) },
-      'py-dis-decode': { label: '解码载荷 [来源]', notes: pocNote(PY_SCENE, PY_PANELS.dispatch, 'json.loads(b64decode(...))', '来源', PY_FINDINGS.payload, PY_EVIDENCE.payload) },
-      'py-dis-size': { label: '尺寸检查 [来源]', notes: pocNote(PY_SCENE, PY_PANELS.dispatch, 'len(message_text) > 4096, after decoding', '来源', PY_FINDINGS.guard, PY_EVIDENCE.guard) },
-      'py-dis-route': { label: '处理函数查找 [推断]', notes: pocNote(PY_SCENE, PY_PANELS.dispatch, 'handlers.get(message["type"])', '推断', PY_FINDINGS.handlers, PY_EVIDENCE.handlers) },
-      'py-dis-call': { label: 'handler(data) [推断]', notes: pocNote(PY_SCENE, PY_PANELS.dispatch, 'whatever the registry holds', '推断', PY_FINDINGS.handlers, PY_EVIDENCE.handlers) },
-    },
-    zones: {
-      'py-panel-request': { label: '调用方一侧 —— 请求字段 · 示意' },
-      'py-panel-message': { label: '网关一侧 —— 队列消息 · 示意' },
-      'py-panel-dispatch': { label: 'dispatch() —— 检查与路由 · 示意' },
-    },
-    notes: {
-      'py-scene-structure': `${PY_SCENE} [推断]\n数据 / 载荷结构\n${PY_DETAIL}\n静态源码阅读；未执行。这是示意图，不是观测到的运行时，也不是 ABI 或字节级精确布局。\n[来源] 引用源码 · [推断] 推断得出 · [未知] 未评估`,
-    },
-    journey: {
-      j1: { label: '跨过边界', caption: '调用方的请求字段未经校验就成为内部队列消息的 type、payload 和请求者。示意图展示的是结构，而非运行中的服务。' },
-      j2: { label: '校验与路由', caption: 'dispatch() 在尺寸检查之前解码载荷，并按消息自带的 type 字段路由。每个单元都引用保留的教学源码。' },
-      'py-scene-structure-chapter': { label: '安全示意图（机制）：跨信任边界的队列消息', caption: `静态源码解释 [推断]；未执行任何 PoC。${PY_DETAIL}` },
-    },
-    wires: {
-      'py-req-type>py-msg-type': '原样复制 [来源]',
-      'py-req-data>py-msg-payload': '序列化并编码 [来源]',
-      'py-msg-type>py-dis-route': '选定处理函数 [来源]',
-      'py-msg-payload>py-dis-decode': '原样解码 [来源]',
-      'py-dis-decode>py-dis-size': '之后才检查 [来源]',
-      'py-dis-route>py-dis-call': '调用 [推断]',
-    },
   },
 };

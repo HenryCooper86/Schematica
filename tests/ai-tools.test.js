@@ -10,8 +10,8 @@ function plain(doc) {
   return createExecutor({ getDoc: () => doc, commit: (fn) => fn(doc), selection: () => ['n5'] });
 }
 
-test('nine tools with the expected names and strict flags', () => {
-  assert.deepEqual(TOOLS.map((t) => t.name), ['read_skill', 'read_url', 'rdk_reference', 'search_parts', 'get_board', 'run_checks', 'list_presets', 'apply_edits', 'arrange']);
+test('ten tools with the expected names and strict flags', () => {
+  assert.deepEqual(TOOLS.map((t) => t.name), ['read_skill', 'read_url', 'rdk_reference', 'search_parts', 'get_board', 'run_checks', 'list_presets', 'apply_edits', 'reconstruct_from_log', 'arrange']);
   for (const t of TOOLS) {
     assert.equal(typeof t.description, 'string');
     assert.equal(t.input_schema.type, 'object');
@@ -189,4 +189,66 @@ test('tool status lines follow the interface language', () => {
   } finally {
     setLang('en');
   }
+});
+
+const incidentLog = JSON.stringify({
+  incident: 'IR-2026-07',
+  trustBoundaries: [{ id: 'sbx', name: 'SANDBOX' }],
+  nodes: { attacker: 'threatactor', sandbox: 'server' },
+  actions: [
+    { ts: '2026-07-09T02:28:00Z', actor: 'attacker', action: 'recon', target: 'sandbox', phase: 'recon', boundary: 'sbx' },
+    { ts: '2026-07-09T04:01:00Z', actor: 'attacker', action: 'rce', target: 'sandbox', phase: 'rce', boundary: 'sbx' },
+    { ts: '2026-07-10T03:00:00Z', actor: 'attacker', action: 'exfil', target: 's3', phase: 'exfil' },
+  ],
+});
+
+test('reconstruct_from_log draws an incident with one chapter per phase on an empty board', () => {
+  const doc = newDoc();
+  const ex = plain(doc);
+  const res = ex.run('reconstruct_from_log', { log: incidentLog });
+  assert.equal(res.isError, false, res.text);
+  assert.equal(doc.title, 'IR-2026-07');
+  assert.deepEqual(doc.nodes.map(n => n.label).sort(), ['attacker', 's3', 'sandbox']);
+  assert.equal(doc.nodes.find(n => n.label === 'attacker').kind, 'threatactor');
+  assert.equal(doc.zones.length, 1);
+  assert.deepEqual(doc.journey.map(c => c.label), ['Phase: recon', 'Phase: rce', 'Phase: exfil']);
+  assert.ok(doc.notes.some(n => n.text.startsWith('Reconstructed from a log.')));
+  assert.match(res.text, /3 steps/);
+  assert.equal(ex.touched.size, 3);
+});
+
+test('reconstruct_from_log refuses to replace a non-empty board until replace is true', () => {
+  const doc = newDoc();
+  plain(doc).run('apply_edits', { ops: [{ op: 'add_part', ref: 'a', kind: 'mcu', label: 'Keep me' }] });
+  const ex = plain(doc);
+  const refused = ex.run('reconstruct_from_log', { log: incidentLog });
+  assert.equal(refused.isError, true);
+  assert.match(refused.text, /replace: true/);
+  assert.equal(doc.nodes[0].label, 'Keep me');
+  const replaced = ex.run('reconstruct_from_log', { log: incidentLog, replace: true });
+  assert.equal(replaced.isError, false, replaced.text);
+  assert.ok(!doc.nodes.some(n => n.label === 'Keep me'));
+});
+
+test('reconstruct_from_log reads a named attachment and reports bad input without changing the board', () => {
+  const doc = newDoc();
+  const ex = createExecutor({ getDoc: () => doc, commit: fn => fn(doc), attachment: name => (name === 'ir.json' ? incidentLog : null) });
+  assert.match(ex.run('reconstruct_from_log', { attachment: 'missing.json' }).text, /No attached document/);
+  assert.equal(ex.run('reconstruct_from_log', {}).isError, true);
+  assert.match(ex.run('reconstruct_from_log', { log: 'not json' }).text, /not valid JSON/);
+  assert.equal(doc.nodes.length, 0);
+  assert.equal(ex.run('reconstruct_from_log', { attachment: 'ir.json' }).isError, false);
+  assert.equal(doc.nodes.length, 3);
+});
+
+test('reconstruct_from_log inside an assistant reply batch is one undo step', () => {
+  const store = new Store(newDoc());
+  const ex = createExecutor({ getDoc: () => store.doc, commit: fn => store.mutate(fn) });
+  store.beginBatch();
+  ex.run('reconstruct_from_log', { log: incidentLog });
+  store.endBatch();
+  assert.equal(store.doc.nodes.length, 3);
+  store.undo();
+  assert.equal(store.doc.nodes.length, 0);
+  assert.equal(store.doc.journey.length, 0);
 });

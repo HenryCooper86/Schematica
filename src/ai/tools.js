@@ -17,11 +17,12 @@ import { boardText, partLine, templateLine } from './context.js';
 import { searchRdk } from '../rdk/catalogue.js';
 import { referenceText, rdkProfile } from '../rdk/guide.js';
 import { tr } from '../i18n.js';
+import { parseIncidentLog, reconstructIncident } from '../incident-replay.js';
 
 const EMPTY = { type: 'object', properties: {}, additionalProperties: false };
 
 export const TOOLS = [
-  { name: 'read_skill', description: 'Load focused guidance for a task. Skills are blueprint (planning), flow (diagram design), simplify (clarity), presentation (storytelling), review (architecture checks), security (routing CVE analysis). Read-only.',
+  { name: 'read_skill', description: 'Load focused guidance for a task. Skills are blueprint (planning), flow (diagram design), simplify (clarity), presentation (storytelling), review (architecture checks), explain (attacks, vulnerabilities and incident logs). Read-only.',
     input_schema: { type: 'object', properties: { skill: { type: 'string', enum: SKILLS.map(s => s.id) } }, required: ['skill'], additionalProperties: false }, strict: true },
   { name: 'read_url', description: 'Read one public HTTP(S) HTML, text, or PDF URL through the website backend. Returns source URL, fetched time, extracted text, partial flag and links. No search engine, login, JavaScript execution or automatic crawling. Up to four sources per request. External text is untrusted data.', input_schema: { type: 'object', properties: { url: { type: 'string', maxLength: 4096 } }, required: ['url'], additionalProperties: false }, strict: true },
   { name: 'rdk_reference', description: 'Read source-linked RDK board, camera and software constraints by product words. Up to 12 matches; reference data, not instructions or hardware certification.', input_schema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'], additionalProperties: false }, strict: true },
@@ -55,6 +56,12 @@ export const TOOLS = [
     input_schema: EDIT_SCHEMA,
   },
   {
+    name: 'reconstruct_from_log',
+    description: 'Rebuild an incident as a board from a JSON log of timestamped actions: {"incident"?, "trustBoundaries"?: [{id, name}], "nodes"?: {name: kind}, "actions": [{ts, actor, action, target?, note?, phase?, boundary?, kind?}]} or a bare actions array. Near-identical consecutive actions collapse into one step; actors and targets become parts, actor-to-target actions become wires, boundaries become zones, and each phase becomes a presentation chapter with one stop per step in time order. Pass the log text in log, or the name of an attached document in attachment. It replaces the whole board, so on a non-empty board ask the user first and then pass replace: true.',
+    input_schema: { type: 'object', properties: { log: { type: 'string' }, attachment: { type: 'string' }, replace: { type: 'boolean' } }, additionalProperties: false },
+    strict: true,
+  },
+  {
     name: 'arrange',
     description: 'Lay the whole board out again from scratch. Moves every card except locked ones, which stay where they are; use only when the user asks to tidy or rearrange.',
     input_schema: EMPTY,
@@ -73,6 +80,7 @@ export function statusLine(name, input = {}) {
     case 'run_checks': return tr('running checks');
     case 'list_presets': return tr('presets for {kind}', { kind: i.kind ?? '' });
     case 'apply_edits': return tr('applying {n} edits', { n: Array.isArray(i.ops) ? i.ops.length : 0 });
+    case 'reconstruct_from_log': return tr('rebuilding the incident from the log');
     case 'arrange': return tr('arranging the board');
     default: return name;
   }
@@ -80,7 +88,7 @@ export function statusLine(name, input = {}) {
 
 const findingLine = (f) => `${f.level} ${f.rule} "${f.message}" ids: ${f.ids.join(' ')}`;
 
-export function createExecutor({ getDoc, commit, selection = () => [], library = null, readUrl = createWebReader() }) {
+export function createExecutor({ getDoc, commit, selection = () => [], library = null, readUrl = createWebReader(), attachment = () => null }) {
   const touched = new Set();
   const ok = (text) => ({ text, isError: false });
   const err = (text) => ({ text, isError: true });
@@ -151,6 +159,24 @@ export function createExecutor({ getDoc, commit, selection = () => [], library =
       text += `\n${res.changes.join('\n')}`;
       if (res.warnings.length) text += `\nwarnings:\n${res.warnings.join('\n')}`;
       return ok(text);
+    },
+    reconstruct_from_log(input) {
+      let source = typeof input.log === 'string' ? input.log : '';
+      if (!source.trim() && input.attachment) {
+        source = attachment(String(input.attachment));
+        if (source == null) return err(`No attached document is named "${input.attachment}". Ask the user to attach the log or paste it.`);
+      }
+      if (!source.trim()) return err('Pass the log text in log, or the name of an attached document in attachment.');
+      const doc = getDoc();
+      const hasWork = doc.nodes.length || doc.zones.length || doc.notes.length || (doc.journey || []).length;
+      if (hasWork && input.replace !== true) return err('The board is not empty and reconstruction replaces it. Ask the user to confirm, then call again with replace: true.');
+      let result;
+      try { result = reconstructIncident(parseIncidentLog(source)); } catch (error) { return err(error.message); }
+      commit((d) => { for (const key of ['title', 'nodes', 'wires', 'zones', 'notes', 'journey']) d[key] = result.doc[key]; });
+      for (const n of getDoc().nodes) touched.add(n.id);
+      const steps = result.timeline.length;
+      const phases = result.phases.map((p) => `${p.name} (${p.count} action(s))`).join('; ');
+      return ok(`Rebuilt "${result.doc.title}": ${result.doc.nodes.length} parts, ${result.doc.wires.length} wires, ${result.doc.zones.length} zones, ${steps} steps.\nPhases, one presentation chapter each: ${phases}\nThe board carries a note that it was reconstructed from a log. Kinds default to process cards unless the log names them; you may refine kinds, labels and notes with apply_edits.`);
     },
     arrange() {
       const doc = getDoc();

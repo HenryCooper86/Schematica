@@ -1,4 +1,3 @@
-import { validateSecurityAnalysis } from './security-analysis.js';
 import { validateKiCadProvenance } from './kicad.js';
 import { validateBlueprint } from './blueprint.js';
 import { normalizeInterfacePorts } from './interface-checks.js';
@@ -336,10 +335,8 @@ export function deserialize(text, { depth = 0 } = {}) {
     try { doc.blueprint = validateBlueprint(raw.blueprint); }
     catch { warnings.push(tr('Dropped an invalid Blueprint.')); }
   }
-  if (raw.securityAnalysis != null) {
-    try { doc.securityAnalysis = validateSecurityAnalysis(raw.securityAnalysis); }
-    catch (error) { warnings.push(tr('Dropped invalid security analysis: {message}', { message: error.message })); }
-  }
+  // Saved security analyses came from a removed panel; the board itself still loads.
+  if (raw.securityAnalysis != null) warnings.push(tr('Dropped a saved security analysis; explain attacks with the assistant instead.'));
   const engineering = normalizeEngineering(raw.engineering, warnings);
   if (engineering) doc.engineering = engineering;
   if (raw.kicad !== undefined) {

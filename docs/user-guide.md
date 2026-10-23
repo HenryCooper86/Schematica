@@ -14,7 +14,7 @@ The instructions use English button names. Toolbar icons show their names on hov
 - [Share and export](#share-and-export)
 - [Compare and import](#compare-and-import)
 - [Use the assistant](#use-the-assistant)
-- [Explain CVEs and PoCs](#security-analysis)
+- [Explain an attack or incident](#explain-an-attack-or-incident)
 - [Present your board](#present-your-board)
 - [Review with a team](#review-with-a-team)
 - [Keyboard shortcuts](#keyboard-shortcuts)
@@ -282,158 +282,36 @@ connectivity depends on provider CORS support or the configured relay; see
 [server setup](backend.md). A model response is a proposal to inspect, not verified
 engineering evidence.
 
-## Security analysis
+## Explain an attack or incident
 
-Choose the **shield button → Security analysis** in the toolbar. This separate,
-non-modal panel explains CVE records, advisories, PoC source code and patches
-by **static reading only**. It never runs code, installs dependencies or tests
-a target. Configure the provider in **Assistant**; both panels share its settings
-and memory-only key. Provider requests may be billed by that provider.
+Ask the **Assistant** to explain a vulnerability, attack or incident and it
+draws it on the board: the attacker or entry point as a threat part, the
+affected system as ordinary parts, trust boundaries as zones, and the attack
+path as labelled wires. It then adds a short presentation with one stop per
+step, which you play with **Present**. The **Explain an attack or incident**
+skill is chosen automatically when you mention a CVE, exploit, attack or
+incident, or you can pick it in the **Skill** selector.
 
-Drag the **Assistant** or **Security analysis** title bar to move either panel
-anywhere across the page, including over the palette. Each panel remembers its
-position on this device. Focus the title bar and use arrow keys to nudge it;
-hold Shift for larger moves. Header controls remain independent of dragging.
-Window resizing and collapsing keep a draggable part of the header reachable.
+- Describe the attack in your own words, or paste a link to an advisory. The
+  assistant reads only links you give it, and only on the Node-backed edition.
+- To rebuild an incident, attach a JSON log of timestamped actions and ask what
+  happened. The log is `{"incident", "trustBoundaries": [{id, name}], "nodes":
+  {name: kind}, "actions": [{ts, actor, action, target, note, phase, boundary}]}`
+  or a bare array of actions; only `ts`, `actor` and `action` are required.
+  Repeated actions within five minutes collapse into one step, each phase
+  becomes a presentation chapter, and a note marks the board as reconstructed
+  from a log. Rebuilding replaces the board, so on a non-empty board the
+  assistant asks first.
+- Review the preview and choose **Apply changes**. One Undo removes the result.
 
-1. Enter a CVE identifier and choose **Look up CVE**, enter a public source
-   **URL**, choose **Add files**, or **Add pasted source**. CVE lookup and URL
-   reading require the Node-backed edition. Published CVE records can bring in
-   up to two relevant advisory references; failures remain visible.
-   C, C++ and Python source files (`.c .h .cpp .hpp .cc .cxx .hh .hxx .c++ .py`
-   `.pyw`) import as plain text — static reading never compiles or runs them —
-   and a CVE record is optional: leave the field empty and analyze the
-   retained source alone.
-2. Review source names, coverage, hashes and warnings. Uncheck sources you do
-   not want sent, or remove them. Files and pasted text remain local at this
-   stage; CVE/URL reads contact the website server and public source hosts.
-3. Add an optional question and choose **Analyze retained sources**. Only checked
-   sources and your note are eligible for the configured model. Inspect the
-   resulting summary, findings, logical relationships and unknowns. The model
-   receives bounded excerpts and, when supported, requested retained line ranges.
-   Initial CVE excerpts keep the source introduction and context around references
-   to the requested CVE, rather than spending the entire excerpt on navigation.
-   Citation line numbers remain absolute; gaps between excerpts remain unread.
-   **Source retention and model-read coverage** distinguishes stored text from
-   complete lines actually delivered to the model. Undelivered retained lines
-   remain unassessed, even when targeted reads were available. Delivery does not
-   prove comprehension; older saved analyses explicitly show coverage not recorded.
-4. Click a citation to read the numbered excerpt. **Source-backed** means the
-   statement cites retained text, not that exploitation was reproduced.
-   **Inference** and **Unknown** remain visibly distinct. Reserved/rejected
-   records and unavailable details do not establish a vulnerability.
-   Every new analysis includes an outcome for affected components, root cause,
-   prerequisites, steps, impact, severity, mitigations, unknowns and PoC/advisory
-   consistency. An omitted area is labeled **not assessed**, not silently filled
-   with a conclusion. Consistency means evidence agreement, not a working exploit.
-   Keep vendor-specific scope, severity and impact claims attributed separately;
-   a multi-CVE advisory's overall severity or a neighboring CVE's description
-   does not establish this CVE's impact.
-   For reserved/rejected records, vulnerability-specific findings and relationships
-   remain **Unknown**; record-state facts and rejection reasons can still cite sources.
-5. Choose **Preview visual explanation** for the illustrated overview. Under
-   **Technical finding views**, **Architecture**, **Exploit path** and **Mitigation**
-   remain detailed finding graphs for evidence review, not alternate illustrated styles.
-   **Save analysis with board** saves the retained analysis without drawing a scene.
-   Nothing changes the board until **Apply changes**; normal Undo/Redo also covers
-   analysis-only saves. Applied results follow restored board history, including
-   their diagram links; a separately generated unsaved result remains independent.
-   Applying a visual explanation closes the drawer and frames the first new scene,
-   including its panel captions, instead of fitting every older diagram on the board.
-   Other scenes are available through Journey. Existing cards, connections and
-   chapters are preserved; one Undo removes the new build.
-   Ordinary analysis plans a concise source-supported overview without special
-   notes: an actor/request/target/outcome composition, or memory, structure,
-   sequence, state and comparison panels appropriate to the source. Every card
-   and link shows the weakest basis of its grounding findings.
-   Older analyses without scenes show **Restore analysis sources**. Restore,
-   review the checked sources, and **Analyze retained sources** before previewing
-   again. There is no invented fallback scene, and existing cards are not
-   automatically redrawn.
-   Incomplete or ambiguously grounded scenes are omitted whole with warnings,
-   so removing an uncertain dependency cannot make their narrative source-backed.
-   Review the warnings and reanalyze rather than treating an omitted scene as assessed.
-   Two figure kinds extend those scenes. An **attack** scene places an
-   illustrated actor on the left, request and return capsules in the middle,
-   and a grouped target on the right — application, memory or secrets,
-   pressure and an optional outcome column. A **parallel** scene aligns
-   request, target and outcome rows beside one shared actor. Panels carry
-   semantic placement and row hints only — never coordinates — and an
-   illustrated asset is drawn only when a cited finding claims that same
-   asset with an established basis; an unsupported hint keeps the neutral
-   role symbol instead of decorating the picture.
-   New analyses select icons from the asset library for supported operating systems,
-   servers, software packages, actors, hardware and controls—not just process
-   boxes. The library also carries illustrated security figure assets: an
-   adversary behind a laptop, request and response capsules, payload and
-   memory-dump capsules, process-memory and secret-store tiles, a memory-limit
-   gauge, crash and code-execution outcome callouts, and original application
-   illustrations labelled PHP, WordPress, Drupal and Joomla — original artwork
-   and names, never vendor logos — each with four logical link ports and
-   legible captions in light, dark and exported figures.
-   Views without trust zones arrange their cards into labelled, colour-coded scene
-   bands (Actors, Attack sequence, Security controls, Network & services, Systems &
-   platforms, Devices, Facilities), so the picture reads as a composition of scenes
-   rather than one flat flow. Grouping comes from catalogue categories and role
-   glyphs, never invented containment; views with trust zones keep the flat layout
-   because a trust rectangle must span exactly what the analysis declared inside.
-   Each card names its asset type and evidence basis; actions remain distinct from
-   the systems they affect. Connections describe logical relationships, not inferred
-   physical network interfaces. Assets are selected from the findings, never guessed
-   from a CVE title or added merely to decorate the diagram. Unknown findings keep
-   neutral symbols. Reanalyze older results to gain source-specific asset selections;
-   existing boards and manually edited illustrations are not replaced automatically.
-   Long labels wrap inside their cards and connection pills. New illustrations
-   follow directed relationship layers instead of a generic hub layout; only
-   attack actions are numbered in exploit views, not prerequisites or root causes.
-   Relationships involving metadata remain annotations rather than invented
-   attack stages. Oversized metadata is rejected before changing the board,
-   rather than silently truncating a relationship.
-   Trust-zone membership requires explicit inside/outside/crossing metadata, not
-   adjacency or a guessed interpretation of a relationship label. Ambiguous
-   membership remains visible as boundary cards and labeled connections.
-   Shared memberships likewise stay explicit without inventing nested domains.
-6. Select a generated canvas stage to see its explanation and first cited excerpt.
-   **Show walkthrough** lists linked stops; open **Journey → Present** to play
-   the generated chapters. Missing board references remain visible.
-   Walkthrough stops belong to the newest illustration of the selected view.
-   Deleted targets remain missing rather than switching to another view or an
-   older illustration. Older boards without a recorded view association must be
-   illustrated again before their targets can be associated reliably.
-7. **Download HTML report** creates a standalone cited report with the current
-   board figure. **Print** opens browser printing; choose **Save as PDF**.
-   Reports include cited excerpts. Full retained source text is **off by default**
-   and requires **Include full retained source text**. Review the figure and
-   source contents before sharing. The project technical report also has a
-   selectable **Security analysis** section and its own full-source opt-in.
+Drawings are illustrations, not vulnerability assessments. The assistant does
+not run or write working exploit code, contact or test systems, or confirm that
+an attack works, and it records what it assumed in a note.
 
-**Saving changes the privacy boundary:** an applied analysis includes its
-retained source text in board files, autosave, revisions, and share links.
-Anyone receiving those copies can read the sources. Unapplied imports and
-analysis results stay in the current tab; reopening a saved board restores
-applied findings, citations and diagram links without another model request.
-
-The **Security** group of the Examples menu includes three small teaching
-boards — a C stack copy, a C++ dangling reference and a Python queue gateway —
-each carrying its retained source text, findings authored by static reading
-(no CVE, nothing executed, no model validation) and a ready-made mechanism
-illustration with a walkthrough. Two figure boards join them: a hypothetical
-PHP memory-snapshot attack composition — an unauthenticated caller, crafted
-request and returned-snapshot capsules, and a PHP host with interpreter
-memory, secrets, a 24M limit and conditional outcomes — and a parallel
-application-outcome composition with one shared caller and four aligned
-scenario rows. Both figure boards are synthetic teaching scenarios written
-for the examples; the WordPress, Drupal and Joomla row names are labels the
-retained scenario text itself disclaims, every outcome is conditional, and
-neither board is a PHP2Shell or CVE applicability assessment for any product.
-
-PoC behavior may be described or inferred, never verified by this workflow.
-Product/version/configuration applicability and deployment risk still require
-review. Source hashes identify retained normalized/extracted text, not an
-authenticated original artifact. PDF/DOCX citations refer to extracted lines,
-not original page coordinates; scanned PDFs require external OCR.
-See [security limits](editor-reference.md#security-analysis-records-and-limits).
-
+Drag the **Assistant** title bar to move the panel anywhere across the page,
+including over the palette. It remembers its position on this device. Focus the
+title bar and use arrow keys to nudge it; hold Shift for larger moves. Window
+resizing and collapsing keep a draggable part of the header reachable.
 
 ## Present your board
 

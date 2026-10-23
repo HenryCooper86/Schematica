@@ -1,4 +1,3 @@
-import { securityAnalysisSection } from './security-analysis.js';
 import { esc } from './render.js';
 import { formatCurrent } from './power.js';
 
@@ -41,9 +40,6 @@ export function technicalReportHTML(report) {
     + `<h3>Next steps</h3>${narrative(d.nextSteps, 'Next steps have not been provided.')}`);
   if (d.sections.includes('architecture')) add('architecture', 'System architecture', narrative(d.architecture, 'Architecture explanation has not been provided.')
     + report.figures.map(f => `<figure class="figure"><img src="data:image/svg+xml;charset=utf-8,${esc(encodeURIComponent(f.svg))}" alt="${esc(f.title)} architecture diagram"><figcaption>${esc(f.caption)}</figcaption></figure>`).join(''));
-  if (d.sections.includes('security')) add('security', 'Security analysis',
-    (report.security || []).map((record, index) => `<h3>${esc(record.scopeTitle)}</h3>${securityAnalysisSection(record.analysis, { includeSources: d.securitySources === true, prefix: `security-${index}` })}`).join('')
-    || '<p class="muted">No security analysis recorded. A clean architecture check is not a security assessment.</p>');
   add('risks', 'Risks and open issues', narrative(d.risks, 'Project-specific risks have not been provided.')
     + `<h3>Automated findings</h3>${table(['Severity', 'Scope', 'Finding', 'Review disposition'], report.findings.map(f => `<tr class="finding-${esc(f.level)}">${[f.level, f.scopeTitle, f.message, f.exception ? `${f.exception.owner}: ${f.exception.rationale}` : 'Needs review'].map(cell).join('')}</tr>`), 'No automated findings recorded for this snapshot.')}`
     + `<p class="note">${esc(coverage)}. Reviewed exceptions retain their finding and rationale. They do not turn failed checks into verified results.</p>`);

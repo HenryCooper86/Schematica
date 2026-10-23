@@ -1,4 +1,4 @@
-// Free dragging for the floating panels (Assistant, Security analysis). The
+// Free dragging for the floating Assistant panel. The
 // panels live in #canvas-wrap, which clips its overflow, so a dragged panel
 // is switched to viewport (position: fixed) coordinates: it can cross onto
 // the palette and the toolbar while remaining a child of the canvas area, so

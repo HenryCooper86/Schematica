@@ -1,5 +1,4 @@
 import { createSettings } from './ai/settings.js';
-import { initSecurityAnalysis } from './ui/security-ui.js';
 import { createStartupRecovery, RECOVERY_PREFIX } from './startup-recovery.js';
 import { initTeamReview } from './ui/team-review.js';
 import { initOnboarding } from './ui/onboarding.js';
@@ -32,7 +31,6 @@ import { initRecording } from './ui/recording-ui.js';
 import { initLayoutToggles } from './ui/panels.js';
 import { initShortcuts } from './ui/shortcuts-ui.js';
 import { initAssistant } from './ui/assistant-ui.js';
-import { initIncidentReplay } from './ui/incident-replay.js';
 import { initI18n, onLanguageChange, tr } from './i18n.js';
 import { translateStatic, initLanguageSwitch } from './ui/i18n-dom.js';
 
@@ -267,14 +265,11 @@ initTeamReview({navigation});
 initOnboarding({ store, navigation, revisions, engineering: engineeringUI, tools, connections });
 const recorder = initRecording({ svg, store });
 const journeyUI = initJourney({ svg, store, tools, render, recorder, propsPanel });
-const incidentReplay = initIncidentReplay({ svg, store, tools, render });
-document.getElementById('btn-incident').addEventListener('click', () => incidentReplay.pickIncidentFile());
 initExamplesMenu({ store });
 initLayoutToggles();
 initShortcuts();
 const aiSettings = createSettings(storage);
 initAssistant({ store, tools, render, svg, library, settings: aiSettings });
-initSecurityAnalysis({ store, tools, render, svg, library, settings: aiSettings });
 
 initLanguageSwitch(document.getElementById('btn-lang'));
 // Flag tooltips are drawn into the SVG, so the canvas redraws on a switch.

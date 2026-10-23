@@ -163,6 +163,8 @@ export function initAssistantDocuments({ container, onChange = () => {} }) {
   }
   renderStatic();
   render();
-  return { context: () => currentContext, clear, setBusy(on) { busy = !!on; render(); }, isImporting: () => !!importing,
+  // The full text of one selected document, for tools that need the whole file.
+  const documentText = name => documents.find(d => selected.has(d.id) && d.name === name)?.text ?? null;
+  return { context: () => currentContext, documentText, clear, setBusy(on) { busy = !!on; render(); }, isImporting: () => !!importing,
     relabel() { renderStatic(); render(); } };
 }

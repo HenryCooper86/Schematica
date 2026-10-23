@@ -9,7 +9,6 @@ import { runWebChecks } from './web.mjs';
 import { runGuideChecks } from './guide.mjs';
 import { runAssistantFocusChecks } from './assistant-focus.mjs';
 import { runAssistantHistoryChecks } from './assistant-history.mjs';
-import { runSecurityChecks } from './security.mjs';
 import { runPanelMovementChecks } from './panel-movement.mjs';
 import { runSkillChecks } from './assistant-skills.mjs';
 import { runWorkflowChecks } from './workflows.mjs';
@@ -80,16 +79,7 @@ async function fakeAnthropic(req, res) {
   const events = [];
   const ev = (event, data) => events.push(`event: ${event}\ndata: ${JSON.stringify({ type: event, ...data })}\n\n`);
   ev('message_start', { message: { usage: { input_tokens: 10, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } });
-  if (lastText.includes('SECURITY_UI_INDEPENDENT_DRAFT')) {
-    // Controlled response for UI history isolation, not semantic-model evidence.
-    const analysis = { title: 'Independent security draft', summary: 'A separate unsaved analysis remains independent of board history.',
-      findings: [{ id: 'draft-unknown', kind: 'unknown', title: 'Unassessed input', detail: 'No source-backed vulnerability assessment was supplied.', basis: 'unknown', view: 'none', evidence: [] }],
-      relationships: [], warnings: [] };
-    ev('content_block_start', { index: 0, content_block: { type: 'text', text: '' } });
-    ev('content_block_delta', { index: 0, delta: { type: 'text_delta', text: JSON.stringify(analysis) } });
-    ev('content_block_stop', { index: 0 });
-    ev('message_delta', { delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 60 } });
-  } else if (hasResults) {
+  if (hasResults) {
     ev('content_block_start', { index: 0, content_block: { type: 'text', text: '' } });
     ev('content_block_delta', { index: 0, delta: { type: 'text_delta', text: last.content.some(b => b.type === 'tool_result' && String(b.content).includes('SCHEMATICA_WEB_FIXTURE')) ? 'Read source: https://example.com/docs. ' : 'Done. ' } });
     ev('content_block_delta', { index: 0, delta: { type: 'text_delta', text: 'The board is in place.' } });
@@ -335,8 +325,6 @@ try {
     await runReliabilityChecks({ ...teamTools, send, origin, sleep });
   } else if (process.env.GUIDE_E2E_ONLY) {
     await runGuideChecks({ send, js, check, origin, sleep });
-  } else if (process.env.SECURITY_E2E_ONLY) {
-    await runSecurityChecks({ send, js, check, sleep, origin, capture: teamTools.capture });
   } else if (process.env.PANELS_E2E_ONLY) {
     await runPanelMovementChecks({ js, check, send, key, drag, click, center, mouse, sleep, waitFor });
   } else if (process.env.HISTORY_E2E_ONLY) {
@@ -1477,7 +1465,6 @@ try {
   await runTeamReviewChecks(teamTools);
   await runAssistantHistoryChecks({ send, js, check, sleep, fakeSeen, capture: teamTools.capture, origin });
   await runGuideChecks({ send, js, check, origin, sleep });
-  await runSecurityChecks({ send, js, check, sleep, origin, capture: teamTools.capture });
   await runPanelMovementChecks({ js, check, send, key, drag, click, center, mouse, sleep, waitFor });
   await runMediaReliabilityChecks({ js, check, sleep, send, origin });
   await runReliabilityChecks({ ...teamTools, send, origin, sleep });

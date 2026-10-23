@@ -1,11 +1,10 @@
 // Consumer-visible regression coverage for the freely movable floating
-// panels (Assistant, Security analysis). Drives real CDP mouse, touch and
+// Assistant panel. Drives real CDP mouse, touch and
 // keyboard events and asserts deltas, bounds and invariants — never absolute
 // pixel positions, stored strings, or header wording — so the checks track
 // behavior, not layout or internals.
 export async function runPanelMovementChecks({ js, check, send, key, drag, click, center, mouse, sleep, waitFor }) {
   const ASSISTANT = '#assistant';
-  const SECURITY = '#security-panel';
 
   const pos = (sel) => js(`(() => {
     const el = document.querySelector(${JSON.stringify(sel)});
@@ -35,9 +34,9 @@ export async function runPanelMovementChecks({ js, check, send, key, drag, click
   // ---- Baseline: a malformed stored position must not break the panel ----
   // Reload after writing malformed values so readPos runs against them and
   // falls back to the laid-out default rather than throwing or stranding.
-  await js(`(() => { localStorage.setItem('schematica.panel.assistant.pos', '{malformed'); localStorage.setItem('schematica.panel.security.pos', '[]'); return true; })()`);
+  await js(`(() => { localStorage.setItem('schematica.panel.assistant.pos', '{malformed'); return true; })()`);
   await send('Page.reload');
-  await waitFor(`!!document.getElementById('btn-assistant') && !!document.getElementById('security-panel') && document.querySelectorAll('#palette .palette-item').length > 0`);
+  await waitFor(`!!document.getElementById('btn-assistant') && document.querySelectorAll('#palette .palette-item').length > 0`);
   await openPanel('btn-assistant', ASSISTANT);
   await sleep(150);
   const malformed = await js(`(() => {
@@ -146,33 +145,6 @@ export async function runPanelMovementChecks({ js, check, send, key, drag, click
   await js(`(async () => { const { setLang } = await import('/src/i18n.js'); setLang('en'); })()`);
   await sleep(250);
 
-  // ---- Escape mid-gesture cancels the drag; reopening still drags ----
-  await openPanel('btn-security', SECURITY);
-  await sleep(200);
-  const sg = await grip(SECURITY);
-  await mouse('mouseMoved', sg.x, sg.y);
-  await mouse('mousePressed', sg.x, sg.y, { button: 'left', buttons: 1, clickCount: 1 });
-  await sleep(30);
-  for (let i = 1; i <= 3; i++) {
-    await mouse('mouseMoved', sg.x + i * 30, sg.y + i * 20, { button: 'left', buttons: 1 });
-    await sleep(20);
-  }
-  const midDrag = await js(`document.querySelector('#security-panel h3').classList.contains('dragging')`);
-  await key('Escape', 'Escape', 27);
-  await sleep(150);
-  await mouse('mouseReleased', sg.x + 90, sg.y + 60, { button: 'left', clickCount: 1 });
-  await sleep(100);
-  const cancelled = await js(`(() => ({ hidden: document.getElementById('security-panel').hidden, dragging: document.querySelector('#security-panel h3').classList.contains('dragging') }))()`);
-  await openPanel('btn-security', SECURITY);
-  await sleep(200);
-  const re0 = await pos(SECURITY);
-  const rg2 = await grip(SECURITY);
-  await drag(rg2.x, rg2.y, rg2.x + 140, rg2.y + 60);
-  await sleep(150);
-  const re1 = await pos(SECURITY);
-  check('Escape mid-drag closes the panel and cancels the gesture, and a reopened panel still drags', midDrag === true && cancelled.hidden === true && cancelled.dragging === false && re1.left > re0.left + 60, JSON.stringify({ midDrag, cancelled, redrag: Math.round(re1.left - re0.left) }));
-  await closePanel('btn-security', SECURITY);
-
   // ---- Collapsing an edge-clamped panel keeps its header reachable ----
   await openPanel('btn-assistant', ASSISTANT);
   await sleep(150);
@@ -219,8 +191,7 @@ export async function runPanelMovementChecks({ js, check, send, key, drag, click
   await js(`Storage.prototype.setItem = window.__panelSetItem; delete window.__panelSetItem; true`);
   check('a blocked storage still lets the panel move and keep its position for the session', blocked1.left < blocked0.left - 60 && near(blocked2.left, blocked1.left) && near(blocked2.top, blocked1.top), JSON.stringify({ dx: Math.round(blocked1.left - blocked0.left) }));
 
-  // Leave the app as found: panels closed, English, default viewport.
+  // Leave the app as found: panel closed, English, default viewport.
   await closePanel('btn-assistant', ASSISTANT);
-  await closePanel('btn-security', SECURITY);
   await js(`(async () => { const { setLang } = await import('/src/i18n.js'); setLang('en'); })()`);
 }

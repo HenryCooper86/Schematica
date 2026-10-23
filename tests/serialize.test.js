@@ -661,3 +661,12 @@ test('invalid five- and seven-digit hex colors are rejected', () => {
     assert.equal(doc.zones[0].color, '#4a90d9');
   }
 });
+
+test('a board saved with a security analysis from the removed panel still opens, with a warning', () => {
+  const raw = { schema: 1, title: 'Old board', nodes: [{ id: 'n1', kind: 'mcu', x: 0, y: 0, label: 'MCU' }], wires: [], zones: [], notes: [],
+    securityAnalysis: { title: 'Old analysis', findings: [] } };
+  const { doc, warnings } = deserialize(JSON.stringify(raw));
+  assert.equal(doc.nodes.length, 1);
+  assert.equal(doc.securityAnalysis, undefined);
+  assert.ok(warnings.some(w => w.includes('security analysis')));
+});

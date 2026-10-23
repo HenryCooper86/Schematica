@@ -2,7 +2,7 @@ export async function runGuideChecks({ send, js, check, origin, sleep }) {
   let editorReady = false;
   await send('Page.navigate', { url: origin + '/' });
   for (let i = 0; i < 60; i++) {
-    if (await js(`location.origin === ${JSON.stringify(origin)} && document.readyState === 'complete' && !!document.getElementById('security-panel')`).catch(() => false)) { editorReady = true; break; }
+    if (await js(`location.origin === ${JSON.stringify(origin)} && document.readyState === 'complete' && !!document.getElementById('assistant')`).catch(() => false)) { editorReady = true; break; }
     await sleep(50);
   }
   if (!editorReady) throw Error('Editor did not initialize before checking toolbar documentation.');
@@ -29,4 +29,10 @@ export async function runGuideChecks({ send, js, check, origin, sleep }) {
   await js(`document.getElementById('btn-lang').click(); document.getElementById('guide-part-search').value = ''; document.getElementById('guide-part-search').dispatchEvent(new Event('input')); true`);
   check('clearing search restores all palette categories and English descriptions', await js(`(async () => { const { CATEGORIES, PARTS } = await import('/src/palette.js'); return document.querySelectorAll('.guide-category').length === CATEGORIES.length && document.querySelectorAll('[data-guide-part]').length === Object.keys(PARTS).length && document.getElementById('toolbar-reference').textContent.includes('Select / move'); })()`));
   await send('Emulation.clearDeviceMetricsOverride');
+  // Leave the browser on the editor for the checks that follow.
+  await send('Page.navigate', { url: origin + '/' });
+  for (let i = 0; i < 60; i++) {
+    if (await js(`document.readyState === 'complete' && !!document.getElementById('btn-assistant')`).catch(() => false)) break;
+    await sleep(50);
+  }
 }

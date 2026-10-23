@@ -676,6 +676,7 @@ export function initAssistant({ store, tools, render, svg, library = null, setti
       commit: (fn) => requestStore.mutate(fn),
       selection: () => [...store.selection],
       library,
+      attachment: (name) => attachments.documentText(name),
     });
     const board = boardText(store.doc, { selection: [...store.selection], findings: checkDoc(store.doc) });
     const system = [stable, perRequestSystem({ date: new Date().toISOString().slice(0, 10), effort: s.effort, singleShot: s.tools === false, language: getLang(), userText, skill: activeSkill })];
