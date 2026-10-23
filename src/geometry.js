@@ -264,7 +264,13 @@ function rectCenter(r) {
   return { x: r.x + r.w / 2, y: r.y + r.h / 2 };
 }
 
-// Where the ray from origin toward `toward` exits `rect` grown by `pad`.
+// Cards have rounded corners (14px). A wire end inside this distance of a
+// corner would sit in the empty curve and look detached from the card.
+const CORNER_INSET = 18;
+
+// Where the ray from origin toward `toward` exits `rect` grown by `pad`,
+// kept on the straight part of the side it exits: a diagonal ray that would
+// leave through a corner slides along that side to clear the rounding.
 function anchor(rect, origin, toward, pad) {
   const dx = toward.x - origin.x;
   const dy = toward.y - origin.y;
@@ -274,7 +280,11 @@ function anchor(rect, origin, toward, pad) {
   const ty = dy > 0 ? (rect.y + rect.h + pad - origin.y) / dy
     : dy < 0 ? (rect.y - pad - origin.y) / dy : Infinity;
   const t = Math.max(0, Math.min(tx, ty));
-  return { x: origin.x + dx * t, y: origin.y + dy * t };
+  const p = { x: origin.x + dx * t, y: origin.y + dy * t };
+  const clamp = (v, lo, hi) => (lo > hi ? (lo + hi) / 2 : Math.max(lo, Math.min(hi, v)));
+  if (tx <= ty) p.y = clamp(p.y, rect.y + CORNER_INSET, rect.y + rect.h - CORNER_INSET);
+  else p.x = clamp(p.x, rect.x + CORNER_INSET, rect.x + rect.w - CORNER_INSET);
+  return p;
 }
 
 function cubic(p1, p2) {
@@ -305,8 +315,8 @@ function cubicGeometry(p1, c1, c2, p2) {
 
 // `offset` shifts the whole curve sideways (perpendicular to the center line)
 // so several wires between the same two cards run side by side.
-// Cards that share at least this much span across the run (after an 8px
-// inset from each corner) are joined by a perfectly straight wire.
+// Cards that share at least this much span across the run (after the
+// corner inset at each end) are joined by a perfectly straight wire.
 const STRAIGHT_MIN_SPAN = 16;
 
 // Straight-run origins for cards that overlap across the run's axis: both
@@ -320,8 +330,8 @@ function straightOrigins(a, b, ca, cb, offset) {
   if (gapX <= 0 && gapY <= 0) return null;
   const horizontal = gapX >= gapY;
   const [pos, size] = horizontal ? ['y', 'h'] : ['x', 'w'];
-  const lo = Math.max(a[pos], b[pos]) + 8;
-  const hi = Math.min(a[pos] + a[size], b[pos] + b[size]) - 8;
+  const lo = Math.max(a[pos], b[pos]) + CORNER_INSET;
+  const hi = Math.min(a[pos] + a[size], b[pos] + b[size]) - CORNER_INSET;
   if (hi - lo < STRAIGHT_MIN_SPAN) return null;
   const shift = horizontal ? offset * (Math.sign(cb.x - ca.x) || 1) : -offset * (Math.sign(cb.y - ca.y) || 1);
   const v = r2(Math.max(lo, Math.min(hi, (lo + hi) / 2 + shift)));
@@ -343,8 +353,8 @@ export function wireGeom(a, b, offset = 0, obstacles = []) {
     const px = (-(cb.y - ca.y) / len) * offset;
     const py = ((cb.x - ca.x) / len) * offset;
     const origin = (r, c) => ({
-      x: Math.max(r.x + 8, Math.min(r.x + r.w - 8, c.x + px)),
-      y: Math.max(r.y + 8, Math.min(r.y + r.h - 8, c.y + py)),
+      x: Math.max(r.x + CORNER_INSET, Math.min(r.x + r.w - CORNER_INSET, c.x + px)),
+      y: Math.max(r.y + CORNER_INSET, Math.min(r.y + r.h - CORNER_INSET, c.y + py)),
     });
     oa = origin(a, ca);
     ob = origin(b, cb);
@@ -373,11 +383,11 @@ export function wireGeom(a, b, offset = 0, obstacles = []) {
   const edgePoint = (r, side) => {
     const c = rectCenter(r);
     if (side === 'top' || side === 'bottom') return {
-      x: r2(c.x + Math.max(8 - r.w / 2, Math.min(r.w / 2 - 8, fan))),
+      x: r2(c.x + Math.max(CORNER_INSET - r.w / 2, Math.min(r.w / 2 - CORNER_INSET, fan))),
       y: r2(side === 'top' ? r.y - ANCHOR_PAD : r.y + r.h + ANCHOR_PAD),
     };
     return { x: r2(side === 'left' ? r.x - ANCHOR_PAD : r.x + r.w + ANCHOR_PAD),
-      y: r2(c.y + Math.max(8 - r.h / 2, Math.min(r.h / 2 - 8, fan))) };
+      y: r2(c.y + Math.max(CORNER_INSET - r.h / 2, Math.min(r.h / 2 - CORNER_INSET, fan))) };
   };
   let best = direct, bestHits = hits.length, bestLength = curveLength(direct);
   const choose = candidates => {
@@ -1013,7 +1023,7 @@ export function wireScene(doc, rects = new Map(doc.nodes.map(n => [n.id, nodeRec
     const lane = lanes.get(wire.id) || 0;
     const ca = rectCenter(a), cb = rectCenter(b);
     const horizontal = Math.abs(cb.x - ca.x) >= Math.abs(cb.y - ca.y);
-    const room = Math.max(0, Math.min(horizontal ? a.h : a.w, horizontal ? b.h : b.w) / 2 - 8);
+    const room = Math.max(0, Math.min(horizontal ? a.h : a.w, horizontal ? b.h : b.w) / 2 - CORNER_INSET);
     const scale = Math.min(1, room / (fanExtent.get(pairKey(wire)) || 1));
     const offset = lane * scale;
     const old = previous?.routes.get(wire.id);

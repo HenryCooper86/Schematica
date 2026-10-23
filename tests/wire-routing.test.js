@@ -53,7 +53,7 @@ test('a dense parallel fan retains a distinct attachment for every wire', () => 
   const markup = diagramMarkup(board);
   const starts = board.wires.map(w => pathGeo(path(group(markup, w.id))).p1);
   assert.equal(new Set(starts.map(p => `${p.x},${p.y}`)).size, 10);
-  assert.ok(starts.every(p => p.x === 109 && p.y >= 8 && p.y <= 66));
+  assert.ok(starts.every(p => p.x === 109 && p.y >= 18 && p.y <= 56), 'every attachment clears the rounded corners');
 });
 
 test('a label slides along its curve into clear space', () => {
@@ -186,4 +186,32 @@ test('an automatic bus pill on a too-short wire is left off; a typed label keeps
   assert.ok(typed.anchor, 'a typed label keeps its leader');
   const roomy = wireLabelRect({ ...wire('w'), label: '' }, wireGeom(a, b), 0, [a, b]);
   assert.ok(roomy.label, 'a wire with room keeps its bus pill');
+});
+
+test('wire ends stay on the straight part of a card edge, never in a rounded corner', async () => {
+  const { nodeRect, wireScene } = await import('../src/geometry.js');
+  let seed = 11;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const onStraightEdge = (p, r) => {
+    const inset = (len) => Math.min(18, len / 2);
+    const side = Math.abs(p.x - (r.x - 5)) < 0.05 || Math.abs(p.x - (r.x + r.w + 5)) < 0.05;
+    return side
+      ? p.y >= r.y + inset(r.h) - 0.05 && p.y <= r.y + r.h - inset(r.h) + 0.05
+      : p.x >= r.x + inset(r.w) - 0.05 && p.x <= r.x + r.w - inset(r.w) + 0.05;
+  };
+  let checked = 0;
+  for (let trial = 0; trial < 12; trial++) for (const ex of EXAMPLES) {
+    const d = structuredClone(ex.doc);
+    for (const n of d.nodes) if (rnd() < 0.4) { n.x += Math.round((rnd() - 0.5) * 400); n.y += Math.round((rnd() - 0.5) * 300); }
+    const rects = new Map(d.nodes.map((n) => [n.id, nodeRect(n)]));
+    const { routes } = wireScene(d, rects);
+    for (const w of d.wires) {
+      const g = routes.get(w.id);
+      if (!g || w.from.node === w.to.node) continue;
+      checked += 1;
+      assert.ok(onStraightEdge(g.p1, rects.get(w.from.node)), `${ex.id}/${w.id} start ${JSON.stringify(g.p1)}`);
+      assert.ok(onStraightEdge(g.p2, rects.get(w.to.node)), `${ex.id}/${w.id} end ${JSON.stringify(g.p2)}`);
+    }
+  }
+  assert.ok(checked > 1000);
 });

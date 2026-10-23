@@ -747,6 +747,32 @@ try {
   check('the floating panel never covers a toolbar control', covering === 'btn-check', String(covering));
   const toolbarRows = await js(`(() => { const centers = [...document.getElementById('toolbar').children].map(k => { const r = k.getBoundingClientRect(); return r.top + r.height / 2; }); return { rows: new Set(centers.map(Math.round)).size, viewport: innerWidth, centerSpan: Math.max(...centers) - Math.min(...centers), tagline: !!document.querySelector('.brand-sub') }; })()`);
   check('the toolbar fits on one row at 1500 px with no tagline beside the name', toolbarRows.rows === 1 && toolbarRows.tagline === false, JSON.stringify(toolbarRows));
+  // Selecting a card that sits partly under the open Properties panel slides
+  // the canvas so the card clears the panel; the panel itself stays put.
+  {
+    const rect = (sel) => js(`(() => { const r = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width }; })()`);
+    const card0 = await center(cardSel);
+    await click(card0.x, card0.y);
+    await sleep(400);
+    const panel = await rect('#props');
+    let c = await rect(cardSel);
+    const shift = Math.round(panel.left + c.width / 2 - c.right);
+    await js(`document.activeElement?.blur?.(); true`);
+    await key('h', 'KeyH', 72);
+    await sleep(50);
+    const at = await js(`(() => { const r = document.getElementById('canvas').getBoundingClientRect(); return { x: r.left + r.width * 0.3, y: r.top + r.height * 0.88 }; })()`);
+    await drag(at.x, at.y, at.x + shift, at.y);
+    await sleep(100);
+    await key('v', 'KeyV', 86);
+    await key('Escape', 'Escape', 27);
+    await sleep(200);
+    c = await rect(cardSel);
+    const coveredBefore = c.right > panel.left;
+    await click(c.left + 12, (c.top + c.bottom) / 2);
+    await sleep(700);
+    const after = await rect(cardSel), panelAfter = await rect('#props');
+    check('selecting a card under the Properties panel slides the canvas so the card is clear, without moving the panel', coveredBefore && after.right <= panelAfter.left && panelAfter.left === panel.left, JSON.stringify({ coveredBefore, card: after, panel: panelAfter }));
+  }
   // Occasional controls live in the More menu; the buttons keep their ids.
   {
     const more = await center('#btn-more');

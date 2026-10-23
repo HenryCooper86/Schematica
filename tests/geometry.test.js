@@ -85,15 +85,15 @@ test('wireGeom runs straight between nearly aligned cards on the middle of their
   const below = { x: 1078, y: 530, w: 148, h: 54 };
   const g = wireGeom(top, below);
   assert.equal(g.p1.x, g.p2.x, 'a vertical run keeps one x');
-  assert.equal(g.p1.x, (1078 + 8 + 1206 - 8) / 2, 'on the middle of the shared span');
+  assert.equal(g.p1.x, (1078 + 18 + 1206 - 18) / 2, 'on the middle of the shared span');
   assert.equal(g.p1.y, 474 + 5);
   assert.equal(g.p2.y, 530 - 5);
   // Side by side with offset rows.
   const left = { x: 0, y: 0, w: 100, h: 80 };
-  const right = { x: 300, y: 30, w: 100, h: 80 };
+  const right = { x: 300, y: 20, w: 100, h: 80 };
   const h = wireGeom(left, right);
   assert.equal(h.p1.y, h.p2.y, 'a horizontal run keeps one y');
-  assert.equal(h.p1.y, (38 + 72) / 2);
+  assert.equal(h.p1.y, (38 + 62) / 2);
   // Parallel lanes spread inside the span and stay straight.
   const lanes = [-11, 11].map((o) => wireGeom(left, right, o));
   for (const l of lanes) assert.equal(l.p1.y, l.p2.y);
