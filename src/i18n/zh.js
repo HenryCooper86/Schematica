@@ -855,7 +855,8 @@ export default {
   // ---- palette chrome ----
   'My parts': '我的部件',
   'Define a new part': '定义新部件',
-  '+ New': '+ 新建',
+  'New part': '新建部件',
+  'My parts is empty. Create or import a part first.': '“我的部件”为空。请先创建或导入部件。',
   'Download My parts as a file': '将“我的部件”下载为文件',
   'Import a parts file': '导入部件文件',
   'Import': '导入',

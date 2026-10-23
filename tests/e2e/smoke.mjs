@@ -1270,13 +1270,14 @@ try {
   await sleep(100);
   await js(`document.querySelector('#my-parts .custom-item [data-del]').click(); true`);
   await sleep(100);
-  const orphan = await js(`(() => ({ mine: document.querySelectorAll('#my-parts .palette-item').length, onBoard: !document.getElementById('board-parts').hidden, adopt: !!document.querySelector('#board-parts [data-adopt]'), toast: document.getElementById('toast').textContent }))()`);
+  const orphan = await js(`(() => ({ mine: document.querySelectorAll('#my-parts .palette-item[data-template]').length, onBoard: !document.getElementById('board-parts').hidden, adopt: !!document.querySelector('#board-parts [data-adopt]'), toast: document.getElementById('toast').textContent }))()`);
+  check('an empty My parts shows a New part tile instead of a blank section', await js(`(() => { const t = document.querySelector('#my-parts .new-part-tile'); return !!t && !t.hidden && t.textContent.includes('New part'); })()`));
   check('removing the template offers Undo and lists the orphaned board part under On this board', orphan.mine === 0 && orphan.onBoard && orphan.adopt && /Removed Motor driver x4/.test(orphan.toast) && /Undo/.test(orphan.toast), JSON.stringify(orphan));
   await js(`document.querySelector('#board-parts [data-adopt]').click(); true`);
   await sleep(100);
   const adopted = await js(`(() => ({ mine: [...document.querySelectorAll('#my-parts .pi-name')].map((e) => e.textContent), onBoardHidden: document.getElementById('board-parts').hidden }))()`);
   check('Add to library brings it back under the same template id', JSON.stringify(adopted.mine) === '["Motor driver x4"]' && adopted.onBoardHidden === true, JSON.stringify(adopted));
-  const searchedMine = await js(`(() => { const visible = ${visible}; const s = document.getElementById('palette-search'); s.value = 'motor driver x4'; s.dispatchEvent(new Event('input', { bubbles: true })); const out = { mine: [...document.querySelectorAll('#my-parts .palette-item')].filter(visible).length, catalogue: [...document.querySelectorAll('#palette .cat-grid:not(#my-parts):not(#board-parts) .palette-item')].filter(visible).length }; s.value = ''; s.dispatchEvent(new Event('input', { bubbles: true })); return out; })()`);
+  const searchedMine = await js(`(() => { const visible = ${visible}; const s = document.getElementById('palette-search'); s.value = 'motor driver x4'; s.dispatchEvent(new Event('input', { bubbles: true })); const out = { mine: [...document.querySelectorAll('#my-parts .palette-item[data-template]')].filter(visible).length, catalogue: [...document.querySelectorAll('#palette .cat-grid:not(#my-parts):not(#board-parts) .palette-item')].filter(visible).length }; s.value = ''; s.dispatchEvent(new Event('input', { bubbles: true })); return out; })()`);
   check('palette search finds the template by its full name', searchedMine.mine === 1, JSON.stringify(searchedMine));
 
   // The assistant can place a library template by id.

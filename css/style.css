@@ -1458,13 +1458,23 @@ html {
 #props button.secondary:hover { border-color: var(--accent); color: #7dd3fc; }
 
 /* ---- My parts (library) ---- */
-.my-parts-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-.my-parts-tools { display: flex; gap: 4px; }
+#palette h3.my-parts-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.my-parts-title { white-space: nowrap; }
+.my-parts-tools { display: flex; gap: 2px; margin: -4px -2px -4px 0; }
 .my-parts-tools button {
-  background: var(--bg2); border: 1px solid var(--line); color: var(--muted); border-radius: 6px;
-  padding: 2px 7px; font-size: 10px; letter-spacing: 0; text-transform: none; cursor: pointer; font-family: inherit;
+  display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0;
+  background: transparent; border: none; border-radius: 6px; color: var(--muted); cursor: pointer;
 }
-.my-parts-tools button:hover { color: var(--text); border-color: var(--accent); }
+.my-parts-tools button svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.my-parts-tools button:hover { color: var(--text); background: var(--bg3); }
+.my-parts-tools button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.new-part-tile {
+  font-family: inherit; color: var(--muted); cursor: pointer;
+  background: transparent; border: 1px dashed var(--line2);
+}
+.new-part-tile .badge { background: var(--accent-dim); color: var(--accent); }
+.new-part-tile .badge svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+.new-part-tile:hover { color: var(--text); border-color: var(--accent); }
 #palette h3.sub { margin-top: 10px; cursor: default; }
 .custom-item { position: relative; }
 .custom-item .pi-tools {

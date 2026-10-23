@@ -32,10 +32,20 @@ export function initPalette({ svg, store, tools, library, editor }) {
   // ---- My parts ----
   const mine = document.createElement('div');
   mine.id = 'my-parts-group';
-  const headerMarkup = () => `<h3 class="my-parts-head"><span>${escAttr(tr('My parts'))}</span><span class="my-parts-tools">`
-    + `<button id="parts-new" type="button" title="${escAttr(tr('Define a new part'))}">${escAttr(tr('+ New'))}</button>`
-    + `<button id="parts-export" type="button" title="${escAttr(tr('Download My parts as a file'))}">${escAttr(tr('Export'))}</button>`
-    + `<button id="parts-import" type="button" title="${escAttr(tr('Import a parts file'))}">${escAttr(tr('Import'))}</button></span></h3>`
+  // Icon buttons in the header row, drawn like the toolbar's (18-box
+  // strokes): new part, import a parts file, export My parts.
+  const ICON = {
+    new: '<path d="M9 3.5v11 M3.5 9h11"/>',
+    import: '<path d="M9 11V3 M5.5 6.5 9 3l3.5 3.5 M3 14.5h12"/>',
+    export: '<path d="M9 2.5v8 M5.5 7.5 9 11l3.5-3.5 M3 14.5h12"/>',
+  };
+  const tool = (id, icon, label) => `<button id="${id}" type="button" title="${escAttr(label)}" aria-label="${escAttr(label)}">`
+    + `<svg viewBox="0 0 18 18" aria-hidden="true">${ICON[icon]}</svg></button>`;
+  const headerMarkup = () => `<h3 class="my-parts-head"><span class="my-parts-title">${escAttr(tr('My parts'))}</span><span class="my-parts-tools">`
+    + tool('parts-new', 'new', tr('Define a new part'))
+    + tool('parts-import', 'import', tr('Import a parts file'))
+    + tool('parts-export', 'export', tr('Download My parts as a file'))
+    + '</span></h3>'
     + '<div class="cat-grid" id="my-parts"></div>'
     + `<h3 id="board-parts-head" class="sub" hidden>${escAttr(tr('On this board'))}</h3><div class="cat-grid" id="board-parts" hidden></div>`;
   mine.innerHTML = headerMarkup();
@@ -53,11 +63,12 @@ export function initPalette({ svg, store, tools, library, editor }) {
   });
 
   function relabelHeader() {
-    mine.querySelector('.my-parts-head > span').textContent = tr('My parts');
-    const b = (id, text, title) => { const el = mine.querySelector(`#${id}`); el.textContent = text; el.title = title; };
-    b('parts-new', tr('+ New'), tr('Define a new part'));
-    b('parts-export', tr('Export'), tr('Download My parts as a file'));
-    b('parts-import', tr('Import'), tr('Import a parts file'));
+    mine.querySelector('.my-parts-title').textContent = tr('My parts');
+    const b = (id, label) => { const el = mine.querySelector(`#${id}`); el.title = label; el.setAttribute('aria-label', label); };
+    b('parts-new', tr('Define a new part'));
+    b('parts-export', tr('Download My parts as a file'));
+    b('parts-import', tr('Import a parts file'));
+    renderMine();
     mine.querySelector('#board-parts-head').textContent = tr('On this board');
   }
 
@@ -135,9 +146,24 @@ export function initPalette({ svg, store, tools, library, editor }) {
     return el;
   }
 
+  const newPart = () => editor.open({ def: { name: '', category: 'misc', ports: [], fields: [] }, mode: 'new' });
+  // An empty library shows one dashed tile that starts a new part, so the
+  // section explains itself before the first part exists.
+  function emptyTile() {
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'palette-item new-part-tile';
+    el.innerHTML = `<span class="badge"><svg viewBox="0 0 18 18" aria-hidden="true">${ICON.new}</svg></span>`
+      + `<span class="pi-name">${escAttr(tr('New part'))}</span>`;
+    el.addEventListener('click', newPart);
+    return el;
+  }
+
   function renderMine() {
     myGrid.innerHTML = '';
-    for (const t of library.list()) myGrid.appendChild(templateTile(t));
+    const templates = library.list();
+    for (const t of templates) myGrid.appendChild(templateTile(t));
+    if (!templates.length) myGrid.appendChild(emptyTile());
     boardGrid.innerHTML = '';
     for (const n of boardParts()) boardGrid.appendChild(boardTile(n));
     applySearch();
@@ -160,10 +186,9 @@ export function initPalette({ svg, store, tools, library, editor }) {
     renderMine();
   }, { documentOnly: true });
 
-  mine.querySelector('#parts-new').addEventListener('click', () => {
-    editor.open({ def: { name: '', category: 'misc', ports: [], fields: [] }, mode: 'new' });
-  });
+  mine.querySelector('#parts-new').addEventListener('click', newPart);
   mine.querySelector('#parts-export').addEventListener('click', () => {
+    if (!library.list().length) { toast(tr('My parts is empty. Create or import a part first.')); return; }
     download('my-parts.schematica-parts.json', library.exportJSON(), 'application/json');
   });
   const fileInput = document.getElementById('parts-file-input');
@@ -243,7 +268,7 @@ export function initPalette({ svg, store, tools, library, editor }) {
     const tHits = q ? new Set(filterTemplates(q, library.list()).map((t) => t.id)) : null;
     let shownMine = 0;
     for (const el of myGrid.children) {
-      const on = !tHits || tHits.has(el.dataset.template);
+      const on = el.dataset.template ? !tHits || tHits.has(el.dataset.template) : !q;
       el.hidden = !on;
       if (on) shownMine += 1;
     }
