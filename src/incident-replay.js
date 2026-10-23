@@ -10,6 +10,7 @@ import { newDoc, uid } from './state.js';
 import { applyEdits, MAX_OPS } from './ai/ops.js';
 import { placeNew } from './ai/layout.js';
 import { resolveStep } from './journey.js';
+import { getPart } from './palette.js';
 
 // Consecutive near-identical actions within this window collapse into one step.
 export const CLUSTER_WINDOW_MS = 5 * 60 * 1000;
@@ -138,13 +139,22 @@ export function reconstructIncident(parsed) {
     const key = `${step.actor}\u0000${step.target}`;
     if (!edges.has(key)) edges.set(key, step.action);
   }
+  // A wire's bus must be one its ends actually have, or every reconstructed
+  // wire is a bus-mismatch finding: a logical link when either end has link
+  // ports (threats), otherwise a bus both parts share, else a plain flow.
+  const busesOf = (name) => new Set(getPart(kinds.get(name)).ports.map((p) => p.bus));
+  const busFor = (a, b) => {
+    const from = busesOf(a), to = busesOf(b);
+    if (from.has('link') || to.has('link')) return 'link';
+    return [...from].find((bus) => to.has(bus) && bus !== 'power' && bus !== 'gnd') || 'flow';
+  };
   for (const [key, action] of edges) {
     const [actor, target] = key.split('\u0000');
     ops.push({
       op: 'connect',
       from: { node: refOf.get(actor) },
       to: { node: refOf.get(target) },
-      bus: 'flow', arrow: 'fwd', label: action,
+      bus: busFor(actor, target), arrow: 'fwd', label: action,
     });
   }
 

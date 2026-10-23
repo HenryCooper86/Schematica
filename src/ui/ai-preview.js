@@ -9,7 +9,10 @@ export function showEditPreview(preview, onFinish) {
   dialog.className = "workflow-dialog";
   dialog.setAttribute("aria-labelledby", "ai-preview-heading");
   const report = preview.summary();
-  dialog.innerHTML = `<h2 id="ai-preview-heading">${esc(tr("Preview AI changes"))}</h2>
+  // The header (with a close button) and the Discard/Apply footer stay pinned
+  // while the change list scrolls, so a long preview never hides them.
+  dialog.innerHTML = `<header class="preview-head"><h2 id="ai-preview-heading">${esc(tr("Preview AI changes"))}</h2>
+    <button type="button" id="ai-preview-close" class="preview-close" title="${esc(tr("Discard draft"))}" aria-label="${esc(tr("Discard draft"))}">&times;</button></header>
     <p>${esc(tr("The board is unchanged. Review the draft before applying it."))}</p>
     <section id="ai-visual-preview"></section>
     ${report.comparison.changes.some(c => c.fields?.some(f => f.field === 'blueprint')) ? `<h3>${esc(tr('Blueprint'))}</h3><div class="workflow-columns"><section><h4>${esc(tr('Before'))}</h4>${blueprintMarkup(report.comparison.changes.find(c => c.fields?.some(f => f.field === 'blueprint')).fields[0].before)}</section><section><h4>${esc(tr('After'))}</h4>${blueprintMarkup(preview.draft.doc.blueprint)}</section></div>` : ''}
@@ -17,7 +20,7 @@ export function showEditPreview(preview, onFinish) {
     <h3>${esc(tr("Changes"))}</h3><ul>${report.comparison.changes.filter(c => !c.fields?.some(f => f.field === 'blueprint')).map((c) => `<li>${esc(c.type)} · ${esc(c.label || c.id || c.collection)} <ul>${(c.fields || []).map((f) => `<li>${esc(f.field)}: <del>${esc(typeof f.before === "object" ? JSON.stringify(f.before) : f.before)}</del> → <ins>${esc(typeof f.after === "object" ? JSON.stringify(f.after) : f.after)}</ins></li>`).join("")}</ul></li>`).join("")}</ul>
     ${impactSummary(report.impact)}<h3>${esc(tr("Design checks before and after"))}</h3>
     <div class="workflow-columns">${[report.before, report.after].map((findings, i) => `<section><h4>${esc(i ? tr("After") : tr("Before"))} (${findings.length})</h4><ul>${findings.map((f) => `<li>${esc(f.level)} · ${esc(f.message)}</li>`).join("")}</ul></section>`).join("")}</div>
-    <p role="status" id="preview-status"></p><footer><button id="ai-preview-discard">${esc(tr("Discard draft"))}</button><button id="ai-preview-apply">${esc(tr("Apply changes"))}</button></footer>`;
+    <footer class="preview-foot"><p role="status" id="preview-status"></p><button id="ai-preview-discard">${esc(tr("Discard draft"))}</button><button id="ai-preview-apply">${esc(tr("Apply changes"))}</button></footer>`;
   document.body.append(dialog);
   renderChangePreview(dialog.querySelector('#ai-visual-preview'), report.boards.before, report.boards.after);
   let applied = false;
@@ -40,6 +43,7 @@ export function showEditPreview(preview, onFinish) {
     }
   };
   dialog.querySelector("#ai-preview-discard").onclick = () => dialog.close();
+  dialog.querySelector("#ai-preview-close").onclick = () => dialog.close();
   dialog
     .querySelectorAll("[data-impact-id]")
     .forEach((b) => (b.disabled = true));

@@ -2,6 +2,7 @@ import { REFERENCE_EXAMPLE } from './examples-reference.js';
 import { TEACHING_EXAMPLES } from './examples-teaching.js';
 import { attachExampleStories, localizeExampleStories } from './example-stories.js';
 import { EXTENDED_EXAMPLES } from './examples-extended.js';
+import { SECURITY_EXAMPLES } from './examples-security.js';
 import { RDK_EXAMPLES } from './rdk/examples.js';
 import EXAMPLE_OVERLAYS_ZH from './i18n/examples.zh.js';
 export { EXAMPLE_OVERLAYS_ZH };
@@ -437,6 +438,7 @@ export const EXAMPLES = [
   },
   ...RDK_EXAMPLES,
   ...EXTENDED_EXAMPLES,
+  ...SECURITY_EXAMPLES,
   REFERENCE_EXAMPLE,
   ...TEACHING_EXAMPLES,
   {

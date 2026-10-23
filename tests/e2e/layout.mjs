@@ -77,8 +77,8 @@ export async function runLayoutChecks({ js, send, check, sleep, screenshot }) {
       }
       await js(`document.querySelector('#engineering-dialog [data-action=close]').click();true`);
       await js(`(async()=>{const {Store}=await import('/src/state.js');const {EXAMPLES}=await import('/src/examples.js');const {createEditPreview}=await import('/src/ai/preview.js');const {showEditPreview}=await import('/src/ui/ai-preview.js');const s=new Store(structuredClone(EXAMPLES.find(e=>e.id==='declared-uart-reference').doc));const p=createEditPreview(s);p.draft.doc.nodes[0].x+=100;showEditPreview(p,()=>{});})()`);
-      const preview = await js(`(()=>{const d=document.getElementById('ai-preview-dialog'),r=d.getBoundingClientRect(),b=d.querySelector('#ai-preview-apply');b.scrollIntoView({block:'nearest'});const a=b.getBoundingClientRect();return {fits:r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight,width:d.clientWidth,scrollWidth:d.scrollWidth,reachable:a.top>=0&&a.bottom<=innerHeight}})()`);
-      check(`visual change preview fits and apply is reachable at ${width}x${height} (${lang})`,preview.fits&&preview.scrollWidth<=preview.width+1&&preview.reachable,JSON.stringify(preview));
+      const preview = await js(`(()=>{const d=document.getElementById('ai-preview-dialog'),r=d.getBoundingClientRect(),b=d.querySelector('#ai-preview-apply'),x=d.querySelector('#ai-preview-close');const inView=e=>{const q=e.getBoundingClientRect();return q.top>=r.top&&q.bottom<=r.bottom&&q.top>=0&&q.bottom<=innerHeight};return {fits:r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight,width:d.clientWidth,scrollWidth:d.scrollWidth,reachable:inView(b),close:inView(x)}})()`);
+      check(`visual change preview fits with Apply and close visible without scrolling at ${width}x${height} (${lang})`,preview.fits&&preview.scrollWidth<=preview.width+1&&preview.reachable&&preview.close,JSON.stringify(preview));
       await js(`document.getElementById('ai-preview-discard').click();true`);
     }
   }

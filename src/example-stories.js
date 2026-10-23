@@ -18,6 +18,42 @@ const EXAMPLE_STORIES = {
       ['n7', 'The second sensing branch connects the soil probe to the MCU ADC.', '另一条传感分支将土壤探头连接到微控制器的 ADC。'],
     ],
   },
+  'log4shell-cve': {
+    j1: [
+      ['atk', 'An unattributed attacker on the Internet sends an ordinary-looking telemetry upload.', '互联网上一名身份未明的攻击者发送一次看似正常的遥测上传。'],
+      ['req', 'The User-Agent header carries a ${jndi:ldap://…} string instead of a browser name.', 'User-Agent 头中携带的是 ${jndi:ldap://…} 字符串，而不是浏览器名称。'],
+    ],
+    j2: [
+      ['api', 'The telemetry API logs the header with Log4j 2.14.1, which expands lookups inside logged messages.', '遥测 API 使用 Log4j 2.14.1 记录该头部，而该版本会展开日志消息中的查找表达式。'],
+      ['vuln', 'This is CVE-2021-44228 (CVSS 10.0), affecting Log4j 2.0-beta9 to 2.14.1.', '这就是 CVE-2021-44228（CVSS 10.0），影响 Log4j 2.0-beta9 至 2.14.1。'],
+      ['ldap', 'The JNDI lookup makes the server contact the attacker\'s LDAP server.', 'JNDI 查找使服务器连接攻击者的 LDAP 服务器。'],
+    ],
+    j3: [
+      ['cls', 'The LDAP reply names a Java class hosted by the attacker.', 'LDAP 回复指向攻击者托管的一个 Java 类。'],
+      ['rce', 'The API loads that class, so the attacker\'s code runs as the service account.', 'API 加载该类，攻击者的代码便以服务账户身份运行。'],
+      ['keys', 'From there it can read the fleet API keys held in the environment.', '随后它可以读取环境变量中保存的车队 API 密钥。'],
+    ],
+    j4: [
+      ['vuln', 'Upgrading Log4j to 2.17.1 or later removes the lookup path.', '将 Log4j 升级到 2.17.1 或更高版本即可消除该查找路径。'],
+      ['api', 'Blocking outbound LDAP and RMI from servers limits what a host you missed can fetch.', '阻止服务器发起的出站 LDAP 和 RMI 连接，可限制遗漏主机能获取的内容。'],
+    ],
+  },
+  'robot-fleet-incident': {
+    j1: [
+      ['laptop', '03-11 08:14 UTC · Attacker → Operator laptop · phishing email · ×2 · fake invoice with a credential page', '03-11 08:14 UTC · 攻击者 → 运维笔记本 · 钓鱼邮件 · ×2 · 带凭据页面的伪造发票'],
+    ],
+    j2: [
+      ['vpn', '03-11 09:40 UTC · Attacker → Fleet VPN · VPN login with stolen credentials · no second factor on the VPN', '03-11 09:40 UTC · 攻击者 → 车队 VPN · 使用被盗凭据登录 VPN · VPN 未启用第二因素'],
+      ['fleet', '03-11 09:47 UTC · Attacker → Fleet manager · operator session', '03-11 09:47 UTC · 攻击者 → 车队管理器 · 运维会话'],
+    ],
+    j3: [
+      ['ota', '03-11 10:05 UTC · Attacker → OTA server · uploads unsigned update · signature check disabled for a test channel', '03-11 10:05 UTC · 攻击者 → OTA 服务器 · 上传未签名更新 · 测试通道关闭了签名检查'],
+      ['robot', '03-11 10:20 UTC · OTA server → Delivery robot · pushes update · 12 robots on the test channel', '03-11 10:20 UTC · OTA 服务器 → 配送机器人 · 推送更新 · 测试通道上有 12 台机器人'],
+    ],
+    j4: [
+      ['store', '03-11 11:02 UTC · Attacker → Telemetry store · exports telemetry · route history for 3 days', '03-11 11:02 UTC · 攻击者 → 遥测存储 · 导出遥测数据 · 3 天的路线历史'],
+    ],
+  },
   'ev-bms': {
     j1: [
       ['n1', 'Locate the high-voltage battery pack.', '定位高压电池组。'],

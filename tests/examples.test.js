@@ -264,3 +264,27 @@ test('every vendor board names its headline part exactly as the preset does, so 
     assert.ok(presetsFor(kind).some((p) => p.sublabel === sublabel), `${sublabel} is a ${kind} preset`);
   }
 });
+
+test('the CVE explainer and incident replay examples are clean, rated and presentable', async () => {
+  const { checkLayout } = await import('../src/layout-checks.js');
+  for (const id of ['log4shell-cve', 'robot-fleet-incident']) {
+    const ex = EXAMPLES.find((e) => e.id === id);
+    assert.ok(ex, id);
+    assert.equal(ex.group, 'Security');
+    assert.deepEqual(checkDoc(ex.doc), [], `${id} passes every rule`);
+    assert.deepEqual(checkLayout(ex.doc), [], `${id} has no overlaps`);
+    assert.ok(ex.doc.nodes.some((n) => n.disposition === 'adversary') && ex.doc.nodes.some((n) => n.disposition === 'victim'), `${id} marks adversary and victim`);
+    assert.ok(ex.doc.journey.every((j) => j.stops?.length), `${id} every chapter has guided stops`);
+  }
+  const cve = EXAMPLES.find((e) => e.id === 'log4shell-cve').doc;
+  assert.equal(cve.nodes.find((n) => n.kind === 'vulnerability').fields.cve, 'CVE-2021-44228');
+});
+
+test('the incident replay example is what reconstruct_from_log builds, laid out for reading', async () => {
+  const { reconstructIncident } = await import('../src/incident-replay.js');
+  assert.equal(typeof reconstructIncident, 'function');
+  const doc = EXAMPLES.find((e) => e.id === 'robot-fleet-incident').doc;
+  assert.ok(doc.notes[0].text.startsWith('Reconstructed from a log.'), 'keeps the reconstruction disclaimer');
+  assert.ok(doc.wires.every((w) => w.arrow === 'fwd' && w.label), 'directed, labelled actions');
+  assert.deepEqual(doc.journey.map((j) => j.label), ['Phase: Initial access', 'Phase: Access', 'Phase: Impact', 'Phase: Exfiltration']);
+});

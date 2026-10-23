@@ -6,7 +6,9 @@
 import { tr, onLanguageChange } from '../i18n.js';
 
 const GROUPS = [
-  ['btn-grid', 'btn-snap', 'btn-animate', 'btn-legend', 'btn-palette', 'btn-panels', 'btn-fullscreen'],
+  // Signal-flow animation and the bus legend stay in the toolbar: animation
+  // is how a board shows traffic and the legend is how a viewer reads wires.
+  ['btn-grid', 'btn-snap', 'btn-palette', 'btn-panels', 'btn-fullscreen'],
   ['btn-bom', 'btn-new'],
   ['btn-shortcuts'],
 ];
@@ -22,8 +24,6 @@ const ICONS = {
 const LABELS = {
   'btn-grid': () => tr('Grid dots'),
   'btn-snap': () => tr('Snap to grid'),
-  'btn-animate': () => tr('Signal-flow animation'),
-  'btn-legend': () => tr('Bus legend'),
   'btn-palette': () => tr('Parts palette (B)'),
   'btn-panels': () => tr('Right panels (P)'),
   'btn-fullscreen': () => tr('Fullscreen'),

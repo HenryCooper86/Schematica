@@ -1,6 +1,7 @@
 import REFERENCE_OVERLAY_ZH from './examples-reference.zh.js';
 import TEACHING_OVERLAYS_ZH from './examples-teaching.zh.js';
 import EXTENDED_OVERLAYS_ZH from './examples-extended.zh.js';
+import SECURITY_OVERLAYS_ZH from './examples-security.zh.js';
 // Simplified Chinese overlays for the built-in example boards, keyed by
 // example id, then by node / zone / wire / note / journey id. Only text
 // translates: card labels and notes, zone labels and lane names, the
@@ -14,6 +15,7 @@ export default {
   'declared-uart-reference': REFERENCE_OVERLAY_ZH,
   ...TEACHING_OVERLAYS_ZH,
   ...EXTENDED_OVERLAYS_ZH,
+  ...SECURITY_OVERLAYS_ZH,
   'weather-station': {
     name: '气象站',
     title: '气象站',

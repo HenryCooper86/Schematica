@@ -753,7 +753,7 @@ try {
     await click(more.x, more.y);
     await sleep(100);
     const opened = await js(`(() => { const m = document.getElementById('more-menu'); return { open: !m.hidden, expanded: document.getElementById('btn-more').getAttribute('aria-expanded'), ids: [...m.querySelectorAll('button')].map(b => b.id), labels: [...m.querySelectorAll('button')].every(b => getComputedStyle(b, '::after').content.length > 2) }; })()`);
-    check('More opens a menu of the occasional controls, each labelled', opened.open && opened.expanded === 'true' && ['btn-grid', 'btn-bom', 'btn-new', 'btn-shortcuts'].every(id => opened.ids.includes(id)) && opened.labels, JSON.stringify(opened));
+    check('More opens a menu of the occasional controls, each labelled', opened.open && opened.expanded === 'true' && ['btn-grid', 'btn-bom', 'btn-new', 'btn-shortcuts'].every(id => opened.ids.includes(id)) && !opened.ids.includes('btn-animate') && !opened.ids.includes('btn-legend') && opened.labels, JSON.stringify(opened));
     const grid = await center('#btn-grid');
     const before = await js(`document.getElementById('btn-grid').getAttribute('aria-pressed')`);
     await click(grid.x, grid.y);

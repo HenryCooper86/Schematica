@@ -310,6 +310,10 @@ incident, or you can pick it in the **Skill** selector.
   becomes a presentation chapter, and a note marks the board as reconstructed
   from a log. Rebuilding replaces the board, so on a non-empty board the
   assistant asks first.
+- To see the result before trying it, open **Examples → CVE Explainer:
+  Log4Shell (CVE-2021-44228)**, a published CVE drawn as an attack chain, or
+  **Examples → Incident Replay: Robot Fleet (from a log)**, a board rebuilt
+  from a fictional incident log. Choose **Present** to step through either.
 - Review the preview and choose **Apply changes**. One Undo removes the result.
 
 Drawings are illustrations, not vulnerability assessments. The assistant does

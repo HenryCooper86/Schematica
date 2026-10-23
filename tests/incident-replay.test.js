@@ -98,3 +98,10 @@ test('a log with no actor-to-target edges still reconstructs and replays', () =>
   assert.equal(result.timeline.length, 1);
   assert.equal(result.doc.journey.length, 1);
 });
+
+test('reconstructed wires use a bus their ends have, so no wire is a bus mismatch', async () => {
+  const { checkDoc } = await import('../src/drc.js');
+  const result = reconstructIncident(parseIncidentLog(JSON.stringify(log())));
+  assert.deepEqual(checkDoc(result.doc).filter((f) => f.rule === 'bus-mismatch'), []);
+  assert.ok(result.doc.wires.every((w) => w.bus === 'link'), 'a threat actor links logically');
+});

@@ -1938,3 +1938,19 @@ html[data-theme="light"] .badge[style*="--c"] b { color: color-mix(in oklab, var
 html[data-theme="light"] .drc-level.error { color: #b91c1c; border-color: #fca5a5; background: #fef2f2; }
 html[data-theme="light"] .drc-level.warning { color: #92400e; border-color: #fcd34d; background: #fffbeb; }
 html[data-theme="light"] .drc-level.info { color: #1d4ed8; border-color: #93c5fd; background: #eff6ff; }
+
+/* AI change preview: the title row and the Discard/Apply footer stay pinned
+   while the change list scrolls between them. */
+#ai-preview-dialog { padding-top: 0; padding-bottom: 0; }
+#ai-preview-dialog .preview-head {
+  position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 0 -24px; padding: 18px 24px 12px; background: var(--bg1); border-bottom: 1px solid var(--line);
+}
+#ai-preview-dialog .preview-head h2 { margin: 0; }
+#ai-preview-dialog .preview-close { width: 30px; height: 30px; padding: 0; font-size: 18px; line-height: 1; }
+#ai-preview-dialog .preview-foot {
+  position: sticky; bottom: 0; z-index: 2; justify-content: flex-end; align-items: center;
+  margin: 16px -24px 0; padding: 12px 24px 16px; background: var(--bg1); border-top: 1px solid var(--line);
+}
+#ai-preview-dialog .preview-foot #preview-status { margin: 0 auto 0 0; }
+#ai-preview-dialog #ai-preview-apply { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
