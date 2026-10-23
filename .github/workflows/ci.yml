@@ -23,13 +23,42 @@ jobs:
         run: npm test
       - name: Source lint and module reachability
         run: npm run lint
-      - name: Fonts for multilingual report PDF checks
-        # A stalled package mirror once used the whole job budget here; fail
-        # fast instead, and let apt retry a slow mirror before giving up.
+      # CJK fonts for the multilingual report PDF checks. The Ubuntu mirror
+      # stalls on this 61 MB package now and then, so the extracted font
+      # files are cached in the user font directory (fontconfig and Chrome
+      # read it) and the mirror is only contacted on a cache miss.
+      - name: Restore cached CJK fonts
+        id: cjk-fonts
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.local/share/fonts/noto-cjk
+          key: fonts-noto-cjk-ubuntu-22.04-v1
+      - name: Download CJK fonts (cache miss only)
+        if: steps.cjk-fonts.outputs.cache-hit != 'true'
         timeout-minutes: 4
         run: |
           sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update
-          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y fonts-noto-cjk
+          cd "$RUNNER_TEMP"
+          apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 download fonts-noto-cjk
+          dpkg-deb -x fonts-noto-cjk_*.deb fonts-noto-cjk
+          mkdir -p ~/.local/share/fonts/noto-cjk
+          find fonts-noto-cjk -type f \( -name '*.ttc' -o -name '*.otf' -o -name '*.ttf' \) -exec cp {} ~/.local/share/fonts/noto-cjk/ \;
+          # The package's fontconfig rule ranks the right regional variant
+          # (Simplified Chinese for zh-CN); keep it with the cached fonts.
+          cp fonts-noto-cjk/usr/share/fontconfig/conf.avail/70-fonts-noto-cjk.conf ~/.local/share/fonts/noto-cjk/
+      - name: Save CJK fonts to the cache
+        if: steps.cjk-fonts.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.local/share/fonts/noto-cjk
+          key: fonts-noto-cjk-ubuntu-22.04-v1
+      - name: Register CJK fonts
+        run: |
+          mkdir -p ~/.config/fontconfig/conf.d
+          cp ~/.local/share/fonts/noto-cjk/70-fonts-noto-cjk.conf ~/.config/fontconfig/conf.d/
+          fc-cache -f ~/.local/share/fonts
+          fc-match 'sans-serif:lang=zh-cn' family
+          test -n "$(fc-list :lang=zh)"
       - name: Browser smoke test (headless Chrome over the DevTools Protocol)
         run: npm run e2e
         env:
