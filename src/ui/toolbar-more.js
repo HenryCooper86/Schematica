@@ -8,15 +8,13 @@ import { tr, onLanguageChange } from '../i18n.js';
 const GROUPS = [
   // Signal-flow animation and the bus legend stay in the toolbar: animation
   // is how a board shows traffic and the legend is how a viewer reads wires.
-  ['btn-grid', 'btn-snap', 'btn-palette', 'btn-panels', 'btn-fullscreen'],
-  ['btn-bom', 'btn-new'],
+  // Fullscreen, the bill of materials and New board stay in the toolbar too.
+  ['btn-grid', 'btn-snap', 'btn-palette', 'btn-panels'],
   ['btn-shortcuts'],
 ];
 // Text-only buttons get an icon so every row lines up.
 const ICONS = {
-  'btn-fullscreen': '<path d="M3 7V3h4 M11 3h4v4 M15 11v4h-4 M7 15H3v-4"/>',
   'btn-shortcuts': '<rect x="2" y="4.5" width="14" height="9" rx="1.5"/><path d="M5 7.5h.01 M8 7.5h.01 M11 7.5h.01 M5.5 10.5h7"/>',
-  'btn-bom': '<path d="M6 4.5h9 M6 9h9 M6 13.5h9 M3 4.5h.01 M3 9h.01 M3 13.5h.01"/>',
 };
 
 // Menu rows name the setting, not the next action: a toggle's tooltip says
@@ -26,9 +24,6 @@ const LABELS = {
   'btn-snap': () => tr('Snap to grid'),
   'btn-palette': () => tr('Parts palette (B)'),
   'btn-panels': () => tr('Right panels (P)'),
-  'btn-fullscreen': () => tr('Fullscreen'),
-  'btn-bom': () => tr('Bill of materials'),
-  'btn-new': () => tr('New board'),
   'btn-shortcuts': () => tr('Keyboard shortcuts (?)'),
 };
 

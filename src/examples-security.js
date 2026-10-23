@@ -1,6 +1,6 @@
 // Security explainer examples: a published CVE drawn as an attack chain, and
 // a board rebuilt from an incident log by the reconstruct_from_log feature
-// (src/incident-replay.js), with its layout spread for reading. Both are
+// (src/incident-replay.js) with its own reading layout. Both are
 // illustrations: the CVE board is not an assessment of a real system and the
 // incident log is fictional teaching data.
 export const SECURITY_EXAMPLES = [
@@ -48,13 +48,13 @@ export const SECURITY_EXAMPLES = [
     doc: {
       schema: 4, title: "Robot Fleet Incident (from a log)",
       nodes: [
-        {"id": "atk", "kind": "threatactor", "x": 40, "y": 380, "label": "Attacker", "sublabel": "", "color": null, "addr": "", "rail": "", "notes": "", "status": null, "flags": [], "disposition": "adversary", "fields": {"type": "criminal", "motivation": "personal-gain", "severity": "high"}},
-        {"id": "laptop", "kind": "hostpc", "x": 680, "y": 40, "label": "Operator laptop", "sublabel": "", "color": null, "addr": "", "rail": "", "notes": "", "status": null, "flags": []},
-        {"id": "vpn", "kind": "vpn", "x": 680, "y": 240, "label": "Fleet VPN", "sublabel": "", "color": null, "addr": "", "rail": "", "notes": "", "status": null, "flags": []},
-        {"id": "fleet", "kind": "server", "x": 680, "y": 400, "label": "Fleet manager", "sublabel": "", "color": null, "addr": "", "rail": "", "notes": "", "status": null, "flags": []},
-        {"id": "ota", "kind": "server", "x": 680, "y": 560, "label": "OTA server", "sublabel": "", "color": null, "addr": "", "rail": "", "notes": "", "status": null, "flags": []},
-        {"id": "robot", "kind": "aisbc", "x": 980, "y": 560, "label": "Delivery robot", "sublabel": "", "color": null, "addr": "", "rail": "", "notes": "", "status": null, "flags": [], "disposition": "victim"},
-        {"id": "store", "kind": "database", "x": 680, "y": 720, "label": "Telemetry store", "sublabel": "", "color": null, "addr": "", "rail": "", "notes": "", "status": null, "flags": []},
+        {"id": "atk", "kind": "threatactor", "x": 40, "y": 504, "label": "Attacker", "sublabel": "", "color": null, "addr": "", "rail": "", "notes": "", "status": null, "flags": [], "disposition": "adversary", "fields": {"type": "criminal", "motivation": "personal-gain", "severity": "high"}},
+        {"id": "laptop", "kind": "hostpc", "x": 364, "y": 200, "label": "Operator laptop", "sublabel": "", "color": null, "addr": "", "rail": "", "notes": "", "status": null, "flags": []},
+        {"id": "vpn", "kind": "vpn", "x": 375, "y": 394, "label": "Fleet VPN", "sublabel": "", "color": null, "addr": "", "rail": "", "notes": "", "status": null, "flags": []},
+        {"id": "fleet", "kind": "server", "x": 371, "y": 532, "label": "Fleet manager", "sublabel": "", "color": null, "addr": "", "rail": "", "notes": "", "status": null, "flags": []},
+        {"id": "ota", "kind": "server", "x": 375, "y": 670, "label": "OTA server", "sublabel": "", "color": null, "addr": "", "rail": "", "notes": "", "status": null, "flags": []},
+        {"id": "robot", "kind": "aisbc", "x": 710, "y": 670, "label": "Delivery robot", "sublabel": "", "color": null, "addr": "", "rail": "", "notes": "", "status": null, "flags": [], "disposition": "victim"},
+        {"id": "store", "kind": "database", "x": 364, "y": 808, "label": "Telemetry store", "sublabel": "", "color": null, "addr": "", "rail": "", "notes": "", "status": null, "flags": []},
       ],
       wires: [
         {"id": "w1", "bus": "link", "from": {"node": "atk", "port": "n"}, "to": {"node": "laptop", "port": "usb"}, "label": "phishing email", "arrow": "fwd", "style": null, "flow": null},
@@ -65,19 +65,36 @@ export const SECURITY_EXAMPLES = [
         {"id": "w6", "bus": "link", "from": {"node": "atk", "port": "n"}, "to": {"node": "store", "port": "net"}, "label": "exports telemetry", "arrow": "fwd", "style": null, "flow": null},
       ],
       zones: [
-        {"id": "z1", "x": 650, "y": 0, "w": 180, "h": 140, "label": "Operations office", "color": "#f59e0b"},
-        {"id": "z2", "x": 650, "y": 200, "w": 200, "h": 620, "label": "Fleet cloud", "color": "#f59e0b"},
-        {"id": "z3", "x": 950, "y": 520, "w": 180, "h": 140, "label": "Robots in the field", "color": "#f59e0b"},
+        {"id": "z1", "x": 336, "y": 164, "w": 182, "h": 138, "label": "Operations office", "color": "#f59e0b"},
+        {"id": "z2", "x": 336, "y": 358, "w": 182, "h": 552, "label": "Fleet cloud", "color": "#f59e0b"},
+        {"id": "z3", "x": 682, "y": 634, "w": 175.20000000000005, "h": 138, "label": "Robots in the field", "color": "#f59e0b"},
       ],
       notes: [
-        {"id": "n1", "x": 40, "y": 100, "text": "Reconstructed from a log. Steps are what the log recorded, not independent proof of execution. IR-2026-03 (fictional teaching log)"},
+        {"id": "n1", "x": 40, "y": 224, "text": "Reconstructed from a log. Steps are what the log recorded, not independent proof of execution. IR-2026-03 (fictional teaching log)"},
       ],
       journey: [
-        {"id": "j1", "label": "Phase: Initial access", "caption": "Initial access — 2 logged action(s).", "view": {"cx": 412, "cy": 247, "zoom": 0.95}, "targets": {"nodes": ["laptop"], "wires": []}},
-        {"id": "j2", "label": "Phase: Access", "caption": "Access — 2 logged action(s).", "view": {"cx": 412, "cy": 357, "zoom": 0.95}, "targets": {"nodes": ["vpn", "fleet"], "wires": []}},
-        {"id": "j3", "label": "Phase: Impact", "caption": "Impact — 2 logged action(s).", "view": {"cx": 562, "cy": 507, "zoom": 0.95}, "targets": {"nodes": ["ota", "robot"], "wires": []}},
-        {"id": "j4", "label": "Phase: Exfiltration", "caption": "Exfiltration — 1 logged action(s).", "view": {"cx": 412, "cy": 587, "zoom": 0.95}, "targets": {"nodes": ["store"], "wires": []}},
+        {"id": "j1", "label": "Phase: Initial access", "caption": "Initial access — 3 logged action(s).", "view": {"cx": 254, "cy": 389, "zoom": 0.95}, "targets": {"nodes": ["laptop"], "wires": []}},
+        {"id": "j2", "label": "Phase: Access", "caption": "Access — 2 logged action(s).", "view": {"cx": 260, "cy": 500, "zoom": 0.95}, "targets": {"nodes": ["vpn", "fleet"], "wires": []}},
+        {"id": "j3", "label": "Phase: Discovery", "caption": "Discovery — 3 logged action(s).", "view": {"cx": 258, "cy": 555, "zoom": 0.95}, "targets": {"nodes": ["fleet"], "wires": []}},
+        {"id": "j4", "label": "Phase: Impact", "caption": "Impact — 2 logged action(s).", "view": {"cx": 427, "cy": 624, "zoom": 0.95}, "targets": {"nodes": ["ota", "robot"], "wires": []}},
+        {"id": "j5", "label": "Phase: Exfiltration", "caption": "Exfiltration — 3 logged action(s).", "view": {"cx": 254, "cy": 693, "zoom": 0.95}, "targets": {"nodes": ["store"], "wires": []}},
       ],
+      incident: {
+        title: "IR-2026-03 (fictional teaching log)",
+        blast: "12 robots on the test channel",
+        stages: [{"name": "Getting in"}, {"name": "Taking over the fleet"}],
+        phases: [{"name": "Initial access"}, {"name": "Access"}, {"name": "Discovery"}, {"name": "Impact"}, {"name": "Exfiltration"}],
+        events: [
+          {"ts": 1773216840000, "last": 1773216960000, "phase": "Initial access", "actor": "Attacker", "target": "Operator laptop", "action": "phishing email", "count": 2, "stage": "Getting in", "command": "send invoice-0311.html", "evidence": "fake invoice with a credential page", "nodes": ["atk", "laptop"], "wires": ["w1"]},
+          {"ts": 1773217260000, "last": 1773217260000, "phase": "Initial access", "actor": "Attacker", "target": "Operator laptop", "action": "captures credentials", "count": 1, "stage": "Getting in", "command": "POST /login (fake page)", "evidence": "operator username and password captured", "nodes": ["atk", "laptop"], "wires": ["w1"]},
+          {"ts": 1773222000000, "last": 1773222000000, "phase": "Access", "actor": "Attacker", "target": "Fleet VPN", "action": "VPN login with stolen credentials", "count": 1, "stage": "Getting in", "command": "openvpn --config fleet.ovpn", "evidence": "session from 203.0.113.7; no second factor", "nodes": ["atk", "vpn"], "wires": ["w2"]},
+          {"ts": 1773222420000, "last": 1773222420000, "phase": "Access", "actor": "Attacker", "target": "Fleet manager", "action": "operator session", "count": 1, "stage": "Getting in", "command": "GET /api/robots", "evidence": "12 robots on the test channel listed", "nodes": ["atk", "fleet"], "wires": ["w3"]},
+          {"ts": 1773222660000, "last": 1773222900000, "phase": "Discovery", "actor": "Attacker", "target": "Fleet manager", "action": "enumerates the API", "count": 3, "stage": "Getting in", "command": "GET /api/channels", "evidence": "test channel has signature checks off", "nodes": ["atk", "fleet"], "wires": ["w3"]},
+          {"ts": 1773223500000, "last": 1773223500000, "phase": "Impact", "actor": "Attacker", "target": "OTA server", "action": "uploads unsigned update", "count": 1, "stage": "Taking over the fleet", "command": "ota push --channel test fw-2.3.1.bin", "evidence": "accepted: signature check disabled for the test channel", "nodes": ["atk", "ota"], "wires": ["w4"]},
+          {"ts": 1773224400000, "last": 1773224400000, "phase": "Impact", "actor": "OTA server", "target": "Delivery robot", "action": "pushes update", "count": 1, "stage": "Taking over the fleet", "command": "deploy fw-2.3.1 to channel test", "evidence": "12 robots updated", "nodes": ["ota", "robot"], "wires": ["w5"]},
+          {"ts": 1773279000000, "last": 1773279240000, "phase": "Exfiltration", "actor": "Attacker", "target": "Telemetry store", "action": "exports telemetry", "count": 3, "stage": "Taking over the fleet", "command": "GET /export?days=3", "evidence": "route history, 41 MB", "nodes": ["atk", "store"], "wires": ["w6"]},
+        ],
+      },
     },
   },
 ];

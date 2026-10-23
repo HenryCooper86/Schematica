@@ -105,3 +105,23 @@ test('reconstructed wires use a bus their ends have, so no wire is a bus mismatc
   assert.deepEqual(checkDoc(result.doc).filter((f) => f.rule === 'bus-mismatch'), []);
   assert.ok(result.doc.wires.every((w) => w.bus === 'link'), 'a threat actor links logically');
 });
+
+test('a reconstructed board is laid out for reading: attacker left, hops to the right, no overlaps', async () => {
+  const { checkLayout } = await import('../src/layout-checks.js');
+  const { zoneMembers } = await import('../src/geometry.js');
+  const doc = reconstructIncident(parseIncidentLog(JSON.stringify({
+    trustBoundaries: [{ id: 'c', name: 'Cloud' }, { id: 'f', name: 'Field' }],
+    nodes: { a: 'threatactor', api: 'server', ota: 'server', db: 'database', bot: 'aisbc' },
+    actions: [
+      { ts: '2026-03-11T08:00:00Z', actor: 'a', action: 'login', target: 'api', boundary: 'c' },
+      { ts: '2026-03-11T08:10:00Z', actor: 'a', action: 'upload', target: 'ota', boundary: 'c' },
+      { ts: '2026-03-11T08:20:00Z', actor: 'ota', action: 'push', target: 'bot', boundary: 'f' },
+      { ts: '2026-03-11T08:30:00Z', actor: 'a', action: 'export', target: 'db', boundary: 'c' },
+    ],
+  }))).doc;
+  const at = (label) => doc.nodes.find((n) => n.label === label);
+  assert.ok(at('a').x < at('api').x && at('api').x < at('bot').x, 'columns follow hops from the attacker');
+  assert.equal(at('bot').y, at('ota').y, 'a part two hops out lines up with what reaches it');
+  assert.deepEqual(checkLayout(doc), []);
+  for (const z of doc.zones) assert.ok(zoneMembers(doc, z).length, `${z.label} contains its parts`);
+});

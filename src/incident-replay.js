@@ -11,6 +11,8 @@ import { applyEdits, MAX_OPS } from './ai/ops.js';
 import { placeNew } from './ai/layout.js';
 import { resolveStep } from './journey.js';
 import { getPart } from './palette.js';
+import { buildIncident } from './incident-data.js';
+import { nodeRect, noteHeight } from './geometry.js';
 
 // Consecutive near-identical actions within this window collapse into one step.
 export const CLUSTER_WINDOW_MS = 5 * 60 * 1000;
@@ -27,6 +29,101 @@ function timeLabel(ts) {
   const hh = String(d.getHours()).padStart(2, '0');
   const mi = String(d.getMinutes()).padStart(2, '0');
   return `${mm}-${dd} ${hh}:${mi}`;
+}
+
+// Lay a reconstructed board out for reading: columns by how many hops a
+// part is from where the activity starts (the attacker on the left, what it
+// reaches directly next, what those reach further right), each column
+// grouped by trust boundary and then by first appearance, with room for the
+// action labels between columns. Zones are redrawn around their members and
+// the disclaimer note sits above the first column.
+const COLUMN_GAP = 220;
+const ROW_GAP = 64;
+const ZONE_GAP = 56;
+function spreadLayout(doc, steps, idOf, zones) {
+  const byId = new Map(doc.nodes.map((n) => [n.id, n]));
+  const first = new Map();
+  const out = new Map();
+  const targets = new Set();
+  steps.forEach((s, i) => {
+    const a = idOf(s.actor), b = s.target ? idOf(s.target) : null;
+    for (const id of [a, b]) if (id && !first.has(id)) first.set(id, i);
+    if (a && b && a !== b) {
+      targets.add(b);
+      if (!out.has(a)) out.set(a, new Set());
+      out.get(a).add(b);
+    }
+  });
+  const ids = [...first.keys()].filter((id) => byId.has(id));
+  if (!ids.length) return;
+  const depth = new Map();
+  const queue = ids.filter((id) => !targets.has(id));
+  if (!queue.length) queue.push(ids[0]);
+  for (const id of queue) depth.set(id, 0);
+  while (queue.length) {
+    const id = queue.shift();
+    for (const next of out.get(id) || []) if (!depth.has(next)) { depth.set(next, depth.get(id) + 1); queue.push(next); }
+  }
+  for (const id of ids) if (!depth.has(id)) depth.set(id, 1);
+  const zoneOf = new Map();
+  zones.forEach((z, i) => z.members.forEach((id) => { if (!zoneOf.has(id)) zoneOf.set(id, i); }));
+  const columns = [];
+  for (const id of ids) (columns[depth.get(id)] ||= []).push(id);
+  const rank = (id) => (zoneOf.has(id) ? zoneOf.get(id) : zones.length);
+  const placed = columns.map((col) => {
+    col.sort((a, b) => rank(a) - rank(b) || first.get(a) - first.get(b));
+    let y = 0;
+    const rows = col.map((id, i) => {
+      if (i && rank(id) !== rank(col[i - 1])) y += ZONE_GAP;
+      const row = { id, y };
+      y += nodeRect(byId.get(id)).h + ROW_GAP;
+      return row;
+    });
+    return { rows, height: y - ROW_GAP, width: Math.max(...col.map((id) => nodeRect(byId.get(id)).w)) };
+  });
+  const tallest = Math.max(...placed.map((c) => c.height));
+  const top = 200;
+  let x = 40;
+  for (const column of placed) {
+    if (!column) continue;
+    const offset = top + (tallest - column.height) / 2;
+    for (const row of column.rows) {
+      const n = byId.get(row.id);
+      n.x = Math.round(x + (column.width - nodeRect(n).w) / 2);
+      n.y = Math.round(offset + row.y);
+    }
+    x += column.width + COLUMN_GAP;
+  }
+  // Two or more hops out, a part lines up with whatever reaches it (pushed
+  // down only as far as the one above it needs).
+  const parents = new Map();
+  for (const [a, set] of out) for (const b of set) { if (!parents.has(b)) parents.set(b, []); parents.get(b).push(a); }
+  for (let d = 2; d < columns.length; d++) {
+    if (!columns[d]) continue;
+    const wanted = columns[d].map((id) => {
+      const ups = (parents.get(id) || []).filter((p) => depth.get(p) < d).map((p) => byId.get(p));
+      const n = byId.get(id);
+      const y = ups.length ? ups.reduce((sum, u) => sum + u.y + nodeRect(u).h / 2, 0) / ups.length - nodeRect(n).h / 2 : n.y;
+      return { n, y };
+    }).sort((a, b) => a.y - b.y);
+    let floor = -Infinity;
+    for (const w of wanted) { w.n.y = Math.round(Math.max(w.y, floor)); floor = w.n.y + nodeRect(w.n).h + ROW_GAP; }
+  }
+  for (const z of zones) {
+    const zone = doc.zones.find((item) => item.id === z.id);
+    const rects = z.members.map((id) => byId.get(id)).filter(Boolean).map(nodeRect);
+    if (!zone || !rects.length) continue;
+    const x0 = Math.min(...rects.map((r) => r.x)) - 28, y0 = Math.min(...rects.map((r) => r.y)) - 36;
+    const x1 = Math.max(...rects.map((r) => r.x + r.w)) + 28, y1 = Math.max(...rects.map((r) => r.y + r.h)) + 28;
+    Object.assign(zone, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+  }
+  const note = doc.notes.find((t) => t.text.startsWith(DISCLAIMER));
+  if (note) {
+    const lead = placed.find(Boolean)?.rows[0];
+    const leadNode = lead && byId.get(lead.id);
+    note.x = 40;
+    note.y = Math.round(Math.min(top + (tallest - (placed[0]?.height ?? 0)) / 2, leadNode ? leadNode.y : top) - noteHeight(note.text) - 40);
+  }
 }
 
 export function parseIncidentLog(input) {
@@ -53,6 +150,11 @@ export function parseIncidentLog(input) {
       phase: text(entry.phase),
       boundary: text(entry.boundary),
       kind: text(entry.kind),
+      // What was run and what the log shows came of it, for the replay's
+      // action stream. Both optional; shown as recorded.
+      stage: text(entry.stage),
+      command: text(entry.command || entry.cmd),
+      evidence: text(entry.evidence || entry.output || entry.result),
     };
   }).sort((a, b) => a.ts - b.ts);
   const incident = text(data && !Array.isArray(data) ? (data.incident || data.title) : '');
@@ -60,11 +162,20 @@ export function parseIncidentLog(input) {
     ? data.trustBoundaries.map((b, i) => ({ id: text(b && b.id) || `zone-${i + 1}`, name: text(b && b.name) || `Boundary ${i + 1}` }))
     : [];
   const nodeKinds = (data && !Array.isArray(data) && data.nodes && typeof data.nodes === 'object') ? data.nodes : {};
-  return { incident, actions, boundaries, nodeKinds };
+  const blast = text(data && !Array.isArray(data) ? data.blastRadius || data.blast : '');
+  // Optional stages that group phases: [{ id, name }] or plain names; an
+  // action names its stage by id or name.
+  const stageList = (data && !Array.isArray(data) && Array.isArray(data.stages) ? data.stages : [])
+    .map((st, i) => (typeof st === 'string' ? { id: st, name: st } : { id: text(st && st.id) || `stage-${i + 1}`, name: text(st && st.name) || text(st && st.id) || `Stage ${i + 1}` }));
+  for (const a of actions) {
+    const named = stageList.find((st) => st.id === a.stage || st.name === a.stage);
+    if (named) a.stage = named.name;
+  }
+  return { incident, actions, boundaries, nodeKinds, blast, stages: stageList.map((st) => st.name) };
 }
 
 export function reconstructIncident(parsed) {
-  const { incident, actions, boundaries, nodeKinds } = parsed;
+  const { incident, actions, boundaries, nodeKinds, blast = '', stages = [] } = parsed;
 
   // Cluster near-identical consecutive actions into one ordered step.
   const steps = [];
@@ -76,11 +187,13 @@ export function reconstructIncident(parsed) {
       last.lastTs = action.ts;
       last.count += 1;
       if (action.note && !last.note) last.note = action.note;
+      if (action.command && !last.command) last.command = action.command;
+      if (action.evidence && !last.evidence) last.evidence = action.evidence;
     } else {
       steps.push({
         ts: action.ts, lastTs: action.ts, actor: action.actor, action: action.action,
         target: action.target, note: action.note, phase, boundary: action.boundary,
-        kind: action.kind, count: 1,
+        kind: action.kind, count: 1, command: action.command, evidence: action.evidence, stage: action.stage,
       });
     }
   }
@@ -195,13 +308,18 @@ export function reconstructIncident(parsed) {
     throw error;
   }
 
+  spreadLayout(doc, steps, idOf, boundaries.map((b) => ({
+    id: refToId[`z${b.id}`],
+    members: [...new Set((zoneMembers.get(b.id) || []).map((ref) => refToId[ref]).filter(Boolean))],
+  })).filter((z) => z.id));
+
   // Build the journey: a chapter per phase, stops in chronological order.
   const stopCaption = (step) => {
     const parts = [timeLabel(step.ts)];
     parts.push(step.actor ? (step.target ? `${step.actor} → ${step.target}` : step.actor) : step.action);
     parts.push(step.action);
     if (step.count > 1) parts.push(`×${step.count}`);
-    if (step.note) parts.push(step.note);
+    if (step.note || step.evidence) parts.push(step.note || step.evidence);
     return parts.join(' · ');
   };
   const timeline = steps.map((step) => ({ ...step, node: idOf(step.target || step.actor) }));
@@ -231,5 +349,11 @@ export function reconstructIncident(parsed) {
     ts, label: `${String(new Date(ts).getUTCMonth() + 1).padStart(2, '0')}-${String(new Date(ts).getUTCDate()).padStart(2, '0')}`, count,
   })).sort((a, b) => a.ts - b.ts);
 
+  // The timeline travels with the board so the replay works after save,
+  // share and reload.
+  doc.incident = buildIncident({
+    title: incident, blast, phases, steps, idOf, stages,
+    wireBetween: (a, b) => doc.wires.find((w) => w.from.node === a && w.to.node === b)?.id || null,
+  });
   return { doc, timeline, phases, days };
 }

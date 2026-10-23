@@ -57,7 +57,7 @@ export const TOOLS = [
   },
   {
     name: 'reconstruct_from_log',
-    description: 'Rebuild an incident as a board from a JSON log of timestamped actions: {"incident"?, "trustBoundaries"?: [{id, name}], "nodes"?: {name: kind}, "actions": [{ts, actor, action, target?, note?, phase?, boundary?, kind?}]} or a bare actions array. Near-identical consecutive actions collapse into one step; actors and targets become parts, actor-to-target actions become wires, boundaries become zones, and each phase becomes a presentation chapter with one stop per step in time order. Pass the log text in log, or the name of an attached document in attachment. It replaces the whole board, so on a non-empty board ask the user first and then pass replace: true.',
+    description: 'Rebuild an incident as a board from a JSON log of timestamped actions: {"incident"?, "blastRadius"?, "stages"?: [{id, name}], "trustBoundaries"?: [{id, name}], "nodes"?: {name: kind}, "actions": [{ts, actor, action, target?, note?, phase?, stage?, boundary?, kind?, command?, evidence?}]} or a bare actions array. command is what was run and evidence what the log shows came of it; both appear in the action stream of the replay. Near-identical consecutive actions collapse into one step; actors and targets become parts, actor-to-target actions become wires, boundaries become zones, and each phase becomes a presentation chapter with one stop per step in time order. Pass the log text in log, or the name of an attached document in attachment. It replaces the whole board, so on a non-empty board ask the user first and then pass replace: true.',
     input_schema: { type: 'object', properties: { log: { type: 'string' }, attachment: { type: 'string' }, replace: { type: 'boolean' } }, additionalProperties: false },
     strict: true,
   },
@@ -172,7 +172,7 @@ export function createExecutor({ getDoc, commit, selection = () => [], library =
       if (hasWork && input.replace !== true) return err('The board is not empty and reconstruction replaces it. Ask the user to confirm, then call again with replace: true.');
       let result;
       try { result = reconstructIncident(parseIncidentLog(source)); } catch (error) { return err(error.message); }
-      commit((d) => { for (const key of ['title', 'nodes', 'wires', 'zones', 'notes', 'journey']) d[key] = result.doc[key]; });
+      commit((d) => { for (const key of ['title', 'nodes', 'wires', 'zones', 'notes', 'journey', 'incident']) d[key] = result.doc[key]; });
       for (const n of getDoc().nodes) touched.add(n.id);
       const steps = result.timeline.length;
       const phases = result.phases.map((p) => `${p.name} (${p.count} action(s))`).join('; ');

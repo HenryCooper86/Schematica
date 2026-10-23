@@ -18,6 +18,7 @@ import { runTechnicalReportChecks } from './technical-report.mjs';
 import { runPresentationChecks } from './presentation.mjs';
 import { runAdoptionChecks } from './adoption.mjs';
 import { runExploreChecks } from './explore.mjs';
+import { runReplayChecks } from './replay.mjs';
 // Browser smoke test: serves the repo, drives a headless Chrome over the
 // DevTools Protocol, and checks the interactions unit tests cannot reach
 // (hover-revealed ports, dragging a wire, panning, renaming, zone resizing,
@@ -779,7 +780,7 @@ try {
     await click(more.x, more.y);
     await sleep(100);
     const opened = await js(`(() => { const m = document.getElementById('more-menu'); return { open: !m.hidden, expanded: document.getElementById('btn-more').getAttribute('aria-expanded'), ids: [...m.querySelectorAll('button')].map(b => b.id), labels: [...m.querySelectorAll('button')].every(b => getComputedStyle(b, '::after').content.length > 2) }; })()`);
-    check('More opens a menu of the occasional controls, each labelled', opened.open && opened.expanded === 'true' && ['btn-grid', 'btn-bom', 'btn-new', 'btn-shortcuts'].every(id => opened.ids.includes(id)) && !opened.ids.includes('btn-animate') && !opened.ids.includes('btn-legend') && opened.labels, JSON.stringify(opened));
+    check('More opens a menu of the occasional controls, each labelled', opened.open && opened.expanded === 'true' && ['btn-grid', 'btn-snap', 'btn-shortcuts'].every(id => opened.ids.includes(id)) && !['btn-animate', 'btn-legend', 'btn-fullscreen', 'btn-bom', 'btn-new'].some(id => opened.ids.includes(id)) && opened.labels, JSON.stringify(opened));
     const grid = await center('#btn-grid');
     const before = await js(`document.getElementById('btn-grid').getAttribute('aria-pressed')`);
     await click(grid.x, grid.y);
@@ -1516,6 +1517,7 @@ try {
     const { runKiCadChecks } = await import('./kicad.mjs');
     await runKiCadChecks({ js, check, manifest: JSON.parse(readFileSync(process.env.KICAD_MANIFEST, 'utf8')) });
   }
+  await runReplayChecks({ js, key, check, sleep, loadBoard });
   await loadBoard(weather);
   await runAdoptionChecks({ js, key, check, sleep });
   // Adoption ends in an exported offline viewer; return to the editor for subsequent workflows.

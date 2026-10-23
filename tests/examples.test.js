@@ -286,5 +286,15 @@ test('the incident replay example is what reconstruct_from_log builds, laid out 
   const doc = EXAMPLES.find((e) => e.id === 'robot-fleet-incident').doc;
   assert.ok(doc.notes[0].text.startsWith('Reconstructed from a log.'), 'keeps the reconstruction disclaimer');
   assert.ok(doc.wires.every((w) => w.arrow === 'fwd' && w.label), 'directed, labelled actions');
-  assert.deepEqual(doc.journey.map((j) => j.label), ['Phase: Initial access', 'Phase: Access', 'Phase: Impact', 'Phase: Exfiltration']);
+  assert.deepEqual(doc.journey.map((j) => j.label), ['Phase: Initial access', 'Phase: Access', 'Phase: Discovery', 'Phase: Impact', 'Phase: Exfiltration']);
+  // The replay timeline: two stages, commands and evidence, two UTC days.
+  const inc = doc.incident;
+  assert.deepEqual(inc.stages.map((st) => st.name), ['Getting in', 'Taking over the fleet']);
+  assert.equal(inc.blast, '12 robots on the test channel');
+  assert.ok(inc.events.every((e) => e.command), 'every event has a command');
+  assert.ok(inc.events.some((e) => e.count > 1), 'bursts collapse into one event');
+  assert.equal(new Set(inc.events.map((e) => new Date(e.ts).toISOString().slice(0, 10))).size, 2);
+  const { doc: back, warnings } = deserialize(serialize(doc));
+  assert.deepEqual(warnings, []);
+  assert.deepEqual(back.incident, inc);
 });

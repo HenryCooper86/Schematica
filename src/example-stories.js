@@ -41,17 +41,21 @@ const EXAMPLE_STORIES = {
   'robot-fleet-incident': {
     j1: [
       ['laptop', '03-11 08:14 UTC · Attacker → Operator laptop · phishing email · ×2 · fake invoice with a credential page', '03-11 08:14 UTC · 攻击者 → 运维笔记本 · 钓鱼邮件 · ×2 · 带凭据页面的伪造发票'],
+      ['laptop', '03-11 08:21 UTC · Attacker → Operator laptop · captures credentials · operator username and password captured', '03-11 08:21 UTC · 攻击者 → 运维笔记本 · 窃取凭据 · 运维人员的用户名和密码被截获'],
     ],
     j2: [
-      ['vpn', '03-11 09:40 UTC · Attacker → Fleet VPN · VPN login with stolen credentials · no second factor on the VPN', '03-11 09:40 UTC · 攻击者 → 车队 VPN · 使用被盗凭据登录 VPN · VPN 未启用第二因素'],
-      ['fleet', '03-11 09:47 UTC · Attacker → Fleet manager · operator session', '03-11 09:47 UTC · 攻击者 → 车队管理器 · 运维会话'],
+      ['vpn', '03-11 09:40 UTC · Attacker → Fleet VPN · VPN login with stolen credentials · session from 203.0.113.7; no second factor', '03-11 09:40 UTC · 攻击者 → 车队 VPN · 使用被盗凭据登录 VPN · 会话来自 203.0.113.7；未启用第二因素'],
+      ['fleet', '03-11 09:47 UTC · Attacker → Fleet manager · operator session · 12 robots on the test channel listed', '03-11 09:47 UTC · 攻击者 → 车队管理器 · 运维会话 · 列出测试通道上的 12 台机器人'],
     ],
     j3: [
-      ['ota', '03-11 10:05 UTC · Attacker → OTA server · uploads unsigned update · signature check disabled for a test channel', '03-11 10:05 UTC · 攻击者 → OTA 服务器 · 上传未签名更新 · 测试通道关闭了签名检查'],
-      ['robot', '03-11 10:20 UTC · OTA server → Delivery robot · pushes update · 12 robots on the test channel', '03-11 10:20 UTC · OTA 服务器 → 配送机器人 · 推送更新 · 测试通道上有 12 台机器人'],
+      ['fleet', '03-11 09:51 UTC · Attacker → Fleet manager · enumerates the API · ×3 · test channel has signature checks off', '03-11 09:51 UTC · 攻击者 → 车队管理器 · 枚举 API · ×3 · 测试通道关闭了签名检查'],
     ],
     j4: [
-      ['store', '03-11 11:02 UTC · Attacker → Telemetry store · exports telemetry · route history for 3 days', '03-11 11:02 UTC · 攻击者 → 遥测存储 · 导出遥测数据 · 3 天的路线历史'],
+      ['ota', '03-11 10:05 UTC · Attacker → OTA server · uploads unsigned update · accepted: signature check disabled for the test channel', '03-11 10:05 UTC · 攻击者 → OTA 服务器 · 上传未签名更新 · 已接受：测试通道关闭了签名检查'],
+      ['robot', '03-11 10:20 UTC · OTA server → Delivery robot · pushes update · 12 robots updated', '03-11 10:20 UTC · OTA 服务器 → 配送机器人 · 推送更新 · 12 台机器人已更新'],
+    ],
+    j5: [
+      ['store', '03-12 01:30 UTC · Attacker → Telemetry store · exports telemetry · ×3 · route history, 41 MB', '03-12 01:30 UTC · 攻击者 → 遥测存储 · 导出遥测数据 · ×3 · 路线历史，41 MB'],
     ],
   },
   'ev-bms': {

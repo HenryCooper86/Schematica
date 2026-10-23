@@ -24,7 +24,7 @@ The instructions use English button names. Toolbar icons show their names on hov
 
 ### Make a small controller-and-sensor sketch
 
-1. Save any current work, choose **More → New board** in the toolbar and confirm.
+1. Save any current work, choose **New** in the toolbar and confirm.
 2. Enter a title such as `Temperature monitor` in the top-left title field.
 3. Search the left palette for `MCU`. Click or drag the part onto the canvas.
 4. Search for `Temp sensor` and add it beside the controller.
@@ -189,7 +189,7 @@ Choose the format for the recipient's task:
 | Review findings, interfaces, requirements and changes | **Engineering → Review package → Download review package** | An HTML report with embedded design data and downloads |
 | Insert a picture into a document | **Export → PNG**, **Copy PNG** or **SVG** | Raster or vector artwork |
 | Print a static diagram | **Export → PDF** | A single-page PDF |
-| Inspect the parts list | **More → Bill of materials** | Grouped bill of materials with CSV/Markdown options |
+| Inspect the parts list | **BOM** | Grouped bill of materials with CSV/Markdown options |
 | Watch a tour | **Rec**, or **Export → Loop GIF** for a short animation | A recording or animated image |
 
 For a client report, enter the project context and document details, choose the
@@ -303,17 +303,44 @@ incident, or you can pick it in the **Skill** selector.
 - Describe the attack in your own words, or paste a link to an advisory. The
   assistant reads only links you give it, and only on the Node-backed edition.
 - To rebuild an incident, attach a JSON log of timestamped actions and ask what
-  happened. The log is `{"incident", "trustBoundaries": [{id, name}], "nodes":
-  {name: kind}, "actions": [{ts, actor, action, target, note, phase, boundary}]}`
-  or a bare array of actions; only `ts`, `actor` and `action` are required.
+  happened. The log is `{"incident", "blastRadius", "stages": [{id, name}],
+  "trustBoundaries": [{id, name}], "nodes": {name: kind}, "actions": [{ts,
+  actor, action, target, note, phase, stage, boundary, command, evidence}]}` or
+  a bare array of actions; only `ts`, `actor` and `action` are required.
+  `command` is what was run and `evidence` what the log shows came of it.
   Repeated actions within five minutes collapse into one step, each phase
   becomes a presentation chapter, and a note marks the board as reconstructed
-  from a log. Rebuilding replaces the board, so on a non-empty board the
-  assistant asks first.
+  from a log. The board is laid out with the attacker on the left and each
+  hop further right. Rebuilding replaces the board, so on a non-empty board
+  the assistant asks first.
+
+### Replay an incident
+
+A board rebuilt from a log shows **Replay incident** at the top left of the
+canvas. The replay plays the log on a clock, in UTC: parts and links start dim
+and light up as the attacker reaches them. The dock below the board shows the
+actions replayed so far, the active phase and stage, how many parts have been
+reached (and the blast radius when the log names one), activity per phase,
+a live stream of the logged commands with their evidence, and volume per day.
+Each stage appears as a band under the timeline.
+
+| Control | Action |
+| --- | --- |
+| Play / pause, or **Space** | Run or stop the clock |
+| 0.5× to 4× | Playback speed (at 1× the whole incident takes about 40 seconds) |
+| Drag the timeline | Jump to any moment |
+| **←** / **→** | Previous or next logged step |
+| **Home** / Restart | Back to before the first action |
+| **Esc** or × | Leave the replay |
+
+The timeline is saved with the board, so a downloaded file or share link
+replays the same way. Steps are what the log recorded, not independent proof
+of execution.
 - To see the result before trying it, open **Examples → CVE Explainer:
   Log4Shell (CVE-2021-44228)**, a published CVE drawn as an attack chain, or
   **Examples → Incident Replay: Robot Fleet (from a log)**, a board rebuilt
-  from a fictional incident log. Choose **Present** to step through either.
+  from a fictional incident log. Choose **Present** to step through either, or
+  **Replay incident** on the robot fleet board to play its log on a clock.
 - Review the preview and choose **Apply changes**. One Undo removes the result.
 
 Drawings are illustrations, not vulnerability assessments. The assistant does

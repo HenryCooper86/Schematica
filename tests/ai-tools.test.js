@@ -213,6 +213,7 @@ test('reconstruct_from_log draws an incident with one chapter per phase on an em
   assert.equal(doc.zones.length, 1);
   assert.deepEqual(doc.journey.map(c => c.label), ['Phase: recon', 'Phase: rce', 'Phase: exfil']);
   assert.ok(doc.notes.some(n => n.text.startsWith('Reconstructed from a log.')));
+  assert.equal(doc.incident?.events.length, 3, 'the board keeps its timeline so Replay incident works');
   assert.match(res.text, /3 steps/);
   assert.equal(ex.touched.size, 3);
 });

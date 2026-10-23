@@ -3,6 +3,7 @@ import { validateBlueprint } from './blueprint.js';
 import { normalizeInterfacePorts } from './interface-checks.js';
 import { normalizeSpec, normalizeBudget, normalizeEngineering } from './engineering.js';
 import { normalizeTargets, normalizeStops } from './journey.js';
+import { normalizeIncident } from './incident-data.js';
 import { knownPorts } from './rdk/profiles.js';
 import { BUSES, DEFAULT_BUS } from './buses.js';
 import { PARTS, DISPOSITIONS, PORT_ALIASES, KIND_ALIASES } from './palette.js';
@@ -339,6 +340,8 @@ export function deserialize(text, { depth = 0 } = {}) {
   if (raw.securityAnalysis != null) warnings.push(tr('Dropped a saved security analysis; explain attacks with the assistant instead.'));
   const engineering = normalizeEngineering(raw.engineering, warnings);
   if (engineering) doc.engineering = engineering;
+  const incident = normalizeIncident(raw.incident, doc, warnings);
+  if (incident) doc.incident = incident;
   if (raw.kicad !== undefined) {
     try { doc.kicad = validateKiCadProvenance(raw.kicad); }
     catch { warnings.push(tr('Ignored invalid KiCad provenance. Import a new board before updating.')); }
