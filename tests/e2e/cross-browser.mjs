@@ -65,6 +65,9 @@ const key = async (value, code, keyCode, modifiers = 0) => {
   const mods = [[1,'\uE00A'],[2,'\uE009'],[4,'\uE03D'],[8,'\uE008']].filter(([mask]) => modifiers & mask).map(([,v]) => v);
   await command('/actions', { actions: [{ type: 'key', id: 'keyboard', actions: [...mods.map(value => ({ type:'keyDown', value })), {type:'keyDown',value:valueKey}, {type:'keyUp',value:valueKey}, ...mods.reverse().map(value => ({type:'keyUp',value}))] }] });
 };
+const center = sel => js(`(() => { const r = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
+const click = (x, y) => command('/actions', { actions: [{ type: 'pointer', id: 'mouse', parameters: { pointerType: 'mouse' }, actions: [
+  { type: 'pointerMove', x: Math.round(x), y: Math.round(y), origin: 'viewport' }, { type: 'pointerDown', button: 0 }, { type: 'pointerUp', button: 0 }] }] });
 const screenshot = async name => writeFile(join(output, name + '.png'), Buffer.from(await request('GET', `/session/${session}/screenshot`), 'base64'));
 const load = async () => {
   if (session) {
@@ -136,7 +139,7 @@ try {
     report.kicad = await runKiCadChecks({ js, check, manifest: JSON.parse(await readFile(process.env.KICAD_MANIFEST, 'utf8')) });
   }
   await load();
-  await runGuidedReviewChecks({js,key,check,sleep});
+  await runGuidedReviewChecks({js,key,check,sleep,click,center});
   await runKiCadUpdateChecks({js,check,sleep});
   await load();
   report.performance = await runPerformance({ js });
