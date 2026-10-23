@@ -36,6 +36,7 @@ export const TOOLBAR_HELP = [
   ['btn-lang', 'Language', '语言', 'Switch the interface and guide between English and Simplified Chinese. Labels and notes you wrote on the board remain as entered.', '在英文和简体中文之间切换界面与指南。自行填写的板图标签和备注保留原文。', ''],
   ['btn-share', 'Share link', '分享链接', 'Copy a URL containing a snapshot of the board. Recipients can open that copy; later edits are not synchronized. Anyone holding the link can read the included board content.', '复制包含板图快照的网址。接收者可打开该副本，但后续编辑不会同步。持有链接的人可以读取其中的板图内容。', ''],
   ['btn-new', 'New board', '新建板图', 'Clear the working canvas to begin another board. Save or export important work first, and use the recovery notice when you need the prior board.', '清空工作画布以开始另一张板图。先保存或导出重要工作；需要上一板图时，可使用恢复提示。', ''],
+  ['btn-more', 'More', '更多', 'Open the less frequent controls: grid dots, snap, signal-flow animation, bus legend, the palette and panel toggles, fullscreen, bill of materials, new board and keyboard shortcuts.', '打开不常用的控件：网格点、吸附、信号流动画、总线图例、部件面板与右侧面板开关、全屏、物料清单、新建板图和键盘快捷键。', ''],
   ['btn-remove', 'Delete selection', '删除所选项目', 'Remove selected unlocked items. The button is disabled when there is nothing eligible to delete. Undo restores a mistaken deletion.', '删除选中且未锁定的项目。没有可删除项目时按钮禁用。误删可通过撤销恢复。', 'Delete'],
 ];
 export const PALETTE_HELP = [

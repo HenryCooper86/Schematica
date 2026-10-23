@@ -35,6 +35,7 @@ export const GUIDE_ICONS = {
   "btn-lang": "中文",
   "btn-share": "<svg viewBox=\"0 0 18 18\" aria-hidden=\"true\"><path d=\"M13.5 5m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M4.5 9m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M13.5 13.5m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M6.3 8.1l5.4-2.3 M6.3 9.9l5.4 2.7\"/></svg>",
   "btn-new": "<svg viewBox=\"0 0 18 18\" aria-hidden=\"true\"><path d=\"M5 2.5h5.5L14 6v9.5H5z M10.5 2.5V6H14 M9.5 8.5v4 M7.5 10.5h4\"/></svg>",
+  "btn-more": "<svg viewBox=\"0 0 18 18\" aria-hidden=\"true\"><path d=\"M4 9h.01 M9 9h.01 M14 9h.01\" stroke-width=\"2.4\"/></svg>",
   "btn-remove": "<svg viewBox=\"0 0 18 18\" aria-hidden=\"true\"><path d=\"M4 5h10 M7.2 5V3.5h3.6V5 M5.5 5l.7 9.5h5.6l.7-9.5 M8 7.5v4.5 M10 7.5v4.5\"/></svg>",
   "btn-engineering": "<svg viewBox=\"0 0 18 18\" aria-hidden=\"true\"><rect x=\"2\" y=\"2\" width=\"5\" height=\"5\" rx=\"1\"/><rect x=\"11\" y=\"11\" width=\"5\" height=\"5\" rx=\"1\"/><path d=\"M7 4.5h6.5V11M4.5 7v6.5H11\"/></svg>",
   "theme-light": "<svg viewBox=\"0 0 18 18\" aria-hidden=\"true\"><circle cx=\"9\" cy=\"9\" r=\"3\"/><path d=\"M9 1.5V3 M9 15v1.5 M1.5 9H3 M15 9h1.5 M3.7 3.7l1.1 1.1 M13.2 13.2l1.1 1.1 M3.7 14.3l1.1-1.1 M13.2 4.8l1.1-1.1\"/></svg>",

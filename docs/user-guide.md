@@ -24,7 +24,7 @@ The instructions use English button names. Toolbar icons show their names on hov
 
 ### Make a small controller-and-sensor sketch
 
-1. Save any current work, choose **New** in the toolbar and confirm.
+1. Save any current work, choose **More → New board** in the toolbar and confirm.
 2. Enter a title such as `Temperature monitor` in the top-left title field.
 3. Search the left palette for `MCU`. Click or drag the part onto the canvas.
 4. Search for `Temp sensor` and add it beside the controller.
@@ -189,7 +189,7 @@ Choose the format for the recipient's task:
 | Review findings, interfaces, requirements and changes | **Engineering → Review package → Download review package** | An HTML report with embedded design data and downloads |
 | Insert a picture into a document | **Export → PNG**, **Copy PNG** or **SVG** | Raster or vector artwork |
 | Print a static diagram | **Export → PDF** | A single-page PDF |
-| Inspect the parts list | **BOM** | Grouped bill of materials with CSV/Markdown options |
+| Inspect the parts list | **More → Bill of materials** | Grouped bill of materials with CSV/Markdown options |
 | Watch a tour | **Rec**, or **Export → Loop GIF** for a short animation | A recording or animated image |
 
 For a client report, enter the project context and document details, choose the

@@ -28,6 +28,7 @@ import { initDialogs } from './ui/dialogs.js';
 import { initJourney } from './ui/journey-ui.js';
 import { initExamplesMenu } from './ui/examples-menu.js';
 import { initEmptyState } from './ui/empty-state.js';
+import { initToolbarMore } from './ui/toolbar-more.js';
 import { initRecording } from './ui/recording-ui.js';
 import { initLayoutToggles } from './ui/panels.js';
 import { initShortcuts } from './ui/shortcuts-ui.js';
@@ -272,6 +273,8 @@ initLayoutToggles();
 initShortcuts();
 const aiSettings = createSettings(storage);
 initAssistant({ store, tools, render, svg, library, settings: aiSettings });
+// Last: moves already-initialised toolbar buttons into the More menu.
+initToolbarMore();
 
 initLanguageSwitch(document.getElementById('btn-lang'));
 // Flag tooltips are drawn into the SVG, so the canvas redraws on a switch.

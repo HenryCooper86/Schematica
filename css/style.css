@@ -100,6 +100,30 @@ html, body {
 #toolbar :is(button, a):hover:not(:disabled) { color: var(--text); background: var(--bg3); }
 #toolbar button:disabled { opacity: 0.35; cursor: default; }
 #toolbar button.active { background: var(--accent-dim); color: #7dd3fc; }
+/* ---- More menu ---- */
+.more-wrap { position: relative; display: flex; }
+#more-menu {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 40; min-width: 240px;
+  display: flex; flex-direction: column; gap: 1px; padding: 6px;
+  background: var(--bg1); border: 1px solid var(--line2); border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .35);
+}
+#more-menu[hidden] { display: none; }
+#toolbar #more-menu :is(button, a) {
+  position: relative; width: 100%; justify-content: flex-start; gap: 0;
+  padding: 7px 30px 7px 9px; border-radius: 6px; font-size: 0; text-align: left;
+}
+#toolbar #more-menu :is(button, a) > svg { margin-right: 10px; flex: none; }
+#toolbar #more-menu :is(button, a)::after { content: attr(data-menu-label); font-size: 12.5px; white-space: nowrap; }
+#toolbar #more-menu .rec-dot { margin: 0 4px; }
+#toolbar #more-menu [aria-pressed=true]::before {
+  content: '✓'; position: absolute; right: 10px; font-size: 12px; color: var(--accent);
+}
+#toolbar #more-menu button.active { background: transparent; color: var(--text); }
+#toolbar #more-menu :is(button, a):hover:not(:disabled) { background: var(--bg3); color: var(--text); }
+#toolbar #more-menu :is(button, a):disabled { opacity: .45; }
+.more-sep { height: 1px; margin: 4px 6px; background: var(--line); }
+html[data-theme="light"] #more-menu { background: #fff; box-shadow: 0 12px 32px rgba(15, 23, 42, .14); }
 #btn-check { position: relative; }
 #btn-check .check-count {
   position: absolute; top: -3px; right: -4px; min-width: 15px; height: 15px; padding: 0 4px;

@@ -738,29 +738,51 @@ try {
 
   // Dialogs are native <dialog>s: modal, Escape closes, focus comes back,
   // and a click on the backdrop dismisses.
-  await js(`document.getElementById('btn-bom').focus(); true`);
-  const bomBtn = await center('#btn-bom');
+  await js(`document.getElementById('btn-check').focus(); true`);
+  const checkBtn = await center('#btn-check');
   // With a card selected the properties panel is showing; it lives inside
   // the canvas area, so it can never cover a toolbar control. The toolbar
   // itself fits one row at this window width (it wraps below ~1366 px).
-  const covering = await js(`(() => { const hit = document.elementFromPoint(${bomBtn.x}, ${bomBtn.y}); return hit && (hit.id || hit.tagName); })()`);
-  check('the floating panel never covers a toolbar control', covering === 'btn-bom', String(covering));
+  const covering = await js(`(() => { const hit = document.elementFromPoint(${checkBtn.x}, ${checkBtn.y}); const b = hit && hit.closest('button'); return b ? b.id : hit && hit.tagName; })()`);
+  check('the floating panel never covers a toolbar control', covering === 'btn-check', String(covering));
   const toolbarRows = await js(`(() => { const centers = [...document.getElementById('toolbar').children].map(k => { const r = k.getBoundingClientRect(); return r.top + r.height / 2; }); return { rows: new Set(centers.map(Math.round)).size, viewport: innerWidth, centerSpan: Math.max(...centers) - Math.min(...centers), tagline: !!document.querySelector('.brand-sub') }; })()`);
   check('the toolbar fits on one row at 1500 px with no tagline beside the name', toolbarRows.rows === 1 && toolbarRows.tagline === false, JSON.stringify(toolbarRows));
-  await click(bomBtn.x, bomBtn.y);
+  // Occasional controls live in the More menu; the buttons keep their ids.
+  {
+    const more = await center('#btn-more');
+    await click(more.x, more.y);
+    await sleep(100);
+    const opened = await js(`(() => { const m = document.getElementById('more-menu'); return { open: !m.hidden, expanded: document.getElementById('btn-more').getAttribute('aria-expanded'), ids: [...m.querySelectorAll('button')].map(b => b.id), labels: [...m.querySelectorAll('button')].every(b => getComputedStyle(b, '::after').content.length > 2) }; })()`);
+    check('More opens a menu of the occasional controls, each labelled', opened.open && opened.expanded === 'true' && ['btn-grid', 'btn-bom', 'btn-new', 'btn-shortcuts'].every(id => opened.ids.includes(id)) && opened.labels, JSON.stringify(opened));
+    const grid = await center('#btn-grid');
+    const before = await js(`document.getElementById('btn-grid').getAttribute('aria-pressed')`);
+    await click(grid.x, grid.y);
+    await sleep(100);
+    const toggled = await js(`({ pressed: document.getElementById('btn-grid').getAttribute('aria-pressed'), open: !document.getElementById('more-menu').hidden })`);
+    check('a menu toggle works and closes the menu', toggled.pressed !== before && toggled.open === false, JSON.stringify({ before, ...toggled }));
+    await js(`document.getElementById('btn-grid').click(); true`);
+    await js(`document.getElementById('btn-more').focus(); true`);
+    await key('ArrowDown', 'ArrowDown', 40);
+    await sleep(50);
+    await key('Escape', 'Escape', 27);
+    await sleep(50);
+    const escaped = await js(`({ open: !document.getElementById('more-menu').hidden, focus: document.activeElement.id })`);
+    check('Escape closes the More menu and returns focus to its button', escaped.open === false && escaped.focus === 'btn-more', JSON.stringify(escaped));
+  }
+  await click(checkBtn.x, checkBtn.y);
   await sleep(100);
-  const modal = await js(`(() => { const d = document.getElementById('bom-dialog'); return { tag: d.tagName, open: d.open === true, modal: d.matches(':modal'), inside: d.contains(document.activeElement) }; })()`);
-  check('the BOM opens as a modal <dialog> and takes focus', modal.tag === 'DIALOG' && modal.open && modal.modal && modal.inside, JSON.stringify(modal));
+  const modal = await js(`(() => { const d = document.getElementById('drc-dialog'); return { tag: d.tagName, open: d.open === true, modal: d.matches(':modal'), inside: d.contains(document.activeElement) }; })()`);
+  check('the Check dialog opens as a modal <dialog> and takes focus', modal.tag === 'DIALOG' && modal.open && modal.modal && modal.inside, JSON.stringify(modal));
   await key('Escape', 'Escape', 27);
   await sleep(100);
-  const closed = await js(`(() => { const d = document.getElementById('bom-dialog'); return { open: d.open === true, focus: document.activeElement && document.activeElement.id }; })()`);
-  check('Escape closes the dialog and returns focus to the BOM button', closed.open === false && closed.focus === 'btn-bom', JSON.stringify(closed));
-  await click(bomBtn.x, bomBtn.y);
+  const closed = await js(`(() => { const d = document.getElementById('drc-dialog'); return { open: d.open === true, focus: document.activeElement && document.activeElement.id }; })()`);
+  check('Escape closes the dialog and returns focus to the Check button', closed.open === false && closed.focus === 'btn-check', JSON.stringify(closed));
+  await click(checkBtn.x, checkBtn.y);
   await sleep(100);
   const vh = await js('window.innerHeight');
   await click(20, vh - 20);
   await sleep(100);
-  const outside = await js(`document.getElementById('bom-dialog').open === true`);
+  const outside = await js(`document.getElementById('drc-dialog').open === true`);
   check('clicking outside the card closes the dialog', outside === false, String(outside));
 
   // Toasts are announced to assistive tech, and a failed autosave is
