@@ -24,9 +24,12 @@ jobs:
       - name: Source lint and module reachability
         run: npm run lint
       - name: Fonts for multilingual report PDF checks
+        # A stalled package mirror once used the whole job budget here; fail
+        # fast instead, and let apt retry a slow mirror before giving up.
+        timeout-minutes: 4
         run: |
-          sudo apt-get update
-          sudo apt-get install -y fonts-noto-cjk
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y fonts-noto-cjk
       - name: Browser smoke test (headless Chrome over the DevTools Protocol)
         run: npm run e2e
         env:
