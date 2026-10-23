@@ -670,3 +670,22 @@ test('a board saved with a security analysis from the removed panel still opens,
   assert.equal(doc.securityAnalysis, undefined);
   assert.ok(warnings.some(w => w.includes('security analysis')));
 });
+
+test('a saved Attacker figure opens as a Threat Actor with its wires and fields', () => {
+  const text = JSON.stringify({ schema: 2, nodes: [
+    { id: 'a', kind: 'attacker', x: 0, y: 0, label: 'Remote attacker', fields: { origin: '203.0.113.7', severity: 'high' } },
+    { id: 's', kind: 'vulnerability', x: 300, y: 0, label: 'Upload flaw' },
+  ], wires: [{ id: 'w', bus: 'link', from: { node: 'a', port: 'e' }, to: { node: 's', port: 'w' } }], zones: [], notes: [], journey: [] });
+  const { doc, warnings } = deserialize(text);
+  const a = doc.nodes.find((n) => n.id === 'a');
+  assert.equal(a.kind, 'threatactor');
+  assert.equal(a.label, 'Remote attacker');
+  assert.deepEqual(a.fields, { origin: '203.0.113.7', severity: 'high' });
+  assert.ok(!warnings.some((w) => /custom box/.test(w)), 'not coerced to a custom box');
+  assert.equal(doc.wires.length, 1, 'the wire on the shared link port survives');
+});
+
+test('a kind named like an Object prototype key is not treated as an alias', () => {
+  const text = JSON.stringify({ schema: 2, nodes: [{ id: 'a', kind: 'constructor', x: 0, y: 0 }], wires: [], zones: [], notes: [], journey: [] });
+  assert.equal(deserialize(text).doc.nodes[0].kind, 'generic');
+});

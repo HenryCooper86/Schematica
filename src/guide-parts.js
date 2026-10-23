@@ -163,7 +163,6 @@ export const PART_HELP = {
   city: ['A city or region grouping sites. Use it for geographic separation in architecture and risk diagrams.', '归组站点的城市或地区。用于架构与风险图中的地理隔离。'],
   location: ['A specific site or physical location. Name it and connect the facilities or links placed there.', '具体地点或物理位置。命名并连接位于此处的设施或链路。'],
   poi: ['A notable place of interest. Mark it to reference a landmark or risk-relevant location.', '值得关注的地点。用于标记地标或与风险相关的位置。'],
-  attacker: ['An illustrated adversary behind a laptop. Use it as the source or recipient of cited attack traffic; the drawing does not identify a real person or establish access.', '笔记本电脑后方的攻击者示意。用于引用支持的攻击流量发送方或接收方；图像并不识别真实人员，也不证明已有访问权限。'],
   httprequest: ['A request capsule for a method, path and descriptive payload. Connect it with logical arrows; it never sends an HTTP request or contacts the illustrated target.', '表示方法、路径及载荷说明的请求胶囊。使用逻辑箭头连接；它不会发送 HTTP 请求或联系图中的目标。'],
   payload: ['An illustrated input or payload document. Record the source-supported format and relevant fields, not runnable commands or an assumed exploit outcome.', '输入或载荷文档示意。记录来源支持的格式和相关字段，不将可运行命令或假定的利用结果加入说明。'],
   memorydump: ['A response or memory-dump capsule. Show only the data categories a retained source supports, and distinguish a hypothetical disclosure from observed leaked bytes.', '响应或内存转储胶囊。仅显示保留来源支持的数据类别，并区分假设的信息泄露与实际观察到的泄露字节。'],

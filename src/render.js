@@ -114,6 +114,8 @@ function shapeMarkup(part, W, H, acc, selected) {
 // pill, an outcome callout points a tail at what it concludes about. The
 // surface, text fills and threat dashes are the badge cards' own, so themes
 // and exports restyle both alike, and the label and meta stay editable text.
+const FIGURE_STROKE = 2.1;
+
 function figureMarkup(part, W, H, acc, selected, labelLines, metaLines) {
   const P = FIGURE_LAYOUT[part.figure];
   const threat = !!part.threat && !selected;
@@ -138,14 +140,18 @@ function figureMarkup(part, W, H, acc, selected, labelLines, metaLines) {
       s += `<rect x="${(W - bw) / 2}" y="${P.padTop - 8}" width="${bw}" height="${P.glyph + 16}" rx="16" fill="${c}" opacity="0.13"/>`;
     }
   }
-  // The pictogram: the catalogue's 24-unit glyph at figure scale.
+  // The pictogram: the catalogue's 24-unit glyph at figure scale. Its line
+  // weight is set in screen pixels (FIGURE_STROKE), not scaled with the
+  // glyph, so a large figure reads as the same crisp line drawing as the
+  // badge icons beside it instead of a heavy marker sketch.
   const gs = P.glyph / 24;
+  const sw = Math.round((FIGURE_STROKE / gs) * 1000) / 1000;
   const gx = P.side ? P.padX : (W - P.glyph) / 2;
   const gy = P.side ? (H - P.glyph) / 2 : P.padTop;
   s += `<g transform="translate(${Math.round(gx * 100) / 100} ${Math.round(gy * 100) / 100}) scale(${Math.round(gs * 1000) / 1000})"`
-    + ` fill="none" stroke="${c}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" color="${c}">${part.glyph}</g>`;
+    + ` fill="none" stroke="${c}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" color="${c}">${part.glyph}</g>`;
   // Text: the wrapped label, then the mono meta lines — figures carry their
-  // own larger metrics (15px/600 label, 12px context), shared with geometry.
+  // own larger metrics (13px/600 label, 10.5px context), shared with geometry.
   const labelBlock = labelLines.length * FIGURE_LABEL_LINE_H;
   const metaBlock = metaLines.reduce((sum, m) => sum + m.lines.length * FIGURE_META_LINE_H, 0);
   const textBlock = labelBlock + (metaBlock ? metaBlock + 4 : 0);

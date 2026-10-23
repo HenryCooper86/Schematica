@@ -645,18 +645,17 @@ test('wrapped labels remain inert text in canvas markup and standalone SVG expor
 test('catalogue figures render as large illustrations with editable text', () => {
   const doc = sampleDoc();
   doc.nodes = [
-    node('atk', 'attacker', 0, 0, { label: 'Unattributed attacker', sublabel: 'POST /upload.php' }),
+    node('atk', 'codeexec', 0, 0, { label: 'Remote code execution', sublabel: 'POST /upload.php' }),
     node('req', 'httprequest', 320, 0, { label: 'Request' }),
     node('crash', 'processcrash', 620, 0, { label: 'Crash' }),
   ];
   doc.wires = [];
   const m = diagramMarkup(doc);
   const atk = nodeGroup(m, 'atk');
-  const A = FIGURE_LAYOUT.actor;
+  const A = FIGURE_LAYOUT.outcome;
   const glyph = `translate(${Math.round(((A.w - A.glyph) / 2) * 100) / 100} ${A.padTop}) scale(${Math.round((A.glyph / 24) * 1000) / 1000})`;
-  assert.ok(atk.includes(`width="${A.w}"`), 'the actor keeps its presentation width');
+  assert.ok(atk.includes(`width="${A.w}"`), 'the outcome keeps its presentation width');
   assert.ok(atk.includes(glyph), `the 24-unit pictogram fills the layout's glyph box (${glyph})`);
-  assert.ok(atk.includes('opacity="0.13"'), 'the pictogram panel carries the badge tint');
   assert.ok(atk.includes('stroke-dasharray="5 3.5"'), 'a threat figure keeps the threat border');
   assert.ok(atk.includes('data-edit="label">'), 'the label stays editable');
   assert.equal(editableCharacters(atk, 'sublabel'), doc.nodes[0].sublabel.replace(/\s/g, ''), 'the stated value is visible across wrapped lines');
@@ -670,7 +669,7 @@ test('catalogue figures render as large illustrations with editable text', () =>
 
 test('figure labels and meta stay inert text on the canvas', () => {
   const hostile = 'Reference '.repeat(9) + '<svg/onload=alert(1)>';
-  const doc = { ...sampleDoc(), nodes: [node('atk', 'attacker', 0, 0, { label: hostile, sublabel: hostile })], wires: [] };
+  const doc = { ...sampleDoc(), nodes: [node('atk', 'codeexec', 0, 0, { label: hostile, sublabel: hostile })], wires: [] };
   const markup = diagramMarkup(doc);
   for (const field of ['label', 'sublabel']) {
     assert.equal(editableCharacters(markup, field), hostile.replace(/\s/g, ''), 'all untrusted text characters remain visible');

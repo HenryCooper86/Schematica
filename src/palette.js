@@ -337,7 +337,7 @@ export const PARTS = {
     sides('flow', 'FLOW'), { shape: 'connector', defaultLabel: 'A' }),
   // Threats
   threatactor: nd('threatactor', 'threats', 'Threat Actor', '#ef4444', '<path d="m12.5 17-.5-1-.5 1h1z"/><path d="M15 22a1 1 0 0 0 1-1v-1a2 2 0 0 0 1.56-3.25 8 8 0 1 0-11.12 0A2 2 0 0 0 8 20v1a1 1 0 0 0 1 1z"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="12" r="1"/>',
-    sides('link', 'LINK'), { threat: true, fields: [f('type', 'Type (STIX)', { options: STIX_ACTOR_TYPES }), f('sophistication', 'Sophistication (STIX)', { options: STIX_SOPHISTICATION }), f('motivation', 'Motivation (STIX)', { options: STIX_MOTIVATION }), f('org', 'Attribution', { placeholder: 'e.g. group / country' }), SEVERITY] }),
+    sides('link', 'LINK'), { threat: true, fields: [f('type', 'Type (STIX)', { options: STIX_ACTOR_TYPES }), f('sophistication', 'Sophistication (STIX)', { options: STIX_SOPHISTICATION }), f('motivation', 'Motivation (STIX)', { options: STIX_MOTIVATION }), f('org', 'Attribution', { placeholder: 'e.g. group / country' }), f('origin', 'Origin', { placeholder: 'e.g. 203.0.113.7' }), SEVERITY] }),
   insider: nd('insider', 'threats', 'Insider Threat', '#f97316', '<path d="m16.5 16.5 5 5"/><path d="M2 21a8 8 0 0 1 11.531-7.18"/><path d="m21.5 16.5-5 5"/><circle cx="10" cy="8" r="5"/>',
     sides('link', 'LINK'), { threat: true, fields: [f('type', 'Type (STIX)', { options: INSIDER_TYPES }), f('motivation', 'Motivation (STIX)', { options: STIX_MOTIVATION }), f('owner', 'Account used', { placeholder: 'e.g. svc-build' }), SEVERITY] }),
   malware: nd('malware', 'threats', 'Malware', '#fb7185', '<path d="M12 20v-9"/><path d="M14 7a4 4 0 0 1 4 4v3a6 6 0 0 1-12 0v-3a4 4 0 0 1 4-4z"/><path d="M14.12 3.88 16 2"/><path d="M21 21a4 4 0 0 0-3.81-4"/><path d="M21 5a4 4 0 0 1-3.55 3.97"/><path d="M22 13h-4"/><path d="M3 21a4 4 0 0 1 3.81-4"/><path d="M3 5a4 4 0 0 0 3.55 3.97"/><path d="M6 13H2"/><path d="m8 2 1.88 1.88"/><path d="M9 7.13V6a3 3 0 1 1 6 0v1.13"/>',
@@ -372,21 +372,14 @@ export const PARTS = {
   physical: part('physical', 'threats', 'Physical tampering', 'M10.5 2.5 13.5 5.5 6 13 3 14 4 11z M9 4l3 3',
     sides('link', 'LINK'), { threat: true, accent: '#f87171', fields: [f('access', 'Access point', { options: ['debug port', 'OBD-II', 'ECU housing', 'harness', 'key fob', 'charging port'] }), SEVERITY] }),
   // ---- Security figures ----
-  // Original illustrated vocabulary for security composition scenes: a hooded
-  // attacker behind a laptop, request/payload/dump capsules, target-side
-  // memory/secrets/limit tiles, application windows, and crash/execution
-  // outcomes. Each carries `figure` — the fixed catalogue presentation
-  // (actor | capsule | tile | outcome) geometry.js and render.js share — and
+  // Original illustrated vocabulary for security composition scenes:
+  // request/payload/dump capsules, target-side memory/secrets/limit tiles,
+  // application windows, and crash/execution outcomes. The adversary itself
+  // is the Threat Actor above. Each carries `figure` — the fixed catalogue
+  // presentation (capsule | tile | outcome) geometry.js and render.js share — and
   // the four logical link ports, so they compose with every other security
   // asset. The application windows are original window/code/module imagery
   // standing for the named platform, never vendor logos.
-  attacker: nd('attacker', 'threats', 'Attacker', '#ef4444',
-    '<path d="M5.5 13c-1.7-1.4-1.8-3.8-.7-6.2C6.2 3.6 8.8 1.5 12 1.5s5.8 2.1 7.2 5.3c1.1 2.4 1 4.8-.7 6.2"/>'
-      + '<path d="M8 8.5c2.4-1.5 5.6-1.5 8 0v1.3c0 2-1.8 3.7-4 3.7s-4-1.7-4-3.7z" fill="currentColor" fill-opacity=".14"/>'
-      + '<path d="M7 13c-2.7 1.3-4.4 3.8-5 7h3.8M17 13c2.7 1.3 4.4 3.8 5 7h-3.8"/>'
-      + '<path d="M5 15h14l-1.2 7H6.2z" fill="currentColor" fill-opacity=".14"/><path d="M4.5 22h15"/>',
-    sides('link', 'LINK'), { threat: true, figure: 'actor', defaultLabel: 'Attacker',
-      fields: [f('origin', 'Origin', { placeholder: 'e.g. 203.0.113.7' }), SEVERITY] }),
   httprequest: nd('httprequest', 'flow', 'HTTP request', '#38bdf8',
     '<rect x="2" y="8" width="20" height="8" rx="4"/>'
       + '<path d="M5.5 12h8"/><path d="M10.8 9.8 13 12l-2.2 2.2"/>',
@@ -615,3 +608,8 @@ export function getPart(kind) {
 // port above must add its old id here or every wire on it in existing files
 // is dropped on load. Shape: { [kind]: { [oldPortId]: newPortId } }.
 export const PORT_ALIASES = {};
+
+// Retired kinds that saved files may still use, mapped to the part that
+// replaced them. The illustrated Attacker figure duplicated Threat Actor;
+// its origin and severity fields carry over unchanged.
+export const KIND_ALIASES = { attacker: 'threatactor' };

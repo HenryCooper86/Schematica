@@ -79,6 +79,30 @@ test('wireGeom anchors on the facing card edges and runs straight between aligne
   assert.deepEqual(g.mid, { x: 280, y: 50 });
 });
 
+test('wireGeom runs straight between nearly aligned cards on the middle of their shared span', () => {
+  // Stacked cards whose centres differ by 10px: a centre ray would tilt.
+  const top = { x: 1078, y: 420, w: 128, h: 54 };
+  const below = { x: 1078, y: 530, w: 148, h: 54 };
+  const g = wireGeom(top, below);
+  assert.equal(g.p1.x, g.p2.x, 'a vertical run keeps one x');
+  assert.equal(g.p1.x, (1078 + 8 + 1206 - 8) / 2, 'on the middle of the shared span');
+  assert.equal(g.p1.y, 474 + 5);
+  assert.equal(g.p2.y, 530 - 5);
+  // Side by side with offset rows.
+  const left = { x: 0, y: 0, w: 100, h: 80 };
+  const right = { x: 300, y: 30, w: 100, h: 80 };
+  const h = wireGeom(left, right);
+  assert.equal(h.p1.y, h.p2.y, 'a horizontal run keeps one y');
+  assert.equal(h.p1.y, (38 + 72) / 2);
+  // Parallel lanes spread inside the span and stay straight.
+  const lanes = [-11, 11].map((o) => wireGeom(left, right, o));
+  for (const l of lanes) assert.equal(l.p1.y, l.p2.y);
+  assert.notEqual(lanes[0].p1.y, lanes[1].p1.y);
+  // Too little shared span: the centre-ray anchors still apply.
+  const diag = wireGeom({ x: 0, y: 0, w: 100, h: 50 }, { x: 300, y: 45, w: 100, h: 50 });
+  assert.notEqual(diag.p1.y, diag.p2.y);
+});
+
 test('wireGeom bends along the dominant axis', () => {
   const a = { x: 0, y: 0, w: 100, h: 50 };
   const below = { x: 0, y: 300, w: 100, h: 50 };
@@ -757,33 +781,33 @@ test('Chinese flow-shape labels widen the shape', () => {
 // past the 104x74 badge-card minimum, width is fixed per presentation so
 // composed scenes align, and height grows only as the label/meta lines wrap
 // — a line can never exceed the text budget the card reserves. Figures carry
-// their own larger typography (15px/600 label, 12px mono context), so their
+// their own larger typography (13px/600 label, 10.5px mono context), so their
 // line heights and measured budgets are the figure metrics, not the badge
 // card's.
-const FIGURE_MIN_W = { attacker: 210, httprequest: 260, servermemory: 180, processcrash: 212 };
+const FIGURE_MIN_W = { httprequest: 196, servermemory: 136, processcrash: 156 };
 
-test('figure parts size as large illustrations, not badge cards', () => {
+test('figure parts size as illustrations at least a badge card', () => {
   for (const [kind, minW] of Object.entries(FIGURE_MIN_W)) {
     const { w, h } = size({ kind, label: 'X' });
     assert.ok(w >= minW && w < minW + 1, `${kind} keeps its fixed presentation width ${w}`);
-    assert.ok(w > 104 && h > 74, `${kind} is larger than a badge card (${w}x${h})`);
+    assert.ok(w > 104 && h >= 74, `${kind} is at least badge-card size (${w}x${h})`);
   }
-  const A = FIGURE_LAYOUT.actor;
-  assert.equal(size({ kind: 'attacker', label: 'X' }).h,
-    A.padTop + A.glyph + A.gap + FIGURE_LABEL_LINE_H + A.padBottom,
-    'the actor reserves its full pictogram box plus the label block');
+  const T = FIGURE_LAYOUT.tile;
+  assert.equal(size({ kind: 'servermemory', label: 'X' }).h,
+    T.padTop + T.glyph + T.gap + FIGURE_LABEL_LINE_H + T.padBottom,
+    'a tile reserves its full pictogram box plus the label block');
 });
 
 test('figure labels and meta lines wrap inside the card budget and grow it taller', () => {
-  const base = { kind: 'attacker', sublabel: '', addr: '', rail: '' };
-  const short = nodeSize({ ...base, label: 'Attacker' });
-  const long = nodeSize({ ...base, label: 'Unattributed remote attacker with a stolen credential' });
+  const base = { kind: 'codeexec', sublabel: '', addr: '', rail: '' };
+  const short = nodeSize({ ...base, label: 'Execution' });
+  const long = nodeSize({ ...base, label: 'Unattributed remote execution with a stolen credential' });
   assert.equal(short.w, long.w, 'width stays the presentation width');
   assert.ok(long.h > short.h, `wrapped lines grow the card (${long.h} > ${short.h})`);
   assert.ok(long.labelLines.length > 1, 'the label wrapped');
-  const budget = short.w - 2 * 30;
+  const budget = short.w - 2 * FIGURE_LAYOUT.outcome.padX;
   for (const line of long.labelLines) assert.ok(measureFigureLabelText(line) <= budget, `line fits: ${line}`);
-  assert.equal(long.labelLines.join('').replace(/ /g, ''), 'Unattributedremoteattackerwithastolencredential', 'no text lost');
+  assert.equal(long.labelLines.join('').replace(/ /g, ''), 'Unattributedremoteexecutionwithastolencredential', 'no text lost');
 
   const meta = nodeSize({ ...base, label: 'A', sublabel: 'POST /upload.php?debug=1&trace=all&verbose=yes' });
   const sub = meta.metaLines.find((m) => m.field === 'sublabel');
@@ -795,17 +819,17 @@ test('figure labels and meta lines wrap inside the card budget and grow it talle
 
 test('a CJK figure label wraps per character and stays inside the budget', () => {
   const s = nodeSize({ kind: 'phpapp', label: '面向请求的应用程序服务器端渲染组件' });
-  assert.equal(s.w, 180, 'tile width is fixed');
+  assert.equal(s.w, FIGURE_LAYOUT.tile.w, 'tile width is fixed');
   assert.ok(s.labelLines.length > 1, 'the CJK run wrapped');
-  const budget = 180 - 2 * 22;
+  const budget = FIGURE_LAYOUT.tile.w - 2 * FIGURE_LAYOUT.tile.padX;
   for (const line of s.labelLines) assert.ok(measureFigureLabelText(line) <= budget, `line fits: ${line}`);
   assert.equal(s.labelLines.join(''), '面向请求的应用程序服务器端渲染组件', 'no characters lost');
 });
 
 test('a catalogue figure keeps its sublabel even as a threat; a plain threat still hides it', () => {
-  const figure = nodeMeta({ kind: 'attacker', sublabel: 'POST /upload.php', addr: '', rail: '' });
+  const figure = nodeMeta({ kind: 'codeexec', sublabel: 'POST /upload.php', addr: '', rail: '' });
   assert.ok(figure.some((m) => m.field === 'sublabel' && m.text === 'POST /upload.php'),
-    'the illustrated attacker shows the stated value');
+    'the illustrated outcome shows the stated value');
   const outcome = nodeMeta({ kind: 'processcrash', sublabel: 'child exits', addr: '', rail: '' });
   assert.ok(outcome.some((m) => m.field === 'sublabel'), 'an outcome callout shows the condition');
   const threat = nodeMeta({ kind: 'threatactor', sublabel: 'APT-29', addr: '', rail: '' });
@@ -813,7 +837,7 @@ test('a catalogue figure keeps its sublabel even as a threat; a plain threat sti
 });
 
 test('every figure part exposes the four logical link ports the wire lanes address', () => {
-  for (const kind of ['attacker', 'httprequest', 'payload', 'memorydump', 'servermemory', 'secretstore',
+  for (const kind of ['httprequest', 'payload', 'memorydump', 'servermemory', 'secretstore',
     'memorylimit', 'processcrash', 'codeexec', 'phpapp', 'wordpressapp', 'drupalapp', 'joomlaapp']) {
     const part = partOf({ kind });
     const ports = Object.fromEntries(part.ports.map((p) => [p.id, p]));

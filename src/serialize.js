@@ -5,7 +5,7 @@ import { normalizeSpec, normalizeBudget, normalizeEngineering } from './engineer
 import { normalizeTargets, normalizeStops } from './journey.js';
 import { knownPorts } from './rdk/profiles.js';
 import { BUSES, DEFAULT_BUS } from './buses.js';
-import { PARTS, DISPOSITIONS, PORT_ALIASES } from './palette.js';
+import { PARTS, DISPOSITIONS, PORT_ALIASES, KIND_ALIASES } from './palette.js';
 import { newDoc, NODE_STATUSES, NODE_FLAGS, SCHEMA_VERSION } from './state.js';
 import { nodeSize } from './geometry.js';
 import { normalizePart, partOf, LIMITS } from './custom.js';
@@ -114,7 +114,7 @@ export function deserialize(text, { depth = 0 } = {}) {
       continue;
     }
     seen.add(n.id);
-    let kind = typeof n.kind === 'string' ? n.kind : 'generic';
+    let kind = typeof n.kind === 'string' ? (Object.hasOwn(KIND_ALIASES, n.kind) ? KIND_ALIASES[n.kind] : n.kind) : 'generic';
     let def = null; // a custom node's validated definition
     if (typeof n.kind !== 'string') {
       // A missing kind quietly becomes a custom box; its wires may remap too.

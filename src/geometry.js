@@ -139,24 +139,24 @@ function shapeSize(shape, label) {
 // big pictogram with the wrapped label and the figure's own mono meta metrics
 // under it (a capsule sets its text beside the pictogram inside a pill).
 // Figures are the illustration's reading type, so their text is larger than a
-// badge card's — a 15px/600 label and 12px mono context — with line heights
+// badge card's — a 13px/600 label and 10.5px mono context — with line heights
 // and measured wrapping to match; ordinary card typography is untouched.
 // Every presentation fixes its width — composed scenes keep aligned columns —
 // and the card grows only downward as lines wrap, so a label or meta value
 // can never clip out of the drawn box. render.js reads the same numbers, so
 // the drawn figure and this geometry cannot disagree.
-export const FIGURE_LABEL_FONT_SIZE = 15;
-export const FIGURE_LABEL_LINE_H = 18;
-export const FIGURE_META_FONT_SIZE = 12;
-export const FIGURE_META_LINE_H = 15;
+export const FIGURE_LABEL_FONT_SIZE = 13;
+export const FIGURE_LABEL_LINE_H = 16;
+export const FIGURE_META_FONT_SIZE = 10.5;
+export const FIGURE_META_LINE_H = 13;
+// Sized to sit beside ordinary 104px cards: a little larger, never dominant.
 export const FIGURE_LAYOUT = Object.freeze({
-  actor: { w: 210, glyph: 128, padX: 30, padTop: 22, gap: 12, padBottom: 18, rx: 18 },
-  capsule: { w: 260, glyph: 68, padX: 28, padTop: 14, gap: 12, padBottom: 14, side: true, rx: 0 },
-  tile: { w: 180, glyph: 88, padX: 22, padTop: 16, gap: 10, padBottom: 14, rx: 14 },
-  outcome: { w: 212, glyph: 88, padX: 26, padTop: 18, gap: 11, padBottom: 16, rx: 16 },
+  capsule: { w: 196, glyph: 40, padX: 18, padTop: 17, gap: 10, padBottom: 17, side: true, rx: 0 },
+  tile: { w: 136, glyph: 52, padX: 16, padTop: 14, gap: 8, padBottom: 12, rx: 14 },
+  outcome: { w: 156, glyph: 52, padX: 18, padTop: 14, gap: 8, padBottom: 14, rx: 14 },
 });
 
-// The fonts figureMarkup draws: a 15px/600 label and a 12px mono context,
+// The fonts figureMarkup draws: a 13px/600 label and a 10.5px mono context,
 // each measured with a canvas in the browser. Outside the browser a
 // conservative 1em-per-unit bound stands in so geometry and export never
 // under-size a wrapped line of wide glyphs (the measureShapeText convention).
@@ -305,12 +305,40 @@ function cubicGeometry(p1, c1, c2, p2) {
 
 // `offset` shifts the whole curve sideways (perpendicular to the center line)
 // so several wires between the same two cards run side by side.
+// Cards that share at least this much span across the run (after an 8px
+// inset from each corner) are joined by a perfectly straight wire.
+const STRAIGHT_MIN_SPAN = 16;
+
+// Straight-run origins for cards that overlap across the run's axis: both
+// ends sit on the middle of the shared span, so cards that are nearly but
+// not exactly aligned no longer join with a slightly tilted line. Parallel
+// lanes spread inside the span with the same sideways sign wireGeom uses.
+// Returns null when the cards share too little span (or overlap).
+function straightOrigins(a, b, ca, cb, offset) {
+  const gapX = Math.max(b.x - (a.x + a.w), a.x - (b.x + b.w));
+  const gapY = Math.max(b.y - (a.y + a.h), a.y - (b.y + b.h));
+  if (gapX <= 0 && gapY <= 0) return null;
+  const horizontal = gapX >= gapY;
+  const [pos, size] = horizontal ? ['y', 'h'] : ['x', 'w'];
+  const lo = Math.max(a[pos], b[pos]) + 8;
+  const hi = Math.min(a[pos] + a[size], b[pos] + b[size]) - 8;
+  if (hi - lo < STRAIGHT_MIN_SPAN) return null;
+  const shift = horizontal ? offset * (Math.sign(cb.x - ca.x) || 1) : -offset * (Math.sign(cb.y - ca.y) || 1);
+  const v = r2(Math.max(lo, Math.min(hi, (lo + hi) / 2 + shift)));
+  return horizontal
+    ? [{ x: ca.x, y: v }, { x: cb.x, y: v }]
+    : [{ x: v, y: ca.y }, { x: v, y: cb.y }];
+}
+
 export function wireGeom(a, b, offset = 0, obstacles = []) {
   const ca = rectCenter(a);
   const cb = rectCenter(b);
   let oa = ca;
   let ob = cb;
-  if (offset) {
+  const straight = straightOrigins(a, b, ca, cb, offset);
+  if (straight) {
+    [oa, ob] = straight;
+  } else if (offset) {
     const len = Math.hypot(cb.x - ca.x, cb.y - ca.y) || 1;
     const px = (-(cb.y - ca.y) / len) * offset;
     const py = ((cb.x - ca.x) / len) * offset;
@@ -812,6 +840,14 @@ export function wireLabelRect(wire, geo, lane = 0, obstacles = []) {
     if (nextScore < score) { best = next; score = nextScore; }
     if (score === 0) break;
   }
+  // An automatic bus-name pill on a connection too short to hold it is left
+  // off: parked beside the wire on a leader it reads as clutter (often on a
+  // zone edge), and the bus is still named by the legend and the wire's
+  // panel. A typed label that only repeats the bus name counts as automatic;
+  // any other label the author typed always stays.
+  const automatic = wire.style !== 'sneakernet'
+    && (!wire.label || wire.label.trim().toLowerCase() === String(bus.short).toLowerCase());
+  if (automatic && score > 0 && curveLength(geo) < w + 24) return { label: '', lines: [], at: best.at, x: best.at.x, y: best.at.y, w: 0, h: 0 };
   // When a connection is shorter than its text, slide the pill off the path
   // and retain a leader anchor. The label stays identifiable without covering
   // the cards, and the saved board needs no new coordinates or fields.
@@ -963,6 +999,12 @@ export function wireScene(doc, rects = new Map(doc.nodes.map(n => [n.id, nodeRec
     }
     for (const [id, r] of previous.snapshot) if (!snapshot.has(id)) changed.push(r);
   }
+  // Zone caption pills are not route obstacles (wires may cross a zone's
+  // edge), but a wire label parked on one would hide the caption.
+  const captions = rectangleIndex((doc.zones || []).filter(z => z.kind !== 'swimlane').map(z => {
+    const L = zoneLabelLayout(z);
+    return { x: z.x + L.x, y: z.y + L.y, w: L.width, h: L.height };
+  }));
   const cache = new Map();
   const obstacles = rectangleIndex([...cards, ...notes]), placed = rectangleIndex();
   for (const wire of [...(doc.wires || [])].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)) {
@@ -989,7 +1031,7 @@ export function wireScene(doc, rects = new Map(doc.nodes.map(n => [n.id, nodeRec
     cache.set(wire.id, entry);
     const geo = entry.geo;
     routes.set(wire.id, geo);
-    const label = wireLabelRect(wire, geo, lane, bounds => [...obstacles.query(bounds), ...placed.query(bounds)]);
+    const label = wireLabelRect(wire, geo, lane, bounds => [...obstacles.query(bounds), ...captions.query(bounds), ...placed.query(bounds)]);
     labels.set(wire.id, label);
     if (label.label) placed.add(label);
   }

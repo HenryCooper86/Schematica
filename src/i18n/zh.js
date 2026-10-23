@@ -988,7 +988,6 @@ export default {
   'Data exfiltration': '数据外泄',
   'Physical tampering': '物理篡改',
   // Security figures: original illustrated composition vocabulary.
-  'Attacker': '攻击者',
   'HTTP request': 'HTTP 请求',
   'Payload': '载荷',
   'Memory dump': '内存转储',

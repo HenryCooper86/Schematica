@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { wireGeom, wireLabelRect, wireLanes } from '../src/geometry.js';
+import { wireGeom, wireLabelRect, wireLanes, wireScene, zoneLabelLayout, rectsIntersect } from '../src/geometry.js';
 import { diagramMarkup, overlayMarkup } from '../src/render.js';
 import { buildExportSVG } from '../src/export.js';
 import { EXAMPLES } from '../src/examples.js';
@@ -66,7 +66,7 @@ test('a label slides along its curve into clear space', () => {
 
 test('a short connection places its label outside the cards with a leader anchor', () => {
   const close = { ...b, x: 140 };
-  const label = wireLabelRect(wire('w'), wireGeom(a, close), 0, [a, close]);
+  const label = wireLabelRect(wire('w', 'a', 'b', 'boot log'), wireGeom(a, close), 0, [a, close]);
   assert.equal(overlaps(label, a) || overlaps(label, close), false);
   assert.equal(label.anchor.y, 37);
   assert.notEqual(label.at.y, label.anchor.y);
@@ -157,4 +157,33 @@ test('card resizing, changed endpoints and changing parallel fans refresh cached
     edit();
     assert.equal(diagramMarkup(board), diagramMarkup(structuredClone(board)));
   }
+});
+
+test('a wire label keeps clear of a zone caption pill', () => {
+  const card = (id, x, y) => ({ id, kind: 'server', x, y, label: id, sublabel: '', color: null, addr: '', rail: '', notes: '', status: null, flags: [] });
+  const doc = { nodes: [card('a', 0, 120), card('b', 400, 120)], wires: [
+    { id: 'w', bus: 'eth', from: { node: 'a', port: 'net' }, to: { node: 'b', port: 'net' }, label: 'uplink', arrow: null, style: null, flow: null },
+  ], zones: [], notes: [] };
+  const free = wireScene(doc).labels.get('w');
+  const L = free;
+  // A zone whose caption pill sits exactly where the label would go.
+  const zone = { id: 'z', x: L.x - 12, y: L.y + L.h / 2 - 0, w: 300, h: 200, label: 'A long zone caption here' };
+  const pill = zoneLabelLayout(zone);
+  const cap = { x: zone.x + pill.x, y: zone.y + pill.y, w: pill.width, h: pill.height };
+  assert.ok(rectsIntersect(cap, free), 'the caption would cover the free label');
+  const moved = wireScene({ ...doc, zones: [zone] }).labels.get('w');
+  assert.ok(!rectsIntersect(cap, moved), 'the label moves off the caption');
+});
+
+test('an automatic bus pill on a too-short wire is left off; a typed label keeps its leader', () => {
+  const close = { ...b, x: 140 };
+  const geo = wireGeom(a, close);
+  const auto = wireLabelRect({ ...wire('w'), label: '' }, geo, 0, [a, close]);
+  assert.equal(auto.label, '', 'the bus name is not parked beside the wire');
+  assert.equal(wireLabelRect(wire('w', 'a', 'b', 'i2c'), geo, 0, [a, close]).label, '', 'nor a typed copy of the bus name');
+  const typed = wireLabelRect(wire('w', 'a', 'b', 'boot log'), geo, 0, [a, close]);
+  assert.equal(typed.label, 'boot log');
+  assert.ok(typed.anchor, 'a typed label keeps its leader');
+  const roomy = wireLabelRect({ ...wire('w'), label: '' }, wireGeom(a, b), 0, [a, b]);
+  assert.ok(roomy.label, 'a wire with room keeps its bus pill');
 });
