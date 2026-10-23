@@ -1,6 +1,7 @@
 import { analysisDoc } from './analysis-doc.js';
 import { subsystemIssues } from './subsystems.js';
 import { engineeringChecks } from './engineering.js';
+import { securityChecks } from './security-checks.js';
 // Design-rule checker: pure derivation from a document; the messages are
 // written in the interface language.
 // Findings: { level: 'error'|'warning'|'info', rule, message, ids: [nodeOrWireIds] }.
@@ -30,7 +31,7 @@ export function checkDoc(doc) {
     visit(doc);
     return findings;
   }
-  const findings = engineeringChecks(doc);
+  const findings = [...engineeringChecks(doc), ...securityChecks(doc)];
   const byId = new Map(doc.nodes.map((n) => [n.id, n]));
   const wiredPorts = new Set();
   const wiredNodes = new Set();
@@ -70,26 +71,39 @@ export function checkDoc(doc) {
   // 2. Unconnected supply pins. Built-in parts: the VCC/GND consumption pins
   //    by id. Custom parts: every port the definition marks required, on any
   //    bus; power and ground report under the same rule as built-ins.
+  //    A board that draws no power or ground wire at all is an architecture
+  //    view, not a wiring diagram: every card's supply pins are undrawn by
+  //    design, so built-in supply pins are only reported once the board
+  //    starts drawing power.
+  const drawsPower = doc.wires.some((w) => w.bus === 'power' || w.bus === 'gnd');
   for (const n of doc.nodes) {
     const part = nodePart(n);
+    // One finding per card and rule, naming every open pin: a sensor with
+    // both VCC and GND undrawn is one thing to fix, not two.
+    const open = { 'unconnected-power': [], 'unconnected-port': [] };
     for (const port of part.ports) {
       const supply = port.bus === 'power' || port.bus === 'gnd';
       const must = part.custom
         ? port.required === true
-        : supply && (port.id === 'vcc' || port.id === 'gnd');
-      if (must && !wiredPorts.has(`${n.id}|${port.id}`)) {
-        findings.push({
-          level: 'warning',
-          rule: supply ? 'unconnected-power' : 'unconnected-port',
-          message: tr('{label}\'s {port} pin is unconnected.', { label: n.label, port: port.name }),
-          ids: [n.id],
-        });
-      }
+        : drawsPower && supply && (port.id === 'vcc' || port.id === 'gnd');
+      if (must && !wiredPorts.has(`${n.id}|${port.id}`)) open[supply ? 'unconnected-power' : 'unconnected-port'].push(port.name);
+    }
+    for (const [rule, ports] of Object.entries(open)) {
+      if (!ports.length) continue;
+      findings.push({
+        level: 'warning',
+        rule,
+        message: ports.length === 1
+          ? tr('{label}\'s {port} pin is unconnected.', { label: n.label, port: ports[0] })
+          : tr('{label}\'s {ports} pins are unconnected.', { label: n.label, ports: ports.join(tr(' and ')) }),
+        ids: [n.id],
+      });
     }
   }
 
-  // 3. Fully floating nodes.
-  const floating = doc.nodes.filter((n) => !wiredNodes.has(n.id));
+  // 3. Fully floating nodes. An unlinked threat gets its own, more useful
+  //    message from the security rules below.
+  const floating = doc.nodes.filter((n) => !wiredNodes.has(n.id) && !nodePart(n).threat);
   if (floating.length) {
     findings.push({
       level: 'warning',

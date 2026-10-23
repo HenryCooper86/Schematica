@@ -98,16 +98,23 @@ test('independent I2C ports on one controller do not merge their address spaces'
 
 test('flags unconnected VCC/GND pins and fully floating nodes', () => {
   const d = doc(
-    [node('m', 'mcu'), node('t', 'temp'), node('lonely', 'imu')],
-    [wire('w1', 'i2c', 'm', 'i2c', 't', 'i2c')],
+    [node('m', 'mcu'), node('t', 'temp'), node('lonely', 'imu'), node('r', 'regulator')],
+    [wire('w1', 'i2c', 'm', 'i2c', 't', 'i2c'), wire('w2', 'power', 'r', 'out', 'm', 'vcc')],
   );
   const findings = checkDoc(d);
   const power = findings.filter((f) => f.rule === 'unconnected-power');
-  assert.ok(power.some((f) => f.ids.includes('m')), 'mcu vcc unconnected');
-  assert.ok(power.some((f) => f.ids.includes('t')), 'temp vcc unconnected');
+  assert.ok(power.some((f) => f.ids.includes('m') && /GND pin is unconnected/.test(f.message)), 'mcu gnd unconnected');
+  const temp = power.filter((f) => f.ids.includes('t'));
+  assert.equal(temp.length, 1, 'one finding per card');
+  assert.match(temp[0].message, /VCC and GND pins are unconnected/);
   const floating = findings.find((f) => f.rule === 'floating-node');
   assert.ok(floating && floating.ids.includes('lonely'));
   assert.ok(!floating.ids.includes('m'));
+});
+
+test('an architecture board that draws no power wiring reports no supply pins', () => {
+  const d = doc([node('m', 'mcu'), node('t', 'temp')], [wire('w1', 'i2c', 'm', 'i2c', 't', 'i2c')]);
+  assert.deepEqual(checkDoc(d).filter((f) => f.rule === 'unconnected-power'), []);
 });
 
 test('flags bus mismatches and lifecycle risks', () => {
@@ -424,6 +431,7 @@ test('design-rule messages follow the interface language and keep their rule ids
   const doc = { schema: 2, title: '', nodes: [node('a', 'mcu'), node('b', 'temp', { addr: '0x76' }), node('c', 'temp', { addr: '0x76' })], wires: [
     { id: 'w1', bus: 'i2c', from: { node: 'a', port: 'i2c' }, to: { node: 'b', port: 'i2c' }, label: '', arrow: null, style: null, flow: null },
     { id: 'w2', bus: 'i2c', from: { node: 'a', port: 'i2c' }, to: { node: 'c', port: 'i2c' }, label: '', arrow: null, style: null, flow: null },
+    { id: 'w3', bus: 'gnd', from: { node: 'a', port: 'gnd' }, to: { node: 'b', port: 'gnd' }, label: '', arrow: null, style: null, flow: null },
   ], zones: [], notes: [], journey: [] };
   const en = checkDoc(doc);
   assert.equal(en[0].rule, 'i2c-addr-conflict');
@@ -434,6 +442,7 @@ test('design-rule messages follow the interface language and keep their rule ids
     assert.deepEqual(zh.map((f) => f.rule), en.map((f) => f.rule));
     assert.equal(zh[0].message, 'I2C 地址 0x76 被同一总线上的 b 和 c 同时使用。');
     assert.match(zh.find((f) => f.rule === 'unconnected-power').message, /引脚未连接/);
+    assert.ok(zh.filter((f) => f.rule === 'unconnected-power').every((f) => !/pins? (is|are) unconnected/.test(f.message)), 'grouped pins are translated too');
   } finally {
     setLang('en');
   }

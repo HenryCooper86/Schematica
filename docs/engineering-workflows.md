@@ -213,7 +213,7 @@ applying when the relevant engineering fingerprint changes. This is a local revi
 record, not authenticated sign-off or a permission system. CLI checks continue to
 fail on errors even if a reviewer has recorded an exception.
 
-## Interchange and experimental KiCad import
+## Import and export, and experimental KiCad import
 
 Board JSON is the canonical lossless interchange format. Schema 3 adds optional
 `engineering` (requirements, decisions, budget settings, exceptions), wire `spec`,
@@ -236,7 +236,7 @@ unknown endpoints, and a pin assigned to multiple nets are rejected.
 This follows the documented XML `components/comp` and `nets/net/node` structure:
 [KiCad's official netlist format documentation](https://github.com/KiCad/kicad-doc/blob/master/src/eeschema/eeschema_creating_customized_netlists_and_bom_files.adoc).
 New imports retain source provenance and stable component/net/pin identities in
-board JSON. To update one, open **Interchange → Preview KiCad update** and select
+board JSON. To update one, open **Import and export → Preview KiCad update** and select
 a later XML netlist from the same source. Review the before/after diagrams, then
 apply the proposal in one undo step. Surviving positions, notes and authored pin
 ordering are preserved. Removed requirement allocations remain visible as missing.
@@ -316,7 +316,7 @@ preview option to use the existing direct-edit behavior for that session.
 ## Saved views
 
 Set Explore filters, select items, choose the reading detail and camera, then
-open **Engineering → Saved views → Save current view**. A view records the current
+open **Engineering → Advanced → Saved views → Save current view**. A view records the current
 subsystem path and returns to the root to save it. Open a view to return to that
 scope and restore its filters, selection, detail and camera. Missing subsystems
 are reported rather than substituted. Views travel in board JSON and share links;

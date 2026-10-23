@@ -315,6 +315,30 @@ export function initDialogs({ store, getRootDoc = () => store.doc }) {
     renderDRC();
     openModal(drcDialog);
   });
+
+  // The toolbar button carries the number of errors and warnings, so a board
+  // with something to fix says so without opening the dialog. Info findings
+  // (estimates, missing severities) are not counted. Recounted shortly after
+  // each document change rather than on every keystroke.
+  const checkButton = document.getElementById('btn-check');
+  const countBadge = document.createElement('span');
+  countBadge.className = 'check-count';
+  countBadge.setAttribute('aria-hidden', 'true');
+  checkButton.append(countBadge);
+  let countTimer = null;
+  const recount = () => {
+    countTimer = null;
+    let issues = [];
+    try { issues = checkDoc(store.doc).filter((f) => f.level !== 'info'); } catch { issues = []; }
+    countBadge.textContent = issues.length > 99 ? '99+' : String(issues.length);
+    countBadge.hidden = !issues.length;
+    countBadge.dataset.level = issues.some((f) => f.level === 'error') ? 'error' : 'warning';
+    const label = issues.length ? tr('Run design rule checks ({count} issues)', { count: issues.length }) : tr('Run design rule checks');
+    checkButton.title = label;
+    checkButton.setAttribute('aria-label', label);
+  };
+  store.subscribe(() => { clearTimeout(countTimer); countTimer = setTimeout(recount, 250); }, { documentOnly: true });
+  recount();
   document.getElementById('drc-close').addEventListener('click', () => {
     drcDialog.close();
   });
@@ -323,6 +347,7 @@ export function initDialogs({ store, getRootDoc = () => store.doc }) {
   });
 
   onLanguageChange(() => {
+    recount();
     if (bomDialog.open) renderBOM();
     if (drcDialog.open) renderDRC();
   });

@@ -66,7 +66,7 @@ Use **K** to lock or unlock the selection.
 For a larger board, **Explore** or **/** searches placed parts. Filter by bus or
 choose a reading-detail level to focus the view. These filters do not remove
 parts. **Reset exploration** restores the view. Save a useful viewpoint through
-**Engineering → Saved views → Save current view**.
+**Engineering → Advanced → Saved views → Save current view**.
 
 For a reusable component, choose **+ New** under **My parts**, define its ports
 and save it. Custom definitions travel with a saved board. Export the My parts
@@ -81,6 +81,13 @@ custom-part and subsystem-related controls.
 Choose **Check** in the toolbar. Inspect its findings, then select an affected
 item to locate it. **Layout quality** concerns readability; **Power** lists rail
 estimates; **Review readiness** shows the coverage of applicable connections.
+The badge on **Check** counts errors and warnings on the current board.
+
+Unwired VCC and GND pins are reported only once a board draws power or ground
+wires; an architecture or threat-model board that never draws them is not
+flagged. On threat-model boards, the checks report a threat linked to nothing,
+a part marked as a victim that no threat or adversary reaches through any chain
+of wires, and (as information) a threat with no severity.
 
 | Interface status | Meaning | Next action |
 | --- | --- | --- |
@@ -107,7 +114,7 @@ See [engineering rules and limits](engineering-workflows.md#structured-interface
 
 ### Add requirements and evidence
 
-Select the relevant parts or wires, then open **Engineering → Requirements**.
+Select the relevant parts or wires, then open **Engineering → Advanced → Requirements**.
 Give the requirement an ID, description and owner, and allocate it to the items
 it concerns. Record the verification method and evidence when available.
 
@@ -122,7 +129,7 @@ change, save a named revision so you have a meaningful comparison baseline.
 ### Estimate power
 
 Enter known current, capacity and supply-limit fields in Properties. Use
-**Engineering → Budget assumptions** for duty cycles, active/sleep loads and
+**Engineering → Advanced → Budget assumptions** for duty cycles, active/sleep loads and
 converter assumptions. Inspect the **Power** tab in Check.
 
 A missing load is not zero. Incomplete downstream loads prevent a complete
@@ -219,7 +226,7 @@ fields. Comparison covers the whole architecture even when a subsystem is open.
 It distinguishes layout movement from configuration changes; previewing it does
 not edit your board.
 
-For a proposed part-number or rail change, use **Engineering → Change impact**.
+For a proposed part-number or rail change, use **Engineering → Advanced → Change impact**.
 Review affected interfaces and records before choosing **Apply previewed change**.
 A changed board invalidates an old preview. Replacing a part clears the previous
 part's electrical declarations; supply supported values for the replacement.
@@ -228,7 +235,7 @@ part's electrical declarations; supply supported values for the replacement.
 
 1. Save the current board.
 2. Export an XML netlist from KiCad.
-3. Choose **Engineering → Interchange → Import KiCad XML netlist** and select it.
+3. Choose **Engineering → Import and export → Import KiCad XML netlist** and select it.
 4. Review the imported architecture and save it as a Schematica board file.
 5. For a later netlist from the same source, open that saved board and choose
    **Preview KiCad update**. Inspect the proposed differences before applying.
@@ -334,7 +341,7 @@ There are two distinct workflows:
 
 | Workflow | Location | Identity and storage |
 | --- | --- | --- |
-| Portable local review | **Engineering → Review comments** | Names are entered locally; board/review files are exchanged manually |
+| Portable local review | **Engineering → Advanced → Review comments** | Names are entered locally; board/review files are exchanged manually |
 | Server-backed team review | **Team reviews** in the palette | An operator issues credentials and configures private server storage |
 
 For local review, start a revision review, add comments and resolve them before

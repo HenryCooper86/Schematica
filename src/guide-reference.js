@@ -69,17 +69,17 @@ export function panelReference() {
   const engineering = [
     ['Revisions','修订','Save named snapshots, compare a baseline or restore an earlier board. Export important snapshots; local retention is limited.','保存命名快照、比较基线或恢复早期板图。重要快照应导出，本地保留数量有限。'],
     ['Interfaces','接口','Select a wire, complete endpoint and connection declarations, save them, then inspect Checked, Failed or Unassessed results.','选择连线，填写端点与连接声明，保存后查看已检查、失败或未评估结果。'],
-    ['Requirements','需求','Record requirements, allocate them to items and capture verification methods and evidence.','记录需求，分配到项目，并填写验证方法与证据。'],
-    ['Decisions','决策','Record design choices and their rationale so later reviewers can understand why the architecture changed.','记录设计选择与理由，便于评审者理解架构变化。'],
-    ['Change impact','变更影响','Preview a part-number or rail change before applying it. Replacing a part clears its previous ratings and endpoint declarations.','应用型号或电压变更前先预览影响。替换部件会清除原额定值及端点声明。'],
-    ['Budget assumptions','预算假设','Declare operating and peak assumptions for power estimates. Missing inputs remain unknown; estimates do not cover all physical effects.','声明电源估算的工作与峰值假设。缺少输入时保持未知；估算不涵盖全部物理效应。'],
-    ['Subsystems','子系统','Group selected parts into a reusable subsystem with boundary ports. Open it for internal editing and Return to commit the expanded view.','将所选部件组合为带边界端口的可复用子系统。打开进行内部编辑，返回时提交展开视图。'],
-    ['Technical report','技术报告','Create a client deliverable with document details, project context, numbered diagrams and selected engineering sections. Save and preview before exporting standalone HTML or using the browser print dialog to save a PDF. Preview again after edits.','填写文档信息和项目说明，选择工程章节，生成含编号图纸的客户交付报告。保存并预览后，可导出独立 HTML 或通过浏览器打印对话框另存为 PDF。修改后请重新预览。'],
     ['Review package','评审包','Download an HTML handoff with diagram, findings and engineering data; choose a revision baseline to include a comparison.','下载包含图纸、检查结果和工程数据的 HTML 交接包；选择修订基线可包含比较。'],
-    ['Interchange','交换格式','Import or export supported engineering formats. Preview imports and review identity matching before applying external data.','导入或导出支持的工程格式。应用外部数据前预览导入，并核对标识匹配。'],
-    ['Saved views','保存的视图','Save useful viewpoints and exploration settings for returning to a particular part of a large board.','保存常用视野与探索设置，方便返回大型板图的特定区域。'],
-    ['Review comments','评审评论','Keep review notes associated with the board. Use Team reviews for discussion through a configured shared review service.','保留与板图关联的评审备注。通过共享评审服务讨论时使用团队评审。'],
-    ['Verification matrix','验证矩阵','Inspect how requirements, allocations and recorded verification evidence relate. A recorded status does not independently validate evidence.','检查需求、分配与验证证据之间的关系。记录的状态不会独立验证证据真实性。'],
+    ['Technical report','技术报告','Create a client deliverable with document details, project context, numbered diagrams and selected engineering sections. Save and preview before exporting standalone HTML or using the browser print dialog to save a PDF. Preview again after edits.','填写文档信息和项目说明，选择工程章节，生成含编号图纸的客户交付报告。保存并预览后，可导出独立 HTML 或通过浏览器打印对话框另存为 PDF。修改后请重新预览。'],
+    ['Import and export','导入与导出','Import or export supported engineering formats. Preview imports and review identity matching before applying external data.','导入或导出支持的工程格式。应用外部数据前预览导入，并核对标识匹配。'],
+    ['Requirements','需求','Under Advanced. Record requirements, allocate them to items and capture verification methods and evidence.','位于“高级”中。记录需求，分配到项目，并填写验证方法与证据。'],
+    ['Decisions','决策','Under Advanced. Record design choices and their rationale so later reviewers can understand why the architecture changed.','位于“高级”中。记录设计选择与理由，便于评审者理解架构变化。'],
+    ['Change impact','变更影响','Under Advanced. Preview a part-number or rail change before applying it. Replacing a part clears its previous ratings and endpoint declarations.','位于“高级”中。应用型号或电压变更前先预览影响。替换部件会清除原额定值及端点声明。'],
+    ['Budget assumptions','预算假设','Under Advanced. Declare operating and peak assumptions for power estimates. Missing inputs remain unknown; estimates do not cover all physical effects.','位于“高级”中。声明电源估算的工作与峰值假设。缺少输入时保持未知；估算不涵盖全部物理效应。'],
+    ['Subsystems','子系统','Under Advanced. Group selected parts into a reusable subsystem with boundary ports. Open it for internal editing and Return to commit the expanded view.','位于“高级”中。将所选部件组合为带边界端口的可复用子系统。打开进行内部编辑，返回时提交展开视图。'],
+    ['Saved views','保存的视图','Under Advanced. Save useful viewpoints and exploration settings for returning to a particular part of a large board.','位于“高级”中。保存常用视野与探索设置，方便返回大型板图的特定区域。'],
+    ['Review comments','评审评论','Under Advanced. Keep review notes associated with the board. Use Team reviews for discussion through a configured shared review service.','位于“高级”中。保留与板图关联的评审备注。通过共享评审服务讨论时使用团队评审。'],
+    ['Verification matrix','验证矩阵','Under Advanced. Inspect how requirements, allocations and recorded verification evidence relate. A recorded status does not independently validate evidence.','位于“高级”中。检查需求、分配与验证证据之间的关系。记录的状态不会独立验证证据真实性。'],
   ];
   return list(PANEL_HELP)
     + heading('Alignment symbols in Properties', '属性中的对齐图标')

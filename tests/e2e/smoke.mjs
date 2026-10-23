@@ -1250,7 +1250,7 @@ try {
   await js(`document.getElementById('btn-check').click(); true`);
   await sleep(100);
   const drcCustom = await js(`(() => ({ open: document.getElementById('drc-dialog').open, text: document.getElementById('drc-list').textContent }))()`);
-  check("Check reports the custom part's unwired VCC and GND pins", drcCustom.open && /Motor driver x4's VCC pin is unconnected/.test(drcCustom.text) && /Motor driver x4's GND pin is unconnected/.test(drcCustom.text), drcCustom.text.slice(0, 200));
+  check("Check reports the custom part's unwired VCC and GND pins", drcCustom.open && /Motor driver x4's VCC and GND pins are unconnected/.test(drcCustom.text), drcCustom.text.slice(0, 200));
   await key('Escape', 'Escape', 27);
   await sleep(700);
   await send('Page.navigate', { url: 'about:blank' });

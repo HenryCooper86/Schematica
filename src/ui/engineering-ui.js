@@ -45,7 +45,22 @@ export function initEngineering({ store, revisions, startupRecovery, navigation,
     if (drafts.hasChanges()) { event.preventDefault(); event.returnValue = ''; }
   });
   const labels = () => ({ revisions: tr('Revisions'), interfaces: tr('Interfaces'), requirements: tr('Requirements'), decisions: tr('Decisions'),
-    impact: tr('Change impact'), budgets: tr('Budget assumptions'), subsystems: tr('Subsystems'), report: tr('Technical report'), review: tr('Review package'), interchange: tr('Interchange'), views: tr('Saved views'), comments: tr('Review comments'), matrix: tr('Verification matrix') });
+    impact: tr('Change impact'), budgets: tr('Budget assumptions'), subsystems: tr('Subsystems'), report: tr('Technical report'), review: tr('Review package'), interchange: tr('Import and export'), views: tr('Saved views'), comments: tr('Review comments'), matrix: tr('Verification matrix') });
+  // Five sections cover everyday work; the formal systems-engineering
+  // records sit behind "Advanced", which stays open while one of them is
+  // showing (a walkthrough or a requirement link can jump straight there).
+  const CORE_TABS = ['revisions', 'interfaces', 'review', 'report', 'interchange'];
+  const ADVANCED_KEY = 'schematica.engineering.advanced';
+  let advancedOpen = false;
+  try { advancedOpen = localStorage.getItem(ADVANCED_KEY) === '1'; } catch { /* storage unavailable */ }
+  const tabButton = (id, name) => `<button data-tab="${id}" aria-pressed="${tab === id}">${esc(name)}</button>`;
+  const tabButtons = names => {
+    const core = CORE_TABS.filter(id => names[id]).map(id => tabButton(id, names[id])).join('');
+    const advanced = Object.keys(names).filter(id => !CORE_TABS.includes(id));
+    const open = advancedOpen || advanced.includes(tab);
+    return core + `<button type="button" class="eng-advanced" data-action="advanced" aria-expanded="${open}">${esc(tr('Advanced'))} <span aria-hidden="true">${open ? '▴' : '▾'}</span></button>`
+      + (open ? `<span class="eng-advanced-tabs">${advanced.map(id => tabButton(id, names[id])).join('')}</span>` : '');
+  };
   const input = (name, label, value = '', type = 'text') => `<label>${esc(label)}<input name="${name}" type="${type}" value="${esc(value)}" maxlength="20000"></label>`;
   const area = (name, label, value = '') => `<label>${esc(label)}<textarea name="${name}" rows="3" maxlength="20000">${esc(value)}</textarea></label>`;
   const select = (name, label, entries, value = '') => `<label>${esc(label)}<select name="${name}">${entries.map(([id, title]) => `<option value="${esc(id)}"${id === value ? ' selected' : ''}>${esc(title)}</option>`).join('')}</select></label>`;
@@ -71,10 +86,19 @@ export function initEngineering({ store, revisions, startupRecovery, navigation,
     const names = labels();
     dialog.dataset.section = tab;
     dialog.innerHTML = `<header><h2 id="engineering-heading">${esc(tr('Engineering'))}</h2><button data-action="close">${esc(tr('Close'))}</button></header>
-      <nav aria-label="${esc(tr('Engineering sections'))}">${Object.entries(names).map(([id, name]) => `<button data-tab="${id}" aria-pressed="${tab === id}">${esc(name)}</button>`).join('')}</nav>
+      <nav aria-label="${esc(tr('Engineering sections'))}">${tabButtons(names)}</nav>
       <p>${esc(store.doc.title)}${navigation.depth() ? ' · ' + esc(tr('Expanded subsystem')) : ''}</p><section id="engineering-body"></section>`;
     const body = dialog.querySelector('section');
-    const actions = { retry: async () => { await revisions.retry(); flush(); paint(); }, close: () => dialog.close() };
+    const actions = { retry: async () => { await revisions.retry(); flush(); paint(); }, close: () => dialog.close(),
+      advanced: () => {
+        const showing = dialog.querySelector('.eng-advanced')?.getAttribute('aria-expanded') === 'true';
+        advancedOpen = !showing;
+        try { localStorage.setItem(ADVANCED_KEY, advancedOpen ? '1' : '0'); } catch { /* storage unavailable */ }
+        // Closing the group while one of its sections shows returns to Revisions.
+        if (!advancedOpen && !CORE_TABS.includes(tab)) chooseTab('revisions');
+        paint();
+        dialog.querySelector('.eng-advanced')?.focus();
+      } };
     let formHandler;
     if (tab === 'revisions') {
       const conflict = persistence.pending();

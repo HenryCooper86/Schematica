@@ -58,7 +58,7 @@ export async function runEngineeringNextChecks({ js, key, check, sleep }) {
       `(async()=>{const {checkDoc}=await import('/src/drc.js');return checkDoc(JSON.parse(localStorage.getItem('schematica.autosave'))).some(f=>f.rule==='interface-bandwidth')})()`,
     ),
   );
-  await js(`document.querySelector('[data-tab=impact]').click();true`);
+  await js(`(document.querySelector('[data-tab=impact]')||(document.querySelector('.eng-advanced').click(),document.querySelector('[data-tab=impact]'))).click();true`);
   await submit({ partNumber: 'Replacement device', rail: '5V' });
   check(
     'impact preview shows connected items without modifying the board',

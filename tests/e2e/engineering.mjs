@@ -2,7 +2,7 @@ import { runEngineeringNextChecks } from './engineering-next.mjs';
 export async function runEngineeringChecks({ js, key, check, sleep }) {
   await js(`(async()=>{const {Store,addNode,addWire}=await import('/src/state.js');const s=new Store();s.doc.title='Engineering test';const a=addNode(s,'mcu',0,0),b=addNode(s,'temp',400,0);addWire(s,'i2c',{node:a,port:'i2c'},{node:b,port:'i2c'});const dt=new DataTransfer();dt.items.add(new File([JSON.stringify(s.doc)],'test.json'));const input=document.getElementById('file-input');input.files=dt.files;input.dispatchEvent(new Event('change'));})()`);
   await sleep(200);
-  const open = async tab => js(`document.getElementById('btn-engineering').click();document.querySelector('[data-tab="${tab}"]').click();true`);
+  const open = async tab => js(`document.getElementById('btn-engineering').click();(document.querySelector('[data-tab="${tab}"]')||(document.querySelector('.eng-advanced').click(),document.querySelector('[data-tab="${tab}"]'))).click();true`);
   const submit = async values => js(`(()=>{const f=document.querySelector('#engineering-body form');for(const [k,v]of Object.entries(${JSON.stringify(values)}))f.elements.namedItem(k).value=v;f.requestSubmit();return true;})()`);
   await open('revisions'); await submit({label:'Design baseline'});
   check('named revision is visible and exportable',await js(`!![...document.querySelectorAll('#engineering-body li')].find(li=>li.textContent.includes('Design baseline')&&li.querySelector('[data-export]'))`));
@@ -14,7 +14,7 @@ export async function runEngineeringChecks({ js, key, check, sleep }) {
   await js(`document.querySelector('[name=targets]').options[0].selected=true;true`);
   await submit({id:'REQ-1',text:'Measure temperature',owner:'Engineer',rationale:'Control loop',evidence:'test-report.pdf',method:'Bench test',status:'verified'});
   check('requirement record is editable with its allocation',await js(`document.querySelector('[name=id]').value==='REQ-1'&&document.querySelector('[name=targets]').selectedOptions.length===1`));
-  await js(`document.querySelector('[data-tab=budgets]').click();true`);
+  await js(`(document.querySelector('[data-tab=budgets]')||(document.querySelector('.eng-advanced').click(),document.querySelector('[data-tab=budgets]'))).click();true`);
   await submit({activeMa:'100',sleepMa:'1',dutyPercent:'10',activePeakMa:'200',mode:'average'});
   check('mode and current assumptions are saved',await js(`document.querySelector('[name=activeMa]').value==='100'&&document.querySelector('[name=mode]').value==='average'`));
   await js(`document.querySelector('[data-action=close]').click();document.activeElement.blur();document.getElementById('canvas').focus();true`);

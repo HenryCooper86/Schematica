@@ -13,9 +13,11 @@ function setup(t) {
         value: '', files: [], textContent: '',
         classList: { add() {}, remove() {} },
         addEventListener(event, handler) { this[event] = handler; },
+        append() {}, setAttribute() {},
       });
       return elements.get(id);
     },
+    createElement: () => ({ dataset: {}, setAttribute() {}, append() {} }),
   };
   t.after(() => { globalThis.document = original; });
   const store = new Store(newDoc('Current'));

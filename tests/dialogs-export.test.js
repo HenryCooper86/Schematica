@@ -15,7 +15,7 @@ function setup(t) {
   const get = id => {
     if (!elements.has(id)) elements.set(id, {
       value: '', checked: false, files: [], classList: { add() {}, remove() {} },
-      addEventListener(event, fn) { this[event] = fn; }, close() {},
+      addEventListener(event, fn) { this[event] = fn; }, close() {}, append() {}, setAttribute() {},
     });
     return elements.get(id);
   };
@@ -23,7 +23,7 @@ function setup(t) {
   replace('document', {
     getElementById: get, querySelectorAll: () => [],
     createElement: tag => tag === 'canvas' ? { getContext: () => context, toBlob: fn => fn(new Blob(['pixels'])) }
-      : { click() { downloads.push(this.download); } },
+      : { click() { downloads.push(this.download); }, dataset: {}, setAttribute() {}, append() {} },
   });
   replace('Image', class {
     constructor() { images.push(this); this.width = 16; this.height = 16; }

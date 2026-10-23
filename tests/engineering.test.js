@@ -9,6 +9,13 @@ import { reviewFindings, reviewPackage, reviewHTML } from '../src/review.js';
 import { fromKiCadData } from '../src/kicad.js';
 import { parseCSV, toCSV } from '../src/tabular.js';
 
+// A drawn supply makes the fixture a wiring board, so undrawn supply pins report.
+function powered() {
+  const f = fixture();
+  const reg = addNode(f.store, 'regulator', 0, 200);
+  addWire(f.store, 'power', { node: reg, port: 'out' }, { node: f.a, port: 'vcc' });
+  return f;
+}
 function fixture() {
   const store = new Store(); const a = addNode(store, 'mcu', 0, 0), b = addNode(store, 'temp', 350, 0);
   const w = addWire(store, 'i2c', { node: a, port: 'i2c' }, { node: b, port: 'i2c' });
@@ -93,7 +100,7 @@ test('subsystem nesting is bounded on import', () => {
   assert.throws(() => deserialize(serialize(doc)), /eight levels/);
 });
 test('review exceptions stay stable across movement and expire on engineering changes', () => {
-  const { store } = fixture(); const f = reviewFindings(store.doc).find(f => !f.rule.startsWith('layout'));
+  const { store } = powered(); const f = reviewFindings(store.doc).find(f => !f.rule.startsWith('layout'));
   store.doc.engineering.exceptions = [{ id: f.id, fingerprint: f.fingerprint, rationale: 'Accepted for prototype', owner: 'Reviewer', at: '2026-09-15' }];
   store.doc.nodes[0].x += 20;
   assert.ok(reviewFindings(store.doc).find(x => x.id === f.id).exception);
@@ -102,7 +109,7 @@ test('review exceptions stay stable across movement and expire on engineering ch
 });
 
 test('review exceptions expire when supplementary Unicode engineering text changes', () => {
-  const { store } = fixture();
+  const { store } = powered();
   store.doc.engineering.requirements[0].text = 'Measure temperature 😀';
   const finding = reviewFindings(store.doc).find(f => f.rule === 'unconnected-power');
   store.doc.engineering.exceptions = [{

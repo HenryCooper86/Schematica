@@ -67,7 +67,9 @@ export async function runLayoutChecks({ js, send, check, sleep, screenshot }) {
       const menu = await js(`(()=>{const m=document.getElementById('examples-menu');m.querySelector('button:last-child').scrollIntoView({block:'nearest'});const r=m.getBoundingClientRect(),last=m.querySelector('button:last-child').getBoundingClientRect();return {fits:r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight,width:m.clientWidth,scrollWidth:m.scrollWidth,lastVisible:last.bottom<=r.bottom+1}})()`);
       check(`example menu stays in the viewport and its last entry is reachable at ${width}x${height} (${lang})`, menu.fits&&menu.lastVisible&&menu.scrollWidth<=menu.width+1, JSON.stringify(menu));
       await js(`document.getElementById('btn-examples').click();document.getElementById('btn-engineering').click();true`);
+      await js(`(()=>{const a=document.querySelector('#engineering-dialog .eng-advanced');if(a&&a.getAttribute('aria-expanded')!=='true')a.click();return true})()`);
       const tabs = await js(`[...document.querySelectorAll('#engineering-dialog nav [data-tab]')].map(b=>b.dataset.tab)`);
+      check(`engineering lists all sections with Advanced open at ${width}x${height} (${lang})`, tabs.length === 13, JSON.stringify(tabs));
       for (const tab of tabs) {
         await js(`document.querySelector('#engineering-dialog [data-tab="${tab}"]').click();true`);
         const result = await js(`(()=>{const d=document.getElementById('engineering-dialog'),b=document.getElementById('engineering-body'),r=d.getBoundingClientRect();return {fits:r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight,width:b.clientWidth,scrollWidth:b.scrollWidth,height:b.clientHeight}})()`);

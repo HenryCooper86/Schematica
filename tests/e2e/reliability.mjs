@@ -12,7 +12,7 @@ export async function runReliabilityChecks({ js, check, send, origin, sleep, cap
     await send('Page.navigate', { url: origin + '/' });
     await wait(`!window.__reliabilityNavigationPending && document.readyState === 'complete' && !!document.getElementById('btn-engineering')`);
   };
-  const section = name => js(`document.querySelector('[data-tab="${name}"]').click();true`);
+  const section = name => js(`(document.querySelector('[data-tab="${name}"]')||(document.querySelector('.eng-advanced').click(),document.querySelector('[data-tab="${name}"]'))).click();true`);
   const change = (name, value) => js(`(()=>{const input=document.querySelector('#engineering-body [name="${name}"]');input.value=${JSON.stringify(value)};input.dispatchEvent(new Event('input',{bubbles:true}));return true})()`);
   await navigate();
   await js(`(async()=>{const {EXAMPLES}=await import('/src/examples.js');const doc=EXAMPLES.find(e=>e.id==='declared-uart-reference').doc;const dt=new DataTransfer();dt.items.add(new File([JSON.stringify(doc)],'reliability.json'));const f=document.getElementById('file-input');f.files=dt.files;f.dispatchEvent(new Event('change'));})()`);

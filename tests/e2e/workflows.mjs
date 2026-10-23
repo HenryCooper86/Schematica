@@ -8,7 +8,7 @@ export async function runWorkflowChecks({ js, check, sleep, origin, screenshot }
   };
   const open = (tab) =>
     js(
-      `document.querySelectorAll('dialog[open]').forEach(d=>d.close());document.getElementById('btn-engineering').click();document.querySelector('[data-tab="${tab}"]').click();true`,
+      `document.querySelectorAll('dialog[open]').forEach(d=>d.close());document.getElementById('btn-engineering').click();(document.querySelector('[data-tab="${tab}"]')||(document.querySelector('.eng-advanced').click(),document.querySelector('[data-tab="${tab}"]'))).click();true`,
     );
   const form = (selector, values) =>
     js(
@@ -97,7 +97,7 @@ export async function runWorkflowChecks({ js, check, sleep, origin, screenshot }
     method: "Bench test",
     status: "verified",
   });
-  await js(`document.querySelector('[data-tab=matrix]').click();true`);
+  await js(`(document.querySelector('[data-tab=matrix]')||(document.querySelector('.eng-advanced').click(),document.querySelector('[data-tab=matrix]'))).click();true`);
   check(
     "verification matrix shows current evidence and verification method",
     await js(
@@ -112,7 +112,7 @@ export async function runWorkflowChecks({ js, check, sleep, origin, screenshot }
     rate: "400kHz",
     source: "datasheet",
   });
-  await js(`document.querySelector('[data-tab=matrix]').click();true`);
+  await js(`(document.querySelector('[data-tab=matrix]')||(document.querySelector('.eng-advanced').click(),document.querySelector('[data-tab=matrix]'))).click();true`);
   check(
     "changed interface declarations invalidate allocated requirement evidence",
     await js(

@@ -100,6 +100,14 @@ html, body {
 #toolbar :is(button, a):hover:not(:disabled) { color: var(--text); background: var(--bg3); }
 #toolbar button:disabled { opacity: 0.35; cursor: default; }
 #toolbar button.active { background: var(--accent-dim); color: #7dd3fc; }
+#btn-check { position: relative; }
+#btn-check .check-count {
+  position: absolute; top: -3px; right: -4px; min-width: 15px; height: 15px; padding: 0 4px;
+  border-radius: 8px; font-size: 9.5px; font-weight: 700; line-height: 15px; text-align: center;
+  background: #f59e0b; color: #1a1205; pointer-events: none;
+}
+#btn-check .check-count[data-level=error] { background: #ef4444; color: #fff; }
+#btn-check .check-count[hidden] { display: none; }
 #toolbar :is(button, a):focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 #zoom-label { font-family: var(--mono); font-size: 11.5px; min-width: 36px; text-align: center; }
 
@@ -1633,6 +1641,11 @@ html[data-theme="light"] .ai-result.warn { color: #92400e; }
 #engineering-dialog nav {
   display: flex; flex-wrap: wrap; gap: 5px; padding: 0 22px 14px;
   border-bottom: 1px solid var(--line); flex: none;
+}
+#engineering-dialog nav .eng-advanced { margin-left: auto; }
+#engineering-dialog nav .eng-advanced-tabs {
+  display: flex; flex-wrap: wrap; gap: 5px; flex-basis: 100%;
+  padding-top: 8px; margin-top: 3px; border-top: 1px dashed var(--line);
 }
 #engineering-dialog button, #engineering-dialog input::file-selector-button {
   background: var(--bg2); border: 1px solid var(--line); color: var(--muted);
