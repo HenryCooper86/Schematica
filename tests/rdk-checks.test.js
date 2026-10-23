@@ -331,7 +331,11 @@ test('output-only supplies of any kind are checked against the board input range
 test('an unwired stereo camera is left to the floating-node rule', () => {
   const d = { nodes: [n('board', 'aisbc', 'RDK X5'), n('camera', 'depthcam', 'GS130W')], wires: [] };
   assert.deepEqual(rule(d, 'rdk-stereo-links'), []);
+  assert.ok(!checkDoc(d).some((f) => f.rule === 'floating-node'), 'a board with no wires yet is a sketch, not a missed connection');
+  d.nodes.push(n('m1', 'mcu', 'A'), n('m2', 'mcu', 'B'));
+  d.wires.push(w('x', 'm1', 'i2c', 'm2', 'i2c', 'i2c'));
   assert.ok(checkDoc(d).some((f) => f.rule === 'floating-node' && f.ids.includes('camera')));
+  d.nodes.splice(2); d.wires = [];
   d.wires.push(w('left', 'camera', 'csi', 'board', 'csi1'));
   assert.equal(rule(d, 'rdk-stereo-links').length, 1);
 });

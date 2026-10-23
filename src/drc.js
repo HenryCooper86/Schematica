@@ -17,6 +17,12 @@ export function i2cAddrKey(addr) {
   return String(addr ?? '').trim().toLowerCase();
 }
 
+// Findings whose repair depends on what the author means: what an unwired
+// part should connect to, what a threat targets, a severity, a replacement
+// part. No automatic Fix is offered for these; deleting the item would only
+// hide the finding.
+export const NEEDS_AUTHOR = new Set(['floating-node', 'threat-unlinked', 'victim-no-threat', 'threat-no-severity', 'lifecycle']);
+
 export function checkDoc(doc) {
   if (doc.nodes.some(n => n.subsystem)) {
     const flat = analysisDoc(doc);
@@ -103,7 +109,9 @@ export function checkDoc(doc) {
 
   // 3. Fully floating nodes. An unlinked threat gets its own, more useful
   //    message from the security rules below.
-  const floating = doc.nodes.filter((n) => !wiredNodes.has(n.id) && !nodePart(n).threat);
+  //    Only once the board has a wire: before that every part is unwired
+  //    because the drawing has just started, not because one was missed.
+  const floating = doc.wires.length ? doc.nodes.filter((n) => !wiredNodes.has(n.id) && !nodePart(n).threat) : [];
   if (floating.length) {
     findings.push({
       level: 'warning',

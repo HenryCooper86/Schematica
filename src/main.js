@@ -27,6 +27,7 @@ import { initLegend } from './ui/legend.js';
 import { initDialogs } from './ui/dialogs.js';
 import { initJourney } from './ui/journey-ui.js';
 import { initExamplesMenu } from './ui/examples-menu.js';
+import { initEmptyState } from './ui/empty-state.js';
 import { initRecording } from './ui/recording-ui.js';
 import { initLayoutToggles } from './ui/panels.js';
 import { initShortcuts } from './ui/shortcuts-ui.js';
@@ -266,6 +267,7 @@ initOnboarding({ store, navigation, revisions, engineering: engineeringUI, tools
 const recorder = initRecording({ svg, store });
 const journeyUI = initJourney({ svg, store, tools, render, recorder, propsPanel });
 initExamplesMenu({ store });
+initEmptyState({ store });
 initLayoutToggles();
 initShortcuts();
 const aiSettings = createSettings(storage);

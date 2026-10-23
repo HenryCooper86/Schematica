@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { newDoc, Store, addNode } from '../src/state.js';
+import { newDoc, Store, addNode, addWire } from '../src/state.js';
 
 const script = new URL('../scripts/check-board.mjs', import.meta.url);
 const run = (...args) => spawnSync(process.execPath, [fileURLToPath(script), ...args], { encoding: 'utf8' });
@@ -26,7 +26,8 @@ test('board CLI checks files, reports import repairs, and returns actionable exi
     assert.equal(run(repaired).status, 1);
     assert.equal(run().status, 2);
     assert.equal(run(join(dir, 'absent.json')).status, 2);
-    const store = new Store(); addNode(store, 'mcu', 0, 0);
+    const store = new Store(); const m = addNode(store, 'mcu', 0, 0), t = addNode(store, 'temp', 300, 0); addNode(store, 'imu', 0, 300);
+    addWire(store, 'i2c', { node: m, port: 'i2c' }, { node: t, port: 'i2c' });
     await writeFile(clean, JSON.stringify(store.doc));
     const regular = run('--json', clean), strict = run('--json', '--strict', clean);
     assert.equal(regular.status, 0);

@@ -11,7 +11,7 @@ import { encodeGIF } from '../gif.js';
 import { LOOP_MS, bakeFrame, esc } from '../render.js';
 import { buildBOM, bomCSV, bomMarkdown, bomHeaders, bomTotalMa, bomSummary } from '../bom.js';
 import { formatCurrent, formatCapacity, formatHours, powerSummary } from '../power.js';
-import { checkDoc } from '../drc.js';
+import { checkDoc, NEEDS_AUTHOR } from '../drc.js';
 import { encodeShare } from '../share.js';
 import { toast, openModal } from './press.js';
 import { tr, trd, onLanguageChange } from '../i18n.js';
@@ -220,7 +220,9 @@ export function initDialogs({ store, getRootDoc = () => store.doc }) {
   });
   // An info finding reports a measurement, not a defect: a runtime estimate is
   // nothing for the assistant to repair. Layout findings keep their own rule.
-  const fixable = (f) => (drcMode === 'design' ? f.level !== 'info' : !!f.supportedFixes?.length);
+  // Findings that need the author's intent get no Fix: the assistant could
+  // only clear them by deleting the item.
+  const fixable = (f) => (drcMode === 'design' ? f.level !== 'info' && !NEEDS_AUTHOR.has(f.rule) : !!f.supportedFixes?.length);
 
   // The power tree, read-only: the rails exactly as power.js builds them, with
   // no judgement of any kind. The Design rules tab is where a number is called
@@ -269,7 +271,10 @@ export function initDialogs({ store, getRootDoc = () => store.doc }) {
     const coverage = drcMode === 'layout' ? null : validationCoverage(store.doc);
     const readiness = coverage && reviewReadiness(store.doc, findings, coverage);
     let summary = '';
-    if (coverage) {
+    // On Design rules the coverage block only matters when the board has
+    // connections to assess; a sketch or threat model would otherwise open
+    // with a paragraph about zero interfaces. Review readiness always shows it.
+    if (coverage && (coverage.applicable || drcMode === 'readiness')) {
       const missingRows = coverage.connections.map((c, i) => {
         if (!c.missing.length) return '';
         return `<div class="drc-row"><span class="msg">${esc(tr('Interface {id}: missing {fields}.', {

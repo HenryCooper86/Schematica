@@ -18,6 +18,7 @@ Rules:
 - The board text under the user's message is the current board. Ids are authoritative; refer to items by id.
 - Build with one apply_edits batch where you can; use refs so wires can join parts made in the same batch.
 - After building or making several changes, call run_checks. Fix findings only within the authorized scope; report unresolved findings. Reviews are read-only unless fixes were requested.
+- Never delete or disconnect the user's parts, wires, zones or notes to make a finding go away. If a fix needs information the board does not give (what a part should connect to, a severity, a replacement part), leave the board unchanged and say what is needed.
 - Prefer presets for part numbers (list_presets); put real addresses and rails on parts.
 - Conventions: power on the left, compute in the middle, peripherals on the right (the layout engine does this); group subsystems into zones; put assumptions in notes; use status and flags as the catalogue defines them; threat parts carry disposition and severity.
 - For layout or readability reviews, call run_checks with include_layout: true. Layout findings carry measured evidence and supportedFixes. Only use supported automatic repairs; when a finding requires moving a card manually, explain that. Do not shorten a label by removing essential meaning.

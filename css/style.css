@@ -244,6 +244,24 @@ g.node:hover .ports,
   line-height: 1.5;
 }
 
+/* ---- Empty board start card ---- */
+#empty-state {
+  position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%);
+  width: min(520px, calc(100% - 48px)); text-align: center; pointer-events: none;
+  color: var(--muted);
+}
+#empty-state[hidden] { display: none; }
+#empty-state h2 { margin: 0 0 6px; font-size: 15px; font-weight: 600; color: var(--text); }
+#empty-state p { margin: 0 0 14px; font-size: 12.5px; line-height: 1.5; }
+.empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.empty-actions button {
+  pointer-events: auto; background: var(--bg2); border: 1px solid var(--line2); color: var(--text);
+  border-radius: 8px; padding: 7px 12px; font: inherit; font-size: 12.5px; cursor: pointer;
+}
+.empty-actions button:hover { border-color: var(--accent); color: var(--accent); }
+.empty-actions button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#app.presenting #empty-state { display: none; }
+
 #hintbar {
   position: absolute;
   left: 50%;
@@ -257,6 +275,11 @@ g.node:hover .ports,
   font-size: 11.5px;
   white-space: nowrap;
   pointer-events: none;
+  /* Never wider than the canvas: the strip starts with the most used keys,
+     so a narrow window trims the tail instead of clipping both ends. */
+  max-width: calc(100% - 28px);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 #hintbar kbd {
   font-family: var(--mono);

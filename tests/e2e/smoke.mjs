@@ -907,6 +907,7 @@ try {
   await js(`document.getElementById('btn-examples').click(); true`);
   await sleep(100);
   const menu = await js(`(() => { const m = document.getElementById('examples-menu'); return { hidden: m.hidden, headings: [...m.querySelectorAll('.menu-group')].map((h) => h.textContent), buttons: m.querySelectorAll('button[data-example]').length, guide: !!m.querySelector('#examples-guide') }; })()`);
+  check('the start card shows exactly when the board is empty', await js(`(() => { const card = document.getElementById('empty-state'); return !!card && card.hidden === (document.querySelectorAll('#canvas .node').length > 0); })()`));
   check('the Examples menu opens with Embedded, Vehicle, and Security headings over every built-in board', menu.hidden === false && JSON.stringify(menu.headings) === JSON.stringify(['Embedded', 'Vehicle', 'Security']) && menu.buttons === EXAMPLES.length && menu.guide, JSON.stringify(menu));
   await key('Escape', 'Escape', 27);
   await sleep(100);
@@ -1094,7 +1095,7 @@ try {
   await js(`document.getElementById('btn-check').click(); true`);
   await sleep(100);
   const fixBtn = await js(`(() => { const b = document.querySelector('#drc-list [data-drc-fix]'); if (!b) return null; b.click(); return true; })()`);
-  check('every finding has a Fix button', fixBtn === true, String(fixBtn));
+  check('a fixable finding has a Fix button', fixBtn === true, String(fixBtn));
   let fixed = null;
   for (let i = 0; i < 40; i++) {
     fixed = await js(`(() => ({ dialogOpen: document.getElementById('drc-dialog').open === true, panelOpen: !document.getElementById('assistant').hidden, notes: document.querySelectorAll('#canvas [data-type="note"]').length, sending: !document.getElementById('ai-stop').hidden }))()`);

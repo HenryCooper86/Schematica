@@ -447,3 +447,14 @@ test('design-rule messages follow the interface language and keep their rule ids
     setLang('en');
   }
 });
+
+test('a lone part on a board with no wires is not reported as floating', () => {
+  assert.deepEqual(checkDoc(doc([node('t', 'server')], [])).filter((f) => f.rule === 'floating-node'), []);
+});
+
+test('findings that need the author have no automatic fix', async () => {
+  const { NEEDS_AUTHOR } = await import('../src/drc.js');
+  for (const rule of ['floating-node', 'threat-unlinked', 'victim-no-threat', 'threat-no-severity', 'lifecycle']) assert.ok(NEEDS_AUTHOR.has(rule), rule);
+  assert.ok(!NEEDS_AUTHOR.has('i2c-addr-conflict'));
+  assert.ok(!NEEDS_AUTHOR.has('bus-mismatch'));
+});
