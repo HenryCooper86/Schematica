@@ -73,14 +73,14 @@ function badgeMarkup(W, color, part) {
   const c = esc(color);
   let s = `<rect x="${W / 2 - 19}" y="8" width="38" height="38" rx="11" fill="${c}" opacity="0.13"/>`;
   if (part.glyph) {
-    s += `<g transform="translate(${W / 2 - 13.8} 13.2) scale(1.15)" fill="none" stroke="${c}" stroke-width="1.8"`
+    s += `<g class="acc-g" style="--a:${c}" transform="translate(${W / 2 - 13.8} 13.2) scale(1.15)" fill="none" stroke="${c}" stroke-width="1.8"`
       + ` stroke-linecap="round" stroke-linejoin="round" color="${c}">${part.glyph}</g>`;
   } else if (part.text) {
     // A custom part with no icon: up to three letters, centred in the badge.
-    s += `<text x="${W / 2}" y="31.8" text-anchor="middle" font-size="13" font-weight="700" fill="${c}"`
+    s += `<text class="acc-t" style="--a:${c}" x="${W / 2}" y="31.8" text-anchor="middle" font-size="13" font-weight="700" fill="${c}"`
       + ` pointer-events="none">${esc(part.text)}</text>`;
   } else {
-    s += `<g transform="translate(${W / 2 - 13.8} 13.2) scale(${ICON_SCALE})" fill="none" stroke="${c}"`
+    s += `<g class="acc-g" style="--a:${c}" transform="translate(${W / 2 - 13.8} 13.2) scale(${ICON_SCALE})" fill="none" stroke="${c}"`
       + ` stroke-width="${(1.8 / ICON_SCALE).toFixed(3)}" stroke-linecap="round" stroke-linejoin="round"><path d="${esc(part.icon)}"/></g>`;
   }
   return s;
@@ -148,7 +148,7 @@ function figureMarkup(part, W, H, acc, selected, labelLines, metaLines) {
   const sw = Math.round((FIGURE_STROKE / gs) * 1000) / 1000;
   const gx = P.side ? P.padX : (W - P.glyph) / 2;
   const gy = P.side ? (H - P.glyph) / 2 : P.padTop;
-  s += `<g transform="translate(${Math.round(gx * 100) / 100} ${Math.round(gy * 100) / 100}) scale(${Math.round(gs * 1000) / 1000})"`
+  s += `<g class="acc-g" style="--a:${c}" transform="translate(${Math.round(gx * 100) / 100} ${Math.round(gy * 100) / 100}) scale(${Math.round(gs * 1000) / 1000})"`
     + ` fill="none" stroke="${c}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" color="${c}">${part.glyph}</g>`;
   // Text: the wrapped label, then the mono meta lines — figures carry their
   // own larger metrics (13px/600 label, 10.5px context), shared with geometry.
@@ -255,7 +255,7 @@ function tagsMarkup(node, animating, now) {
     s += `<g${blink}><rect x="${x}" y="-8" width="${pw}" height="16" rx="8"`
       + ` fill="${CHIP_BG}" stroke="${t.color}" stroke-opacity="0.8" stroke-width="1.2"/>`
       + `<text x="${Math.round((x + pw / 2) * 100) / 100}" y="3.2" text-anchor="middle" font-size="8" font-weight="700"`
-      + ` letter-spacing="0.5" fill="${t.color}" pointer-events="none">${esc(t.label)}</text></g>`;
+      + ` letter-spacing="0.5" fill="${t.color}" class="acc-t" style="--a:${t.color}" pointer-events="none">${esc(t.label)}</text></g>`;
     x = Math.round((x + pw + 4) * 100) / 100;
   }
   return s;
@@ -562,7 +562,7 @@ function zoneMarkup(zone, selected) {
   const squeeze = (line) => label.textWidth > 0 && measureZoneLabelText(line) > label.textWidth + 0.5
     ? ` textLength="${label.textWidth}" lengthAdjust="spacingAndGlyphs"` : '';
   s += `<text x="${cx}" y="${top + ZONE_LABEL_H / 2}" text-anchor="middle" dominant-baseline="central"`
-    + ` font-size="${ZONE_LABEL_FONT_SIZE}" font-weight="${ZONE_LABEL_FONT_WEIGHT}" fill="${esc(color)}" data-edit="label"${label.lines.length === 1 ? squeeze(label.lines[0]) : ''}>`
+    + ` font-size="${ZONE_LABEL_FONT_SIZE}" font-weight="${ZONE_LABEL_FONT_WEIGHT}" fill="${esc(color)}" class="acc-t" style="--a:${esc(color)}" data-edit="label"${label.lines.length === 1 ? squeeze(label.lines[0]) : ''}>`
     + (label.lines.length === 1
       ? esc(label.lines[0])
       : label.lines.map((line, j) => `<tspan x="${cx}" dy="${j ? ZONE_LABEL_LINE_H : 0}"${squeeze(line)}>${esc(line)}</tspan>`).join(''))

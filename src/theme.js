@@ -55,6 +55,11 @@ export function lightSVGStyles(scope) {
     ['text[fill="#94a3b8"]','fill:#475569'],
     ['[fill="#1c1710"]','fill:#fffbeb'],
     ['text[fill="#e8c884"]','fill:#78350f'],
+    // Accent-coloured text and icons carry their colour in --a; the dark
+    // theme's bright accents are darkened for a white background, whatever
+    // the colour (including ones the author picked).
+    ['.acc-t','fill:color-mix(in oklab,var(--a) 58%,#000)'],
+    ['.acc-g','stroke:color-mix(in oklab,var(--a) 76%,#000);color:color-mix(in oklab,var(--a) 76%,#000)'],
   ];
   return rules.map(([selector, declarations])=>`${scope} ${selector}{${declarations}}`).join('\n');
 }

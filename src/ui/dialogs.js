@@ -284,9 +284,14 @@ export function initDialogs({ store, getRootDoc = () => store.doc }) {
       const status = drcMode === 'readiness'
         ? `<p><strong>${esc(readiness.ready ? tr('Ready for interface review') : tr('Not ready for interface review'))}</strong> — ${esc(tr('{count} blocking design findings.', { count: readiness.blockingFindings }))}</p>`
         : '';
-      summary = `<div class="validation-coverage"><p>${esc(coverageSummary(coverage))}</p>
+      // Design rules keeps the one-line coverage count and points to Review
+      // readiness, where the per-connection gaps and the scope note live, so
+      // the rule findings are not pushed below the fold.
+      summary = drcMode === 'readiness'
+        ? `<div class="validation-coverage"><p>${esc(coverageSummary(coverage))}</p>
         <p>${esc(coverageScope())}</p>${status}
-        ${!coverage.applicable ? `<p>${esc(tr('No applicable connections to assess.'))}</p>` : ''}${missingRows}</div>`;
+        ${!coverage.applicable ? `<p>${esc(tr('No applicable connections to assess.'))}</p>` : ''}${missingRows}</div>`
+        : `<div class="validation-coverage"><p>${esc(coverageSummary(coverage))} <button type="button" class="link-btn" data-goto-readiness>${esc(tr('Review readiness →'))}</button></p></div>`;
     }
     const list = document.getElementById('drc-list');
     if (!findings.length) {
@@ -298,6 +303,7 @@ export function initDialogs({ store, getRootDoc = () => store.doc }) {
         + `<button data-drc="${i}">${esc(tr('Select'))}</button>${fixable(f) ? `<button data-drc-fix="${i}">${esc(tr('Fix'))}</button>` : ''}</div>`
       )).join('');
     }
+    list.querySelector('[data-goto-readiness]')?.addEventListener('click', () => document.querySelector('[data-check-mode="readiness"]')?.click());
     list.querySelectorAll('[data-coverage]').forEach(btn => {
       btn.onclick = () => { store.setSelection(coverage.connections[Number(btn.dataset.coverage)].ids); drcDialog.close(); };
     });

@@ -788,6 +788,7 @@ export default {
   'Wiring and interface conflicts, power budgets, lifecycle risks, and gaps in threat models.': '布线与接口冲突、电源预算、生命周期风险以及威胁模型中的缺口。',
   'Advanced': '高级',
   'More': '更多',
+  'Review readiness →': '评审就绪 →',
   'Snap to grid': '吸附到网格',
   'Parts palette (B)': '部件面板 (B)',
   'Right panels (P)': '右侧面板 (P)',

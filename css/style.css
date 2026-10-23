@@ -1927,3 +1927,14 @@ html[data-theme="light"] .ai-result.warn { color: #92400e; }
 #startup-recovery article { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
 #startup-recovery time { display: block; color: var(--muted); margin: 4px 0; }
 #startup-recovery button { margin: 4px 8px 4px 0; }
+
+/* Light theme: the palette's accent icons are darkened for a white surface
+   (the canvas does the same through lightSVGStyles in theme.js). */
+html[data-theme="light"] .badge[style*="--c"] svg { stroke: color-mix(in oklab, var(--c) 76%, #000); }
+html[data-theme="light"] .badge[style*="--c"] b { color: color-mix(in oklab, var(--c) 62%, #000) !important; }
+
+.link-btn { background: none; border: none; padding: 0; margin-left: 6px; color: var(--accent); font: inherit; cursor: pointer; }
+.link-btn:hover { text-decoration: underline; }
+html[data-theme="light"] .drc-level.error { color: #b91c1c; border-color: #fca5a5; background: #fef2f2; }
+html[data-theme="light"] .drc-level.warning { color: #92400e; border-color: #fcd34d; background: #fffbeb; }
+html[data-theme="light"] .drc-level.info { color: #1d4ed8; border-color: #93c5fd; background: #eff6ff; }
