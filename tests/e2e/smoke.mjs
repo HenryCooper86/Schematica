@@ -1118,6 +1118,17 @@ try {
   await sleep(100);
   const fixBtn = await js(`(() => { const b = document.querySelector('#drc-list [data-drc-fix]'); if (!b) return null; b.click(); return true; })()`);
   check('a fixable finding has a Fix button', fixBtn === true, String(fixBtn));
+  // A fix always goes through the preview (previews are switched off in
+  // this run), which leads with the outcome for the finding it was asked
+  // about; nothing reaches the board until Apply.
+  let fixPreview = null;
+  for (let i = 0; i < 40; i++) {
+    fixPreview = await js(`(() => { const d = document.getElementById('ai-preview-dialog'); return d ? { open: d.open, outcome: d.querySelector('.preview-outcome')?.textContent || '', notes: document.querySelectorAll('#canvas [data-type="note"]').length } : null; })()`);
+    if (fixPreview?.open) break;
+    await sleep(150);
+  }
+  check('Fix opens the preview even with previews off, leading with the finding outcome, before the board changes', !!fixPreview?.open && /Charger's GND pin is unconnected/.test(fixPreview.outcome) && fixPreview.notes === notesBefore, JSON.stringify(fixPreview));
+  await js(`document.getElementById('ai-preview-apply')?.click(); true`);
   let fixed = null;
   for (let i = 0; i < 40; i++) {
     fixed = await js(`(() => ({ dialogOpen: document.getElementById('drc-dialog').open === true, panelOpen: !document.getElementById('assistant').hidden, notes: document.querySelectorAll('#canvas [data-type="note"]').length, sending: !document.getElementById('ai-stop').hidden }))()`);

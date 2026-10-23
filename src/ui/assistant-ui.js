@@ -660,7 +660,10 @@ export function initAssistant({ store, tools, render, svg, library = null, setti
     }));
   }
 
-  async function send(text) {
+  // `targets`: findings a Fix asked about. A fix always goes through the
+  // preview, even with previews switched off, so the user sees what it
+  // resolves and what it deletes before anything changes.
+  async function send(text, { targets = [] } = {}) {
     const userText = String(text ?? '').trim();
     if (!userText || busy || pendingPreview || attachments.isImporting()) return;
     if (!settings.configured()) { open(); showSettings(true); toast(tr('Add a provider and key first.')); return; }
@@ -669,7 +672,7 @@ export function initAssistant({ store, tools, render, svg, library = null, setti
     const s = settings.get();
     const requestKey = settings.getKey();
     const wasEmpty = !store.doc.nodes.length && !store.doc.zones.length && !store.doc.notes.length;
-    const preview = previewEnabled ? createEditPreview(store) : null;
+    const preview = previewEnabled || targets.length ? createEditPreview(store) : null;
     const requestStore = preview?.draft || store;
     const executor = createExecutor({
       getDoc: () => requestStore.doc,
@@ -761,7 +764,7 @@ export function initAssistant({ store, tools, render, svg, library = null, setti
           else history = [];
           visible.push({ role: 'status', text: applied ? tr('Draft applied.') : tr('The draft was discarded; the board is unchanged.') });
           renderThread(); saveThread();
-        });
+        }, { targets });
       }
       renderThread(); saveThread();
     }
@@ -795,7 +798,7 @@ export function initAssistant({ store, tools, render, svg, library = null, setti
     fix: () => {
       const findings = checkDoc(store.doc);
       if (!findings.length) { toast(tr('The board passes every check.')); return; }
-      send(`Fix these findings:\n${findings.map((f) => `${f.level} ${f.rule} "${f.message}" ids: ${f.ids.join(' ')}`).join('\n')}`);
+      send(`Fix these findings:\n${findings.map((f) => `${f.level} ${f.rule} "${f.message}" ids: ${f.ids.join(' ')}`).join('\n')}`, { targets: findings.filter((f) => f.level !== 'info') });
     },
     fill: () => send('Fill in blank part numbers, addresses, rails, and notes from the presets. Change nothing else.'),
   };
@@ -803,7 +806,7 @@ export function initAssistant({ store, tools, render, svg, library = null, setti
   document.addEventListener('schematica:fix-finding', (e) => {
     const f = e.detail;
     open();
-    send(`Fix this finding: ${f.level} ${f.rule} "${f.message}" ids: ${f.ids.join(' ')}.${f.evidence ? ' Evidence: ' + JSON.stringify(f.evidence) + '. Supported repairs: ' + JSON.stringify(f.supportedFixes || []) + '.' : ''} Change only what this finding needs; leave the rest of the board as it is. Do not delete or disconnect anything to clear it; if the fix needs information the board does not give, change nothing and say what is needed.`);
+    send(`Fix this finding: ${f.level} ${f.rule} "${f.message}" ids: ${f.ids.join(' ')}.${f.evidence ? ' Evidence: ' + JSON.stringify(f.evidence) + '. Supported repairs: ' + JSON.stringify(f.supportedFixes || []) + '.' : ''} Change only what this finding needs; leave the rest of the board as it is. Do not delete or disconnect anything to clear it; if the fix needs information the board does not give, change nothing and say what is needed.`, { targets: [f] });
   });
 
   loadThread();

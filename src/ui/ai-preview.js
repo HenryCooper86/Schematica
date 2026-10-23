@@ -3,16 +3,42 @@ import { escAttr as esc, openModal, toast } from "./press.js";
 import { impactSummary } from "./impact-summary.js";
 import { tr } from "../i18n.js";
 import { renderChangePreview } from './change-preview.js';
-export function showEditPreview(preview, onFinish) {
+import { fixOutcome } from '../ai/fix-outcome.js';
+const KIND = { nodes: () => tr('part'), wires: () => tr('wire'), zones: () => tr('zone'), notes: () => tr('note') };
+
+// The answer to "did it fix it, and what does it delete?", above the details.
+function outcomeMarkup(outcome) {
+  let s = '';
+  if (outcome.targets.length) {
+    s += `<section class="preview-outcome"><h3>${esc(tr('Outcome'))}</h3><ul>`
+      + outcome.targets.map((t) => t.resolved
+        ? `<li class="ok">✓ ${esc(tr('Fixed: {message}', { message: t.finding.message }))}</li>`
+        : t.deleted.length
+          ? `<li class="open">✗ ${esc(tr('Cleared only by deleting {items}: {message}', { items: t.deleted.join(', '), message: t.finding.message }))}</li>`
+          : `<li class="open">✗ ${esc(tr('Still reported: {message}', { message: t.now.message }))}</li>`).join('')
+      + outcome.introduced.map((f) => `<li class="new">⚠ ${esc(tr('New finding: {message}', { message: f.message }))}</li>`).join('')
+      + '</ul></section>';
+  }
+  if (outcome.removed.length) {
+    s += `<section class="preview-removals" role="alert"><h3>${esc(tr('This draft deletes {count} item(s)', { count: outcome.removed.length }))}</h3><ul>`
+      + outcome.removed.map((c) => `<li>${esc(c.label || c.id)} <small>${esc(KIND[c.collection]())}</small></li>`).join('')
+      + '</ul></section>';
+  }
+  return s;
+}
+
+export function showEditPreview(preview, onFinish, { targets = [] } = {}) {
   const dialog = document.createElement("dialog");
   dialog.id = "ai-preview-dialog";
   dialog.className = "workflow-dialog";
   dialog.setAttribute("aria-labelledby", "ai-preview-heading");
   const report = preview.summary();
+  const outcome = fixOutcome({ targets, before: report.before, after: report.after, changes: report.comparison.changes, board: report.boards.before });
   // The header (with a close button) and the Discard/Apply footer stay pinned
   // while the change list scrolls, so a long preview never hides them.
   dialog.innerHTML = `<header class="preview-head"><h2 id="ai-preview-heading">${esc(tr("Preview AI changes"))}</h2>
     <button type="button" id="ai-preview-close" class="preview-close" title="${esc(tr("Discard draft"))}" aria-label="${esc(tr("Discard draft"))}">&times;</button></header>
+    ${outcomeMarkup(outcome)}
     <p>${esc(tr("The board is unchanged. Review the draft before applying it."))}</p>
     <section id="ai-visual-preview"></section>
     ${report.comparison.changes.some(c => c.fields?.some(f => f.field === 'blueprint')) ? `<h3>${esc(tr('Blueprint'))}</h3><div class="workflow-columns"><section><h4>${esc(tr('Before'))}</h4>${blueprintMarkup(report.comparison.changes.find(c => c.fields?.some(f => f.field === 'blueprint')).fields[0].before)}</section><section><h4>${esc(tr('After'))}</h4>${blueprintMarkup(preview.draft.doc.blueprint)}</section></div>` : ''}
