@@ -1981,6 +1981,7 @@ export default {
   'Address': '地址',
   'Coordinates': '坐标',
   'Platform': '平台',
+  'Recent': '最近使用',
   'web': '网页',
   'desktop': '桌面',
   'e.g. Finance manager': '例如 财务经理',

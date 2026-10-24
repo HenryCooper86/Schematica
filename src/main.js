@@ -258,7 +258,7 @@ store.subscribe(() => {
 }, { documentOnly: true });
 
 // ---- Panels, dialogs, menus ----
-initPalette({ svg, store, tools, library, editor });
+initPalette({ svg, store, tools, library, editor, storage });
 initLegend();
 initCompare({ store, getRootDoc: () => navigation.rootDoc() });
 explorer = initExplore({ store, tools, svg, render });

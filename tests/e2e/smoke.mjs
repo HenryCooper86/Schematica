@@ -694,6 +694,14 @@ try {
   await js(`(() => { const visible = ${visible}; const s = document.getElementById('palette-search'); s.value = ''; s.dispatchEvent(new Event('input', { bubbles: true })); return [...document.querySelectorAll('#palette .palette-item')].filter(visible).length; })()`).then((n) => check('clearing the search restores every part', n >= 60, String(n)));
   const collapsed = await js(`(() => { const visible = ${visible}; const h = document.querySelector('#palette h3'); h.click(); const box = h.nextElementSibling; const out = !visible(box); h.click(); return out && visible(box); })()`);
   check('clicking a category heading collapses and re-expands its tiles', collapsed === true, String(collapsed));
+  const tip = await js(`document.querySelector('#palette .palette-item[data-kind="mcu"]').title`);
+  check('a palette tile explains its part in a tooltip', /microcontroller/i.test(tip), tip);
+  const persisted = await js(`(() => { const h = [...document.querySelectorAll('#palette h3')].find((x) => x.textContent === 'Compute'); h.click(); const on = localStorage.getItem('schematica.palette.collapsed'); h.click(); return { on, off: localStorage.getItem('schematica.palette.collapsed') }; })()`);
+  check('folded categories are remembered in this browser', persisted.on === '["compute"]' && persisted.off === '[]', JSON.stringify(persisted));
+  await js(`document.querySelector('#palette .cat-grid:not(#palette-recent) .palette-item[data-kind="imu"]').click(); true`);
+  await sleep(100);
+  const recent = await js(`(() => { const visible = ${visible}; return { head: visible(document.getElementById('palette-recent-head')), tile: !!document.querySelector('#palette-recent [data-kind="imu"]'), stored: localStorage.getItem('schematica.palette.recent') }; })()`);
+  check('a placed part appears in the Recent row and is remembered', recent.head && recent.tile && recent.stored.startsWith('["imu"'), JSON.stringify(recent));
 
   // ---- Robustness and accessibility ----
   const weather = EXAMPLES.find((e) => e.id === 'weather-station').doc;

@@ -1,7 +1,11 @@
 // The parts palette: "My parts" (library templates and this board's custom
-// parts) first, then the catalogue by category. Search filters both;
-// tiles add on click and drag onto the canvas.
+// parts) first, then the kinds placed most recently, then the catalogue by
+// category. Search filters all three; tiles add on click and drag onto the
+// canvas. A tile's tooltip is the guide's explanation of the part, and which
+// categories are folded and what was placed recently are remembered per
+// browser.
 import { CATEGORIES, PARTS, getPart } from '../palette.js';
+import { PART_HELP } from '../guide-parts.js';
 import { partOf } from '../custom.js';
 import { addNode } from '../state.js';
 import { snap, nodeSize } from '../geometry.js';
@@ -9,11 +13,23 @@ import { filterParts, filterTemplates } from '../search.js';
 import { download } from '../export.js';
 import { escAttr, toast } from './press.js';
 import { badgeHTML } from './badge.js';
-import { tr, trd, onLanguageChange } from '../i18n.js';
+import { tr, trd, getLang, onLanguageChange } from '../i18n.js';
 
-export function initPalette({ svg, store, tools, library, editor }) {
+const COLLAPSED_KEY = 'schematica.palette.collapsed';
+const RECENT_KEY = 'schematica.palette.recent';
+const RECENT_MAX = 8;
+
+export function initPalette({ svg, store, tools, library, editor, storage = null }) {
   const palette = document.getElementById('palette');
   const search = document.getElementById('palette-search');
+  // Per-browser palette preferences; storage may be absent or blocked, and
+  // a missing or malformed entry simply means the defaults.
+  const remembered = (key) => {
+    try { const v = JSON.parse(storage?.getItem(key) ?? 'null'); return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []; }
+    catch { return []; }
+  };
+  const remember = (key, list) => { try { storage?.setItem(key, JSON.stringify(list)); } catch { /* preference only */ } };
+  const helpFor = (kind) => PART_HELP[kind]?.[getLang() === 'zh' ? 1 : 0] || '';
 
   const centre = () => {
     const r = svg.getBoundingClientRect();
@@ -26,6 +42,7 @@ export function initPalette({ svg, store, tools, library, editor }) {
     const { w, h } = nodeSize(probe);
     const id = addNode(store, def ? 'custom' : kind, snap(x - w / 2), snap(y - h / 2), def);
     store.setSelection([id]);
+    if (!def) noteRecent(kind);
   }
   const fromTemplate = (t) => ({ ...t, lib: t.id });
 
@@ -210,8 +227,57 @@ export function initPalette({ svg, store, tools, library, editor }) {
     }
   });
 
+  // A catalogue tile: badge, translated name, and the guide's explanation as
+  // its tooltip. Click places at the view centre; drag places where dropped.
+  function kindTile(part) {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'palette-item';
+    item.dataset.kind = part.kind;
+    item.innerHTML = badgeHTML(part) + `<span class="pi-name">${escAttr(trd(part.name))}</span>`;
+    item.title = helpFor(part.kind);
+    item.draggable = true;
+    item.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/schematica-kind', part.kind); });
+    item.addEventListener('click', () => { const c = centre(); place(part.kind, null, c.x, c.y); });
+    return item;
+  }
+  const relabelTile = (el, part) => {
+    el.querySelector('.pi-name').textContent = trd(part.name);
+    el.title = helpFor(part.kind);
+  };
+
+  // ---- Recent ----
+  // The kinds placed most recently, newest first, so a board that keeps
+  // reaching for the same few parts does not scroll for them.
+  const recentHead = document.createElement('h3');
+  recentHead.id = 'palette-recent-head';
+  recentHead.textContent = tr('Recent');
+  const recentGrid = document.createElement('div');
+  recentGrid.id = 'palette-recent';
+  recentGrid.className = 'cat-grid';
+  palette.appendChild(recentHead);
+  palette.appendChild(recentGrid);
+  let recent = remembered(RECENT_KEY).filter((k) => PARTS[k]).slice(0, RECENT_MAX);
+  function renderRecent() {
+    recentGrid.innerHTML = '';
+    for (const kind of recent) recentGrid.appendChild(kindTile(PARTS[kind]));
+    const empty = recent.length === 0;
+    recentHead.hidden = empty;
+    recentGrid.hidden = empty;
+  }
+  function noteRecent(kind) {
+    if (!PARTS[kind]) return;
+    recent = [kind, ...recent.filter((k) => k !== kind)].slice(0, RECENT_MAX);
+    remember(RECENT_KEY, recent);
+    renderRecent();
+    applySearch();
+  }
+  renderRecent();
+
   // ---- Catalogue ----
   const groups = [];
+  const collapsedIds = new Set(remembered(COLLAPSED_KEY));
+  const saveCollapsed = () => remember(COLLAPSED_KEY, groups.filter((g) => g.collapsed).map((g) => g.cat.id));
   for (const cat of CATEGORIES) {
     const h = document.createElement('h3');
     h.textContent = trd(cat.name);
@@ -219,21 +285,18 @@ export function initPalette({ svg, store, tools, library, editor }) {
     const box = document.createElement('div');
     box.className = 'cat-grid';
     palette.appendChild(box);
-    const group = { h, box, cat, collapsed: false, items: [] };
+    const group = { h, box, cat, collapsed: collapsedIds.has(cat.id), items: [] };
     groups.push(group);
+    box.hidden = group.collapsed;
+    h.classList.toggle('collapsed', group.collapsed);
     h.addEventListener('click', () => {
       group.collapsed = !group.collapsed;
       box.hidden = group.collapsed;
       h.classList.toggle('collapsed', group.collapsed);
+      saveCollapsed();
     });
     for (const part of Object.values(PARTS).filter((p) => p.category === cat.id)) {
-      const item = document.createElement('button');
-      item.className = 'palette-item';
-      item.dataset.kind = part.kind;
-      item.innerHTML = badgeHTML(part) + `<span class="pi-name">${escAttr(trd(part.name))}</span>`;
-      item.draggable = true;
-      item.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/schematica-kind', part.kind); });
-      item.addEventListener('click', () => { const c = centre(); place(part.kind, null, c.x, c.y); });
+      const item = kindTile(part);
       box.appendChild(item);
       group.items.push({ el: item, kind: part.kind, part });
     }
@@ -241,9 +304,11 @@ export function initPalette({ svg, store, tools, library, editor }) {
 
   onLanguageChange(() => {
     relabelHeader();
+    recentHead.textContent = tr('Recent');
+    for (const el of recentGrid.children) relabelTile(el, PARTS[el.dataset.kind]);
     for (const g of groups) {
       g.h.textContent = trd(g.cat.name);
-      for (const it of g.items) it.el.querySelector('.pi-name').textContent = trd(it.part.name);
+      for (const it of g.items) relabelTile(it.el, it.part);
     }
     renderMine();
   });
@@ -274,6 +339,11 @@ export function initPalette({ svg, store, tools, library, editor }) {
     }
     myHead.hidden = !!q && shownMine === 0;
     myGrid.hidden = q ? shownMine === 0 : myCollapsed;
+    // A search answers from the catalogue; the Recent row would only repeat
+    // its hits, so it folds away until the search clears.
+    const showRecent = !q && recent.length > 0;
+    recentHead.hidden = !showRecent;
+    recentGrid.hidden = !showRecent;
     const onBoard = boardGrid.children.length > 0 && !q;
     boardHead.hidden = !onBoard;
     boardGrid.hidden = !onBoard;

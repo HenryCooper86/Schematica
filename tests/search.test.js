@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { filterParts, partHaystack, filterTemplates, templateHaystack } from '../src/search.js';
+import { filterParts, partHaystack, filterTemplates, templateHaystack, SEARCH_ALIASES } from '../src/search.js';
 import { PARTS } from '../src/palette.js';
 import { initI18n, setLang } from '../src/i18n.js';
 
@@ -51,4 +51,17 @@ test('Chinese queries match translated part, category and bus names while Englis
   } finally {
     setLang('en');
   }
+});
+
+test('aliases and hyphen spellings find parts by the words engineers type', () => {
+  assert.ok(filterParts('esp32').has('mcu'));
+  assert.ok(filterParts('raspberry').has('sbc'));
+  assert.ok(filterParts('k8s').has('kubernetes'));
+  assert.ok(filterParts('wi-fi').has('wifi') && filterParts('wi-fi').has('accesspoint'));
+  assert.ok(filterParts('wifi').has('wifi'));
+  assert.ok(filterParts('lte').has('cellular'));
+  assert.ok(filterParts('postgres').has('database'));
+  assert.ok(filterParts('rs485').has('servobus') && filterParts('RS-485').has('servobus'), 'hyphens are optional on both sides');
+  assert.ok(filterParts('man in the middle').has('mitm'));
+  for (const kind of Object.keys(SEARCH_ALIASES)) assert.ok(PARTS[kind], `alias for unknown part ${kind}`);
 });
