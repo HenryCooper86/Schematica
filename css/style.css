@@ -2173,4 +2173,5 @@ html[data-theme="light"] #import-dialog #import-status.error { color: #b91c1c; }
 #import-dialog .rec-buttons button:hover:not(:disabled) { border-color: var(--accent); }
 #import-dialog .rec-buttons button[type=submit] { background: var(--accent-dim); border-color: var(--accent); }
 #import-dialog .rec-buttons button:disabled { opacity: .4; cursor: default; }
-#import-dialog[data-mode=cve] [data-when=poc], #import-dialog[data-mode=poc] [data-when=cve] { display: none; }
+/* Outranks every field rule above, so a mode's foreign controls stay hidden. */
+#import-dialog[data-mode=cve] .import-card [data-when=poc], #import-dialog[data-mode=poc] .import-card [data-when=cve] { display: none !important; }

@@ -31,7 +31,7 @@ export async function runImportChecks({ js, key, check, sleep, waitFor, capture 
     check('the CVE entry opens the dialog in CVE mode with the id field focused', d.open && d.mode === 'cve' && d.focus === 'import-cve-id', JSON.stringify(d));
     await js(`(() => { const f = document.getElementById('import-cve-id'); f.value = 'cve-2021-44228'; return true; })()`);
     await js(`document.getElementById('import-build').click(); true`);
-    await waitFor(`!document.getElementById('import-dialog').open`);
+    await waitFor(`!document.getElementById('import-dialog').open`, 400);
     await sleep(500);
     let s = JSON.parse(await saved());
     check('a CVE id builds the explainer: attacker, product, flaw, impacts, two zones and a five-chapter story', s.title === 'CVE-2021-44228: Apache Log4j2 JNDI features do not protect against attacker controlled endpoints' && s.kinds.join(',') === 'threatactor,package,vulnerability,dataleak,codeexec,processcrash' && s.zones.join(',') === 'Internet,Affected system' && s.chapters.map(c => c.label).join(',') === 'Who acts,Boundary crossed,The flaw,Impact,Fix' && /Fix: Upgrade to Log4j 2.17.1/.test(s.note), JSON.stringify(s));
@@ -44,7 +44,7 @@ export async function runImportChecks({ js, key, check, sleep, waitFor, capture 
 
     // A missing record is reported inside the dialog, which stays open.
     await js(`window.__importMissing = true; window.__importUrls = []; document.querySelector('#assistant [data-build=cve]').click(); document.getElementById('import-cve-id').value = 'CVE-2030-0001'; document.getElementById('import-build').click(); true`);
-    await waitFor(`document.getElementById('import-dialog').querySelector('#import-status').classList.contains('error')`);
+    await waitFor(`document.getElementById('import-dialog').querySelector('#import-status').classList.contains('error')`, 400);
     d = JSON.parse(await dialog());
     check('a record nobody has is reported in the dialog and Build is usable again', d.open && d.status === 'CVE.org has no record for CVE-2030-0001.' && !d.buildDisabled, JSON.stringify(d));
     check('a nonsense id never leaves the browser', await js(`(() => { document.getElementById('import-cve-id').value = 'not an id'; window.__importUrls = []; document.getElementById('import-build').click(); const st = document.getElementById('import-status').textContent; return st.startsWith('Enter a CVE id') && window.__importUrls.length === 0; })()`));
@@ -55,7 +55,7 @@ export async function runImportChecks({ js, key, check, sleep, waitFor, capture 
     d = JSON.parse(await dialog());
     check('the write-up entry opens the dialog in write-up mode with the text area focused', d.open && d.mode === 'poc' && d.focus === 'import-poc-text', JSON.stringify(d));
     await js(`(() => { document.getElementById('import-poc-text').value = '# Notes on CVE-2021-44228 in a lab\\n\\n1. Start the sample service\\n2. Send a request with the test header\\n3. Watch the service log line\\n'; document.getElementById('import-build').click(); return true; })()`);
-    await waitFor(`!document.getElementById('import-dialog').open`);
+    await waitFor(`!document.getElementById('import-dialog').open`, 400);
     await sleep(500);
     s = JSON.parse(await saved());
     const poc = s.chapters.find(c => c.label === 'Steps from the write-up');
@@ -64,7 +64,7 @@ export async function runImportChecks({ js, key, check, sleep, waitFor, capture 
 
     // A write-up with no CVE: the picture is the document's own claim, marked as such.
     await js(`document.querySelector('#assistant [data-build=poc]').click(); document.getElementById('import-poc-text').value = 'An internal note about a flaw in our build agent.\\n\\n- Open the settings page\\n- Change the agent name\\n'; document.getElementById('import-build').click(); true`);
-    await waitFor(`!document.getElementById('import-dialog').open`);
+    await waitFor(`!document.getElementById('import-dialog').open`, 400);
     await sleep(500);
     s = JSON.parse(await saved());
     check('a write-up without a CVE still draws, with the assumptions written in the note and the toast', s.title === 'An internal note about a flaw in our build agent.' && s.zones[0] === 'Outside the system' && (s.note.match(/Assumption:/g) || []).length === 4 && /Drawn from a write-up alone/.test(s.note), JSON.stringify(s));
@@ -72,7 +72,7 @@ export async function runImportChecks({ js, key, check, sleep, waitFor, capture 
 
     // A private record source replaces the public ones and is remembered.
     await js(`window.__importUrls = []; document.querySelector('#assistant [data-build=cve]').click(); document.getElementById('import-source').value = 'https://cve.internal.example/api/{id}'; document.getElementById('import-cve-id').value = 'CVE-2021-44228'; document.getElementById('import-build').click(); true`);
-    await waitFor(`!document.getElementById('import-dialog').open`);
+    await waitFor(`!document.getElementById('import-dialog').open`, 400);
     check('a record source template is used instead of CVE.org and kept for next time', await js(`JSON.stringify([window.__importUrls, localStorage.getItem('schematica.cve.source')])`) === JSON.stringify([['https://cve.internal.example/api/CVE-2021-44228'], 'https://cve.internal.example/api/{id}']), await js(`JSON.stringify([window.__importUrls, localStorage.getItem('schematica.cve.source')])`));
     await js(`document.querySelector('#assistant [data-build=cve]').click(); document.getElementById('import-source').value = ''; document.getElementById('import-cancel').click(); localStorage.removeItem('schematica.cve.source'); true`);
 
