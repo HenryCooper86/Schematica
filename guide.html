@@ -43,7 +43,7 @@
         <a href="#present">Present and record</a>
         <a href="#guide-assistant">Use the assistant</a>
         <a href="#guide-explain">Explain an attack or incident</a>
-        <a href="#guide-import">Import a CVE, a write-up or a log</a>
+        <a href="#guide-import">Build from a CVE, a write-up or a log</a>
         <a href="#appearance-language">Appearance and language</a>
         <a href="#keyboard">Keyboard shortcuts</a>
         <a href="#troubleshooting">Common questions</a>
@@ -193,11 +193,11 @@
         </section>
 
         <section id="guide-import">
-          <h2>Import a CVE, a write-up or a log</h2>
-          <p>Import in the toolbar, just before Examples, builds the same kinds of board with no assistant provider configured. Nothing is sent to a model. Each entry asks before replacing a board that has work on it, and one Undo brings the previous board back.</p>
+          <h2>Build from a CVE, a write-up or a log</h2>
+          <p>Build from a source, under Options and sources in the Assistant panel, builds these boards with no assistant provider configured. Nothing is sent to a model. Each button asks before replacing a board that has work on it, and one Undo brings the previous board back.</p>
           <ol class="guide-steps">
-            <li><h3>CVE explainer</h3><p>Choose CVE explainer, type an id such as CVE-2021-44228 and press Build. The record is fetched from CVE.org, with NVD for a missing score; only the id leaves the browser. The board shows the attacker in a zone named by the attack vector, a person when user interaction is required, the affected products with their version ranges, the flaw with its CWE and CVSS, and the impact on confidentiality, integrity and availability. A note holds the fix, the source, the references and any assumptions. Choose Present to step through Who acts, Boundary crossed, The flaw, Impact and Fix.</p></li>
-            <li><h3>Write-up or proof of concept</h3><p>Choose Write-up or proof of concept, then paste the text or choose a file: an advisory, a blog post, a Markdown note or a script. The document is read for the CVE it names, whose record is fetched, and for the steps it describes: numbered or bulleted lines, lines after a shell prompt, request lines and commands inside code fences. The steps become quoted stops in a Steps from the write-up chapter on a proof-of-concept card. Nothing is run, resolved or tested. A document that names no CVE still draws, and every missing fact is listed as an assumption.</p></li>
+            <li><h3>CVE id</h3><p>Choose CVE id, type an id such as CVE-2021-44228 and press Build. The record is fetched from CVE.org, with NVD for a missing score; only the id leaves the browser. The board shows the attacker in a zone named by the attack vector, a person when user interaction is required, the affected products with their version ranges, the flaw with its CWE and CVSS, and the impact on confidentiality, integrity and availability. A note holds the fix, the source, the references and any assumptions. Choose Present to step through Who acts, Boundary crossed, The flaw, Impact and Fix.</p></li>
+            <li><h3>Write-up</h3><p>Choose Write-up, then paste the text or choose a file: an advisory, a blog post, a Markdown note or a script. The document is read for the CVE it names, whose record is fetched, and for the steps it describes: numbered or bulleted lines, lines after a shell prompt, request lines and commands inside code fences. The steps become quoted stops in a Steps from the write-up chapter on a proof-of-concept card. Nothing is run, resolved or tested. A document that names no CVE still draws, and every missing fact is listed as an assumption.</p></li>
             <li><h3>Incident log</h3><p>Choose Incident log and pick a JSON file of timestamped actions, the same shape the assistant accepts: an object with actions, or a bare array, where each action has ts, actor and action. The board is rebuilt in the browser with its timeline, and Replay incident appears at the top left of the canvas.</p></li>
           </ol>
           <aside class="guide-tip">

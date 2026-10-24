@@ -28,7 +28,7 @@ import { escAttr, toast, onPress } from './press.js';
 import { initAssistantDocuments } from './assistant-documents.js';
 import { tr, trd, onLanguageChange, getLang } from '../i18n.js';
 
-export function initAssistant({ store, tools, render, svg, library = null, settings: sharedSettings = null }) {
+export function initAssistant({ store, tools, render, svg, library = null, settings: sharedSettings = null, importer = null }) {
   const panel = document.getElementById('assistant');
   const btn = document.getElementById('btn-assistant');
   // Reading `window.localStorage` throws outright when site data is blocked,
@@ -86,6 +86,7 @@ export function initAssistant({ store, tools, render, svg, library = null, setti
       + '</div>'
       + '</div>'
        + `<div id="ai-foot"><details id="ai-options" open><summary>${escAttr(tr('Options & sources'))}<span id="ai-source-count"></span></summary><div class="ai-options-content"><label class="ai-preview-option"><input id="ai-preview-enabled" type="checkbox"${previewEnabled ? ' checked' : ''}>${escAttr(tr('Preview changes before applying'))}</label><p class="ai-web-state">${escAttr(BACKEND ? tr('Web sources available — paste a public URL in your message.') : tr('Web sources need the Node-backed site. You can attach downloaded documents here.'))}</p><div id="ai-documents"></div>`
+      + (importer ? `<div class="ai-composer-row ai-build-row"><span>${escAttr(tr('Build from a source'))}</span><span class="ai-build-actions"><button type="button" data-build="log" title="${escAttr(tr('Rebuild an incident from timestamped actions and replay it'))}">${escAttr(tr('Incident log'))}</button><button type="button" data-build="cve" title="${escAttr(tr('Draw a published CVE from its record'))}">${escAttr(tr('CVE id'))}</button><button type="button" data-build="poc" title="${escAttr(tr('Read a document for its CVE and steps; nothing is run'))}">${escAttr(tr('Write-up'))}</button></span></div>` : '')
       + `<div class="ai-composer-row ai-skill-row"><label>${escAttr(tr('Skill'))} <select id="ai-skill"><option value="auto">${escAttr(tr('Automatic'))}</option>${SKILLS.map(s => `<option value="${s.id}"${activeSkill === s.id ? ' selected' : ''}>${escAttr(trd(s.name))}</option>`).join('')}</select></label><button id="ai-blueprint" type="button">${escAttr(tr('Blueprint'))}</button></div>`
       + '</div></details><div id="ai-composer">'
       + `<textarea id="ai-input" rows="1" placeholder="${escAttr(tr('Describe a board, or ask for a change'))}" aria-label="${escAttr(tr('Message the assistant'))}"></textarea>`
@@ -117,6 +118,8 @@ export function initAssistant({ store, tools, render, svg, library = null, setti
   // their own, and must not come through here.
   function bindChrome() {
     el('ai-skill').onchange = e => { activeSkill = e.target.value; };
+    // Build from a source: the same dialogs as a provider-free build, from the panel.
+    for (const b of panel.querySelectorAll('[data-build]')) b.onclick = () => importer?.start(b.dataset.build);
     el('ai-blueprint').onclick = () => { if (!busy && !pendingPreview) showBlueprint(store); };
     el('ai-preview-enabled').onchange = e => { previewEnabled = e.target.checked; };
     form = el('ai-settings');

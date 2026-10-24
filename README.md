@@ -5,7 +5,7 @@ enterprise networks and the security incidents that cross them. Place
 controllers, sensors, servers, firewalls and people, connect their ports, record
 interface requirements, mark what an incident did to each part, then export a
 design review or replay an incident log on a clock. Give it a CVE id or a
-write-up and it draws the explainer from the published record, no assistant
+write-up and it draws the explainer from the published record, no provider
 needed.
 
 **[Open Schematica](https://bionicloud.net/)** · **[Static edition](https://henrycooper86.github.io/Schematica/)** · **[Getting started](docs/getting-started.md)** · **[User guide](docs/user-guide.md)**
@@ -39,7 +39,7 @@ what you should see and how to recover your previous board.
 | Follow the Prepare → Check → Resolve → Handoff path | [Review path](docs/user-guide.md#follow-the-review-path) |
 | Check interface declarations and record requirements | [Review the design](docs/user-guide.md#review-the-design) |
 | Keep several projects in one browser | [Work on several projects](docs/user-guide.md#work-on-several-projects) |
-| Draw a CVE, a write-up or an incident log without the assistant | [Import a log, a CVE or a write-up](docs/user-guide.md#import-a-log-a-cve-or-a-write-up-without-the-assistant) |
+| Build a board from a CVE, a write-up or an incident log | [Build a board from a log, a CVE or a write-up](docs/user-guide.md#build-a-board-from-a-log-a-cve-or-a-write-up) |
 | Save work, restore a revision and choose an export | [Save and recover](docs/user-guide.md#save-and-recover), [share and export](docs/user-guide.md#share-and-export) |
 | Generate a technical report for a client or manager | [Client technical reports](docs/engineering-workflows.md#client-technical-reports) |
 | Compare changes or import a KiCad netlist | [Compare and import](docs/user-guide.md#compare-and-import) |

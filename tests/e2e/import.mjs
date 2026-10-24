@@ -1,5 +1,5 @@
-// The Import menu: an incident log, a CVE id and a write-up each become a
-// board without the assistant. The CVE lookup is stubbed at window.fetch so
+// Build from a source, in the Assistant panel: an incident log, a CVE id and
+// a write-up each become a board without a provider. The CVE lookup is stubbed at window.fetch so
 // the suite never leaves the machine. Registered by the main smoke runner;
 // IMPORT_E2E_ONLY=1 runs it alone.
 export async function runImportChecks({ js, key, check, sleep, waitFor, capture = async () => {} }) {
@@ -22,12 +22,11 @@ export async function runImportChecks({ js, key, check, sleep, waitFor, capture 
   // Every lookup is answered locally; the requested URLs are kept for the checks.
   await js(`(() => { window.__importFetch = window.fetch; window.__importUrls = []; window.__importRecord = ${JSON.stringify(record)}; window.__importMissing = false; window.fetch = async (url) => { window.__importUrls.push(String(url)); if (window.__importMissing) return new Response('{}', { status: 404 }); return Response.json(window.__importRecord); }; window.__importConfirm = window.confirm; window.__confirms = 0; window.confirm = () => { window.__confirms += 1; return true; }; return true; })()`);
   try {
-    check('the Import button sits before Examples and opens a menu with three entries', await js(`(() => { const b = document.getElementById('btn-import'); if (!b || b.nextElementSibling?.id !== 'btn-examples') return false; b.click(); const m = document.getElementById('import-menu'); const items = [...m.querySelectorAll('[data-import]')].map(x => x.dataset.import); return !m.hidden && b.getAttribute('aria-expanded') === 'true' && items.join(',') === 'log,cve,poc' && document.activeElement === m.querySelector('button'); })()`));
-    await key('Escape', 'Escape', 27);
-    check('Escape closes the menu and returns focus to the button', await js(`document.getElementById('import-menu').hidden && document.activeElement.id === 'btn-import'`));
+    check('the toolbar has no Import button; the Assistant offers Build from a source with three buttons', await js(`(() => { if (document.getElementById('btn-import') || document.getElementById('import-menu')) return false; const a = document.getElementById('assistant'); if (a.hidden) document.getElementById('btn-assistant').click(); const b = [...document.querySelectorAll('#assistant [data-build]')].map(x => x.dataset.build); return b.join(',') === 'log,cve,poc'; })()`));
+    check('the three buttons sit under Options & sources beside the attached documents', await js(`(() => { const row = document.querySelector('#assistant .ai-build-row'); return !!row && !!row.closest('#ai-options') && row.previousElementSibling?.id === 'ai-documents'; })()`));
 
     // CVE id → explainer board, replacing the current board after confirmation.
-    await js(`document.getElementById('btn-import').click(); document.querySelector('[data-import=cve]').click(); true`);
+    await js(`document.querySelector('#assistant [data-build=cve]').click(); true`);
     let d = JSON.parse(await dialog());
     check('the CVE entry opens the dialog in CVE mode with the id field focused', d.open && d.mode === 'cve' && d.focus === 'import-cve-id', JSON.stringify(d));
     await js(`(() => { const f = document.getElementById('import-cve-id'); f.value = 'cve-2021-44228'; return true; })()`);
@@ -44,7 +43,7 @@ export async function runImportChecks({ js, key, check, sleep, waitFor, capture 
     check('one Undo restores the previous board', JSON.parse(await saved()).title !== 'CVE-2021-44228: Apache Log4j2 JNDI features do not protect against attacker controlled endpoints');
 
     // A missing record is reported inside the dialog, which stays open.
-    await js(`window.__importMissing = true; window.__importUrls = []; document.getElementById('btn-import').click(); document.querySelector('[data-import=cve]').click(); document.getElementById('import-cve-id').value = 'CVE-2030-0001'; document.getElementById('import-build').click(); true`);
+    await js(`window.__importMissing = true; window.__importUrls = []; document.querySelector('#assistant [data-build=cve]').click(); document.getElementById('import-cve-id').value = 'CVE-2030-0001'; document.getElementById('import-build').click(); true`);
     await waitFor(`document.getElementById('import-dialog').querySelector('#import-status').classList.contains('error')`);
     d = JSON.parse(await dialog());
     check('a record nobody has is reported in the dialog and Build is usable again', d.open && d.status === 'CVE.org has no record for CVE-2030-0001.' && !d.buildDisabled, JSON.stringify(d));
@@ -52,7 +51,7 @@ export async function runImportChecks({ js, key, check, sleep, waitFor, capture 
     await js(`document.getElementById('import-cancel').click(); window.__importMissing = false; true`);
 
     // A write-up naming the CVE: its steps become stops on a proof-of-concept card.
-    await js(`document.getElementById('btn-import').click(); document.querySelector('[data-import=poc]').click(); true`);
+    await js(`document.querySelector('#assistant [data-build=poc]').click(); true`);
     d = JSON.parse(await dialog());
     check('the write-up entry opens the dialog in write-up mode with the text area focused', d.open && d.mode === 'poc' && d.focus === 'import-poc-text', JSON.stringify(d));
     await js(`(() => { document.getElementById('import-poc-text').value = '# Notes on CVE-2021-44228 in a lab\\n\\n1. Start the sample service\\n2. Send a request with the test header\\n3. Watch the service log line\\n'; document.getElementById('import-build').click(); return true; })()`);
@@ -64,7 +63,7 @@ export async function runImportChecks({ js, key, check, sleep, waitFor, capture 
     await capture('import-writeup-explainer');
 
     // A write-up with no CVE: the picture is the document's own claim, marked as such.
-    await js(`document.getElementById('btn-import').click(); document.querySelector('[data-import=poc]').click(); document.getElementById('import-poc-text').value = 'An internal note about a flaw in our build agent.\\n\\n- Open the settings page\\n- Change the agent name\\n'; document.getElementById('import-build').click(); true`);
+    await js(`document.querySelector('#assistant [data-build=poc]').click(); document.getElementById('import-poc-text').value = 'An internal note about a flaw in our build agent.\\n\\n- Open the settings page\\n- Change the agent name\\n'; document.getElementById('import-build').click(); true`);
     await waitFor(`!document.getElementById('import-dialog').open`);
     await sleep(500);
     s = JSON.parse(await saved());
@@ -72,10 +71,10 @@ export async function runImportChecks({ js, key, check, sleep, waitFor, capture 
     check('the toast counts the assumptions', await js(`document.getElementById('toast').textContent.includes('4 assumption(s)')`));
 
     // A private record source replaces the public ones and is remembered.
-    await js(`window.__importUrls = []; document.getElementById('btn-import').click(); document.querySelector('[data-import=cve]').click(); document.getElementById('import-source').value = 'https://cve.internal.example/api/{id}'; document.getElementById('import-cve-id').value = 'CVE-2021-44228'; document.getElementById('import-build').click(); true`);
+    await js(`window.__importUrls = []; document.querySelector('#assistant [data-build=cve]').click(); document.getElementById('import-source').value = 'https://cve.internal.example/api/{id}'; document.getElementById('import-cve-id').value = 'CVE-2021-44228'; document.getElementById('import-build').click(); true`);
     await waitFor(`!document.getElementById('import-dialog').open`);
     check('a record source template is used instead of CVE.org and kept for next time', await js(`JSON.stringify([window.__importUrls, localStorage.getItem('schematica.cve.source')])`) === JSON.stringify([['https://cve.internal.example/api/CVE-2021-44228'], 'https://cve.internal.example/api/{id}']), await js(`JSON.stringify([window.__importUrls, localStorage.getItem('schematica.cve.source')])`));
-    await js(`document.getElementById('btn-import').click(); document.querySelector('[data-import=cve]').click(); document.getElementById('import-source').value = ''; document.getElementById('import-cancel').click(); localStorage.removeItem('schematica.cve.source'); true`);
+    await js(`document.querySelector('#assistant [data-build=cve]').click(); document.getElementById('import-source').value = ''; document.getElementById('import-cancel').click(); localStorage.removeItem('schematica.cve.source'); true`);
 
     // An incident log file rebuilds a replayable board.
     const log = { incident: 'Lab incident', trustBoundaries: [{ id: 'lan', name: 'Office LAN' }], nodes: { attacker: 'threatactor', laptop: 'laptop', files: 'nas' }, actions: [

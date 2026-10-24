@@ -1,23 +1,22 @@
-// The Import menu: build a board from an incident log, a CVE id or a
-// write-up without the assistant. Everything runs in the browser; the only
-// network call is the CVE record lookup, which sends the id alone to the
-// configured source. Each build replaces the board after confirmation and
-// is one Undo step.
+// Build a board from an incident log, a CVE id or a write-up without a
+// provider. The Assistant panel's "Build from a source" row calls start();
+// everything runs in the browser, and the only network call is the CVE
+// record lookup, which sends the id alone to the server's database or the
+// public sources. Each build replaces the board after confirmation and is
+// one Undo step.
 import { parseIncidentLog, reconstructIncident } from '../incident-replay.js';
 import { fetchCveRecord, buildCveExplainer, readWriteup, cveId, CVE_SOURCE_KEY, CVE_SOURCES } from '../cve-explainer.js';
-import { toast, openModal, escAttr } from './press.js';
+import { toast, openModal } from './press.js';
 import { tr } from '../i18n.js';
 import { CVE_PROXY } from '../ai/runtime.js';
 
 const BOARD_KEYS = ['title', 'nodes', 'wires', 'zones', 'notes', 'journey', 'incident'];
 const MAX_FILE = 2 * 1024 * 1024;
 
-export function initImportMenu({ store, storage = null }) {
-  const btn = document.getElementById('btn-import');
-  const menu = document.getElementById('import-menu');
+export function initImport({ store, storage = null }) {
   const dialog = document.getElementById('import-dialog');
   const logInput = document.getElementById('import-log-input');
-  if (!btn || !menu || !dialog || !logInput) return null;
+  if (!dialog || !logInput) return null;
   const el = (id) => dialog.querySelector(`#${id}`);
   const idField = el('import-cve-id'), textField = el('import-poc-text'), fileField = el('import-poc-file');
   const sourceField = el('import-source'), status = el('import-status'), build = el('import-build');
@@ -27,35 +26,7 @@ export function initImportMenu({ store, storage = null }) {
   sourceField.placeholder = CVE_SOURCES.cve;
   const serverHint = dialog.querySelector('#import-source-server');
   if (serverHint && CVE_PROXY) serverHint.hidden = false;
-  let dismiss = null, busy = false, request = 0;
-
-  function close() {
-    menu.hidden = true;
-    btn.setAttribute('aria-expanded', 'false');
-    if (dismiss) { window.removeEventListener('pointerdown', dismiss); dismiss = null; }
-  }
-  function open() {
-    menu.innerHTML = [
-      ['log', tr('Incident log (JSON)…'), tr('Rebuild an incident from timestamped actions and replay it')],
-      ['cve', tr('CVE explainer…'), tr('Draw a published CVE from its record')],
-      ['poc', tr('Write-up or proof of concept…'), tr('Read a document for its CVE and steps; nothing is run')],
-    ].map(([mode, name, hint]) => `<button data-import="${mode}" role="menuitem"><span class="example-name">${escAttr(name)}</span><small>${escAttr(hint)}</small></button>`).join('');
-    const r = btn.getBoundingClientRect();
-    menu.hidden = false;
-    btn.setAttribute('aria-expanded', 'true');
-    const gap = 8, bounds = menu.getBoundingClientRect();
-    menu.style.left = `${Math.max(gap, Math.min(r.left, window.innerWidth - bounds.width - gap))}px`;
-    menu.style.top = `${Math.min(r.bottom + 6, window.innerHeight - bounds.height - gap)}px`;
-    menu.querySelector('button')?.focus();
-    menu.querySelectorAll('[data-import]').forEach((b) => b.addEventListener('click', () => { const mode = b.dataset.import; close(); start(mode); }));
-    setTimeout(() => {
-      dismiss = (ev) => { if (!menu.contains(ev.target) && !btn.contains(ev.target)) close(); };
-      window.addEventListener('pointerdown', dismiss);
-    }, 0);
-  }
-  btn.addEventListener('click', () => (menu.hidden ? open() : close()));
-  window.addEventListener('resize', close);
-  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !menu.hidden) { close(); btn.focus(); } });
+  let busy = false, request = 0;
 
   function start(mode) {
     if (mode === 'log') { logInput.value = ''; logInput.click(); return; }

@@ -30,7 +30,7 @@ import { initLegend } from './ui/legend.js';
 import { initDialogs } from './ui/dialogs.js';
 import { initJourney } from './ui/journey-ui.js';
 import { initExamplesMenu } from './ui/examples-menu.js';
-import { initImportMenu } from './ui/import-menu.js';
+import { initImport } from './ui/import-menu.js';
 import { initEmptyState } from './ui/empty-state.js';
 import { initToolbarMore } from './ui/toolbar-more.js';
 import { initKeepClear } from './ui/keep-clear.js';
@@ -280,12 +280,12 @@ initProjects({ projects, store, navigation, revisions, autosave, engineering: en
 const recorder = initRecording({ svg, store });
 const journeyUI = initJourney({ svg, store, tools, render, recorder, propsPanel });
 initExamplesMenu({ store });
-initImportMenu({ store, storage });
+const importer = initImport({ store, storage });
 initEmptyState({ store });
 initLayoutToggles();
 initShortcuts();
 const aiSettings = createSettings(storage);
-initAssistant({ store, tools, render, svg, library, settings: aiSettings });
+initAssistant({ store, tools, render, svg, library, settings: aiSettings, importer });
 // Last: moves already-initialised toolbar buttons into the More menu.
 initToolbarMore();
 initKeepClear({ svg, store, tools, render });
