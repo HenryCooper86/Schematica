@@ -298,3 +298,26 @@ test('the incident replay example is what reconstruct_from_log builds, laid out 
   assert.deepEqual(warnings, []);
   assert.deepEqual(back.incident, inc);
 });
+
+// The office network board is the one example built from the IT-side
+// categories; it exercises the condition tags and must stay clean.
+test('the office ransomware example uses the IT categories, marks conditions, and is clean', async () => {
+  const { checkLayout } = await import('../src/layout-checks.js');
+  const ex = EXAMPLES.find((e) => e.id === 'office-ransomware');
+  assert.ok(ex);
+  assert.equal(ex.group, 'Security');
+  const cats = new Set(ex.doc.nodes.map((n) => getPart(n.kind).category));
+  for (const c of ['endpoints', 'os', 'network', 'security', 'facilities', 'people', 'threats']) assert.ok(cats.has(c), `${c} category used`);
+  assert.deepEqual(checkDoc(ex.doc), [], 'passes every rule');
+  assert.deepEqual(checkLayout(ex.doc), [], 'no overlaps');
+  const conds = ex.doc.nodes.filter((n) => n.condition).map((n) => n.condition).sort();
+  assert.deepEqual(conds, ['compromised', 'infected', 'issue', 'suspicious', 'vulnerable']);
+  assert.ok(ex.doc.nodes.some((n) => n.disposition === 'adversary') && ex.doc.nodes.some((n) => n.disposition === 'victim'));
+  for (const z of ex.doc.zones) {
+    const inside = ex.doc.nodes.map(nodeRect).filter((n) => n.x >= z.x && n.x < z.x + z.w);
+    assert.ok(inside.every((n) => n.y >= z.y && n.y + n.h <= z.y + z.h && n.x + n.w <= z.x + z.w), `every card under "${z.label}" sits inside it`);
+  }
+  const { doc, warnings } = deserialize(serialize(ex.doc));
+  assert.deepEqual(warnings, []);
+  assert.deepEqual(doc, ex.doc);
+});

@@ -59,6 +59,13 @@ capabilities of both endpoints.
 
 ### Organize the drawing
 
+The palette groups parts into hardware categories (Compute through
+Automotive), IT and site categories (Endpoints, System & Cloud, Operating
+Systems, Network, Security & Edge, Facilities, People), Process Flow shapes,
+Threats and Storage / Misc. Hover a tile to read what the part is for, fold the
+categories you do not use, and reach for the **Recent** row for the kinds you
+placed last.
+
 Drag cards to move them. Shift-click to select several, then use the **Align**
 controls in Properties. **Z** draws a zone around related items; **N** adds a
 note. Locks prevent movement and deletion, but do not freeze every property.
@@ -339,8 +346,15 @@ of execution.
 - To see the result before trying it, open **Examples → CVE Explainer:
   Log4Shell (CVE-2021-44228)**, a published CVE drawn as an attack chain, or
   **Examples → Incident Replay: Robot Fleet (from a log)**, a board rebuilt
-  from a fictional incident log. Choose **Present** to step through either, or
-  **Replay incident** on the robot fleet board to play its log on a clock.
+  from a fictional incident log, or **Examples → Enterprise Network: Phishing
+  to Ransomware**, an office network drawn with the Endpoints, Network,
+  Security & Edge, Facilities and People parts. Choose **Present** to step
+  through any of them, or **Replay incident** on the robot fleet board to play
+  its log on a clock.
+- To record the state of each host as an incident unfolds, select a part and
+  choose a **Condition** in the properties panel (compromised, infected,
+  outage, and so on). The condition shows as a tag and a halo on the card and
+  is saved with the board; the enterprise network example uses it.
 - Review the preview and choose **Apply changes**. One Undo removes the result.
 
 Drawings are illustrations, not vulnerability assessments. The assistant does
@@ -438,3 +452,5 @@ Ctrl on Windows/Linux and Command on macOS. Press **?** for the full shortcut li
 | Allocation | A link between a requirement or decision and the parts/wires it concerns |
 | Stale evidence | Evidence recorded against a design that has since changed |
 | ICD / BOM | Interface control document / bill of materials |
+| Disposition | Whose side a part is on: friendly, partner, neutral, unknown, suspicious, adversary or victim |
+| Condition | What is happening to a part in an incident: issue, vulnerable, outage, suspicious activity, under DDoS, exploited, infected, exfiltrating, breached or compromised |

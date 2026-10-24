@@ -1,8 +1,8 @@
-// Security explainer examples: a published CVE drawn as an attack chain, and
-// a board rebuilt from an incident log by the reconstruct_from_log feature
-// (src/incident-replay.js) with its own reading layout. Both are
-// illustrations: the CVE board is not an assessment of a real system and the
-// incident log is fictional teaching data.
+// Security explainer examples: a published CVE drawn as an attack chain, a
+// board rebuilt from an incident log by the reconstruct_from_log feature
+// (src/incident-replay.js) with its own reading layout, and an office network
+// mid-incident. All are illustrations: the CVE board is not an assessment of
+// a real system and the incident data is fictional teaching material.
 export const SECURITY_EXAMPLES = [
   {
     id: 'log4shell-cve', name: 'CVE Explainer: Log4Shell (CVE-2021-44228)', group: 'Security',
@@ -95,6 +95,71 @@ export const SECURITY_EXAMPLES = [
           {"ts": 1773279000000, "last": 1773279240000, "phase": "Exfiltration", "actor": "Attacker", "target": "Telemetry store", "action": "exports telemetry", "count": 3, "stage": "Taking over the fleet", "command": "GET /export?days=3", "evidence": "route history, 41 MB", "nodes": ["atk", "store"], "wires": ["w6"]},
         ],
       },
+    },
+  },
+  // A small company network during a phishing-to-ransomware incident: the
+  // Endpoints, Operating Systems, Network, Security & Edge, Facilities and
+  // People parts together, with conditions marking the state of each host.
+  {
+    id: "office-ransomware", name: "Enterprise Network: Phishing to Ransomware", group: 'Security',
+    doc: {
+      schema: 4, title: "Office Network Under Ransomware",
+      nodes: [
+        {"id":"atk","kind":"threatactor","x":40,"y":300,"label":"Ransomware crew","sublabel":"","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[],"fields":{"type":"crime-syndicate","sophistication":"intermediate","motivation":"personal-gain","severity":"critical"},"disposition":"adversary"},
+        {"id":"lure","kind":"phishing","x":40,"y":120,"label":"Invoice lure","sublabel":"","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[],"fields":{"campaign":"Q3 invoice lure","email":"billing@examp1e.net","severity":"high"}},
+        {"id":"net","kind":"internet","x":40,"y":480,"label":"Internet","sublabel":"","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[],"disposition":"unknown"},
+        {"id":"fw","kind":"firewall","x":300,"y":480,"label":"Edge firewall","sublabel":"NGFW","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[],"fields":{"ip":"203.0.113.2","dns":"fw.corp.example"}},
+        {"id":"mail","kind":"mailserver","x":300,"y":120,"label":"Mail gateway","sublabel":"","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[],"fields":{"ip":"10.0.1.25","dns":"mail.corp.example"}},
+        {"id":"person","kind":"person","x":560,"y":120,"label":"Finance manager","sublabel":"","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[],"fields":{"role":"Finance manager","email":"a.lee@corp.example","org":"Corp"},"disposition":"victim"},
+        {"id":"laptop","kind":"laptop","x":560,"y":300,"label":"Finance laptop","sublabel":"","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[],"fields":{"ip":"10.0.20.41","dns":"fin-lt-07.corp.local"},"disposition":"victim","condition":"compromised"},
+        {"id":"win","kind":"windows","x":800,"y":300,"label":"Windows 11","sublabel":"","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[],"fields":{"ip":"10.0.20.41","dns":"fin-lt-07.corp.local","version":"23H2"}},
+        {"id":"cred","kind":"credential","x":560,"y":480,"label":"Cached domain creds","sublabel":"","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[],"fields":{"type":"password","severity":"high"}},
+        {"id":"sw","kind":"switch","x":800,"y":480,"label":"Core switch","sublabel":"","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[],"fields":{"ip":"10.0.0.2","dns":"core-sw.corp.local"}},
+        {"id":"ap","kind":"accesspoint","x":800,"y":120,"label":"Office Wi-Fi","sublabel":"","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[],"fields":{"ip":"10.0.0.30","dns":"ap-2f.corp.local"}},
+        {"id":"ids","kind":"idsips","x":1060,"y":120,"label":"IDS sensor","sublabel":"","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[],"fields":{"ip":"10.0.0.40","dns":"ids.corp.local"}},
+        {"id":"siem","kind":"siem","x":1060,"y":300,"label":"SIEM","sublabel":"","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[],"fields":{"ip":"10.0.0.50","dns":"siem.corp.local"},"condition":"issue"},
+        {"id":"nas","kind":"nas","x":1060,"y":480,"label":"File server","sublabel":"","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[],"fields":{"ip":"10.0.30.10","dns":"files.corp.local"},"disposition":"victim","condition":"infected"},
+        {"id":"bak","kind":"backupserver","x":1060,"y":660,"label":"Backup server","sublabel":"","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[],"fields":{"ip":"10.0.30.20","dns":"backup.corp.local"},"condition":"vulnerable"},
+        {"id":"db","kind":"database","x":1320,"y":480,"label":"ERP database","sublabel":"","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[],"fields":{"ip":"10.0.30.12","dns":"erp-db.corp.local"},"condition":"suspicious"},
+        {"id":"rw","kind":"ransomware","x":1320,"y":660,"label":"Ransomware","sublabel":"","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[],"fields":{"family":"LockBit 3.0","severity":"critical"}},
+        {"id":"dc","kind":"datacenter","x":1320,"y":300,"label":"Server room","sublabel":"","color":null,"addr":"","rail":"","notes":"","status":null,"flags":[],"fields":{"ip":"10.0.30.0","dns":"srv.corp.local"}},
+      ],
+      wires: [
+        {"id":"w1","bus":"link","from":{"node":"lure","port":"e"},"to":{"node":"mail","port":"w"},"label":"invoice.html attached","arrow":"fwd","style":null,"flow":null},
+        {"id":"w2","bus":"link","from":{"node":"atk","port":"n"},"to":{"node":"lure","port":"s"},"label":"sends","arrow":"fwd","style":null,"flow":null},
+        {"id":"w3","bus":"eth","from":{"node":"mail","port":"e"},"to":{"node":"person","port":"w"},"label":"delivered","arrow":"fwd","style":null,"flow":null},
+        {"id":"w4","bus":"link","from":{"node":"person","port":"s"},"to":{"node":"laptop","port":"n"},"label":"opens the attachment","arrow":"fwd","style":null,"flow":null},
+        {"id":"w5","bus":"eth","from":{"node":"laptop","port":"e"},"to":{"node":"win","port":"w"},"label":"macro runs","arrow":null,"style":"dashed","flow":null},
+        {"id":"w6","bus":"link","from":{"node":"laptop","port":"s"},"to":{"node":"cred","port":"n"},"label":"dumps","arrow":"fwd","style":null,"flow":null},
+        {"id":"w7","bus":"eth","from":{"node":"cred","port":"e"},"to":{"node":"sw","port":"w"},"label":"reused on the LAN","arrow":"fwd","style":null,"flow":null},
+        {"id":"w8","bus":"eth","from":{"node":"net","port":"e"},"to":{"node":"fw","port":"w"},"label":"uplink","arrow":null,"style":null,"flow":null},
+        {"id":"w9","bus":"eth","from":{"node":"fw","port":"e"},"to":{"node":"cred","port":"w"},"label":"allowed","arrow":null,"style":null,"flow":null},
+        {"id":"w10","bus":"eth","from":{"node":"atk","port":"s"},"to":{"node":"net","port":"n"},"label":"C2 over HTTPS","arrow":"fwd","style":null,"flow":null},
+        {"id":"w11","bus":"eth","from":{"node":"sw","port":"e"},"to":{"node":"nas","port":"w"},"label":"SMB","arrow":"fwd","style":null,"flow":null},
+        {"id":"w12","bus":"eth","from":{"node":"sw","port":"n"},"to":{"node":"siem","port":"w"},"label":"logs","arrow":null,"style":null,"flow":null},
+        {"id":"w13","bus":"eth","from":{"node":"ap","port":"e"},"to":{"node":"ids","port":"w"},"label":"mirror port","arrow":null,"style":null,"flow":null},
+        {"id":"w14","bus":"eth","from":{"node":"ids","port":"s"},"to":{"node":"siem","port":"n"},"label":"alerts","arrow":"fwd","style":null,"flow":null},
+        {"id":"w15","bus":"eth","from":{"node":"nas","port":"s"},"to":{"node":"bak","port":"n"},"label":"nightly copy","arrow":null,"style":null,"flow":null},
+        {"id":"w16","bus":"link","from":{"node":"rw","port":"n"},"to":{"node":"nas","port":"e"},"label":"encrypts shares","arrow":"fwd","style":null,"flow":null},
+        {"id":"w17","bus":"link","from":{"node":"rw","port":"w"},"to":{"node":"bak","port":"e"},"label":"deletes snapshots","arrow":"fwd","style":"dashed","flow":null},
+        {"id":"w18","bus":"eth","from":{"node":"nas","port":"e"},"to":{"node":"db","port":"net"},"label":"same VLAN","arrow":null,"style":null,"flow":null},
+        {"id":"w19","bus":"eth","from":{"node":"ap","port":"s"},"to":{"node":"sw","port":"n"},"label":"trunk","arrow":null,"style":null,"flow":null},
+        {"id":"w20","bus":"eth","from":{"node":"dc","port":"s"},"to":{"node":"db","port":"net"},"label":"houses","arrow":null,"style":"dashed","flow":null},
+      ],
+      zones: [
+        {"id":"z1","x":20,"y":80,"w":220,"h":520,"label":"Internet","color":"#f87171"},
+        {"id":"z2","x":270,"y":80,"w":690,"h":520,"label":"Office LAN","color":"#60a5fa"},
+        {"id":"z3","x":1030,"y":80,"w":460,"h":700,"label":"Server room","color":"#f59e0b"},
+      ],
+      notes: [
+        {"id":"t1","x":20,"y":830,"text":"Fictional teaching scenario. Conditions on the cards show the state of each host at the end of day one: the laptop is compromised, the file server infected, the backup server exposed, and the SIEM raised an alert nobody read."},
+      ],
+      journey: [
+        {"id":"j1","label":"Phishing","view":{"cx":400,"cy":230,"zoom":0.9},"caption":"A fake invoice reaches the finance manager through the mail gateway and the attachment runs a macro on the laptop."},
+        {"id":"j2","label":"Lateral movement","view":{"cx":700,"cy":420,"zoom":0.9},"caption":"Cached domain credentials are dumped from the laptop and reused on the core switch's VLANs; the firewall never sees it."},
+        {"id":"j3","label":"Impact","view":{"cx":1200,"cy":500,"zoom":0.85},"caption":"Ransomware encrypts the file server shares and deletes the backup snapshots; the ERP database shares the VLAN and shows suspicious reads."},
+        {"id":"j4","label":"What detection saw","view":{"cx":1000,"cy":230,"zoom":0.9},"caption":"The IDS sensor on the mirror port alerted the SIEM at the credential reuse; the alert sat unread, which is the issue tag on the SIEM."},
+      ],
     },
   },
 ];
