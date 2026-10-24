@@ -125,3 +125,23 @@ test('a reconstructed board is laid out for reading: attacker left, hops to the 
   assert.deepEqual(checkLayout(doc), []);
   for (const z of doc.zones) assert.ok(zoneMembers(doc, z).length, `${z.label} contains its parts`);
 });
+
+test('stop captions carry the UTC time the rest of the replay shows, whatever the local zone', () => {
+  const result = reconstructIncident(parseIncidentLog(JSON.stringify(log())));
+  const { stops } = result.doc.journey[0];
+  assert.ok(stops[0].caption.startsWith('07-09 02:28 · '), stops[0].caption);
+});
+
+test('an incident log may give epoch-millisecond timestamps as numbers', () => {
+  const ts = Date.parse('2026-07-09T02:28:00Z');
+  const parsed = parseIncidentLog(JSON.stringify([{ ts, actor: 'a', action: 'x' }, { time: ts + 60000, actor: 'a', action: 'y' }]));
+  assert.deepEqual(parsed.actions.map((a) => a.ts), [ts, ts + 60000]);
+  assert.throws(() => parseIncidentLog(JSON.stringify([{ ts: NaN, actor: 'a', action: 'x' }])), /no valid timestamp/);
+  assert.throws(() => parseIncidentLog(JSON.stringify([{ ts: 1e300, actor: 'a', action: 'x' }])), /no valid timestamp/);
+});
+
+test('an incident log spanning more than a year is refused rather than drawn day by day', () => {
+  const DAY = 86400000, ts = Date.parse('2026-01-01T00:00:00Z');
+  assert.throws(() => parseIncidentLog(JSON.stringify([{ ts, actor: 'a', action: 'x' }, { ts: ts + 400 * DAY, actor: 'a', action: 'y' }])), /spans more than/);
+  assert.ok(parseIncidentLog(JSON.stringify([{ ts, actor: 'a', action: 'x' }, { ts: ts + 366 * DAY, actor: 'a', action: 'y' }])));
+});

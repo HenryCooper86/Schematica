@@ -1,20 +1,11 @@
 import { architectureScopes } from "./architecture-scopes.js";
 import { toCSV } from "./tabular.js";
+import { COSMETIC_FIELDS, canonical } from "./compare.js";
 const str = (v) => (typeof v === "string" ? v.slice(0, 20000) : "");
 const list = (v) => (Array.isArray(v) ? v : []);
 const unique = (rows) => [
   ...new Map(rows.filter((r) => r.id).map((r) => [r.id, r])).values(),
 ];
-const canonical = (v) =>
-  Array.isArray(v)
-    ? v.map(canonical)
-    : v && typeof v === "object"
-      ? Object.fromEntries(
-          Object.keys(v)
-            .sort()
-            .map((k) => [k, canonical(v[k])]),
-        )
-      : v;
 // Content identity for local review bookkeeping, not an authenticated signature.
 export function fingerprint(value) {
   let a = 2166136261,
@@ -60,8 +51,10 @@ export function requirementFingerprint(doc, record) {
     targets.add(wire.from.node);
     targets.add(wire.to.node);
   }
+  // The same cosmetic fields impact analysis ignores, so evidence is not
+  // asked for again after a rename that impact says changed nothing.
   const meaningful = (item) => {
-    const value = Object.fromEntries(Object.entries(item).filter(([key]) => !['x','y','w','h','color'].includes(key)));
+    const value = Object.fromEntries(Object.entries(item).filter(([key]) => !COSMETIC_FIELDS.has(key)));
     if (item.subsystem) {
       const child = designValue(item.subsystem.doc);
       for (const kind of ['nodes','wires','notes','zones']) child[kind] = child[kind].map(meaningful);

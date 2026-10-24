@@ -133,3 +133,13 @@ test('the extraction saw the surfaces it expects', () => {
   assert.equal(keys.get('MCU'), 'data table');
   assert.ok([...keys.values()].some((w) => w === 'src/drc.js'));
 });
+
+test('the Chinese table defines each key once', () => {
+  const source = readFileSync(join(ROOT, 'src/i18n/zh.js'), 'utf8');
+  const seen = new Map();
+  for (const [, literal] of source.matchAll(/^  ('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"):/gm)) {
+    const key = new Function(`return ${literal}`)();
+    seen.set(key, (seen.get(key) || 0) + 1);
+  }
+  assert.deepEqual([...seen].filter(([, n]) => n > 1).map(([k]) => k), []);
+});

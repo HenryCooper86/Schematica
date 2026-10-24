@@ -12,8 +12,16 @@ import { tr } from './i18n.js';
 import { CONDITIONS } from './palette.js';
 
 export const MAX_EVENTS = 20000;
+// A timeline is walked day by day for the replay dashboard, so its span is
+// bounded like its event count: a year of incident is already 366 bars.
+export const MAX_SPAN_DAYS = 366;
 const MAX_FIELD = 500;
 const clip = (v) => String(v ?? '').trim().slice(0, MAX_FIELD);
+// What Date can represent; anything outside is not a time but a number.
+const MAX_TIME = 8.64e15;
+const DAY = 86400000;
+const dayStart = (ts) => Math.floor(ts / DAY) * DAY;
+export const validTime = (ts) => Number.isFinite(ts) && Math.abs(ts) <= MAX_TIME;
 
 // Build from reconstructIncident's steps once the board exists.
 export function buildIncident({ title, blast = '', phases, steps, idOf, wireBetween, stages = [] }) {
@@ -54,9 +62,9 @@ export function normalizeIncident(raw, doc, warnings = []) {
   const wireIds = new Set(doc.wires.map((w) => w.id));
   const events = [];
   for (const e of raw.events.slice(0, MAX_EVENTS)) {
-    if (!e || typeof e !== 'object' || !Number.isFinite(e.ts)) continue;
+    if (!e || typeof e !== 'object' || !validTime(e.ts)) continue;
     events.push({
-      ts: e.ts, last: Number.isFinite(e.last) && e.last >= e.ts ? e.last : e.ts,
+      ts: e.ts, last: validTime(e.last) && e.last >= e.ts ? e.last : e.ts,
       phase: clip(e.phase), actor: clip(e.actor), target: clip(e.target), action: clip(e.action),
       count: Number.isInteger(e.count) && e.count > 0 ? Math.min(e.count, 1e7) : 1,
       ...(clip(e.stage) ? { stage: clip(e.stage) } : {}),
@@ -70,6 +78,10 @@ export function normalizeIncident(raw, doc, warnings = []) {
   }
   if (!events.length) { warnings.push(tr('Dropped an incident timeline with no usable events.')); return undefined; }
   events.sort((a, b) => a.ts - b.ts);
+  if (Math.max(...events.map((e) => e.last)) - events[0].ts > MAX_SPAN_DAYS * DAY) {
+    warnings.push(tr('Dropped an incident timeline spanning more than a year.'));
+    return undefined;
+  }
   const named = (Array.isArray(raw.phases) ? raw.phases : []).map((p) => clip(p?.name)).filter(Boolean);
   for (const e of events) if (e.phase && !named.includes(e.phase)) named.push(e.phase);
   const stageNames = (Array.isArray(raw.stages) ? raw.stages : []).map((st) => clip(st?.name)).filter(Boolean);
@@ -82,9 +94,6 @@ export function normalizeIncident(raw, doc, warnings = []) {
     events,
   };
 }
-
-const DAY = 86400000;
-const dayStart = (ts) => Math.floor(ts / DAY) * DAY;
 
 // The span the replay clock runs over and the UTC days it crosses.
 export function incidentSpan(incident) {

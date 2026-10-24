@@ -35,3 +35,15 @@ test('the journey-order row is labelled in the interface language', () => {
   setLang('zh');
   try { assert.equal(compareBoards(a,b).changes[0].label,'导览'); } finally { setLang('en'); }
 });
+test('an edited incident timeline is a board-level change', () => {
+  const a = fixture(); a.incident = { title: 'IR-1', phases: [{ name: 'recon' }], events: [{ ts: 1, last: 1, phase: 'recon', actor: 'x', target: 'a', action: 'scan', count: 1, nodes: ['a'], wires: [] }] };
+  const b = structuredClone(a);
+  assert.equal(compareBoards(a, b).changes.length, 0);
+  b.incident.events[0].count = 2;
+  const [change] = compareBoards(a, b).changes;
+  assert.equal(change.collection, 'board');
+  assert.equal(change.type, 'changed');
+  assert.equal(change.fields[0].field, 'incident');
+  delete b.incident;
+  assert.equal(compareBoards(a, b).changes[0].fields[0].field, 'incident');
+});

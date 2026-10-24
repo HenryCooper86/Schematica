@@ -1,5 +1,5 @@
 import {deserialize} from './serialize.js';
-const canonical=value=>Array.isArray(value)?value.map(canonical):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonical(value[key])])):value;
+import {canonical} from './compare.js';
 // Same normalized content on both sides of the optional shared-review boundary.
 export function reviewSnapshot(input){
  const encoded=JSON.stringify(input);
@@ -9,7 +9,7 @@ export function reviewSnapshot(input){
  return {board,canonical:JSON.stringify(canonical(board))};
 }
 export async function reviewHash(input){
- const {canonical}=reviewSnapshot(input);
- const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(canonical));
+ const {canonical:form}=reviewSnapshot(input);
+ const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(form));
  return [...new Uint8Array(digest)].map(n=>n.toString(16).padStart(2,'0')).join('');
 }

@@ -283,3 +283,15 @@ test('subsystem requirement evidence ignores internal review metadata and moveme
   assert.equal(verificationRows(store.doc)[0].verified,true);
   child.nodes[1].budget.activeMa=80;assert.equal(verificationRows(store.doc)[0].needsReview,true);
 });
+test("renaming a targeted part is cosmetic for requirement evidence, as it is for impact", () => {
+  const { store, b } = powered();
+  const r = { id: "REQ", text: "Control", rationale: "", targets: [b], status: "verified", method: "Bench", evidence: "report" };
+  r.verifiedFingerprint = requirementFingerprint(store.doc, r);
+  store.doc.engineering = { requirements: [r] };
+  const baseline = structuredClone(store.doc);
+  store.doc.nodes.find((n) => n.id === b).label = "Renamed";
+  const row = verificationRows(store.doc, baseline)[0];
+  assert.equal(row.needsReview, false);
+  assert.equal(row.changed, false);
+  assert.equal(row.verified, true);
+});

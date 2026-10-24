@@ -1,6 +1,7 @@
 import { coverageSummary, coverageScope } from './validation-coverage.js';
 import { esc } from './render.js';
 import { formatCurrent } from './power.js';
+import { scriptJSON } from './html-export.js';
 const value = (v) =>
   v == null
     ? '—'
@@ -20,11 +21,6 @@ const table = (heads, rows) =>
   `<div class="table-wrap"><table><thead><tr>${heads.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.join('') || `<tr><td colspan="${heads.length}">None</td></tr>`}</tbody></table></div>`;
 const focus = (scope, ids, label) =>
   `<button class="focus" data-scope="${esc(scope)}" data-ids="${esc(JSON.stringify(ids))}">${esc(label)}</button>`;
-const scriptJSON = (data) =>
-  JSON.stringify(data)
-    .replace(/</g, '\\u003c')
-    .replace(/\u2028/g, '\\u2028')
-    .replace(/\u2029/g, '\\u2029');
 export function renderReviewHTML(report, files, viewers) {
   const counts = Object.fromEntries(
     ['error', 'warning', 'info'].map((level) => [

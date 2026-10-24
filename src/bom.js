@@ -54,15 +54,12 @@ export function buildBOM(doc) {
     }
     if (node.notes) g.notes.push(node.notes);
   }
+  // Sorted on the catalogue name, not its translation, so switching the
+  // interface language keeps every row where it was.
   return [...groups.values()].sort(
     (a, b) => a.part.localeCompare(b.part) || a.sublabel.localeCompare(b.sublabel),
   );
 }
-
-// A cell that a spreadsheet would evaluate as a formula (leading = + - @, or
-// a tab or return that lets one hide behind whitespace) is prefixed with an
-// apostrophe, the convention spreadsheets read as "this is text", and quoted
-// so the apostrophe survives the CSV parser.
 
 // What the board declares it draws, across every line. Null when no part on
 // the board states a current at all, in which case no total row is written.

@@ -54,12 +54,15 @@ export function parseCapacityMah(text) {
 const trim = (v) => String(Math.round(v * 100) / 100);
 
 // Below a milliamp a sleeping sensor reads better in microamps, and a rail
-// total reads better in amps once it passes a thousand milliamps.
+// total reads better in amps once it passes a thousand milliamps. The unit is
+// chosen after rounding, so 999.999 mA is "1 A" rather than "1000 mA" and
+// 0.9999 mA is "1 mA" rather than "999.9 µA".
 export function formatCurrent(ma) {
   if (ma == null || !Number.isFinite(ma)) return '';
   if (ma === 0) return '0 mA';
-  if (ma < 1) return `${trim(ma * 1000)} µA`;
-  if (ma < 1000) return `${trim(ma)} mA`;
+  const rounded = Math.round(ma * 100) / 100;
+  if (rounded < 1) return `${trim(ma * 1000)} µA`;
+  if (rounded < 1000) return `${trim(ma)} mA`;
   return `${trim(ma / 1000)} A`;
 }
 
@@ -69,9 +72,15 @@ export function formatCapacity(mah) {
   return mah < 10000 ? `${trim(mah)} mAh` : `${trim(mah / 1000)} Ah`;
 }
 
+// Whole hours past ten, one decimal under that, and two significant figures
+// under an hour so a few minutes of runtime never prints as "0". The unit
+// stays with the caller's sentence, which says "h".
 export function formatHours(h) {
   if (h == null || !Number.isFinite(h)) return '';
-  return h < 10 ? trim(Math.round(h * 10) / 10) : String(Math.round(h));
+  const tenths = Math.round(h * 10) / 10;
+  if (tenths >= 10) return String(Math.round(h));
+  if (tenths >= 1) return String(tenths);
+  return String(Number(h.toPrecision(2)));
 }
 
 // ---- The power tree ----
@@ -162,6 +171,14 @@ export function partCurrents(node, mode = 'active') {
 // rough figure: about right for a linear regulator, high for a step-down
 // converter, low for a step-up one. Where the rail it feeds cannot be summed,
 // its own declared figure is all there is to report.
+//
+// A rail fed by several supplies hands each of them an equal share of its
+// typical load, so the rail above sees the load once rather than once per
+// supply. How the load really divides between parallel supplies is not
+// modelled (the shared-rail finding says so); an even split is only the one
+// that keeps the sum right. Excursions are carried whole: they are keyed by
+// the part (or scope) that has them and a rail takes the largest per key, so
+// the same peak reached through two supplies already counts once.
 function drawOf(entry, rails, load, guard, budget) {
   const { node, currents } = entry;
   const declared = currents.typicalMa != null || currents.peakMa != null;
@@ -179,12 +196,13 @@ function drawOf(entry, rails, load, guard, budget) {
       const b = node.budget;
       const conversion = b?.inputV > 0 && b?.outputV > 0 && b?.efficiency > 0;
       const ratio = conversion ? b.outputV / b.inputV / (b.efficiency / 100) : 1;
+      const share = 1 / rails[fed].sources.length;
       // Carry excursion identities through converters: independent scopes still
       // add, while one noncoincident scope shares a maximum across both rails.
       for (const [scope, excursion] of downstream.excursions)
         excursions.set(scope, Math.max(excursions.get(scope) || 0, excursion * ratio));
       return {
-        typicalMa: ownTypical + downstream.typicalMa * ratio,
+        typicalMa: ownTypical + downstream.typicalMa * ratio * share,
         excursions,
         known: true,
         carried: true,

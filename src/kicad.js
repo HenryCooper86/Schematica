@@ -57,14 +57,14 @@ export function fromKiCadData({ title = 'KiCad architecture', source, components
     const seen = new Set();
     for (const end of net.nodes) {
       const node = byRef.get(end.ref);
-      if (!node || !end.pin) throw new Error(tr('A net references a missing component or pin'));
+      if (!node) throw new Error(tr('A net references a missing component or pin'));
       const key = JSON.stringify([end.ref, end.pin]); if (seen.has(key)) throw new Error(tr('Duplicate KiCad pin identity')); seen.add(key);
       const ports = pins.get(end.ref);
       if (ports.has(end.pin)) throw new Error(tr('A component pin appears on more than one net'));
       if (ports.size >= LIMITS.ports) throw new Error(tr('This prototype supports at most {max} connected pins per component', { max: LIMITS.ports }));
       const id = kiCadId('p', end.pin);
       if (id.length > LIMITS.id) throw new Error(tr('A KiCad pin name cannot be represented without truncation'));
-      ports.set(end.pin, { id, name: String(end.pin), side: ports.size % 2 ? 'right' : 'left', bus: 'link' });
+      ports.set(end.pin, { id, name: String(end.pin), bus: 'link' });
       doc.wires.push({ id: kiCadId('kw', net.name, end.ref, end.pin), bus: 'link', from: { node: node.id, port: id }, to: { node: hub.id, port: 'net' }, label: '', arrow: null, flow: null, style: null });
     }
   }

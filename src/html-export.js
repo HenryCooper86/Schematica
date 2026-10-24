@@ -8,6 +8,11 @@ import { connectionFocus, nodeHaystack } from './explore.js';
 import { BUSES, BUS_ORDER } from './buses.js';
 import { tr, trd, getLang } from './i18n.js';
 
+// JSON that is safe inside a <script> element: a closing tag or a line
+// separator in the data cannot end the script or break the parser.
+export const scriptJSON = (value) => JSON.stringify(value)
+  .replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+
 // BCP 47 tags for the html lang attribute, as i18n.js writes on the app's own
 // document; the export has no document to copy it from.
 const HTML_LANG = { en: 'en', zh: 'zh-CN' };
@@ -238,7 +243,6 @@ function offlineViewer(data, focusGraph, makePlayback, nextPosition, readMoment)
 }
 
 export function buildHTML(doc, options = {}) {
-  const json = (value) => JSON.stringify(value).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
   const option = (value, label) => `<option value="${esc(value)}">${esc(label)}</option>`;
   const light = (options.theme || getTheme()) === 'light';
   const data = { doc, bounds: exportBounds(doc), labels: { results: tr('Choose a matching part'), play: tr('Play'), pause: tr('Pause'), offlineLink: tr('For an offline file, send the HTML file together with this moment fragment.'), linkHelp: tr('Copy this link to open this chapter and stop.') },
@@ -267,6 +271,6 @@ body{height:100dvh;display:flex;flex-direction:column}main{flex:1;min-height:180
 <button id="play">${esc(tr('Play'))}</button><label>${esc(tr('Speed'))}<select id="speed"><option value="8000">0.5×</option><option value="4000" selected>1×</option><option value="2000">2×</option></select></label>
 <button id="restart">${esc(tr('Restart'))}</button><button id="show-all">${esc(tr('Show all'))}</button><button id="copy-moment" disabled>${esc(tr('Copy moment'))}</button></div>
 </section><dialog id="moment-dialog"><p id="moment-help"></p><input id="moment-link" readonly aria-label="${esc(tr('Story moment link'))}"><button id="moment-close">${esc(tr('Close'))}</button></dialog>
-<script id="board-data" type="application/json">${json(data)}</script>
+<script id="board-data" type="application/json">${scriptJSON(data)}</script>
 <script>(${offlineViewer.toString()})(JSON.parse(document.getElementById('board-data').textContent), ${connectionFocus.toString()}, ${createPlayback.toString()}, ${nextStoryPosition.toString()}, ${readStoryMoment.toString()});</script></html>`;
 }

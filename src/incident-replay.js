@@ -11,7 +11,7 @@ import { applyEdits, MAX_OPS } from './ai/ops.js';
 import { placeNew } from './ai/layout.js';
 import { resolveStep } from './journey.js';
 import { getPart } from './palette.js';
-import { buildIncident } from './incident-data.js';
+import { buildIncident, utcShort, validTime, MAX_SPAN_DAYS } from './incident-data.js';
 import { nodeRect, noteHeight } from './geometry.js';
 
 // Consecutive near-identical actions within this window collapse into one step.
@@ -21,15 +21,6 @@ const ZONE_COLOR = '#f59e0b';
 const DISCLAIMER = 'Reconstructed from a log. Steps are what the log recorded, not independent proof of execution.';
 
 function text(value) { return String(value ?? '').trim(); }
-
-function timeLabel(ts) {
-  const d = new Date(ts);
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mi = String(d.getMinutes()).padStart(2, '0');
-  return `${mm}-${dd} ${hh}:${mi}`;
-}
 
 // Lay a reconstructed board out for reading: columns by how many hops a
 // part is from where the activity starts (the attacker on the left, what it
@@ -139,8 +130,11 @@ export function parseIncidentLog(input) {
   }
   const actions = rawActions.map((entry, i) => {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw Error(`Action ${i + 1} is not an object.`);
-    const ts = Date.parse(text(entry.ts || entry.time || entry.timestamp));
-    if (!Number.isFinite(ts)) throw Error(`Action ${i + 1} has no valid timestamp.`);
+    // A board stores epoch milliseconds, so a log may give them as numbers
+    // as well as any date string Date.parse reads.
+    const raw = entry.ts ?? entry.time ?? entry.timestamp;
+    const ts = typeof raw === 'number' ? raw : Date.parse(text(raw));
+    if (!validTime(ts)) throw Error(`Action ${i + 1} has no valid timestamp.`);
     const actor = text(entry.actor || entry.from) || 'actor';
     const action = text(entry.action || entry.event || entry.type) || 'action';
     return {
@@ -160,6 +154,11 @@ export function parseIncidentLog(input) {
       condition: text(entry.condition || entry.state).toLowerCase(),
     };
   }).sort((a, b) => a.ts - b.ts);
+  // The replay walks the span day by day, so it is bounded like the board's
+  // own timeline is on load.
+  if (actions.at(-1).ts - actions[0].ts > MAX_SPAN_DAYS * 86400000) {
+    throw Error(`The incident log spans more than ${MAX_SPAN_DAYS} days.`);
+  }
   const incident = text(data && !Array.isArray(data) ? (data.incident || data.title) : '');
   const boundaries = (data && !Array.isArray(data) && Array.isArray(data.trustBoundaries))
     ? data.trustBoundaries.map((b, i) => ({ id: text(b && b.id) || `zone-${i + 1}`, name: text(b && b.name) || `Boundary ${i + 1}` }))
@@ -320,8 +319,8 @@ export function reconstructIncident(parsed) {
 
   // Build the journey: a chapter per phase, stops in chronological order.
   const stopCaption = (step) => {
-    const parts = [timeLabel(step.ts)];
-    parts.push(step.actor ? (step.target ? `${step.actor} → ${step.target}` : step.actor) : step.action);
+    const parts = [utcShort(step.ts)];
+    parts.push(step.target ? `${step.actor} → ${step.target}` : step.actor);
     parts.push(step.action);
     if (step.count > 1) parts.push(`×${step.count}`);
     if (step.note || step.evidence) parts.push(step.note || step.evidence);

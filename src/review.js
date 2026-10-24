@@ -12,7 +12,7 @@ import { renderReviewHTML } from "./review-html.js";
 import { toCSV } from "./tabular.js";
 import { checkDoc } from "./drc.js";
 import { checkLayout } from "./layout-checks.js";
-import { compareBoards } from "./compare.js";
+import { compareBoards, COSMETIC_FIELDS, canonical } from "./compare.js";
 import { interfaceRows, interfaceCSV } from "./engineering.js";
 import { buildBOM, bomCSV } from "./bom.js";
 import { powerSummary } from "./power.js";
@@ -25,17 +25,6 @@ function hash(value) {
     h = Math.imul(h ^ json.charCodeAt(i), 16777619);
   return (h >>> 0).toString(36);
 }
-const canonical = (v) =>
-  Array.isArray(v)
-    ? v.map(canonical)
-    : v && typeof v === "object"
-      ? Object.fromEntries(
-          Object.keys(v)
-            .sort()
-            .filter((k) => !["x", "y", "w", "h", "label", "color"].includes(k))
-            .map((k) => [k, canonical(v[k])]),
-        )
-      : v;
 export function reviewFindings(doc) {
   const scopes = architectureScopes(doc);
   const scopeMap = new Map(scopes.map((s) => [s.key, s]));
@@ -107,7 +96,7 @@ export function reviewFindings(doc) {
       ].map((i) => [i.id, i]),
     );
     const fingerprint = hash([
-      ids.map((id) => canonical(byId.get(id))),
+      ids.map((id) => canonical(byId.get(id), COSMETIC_FIELDS)),
       scope.doc.engineering?.requirements,
       scope.doc.engineering?.budget,
       finding.rule.startsWith("layout") ? ids.map((id) => byId.get(id)) : null,

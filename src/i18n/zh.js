@@ -835,6 +835,7 @@ export default {
   'Reconstructed from a log. Steps are what the log recorded, not independent proof of execution.': '基于日志重建。步骤是日志所记录的内容，并非执行的独立证明。',
   'Replay incident': '回放事件',
   'Incident replay': '事件回放',
+  'Incident': '事件',
   'Reconstructed from {count} logged actions': '基于 {count} 条日志操作重建',
   'Exit replay': '退出回放',
   'Day {n}': '第 {n} 天',
@@ -851,6 +852,7 @@ export default {
   '{n} of {total} parts': '{n} / {total} 个部件',
   'Press play to watch the incident unfold.': '按播放查看事件经过。',
   'Dropped an invalid incident timeline.': '已丢弃无效的事件时间线。',
+  'Dropped an incident timeline spanning more than a year.': '已丢弃跨度超过一年的事件时间线。',
   'Dropped an incident timeline with no usable events.': '已丢弃没有可用事件的事件时间线。',
   'Outcome': '结果',
   'Cleared only by deleting {items}: {message}': '仅通过删除 {items} 才消除：{message}',
@@ -935,7 +937,6 @@ export default {
   // ---- palette chrome ----
   'My parts': '我的部件',
   'Define a new part': '定义新部件',
-  'New part': '新建部件',
   'My parts is empty. Create or import a part first.': '“我的部件”为空。请先创建或导入部件。',
   'Download My parts as a file': '将“我的部件”下载为文件',
   'Import a parts file': '导入部件文件',

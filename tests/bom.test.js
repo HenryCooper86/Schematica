@@ -172,3 +172,14 @@ test('custom names containing separators cannot merge distinct BOM rows', () => 
     node('b', 'custom', 'B', 'B|C', { part: custom('A') })];
   assert.equal(buildBOM(d).length, 2);
 });
+
+test('rows keep their order when the interface language changes', () => {
+  initI18n({ storage: null });
+  const doc = { schema: 2, title: 'T', wires: [], zones: [], notes: [], journey: [],
+    nodes: [node('n1', 'servo', 'S', ''), node('n2', 'buzzer', 'B', ''), node('n3', 'mcu', 'M', '')] };
+  assert.deepEqual(buildBOM(doc).map((r) => r.part), ['Buzzer', 'MCU', 'Servo']);
+  setLang('zh');
+  try {
+    assert.deepEqual(buildBOM(doc).map((r) => r.part), ['Buzzer', 'MCU', 'Servo'], 'same rows in the same places');
+  } finally { setLang('en'); }
+});

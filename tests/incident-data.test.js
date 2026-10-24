@@ -138,3 +138,23 @@ test('a condition stated in the log travels with the timeline and an invalid one
   assert.ok(!('condition' in inc.events[2]));
   assert.deepEqual(warnings, []);
 });
+
+test('loading rejects timestamps outside the Date range and a timeline longer than a year', () => {
+  const doc = build();
+  const DAY = 86400000;
+  const one = (ts, last = ts) => ({ events: [{ ts, last, phase: 'p', actor: 'a', target: 't', action: 'x', count: 1, nodes: [], wires: [] }] });
+  for (const bad of [8.64e15 + 1, -8.64e15 - 1, 1e300]) {
+    const warnings = [];
+    assert.equal(normalizeIncident(one(bad), doc, warnings), undefined, `ts ${bad}`);
+    assert.equal(warnings.length, 1);
+  }
+  const far = normalizeIncident(one(0, 1e300), doc, []);
+  assert.equal(far.events[0].last, 0, 'a `last` beyond the Date range is dropped, not kept');
+  const long = { events: [one(0).events[0], one(367 * DAY).events[0]] };
+  const warnings = [];
+  assert.equal(normalizeIncident(long, doc, warnings), undefined);
+  assert.equal(warnings.length, 1);
+  assert.ok(normalizeIncident({ events: [one(0).events[0], one(366 * DAY).events[0]] }, doc, []), 'a year is still a timeline');
+  const span = incidentSpan(normalizeIncident({ events: [one(0).events[0], one(5 * DAY).events[0]] }, doc, []));
+  assert.equal(span.days.length, 6);
+});

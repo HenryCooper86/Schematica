@@ -2,9 +2,19 @@
 // endpoint order is reported exactly as authored, without inferring impact.
 import { tr } from './i18n.js';
 
-const canonical = value => Array.isArray(value) ? value.map(canonical)
-  : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(k => [k, canonical(value[k])])) : value;
-const equal = (a, b) => JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
+// The fields that say where or how an item is drawn, not what it is. Every
+// module that asks "did this item change in a way an engineer must look at"
+// (impact, verification evidence, review exceptions) ignores the same set, so
+// a rename or a nudge is cosmetic everywhere or nowhere.
+export const COSMETIC_FIELDS = new Set(['x', 'y', 'w', 'h', 'view', 'label', 'color']);
+// One key-order-independent form of a value, optionally with some keys left
+// out at every level, so two boards saved in different key orders compare
+// equal and a hash of the form is stable.
+export const canonical = (value, omit = null) => Array.isArray(value) ? value.map(v => canonical(v, omit))
+  : value && typeof value === 'object'
+    ? Object.fromEntries(Object.keys(value).sort().filter(k => !omit?.has(k)).map(k => [k, canonical(value[k], omit)]))
+    : value;
+export const equal = (a, b) => JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
 const layout = new Set(['x', 'y', 'w', 'h', 'view']);
 
 export function compareBoards(before, after) {
@@ -34,6 +44,8 @@ export function compareBoards(before, after) {
     fields: [{ field: 'engineering', before: before.engineering, after: after.engineering }] });
   if (!equal(before.blueprint, after.blueprint)) changes.push({ type: 'changed', collection: 'board', id: '', label: tr('Blueprint'),
     fields: [{ field: 'blueprint', before: before.blueprint, after: after.blueprint }] });
+  if (!equal(before.incident, after.incident)) changes.push({ type: 'changed', collection: 'board', id: '', label: tr('Incident'),
+    fields: [{ field: 'incident', before: before.incident, after: after.incident }] });
   // Step order is semantic even when the steps themselves are unchanged.
   const shared = new Set((before.journey || []).filter(s => (after.journey || []).some(t => t.id === s.id)).map(s => s.id));
   const order = doc => (doc.journey || []).filter(s => shared.has(s.id)).map(s => s.id);

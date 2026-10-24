@@ -3,18 +3,7 @@ import { architectureScopes, scopedId } from './architecture-scopes.js';
 import { checkDoc } from './drc.js';
 import { powerSummary } from './power.js';
 import { verificationRows } from './workflows.js';
-const cosmetic = new Set(['x', 'y', 'w', 'h', 'view', 'label', 'color']);
-const canonical = (v) =>
-  Array.isArray(v)
-    ? v.map(canonical)
-    : v && typeof v === 'object'
-      ? Object.fromEntries(
-          Object.keys(v)
-            .sort()
-            .map((k) => [k, canonical(v[k])]),
-        )
-      : v;
-const equal = (a, b) => JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
+import { COSMETIC_FIELDS, equal } from './compare.js';
 function indexed(doc) {
   const items = new Map(),
     records = { requirements: [], decisions: [] };
@@ -22,7 +11,7 @@ function indexed(doc) {
     for (const collection of ['nodes', 'wires'])
       for (const item of scope.doc[collection]) {
         const payload = Object.fromEntries(
-          Object.entries(item).filter(([key]) => !cosmetic.has(key)),
+          Object.entries(item).filter(([key]) => !COSMETIC_FIELDS.has(key)),
         );
         if (item.subsystem) payload.subsystem = { exposed: item.subsystem.exposed };
         items.set(scopedId(scope.path, item.id), {
@@ -107,7 +96,9 @@ export function impactAnalysis(before, after) {
         distances.set(next, distances.get(queue[i]) + 1);
         queue.push(next);
       }
-  const affected = queue.map((key) => ({
+  // A wire's end may name a part neither board has; that key is reachable
+  // but is nothing a reviewer can look at.
+  const affected = queue.filter((key) => b.items.has(key) || a.items.has(key)).map((key) => ({
     ...(b.items.get(key) || a.items.get(key)),
     distance: distances.get(key),
   }));

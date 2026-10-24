@@ -413,3 +413,32 @@ test('a converter and its loads share one noncoincident excursion in the same sc
   d.engineering.budget.peaks = 'simultaneous';
   assert.equal(rail(powerRails(d), 'bat').peakMa, 180);
 });
+
+test('a load on a rail with two supplies is carried up through each of them in equal shares', () => {
+  // Wired to both regulator outputs, the MCU's 100 mA used to be carried up
+  // through each regulator in full, so the battery saw 200 mA for one load.
+  const d = doc(
+    [node('bat', 'battery', { imax: '150mA' }), node('r1', 'regulator', { imax: '500mA' }), node('r2', 'regulator', { imax: '500mA' }),
+      node('mcu', 'mcu', { ityp: '100mA', ipeak: '140mA' })],
+    [wire('w1', 'power', 'bat', 'out', 'r1', 'in'), wire('w2', 'power', 'bat', 'out', 'r2', 'in'),
+      wire('w3', 'power', 'r1', 'out', 'mcu', 'vcc'), wire('w4', 'power', 'r2', 'out', 'mcu', 'vcc')],
+  );
+  const rails = powerRails(d);
+  const shared = rail(rails, 'r1');
+  assert.equal(shared.sources.length, 2);
+  assert.equal(shared.typicalMa, 100);
+  assert.equal(shared.peakMa, 140);
+  assert.equal(rail(rails, 'bat').typicalMa, 100, 'one load, counted once on the rail above');
+  assert.equal(rail(rails, 'bat').peakMa, 140);
+});
+
+test('figures are rounded before the unit is chosen', () => {
+  assert.equal(formatCurrent(999.999), '1 A');
+  assert.equal(formatCurrent(999.994), '999.99 mA');
+  assert.equal(formatCurrent(0.9999), '1 mA');
+  assert.equal(formatCurrent(0.994), '994 µA');
+  assert.equal(formatHours(0.04), '0.04');
+  assert.equal(formatHours(0.0417), '0.042');
+  assert.equal(formatHours(0.999), '1');
+  assert.equal(formatHours(9.96), '10');
+});

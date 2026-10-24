@@ -1,12 +1,9 @@
 // Pure, conservative merge of the topology owned by one KiCad source.
 import { fromKiCadData, validateKiCadProvenance } from './kicad.js';
 import { normalizePart } from './custom.js';
-import { compareBoards } from './compare.js';
+import { compareBoards, equal } from './compare.js';
 import { tr } from './i18n.js';
 
-const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-const canonical = value => Array.isArray(value) ? value.map(canonical)
-  : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
 const index = items => new Map(items.map(item => [item.id, item]));
 const portShape = node => node.part?.ports.map(p => [p.id, p.name, p.bus]).sort((a, b) => a[0].localeCompare(b[0]));
 // Mirrors partChangePatch's budget/interface/field invalidation policy, but
@@ -79,7 +76,7 @@ export function previewKiCadUpdate(current, incoming) {
     // can create case-insensitive same-side name collisions in the merge.
     // Validate the full merged definition against the persistence validator.
     const normalized = normalizePart(node.part);
-    if (normalized.warnings.length || !equal(canonical(normalized.part), canonical(node.part)))
+    if (normalized.warnings.length || !equal(normalized.part, node.part))
       throw new Error(tr('This KiCad update would lose ports or part metadata on reload. Resolve conflicting port names and sides before updating.'));
     node.fields ||= {};
     if (next.fields?.footprint) node.fields.footprint = next.fields.footprint; else delete node.fields.footprint;

@@ -42,7 +42,7 @@ export function analysisDoc(source) {
       out[kind].push({ ...item, id, selectionId: owner || item.id, x: item.x + offset.x, y: item.y + offset.y });
     }
     for (const key of ['requirements', 'decisions']) for (const record of doc.engineering?.[key] || []) {
-      records[key].push({ ...record, id: idAt(path, record.id), targets: record.targets.flatMap(id => mapped.get(id) || [idAt(path, id)]) });
+      records[key].push({ ...record, id: idAt(path, record.id), targets: (record.targets || []).flatMap(id => mapped.get(id) || [idAt(path, id)]) });
     }
   }
   walk(source, [], null, { x: 0, y: 0 }, []);

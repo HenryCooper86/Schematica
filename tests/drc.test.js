@@ -458,3 +458,14 @@ test('findings that need the author have no automatic fix', async () => {
   assert.ok(!NEEDS_AUTHOR.has('i2c-addr-conflict'));
   assert.ok(!NEEDS_AUTHOR.has('bus-mismatch'));
 });
+
+test('a load behind two parallel regulators is not counted twice against the supply above them', () => {
+  const d = doc(
+    [node('BAT', 'battery', { fields: { imax: '150mA' } }), node('A', 'regulator', { fields: { imax: '500mA' } }),
+      node('B', 'regulator', { fields: { imax: '500mA' } }), node('MCU', 'mcu', { fields: { ityp: '100mA' } })],
+    [wire('p1', 'power', 'BAT', 'out', 'A', 'in'), wire('p2', 'power', 'BAT', 'out', 'B', 'in'),
+      wire('p3', 'power', 'A', 'out', 'MCU', 'vcc'), wire('p4', 'power', 'B', 'out', 'MCU', 'vcc'),
+      wire('g1', 'gnd', 'BAT', 'gnd', 'MCU', 'gnd'), wire('g2', 'gnd', 'A', 'gnd', 'MCU', 'gnd'), wire('g3', 'gnd', 'B', 'gnd', 'MCU', 'gnd')],
+  );
+  assert.deepEqual(budget(d).map((f) => f.message), [], '100 mA through two regulators is 100 mA at the battery, not 200');
+});
