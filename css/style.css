@@ -1828,7 +1828,40 @@ html[data-theme="light"] .ai-result.warn { color: #92400e; }
 
 #recovery-status { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 12; padding: 5px 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg1); color: var(--muted); cursor: pointer; }
 #recovery-status[data-state=error] { color: #f59e0b; }
-#app.presenting :is(#recovery-status, #first-project) { display: none; }
+#app.presenting :is(#recovery-status, #first-project, #review-path) { display: none; }
+
+/* Review path: the same card as the first-project guide, one stage at a time. */
+#review-path { position: absolute; left: 14px; bottom: 54px; width: min(360px, calc(100% - 28px)); max-height: 70%; overflow: auto; padding: 16px 18px; z-index: 15; background: var(--bg1); color: var(--text); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 32px #0004; font-size: 13px; }
+#review-path[hidden] { display: none; }
+#review-path header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+#review-path h2 { font-size: 16px; margin: 0; }
+#review-path button { font: inherit; padding: 6px 10px; color: var(--text); background: var(--bg2); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+#review-path button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+#review-path .path-stages { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; list-style: none; margin: 12px 0; padding: 0; }
+#review-path .path-stages button { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; font-size: 12px; color: var(--muted); }
+#review-path .path-stages button.current { color: var(--text); border-color: var(--accent); }
+#review-path .path-stages button.done { color: var(--text); }
+#review-path .path-stages button[aria-current="step"] { background: var(--bg3, var(--bg2)); box-shadow: inset 0 -2px 0 var(--accent); }
+#review-path .path-index { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--line); font-size: 11px; }
+#review-path .path-stages button.done .path-index { background: var(--ok, #22c55e); border-color: transparent; color: #0b1220; }
+#review-path .path-stages small { font-size: 10px; color: var(--muted); }
+#review-path .path-intro, #review-path .path-hint { color: var(--muted); margin: 8px 0; line-height: 1.45; }
+#review-path .path-items { list-style: none; margin: 0; padding: 0; }
+#review-path .path-items li { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); line-height: 1.4; }
+#review-path .path-items li > span { display: block; min-width: 0; }
+#review-path .path-items li small { display: block; color: var(--muted); font-size: 11px; }
+#review-path .path-items li.done { color: var(--muted); }
+#review-path .path-mark { display: inline-block; width: 16px; color: var(--muted); }
+#review-path .path-items li.done .path-mark { color: var(--ok, #22c55e); }
+#review-path .path-items li.error .path-mark { color: #ef4444; }
+#review-path .path-items li.warning .path-mark { color: #f59e0b; }
+#review-path .path-items button { flex: none; }
+#review-path .path-revision { display: grid; gap: 6px; margin: 10px 0; }
+#review-path .path-revision label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; }
+#review-path .path-revision input { font: inherit; padding: 6px 8px; color: var(--text); background: var(--bg2); border: 1px solid var(--line); border-radius: 6px; }
+#review-path [role=status] { margin: 10px 0 0; color: var(--muted); }
+#btn-review-path.active { color: var(--accent); }
+#btn-review-path[data-stage="complete"] svg { color: var(--ok, #22c55e); }
 
 #btn-guide, #btn-connect, #btn-team { display: block; width: calc(100% - 24px); margin: 0 12px 12px; padding: 8px; color: var(--text); background: var(--bg2); border: 1px solid var(--line); border-radius: 7px; cursor: pointer; }
 #btn-guide:focus-visible, #btn-connect:focus-visible, #btn-team:focus-visible { outline: 2px solid var(--accent); }

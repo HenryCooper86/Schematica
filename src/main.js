@@ -2,6 +2,7 @@ import { createSettings } from './ai/settings.js';
 import { createStartupRecovery, RECOVERY_PREFIX } from './startup-recovery.js';
 import { initTeamReview } from './ui/team-review.js';
 import { initOnboarding } from './ui/onboarding.js';
+import { initReviewPath } from './ui/review-path-ui.js';
 import { initConnections } from './ui/connections.js';
 import { createRevisions, conflictStorage } from './revisions.js';
 import { createSubsystemNavigation } from './subsystems.js';
@@ -269,6 +270,7 @@ engineeringUI = initEngineering({ store, revisions, startupRecovery, navigation,
 const connections = initConnections({ store });
 initTeamReview({navigation});
 initOnboarding({ store, navigation, revisions, engineering: engineeringUI, tools, connections });
+initReviewPath({ store, navigation, revisions, engineering: engineeringUI, connections });
 const recorder = initRecording({ svg, store });
 const journeyUI = initJourney({ svg, store, tools, render, recorder, propsPanel });
 initExamplesMenu({ store });

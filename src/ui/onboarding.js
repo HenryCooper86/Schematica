@@ -109,6 +109,7 @@ export function initOnboarding({
     panel.querySelector("#guide-export").onclick = () => {
       const { doc, mark } = report();
       download("first-architecture-review.html", reviewHTML(doc), "text/html");
+      document.dispatchEvent(new CustomEvent('schematica:review-exported'));
       exported = mark;
       paint();
     };

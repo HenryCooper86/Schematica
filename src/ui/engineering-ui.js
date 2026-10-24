@@ -244,7 +244,7 @@ export function initEngineering({ store, revisions, startupRecovery, navigation,
         <p>${esc(tr('Reviewed exceptions retain the finding and its rationale. They expire when relevant design data changes.'))}</p>
         <ul>${findings.map(f => `<li><strong>${esc(f.level)} · ${esc(f.rule)}</strong> ${esc(f.message)} ${f.exception ? `<p>${esc(f.exception.owner)}: ${esc(f.exception.rationale)}</p>${act('unreview-' + f.id, tr('Remove exception'))}` : `<button data-finding="${esc(f.id)}">${esc(tr('Review exception'))}</button>`}</li>`).join('')}</ul>
         ${selected && findings.some(f => f.id === selected) ? `<form>${input('owner', tr('Reviewer'))}${area('rationale', tr('Exception rationale'))}${submit(tr('Save reviewed exception'))}</form>` : ''}`;
-      actions.package = () => download('architecture-review.html', reviewHTML(navigation.rootDoc(), baseline), 'text/html');
+      actions.package = () => { download('architecture-review.html', reviewHTML(navigation.rootDoc(), baseline), 'text/html'); document.dispatchEvent(new CustomEvent('schematica:review-exported')); };
       actions['technical-report'] = () => { tab = 'report'; selected = null; paint(); };
       body.querySelectorAll('[data-finding]').forEach(b => b.onclick = () => { selected = b.dataset.finding; paint(); });
       for (const f of findings) actions['unreview-' + f.id] = () => edit(doc => { const scope = architectureScopes(doc).find(s => s.key === f.scope).doc; eng(scope).exceptions = (eng(scope).exceptions || []).filter(e => e.id !== f.exceptionId); });
@@ -301,5 +301,8 @@ export function initEngineering({ store, revisions, startupRecovery, navigation,
   dialog.addEventListener('close', () => { reportDispose?.(); reportDispose = null; });
   onLanguageChange(() => { labelButton(); if (dialog.open) paint(); });
   labelButton();
-  return { confirmDiscardDrafts: () => !drafts.hasChanges() || confirm(tr('Discard unsaved Engineering drafts and open another board?')), openTab(next) { chooseTab(next); reuseTargets.clear(); reusePreview = null; paint(); openModal(dialog); }, openRevisions() { chooseTab('revisions'); paint(); openModal(dialog); } };
+  return { confirmDiscardDrafts: () => !drafts.hasChanges() || confirm(tr('Discard unsaved Engineering drafts and open another board?')), openTab(next, { id, field } = {}) { chooseTab(next, id); reuseTargets.clear(); reusePreview = null; paint(); openModal(dialog);
+      // A worklist can land on the exact control that settles its item.
+      const control = field && dialog.querySelector(`[name="${field}"]`);
+      if (control) { control.scrollIntoView({ block: 'center' }); control.focus({ preventScroll: true }); } }, openRevisions() { chooseTab('revisions'); paint(); openModal(dialog); } };
 }

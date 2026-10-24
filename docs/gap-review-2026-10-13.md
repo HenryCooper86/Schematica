@@ -1,6 +1,6 @@
 # Schematica gap review — 13 October 2026
 
-**Implementation update:** The first two priorities below are implemented locally: startup recovery and Engineering draft/focus retention. See the follow-up results at the end. The remaining priorities are still open.
+**Implementation update:** The first two priorities below are implemented locally: startup recovery and Engineering draft/focus retention. See the follow-up results at the end. The guided Prepare → Check → Resolve → Handoff path (P2) shipped on 24 October 2026 as the **Review path** panel; see the [user guide](user-guide.md#follow-the-review-path). The remaining priorities are still open.
 
 Reviewed commit fec15ad6adf4db82cce1a2e3735415b5f3b7ed7c. The working tree was clean at the start. Findings and baseline evidence below describe that commit. The follow-up implementation is recorded at the end of this document.
 

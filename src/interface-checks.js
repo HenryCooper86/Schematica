@@ -69,15 +69,20 @@ export function interfaceCompatibility(doc) {
       b = resolveInterfaceEndpoint(doc, wire.to).capability;
     if (!a && !b && !Object.keys(normalizeConstraints(spec)).length) continue;
     const ids = [wire.id, wire.from.node, wire.to.node];
-    const add = (rule, level, message) =>
+    // `field` names the Engineering → Interfaces form control that settles the
+    // finding, so a worklist can land on it; `from_`/`to_` prefixes address an
+    // endpoint capability, bare names the connection limits.
+    const add = (rule, level, message, field) =>
       findings.push({
         rule,
         level,
         ids,
         message: tr('Interface {id}: {detail}', { id: wire.id, detail: message }),
+        ...(field ? { field } : {}),
       });
+    const end = i => (i === 0 ? 'from_' : 'to_');
     if (![spec, a, b].every(valid)) {
-      add('interface-invalid', 'error', tr('Declared interface limits are invalid.'));
+      add('interface-invalid', 'error', tr('Declared interface limits are invalid.'), 'voltageMinV');
       continue;
     }
     const direction = interfaceDirection(wire);
@@ -99,6 +104,7 @@ export function interfaceCompatibility(doc) {
         'interface-direction',
         'error',
         tr('Connection direction conflicts with a declared endpoint direction.'),
+        'direction',
       );
     if (range(spec)) {
       for (const [i, c] of [a, b].entries())
@@ -109,6 +115,7 @@ export function interfaceCompatibility(doc) {
             tr('The connection voltage range exceeds endpoint {endpoint} limits.', {
               endpoint: i + 1,
             }),
+            end(i) + 'voltageMinV',
           );
     } else if (range(a) && range(b)) {
       const compatible =
@@ -124,6 +131,7 @@ export function interfaceCompatibility(doc) {
           'interface-voltage',
           'error',
           tr('The declared endpoint voltage ranges are incompatible.'),
+          'from_voltageMinV',
         );
     }
     for (const [i, c] of [a, b].entries()) {
@@ -132,6 +140,7 @@ export function interfaceCompatibility(doc) {
           'interface-bandwidth',
           'error',
           tr('Required bandwidth exceeds endpoint {endpoint} capacity.', { endpoint: i + 1 }),
+          end(i) + 'rateBps',
         );
       if (
         spec.protocol?.trim() &&
@@ -142,6 +151,7 @@ export function interfaceCompatibility(doc) {
           'interface-protocol',
           'error',
           tr('The protocol is not supported by endpoint {endpoint}.', { endpoint: i + 1 }),
+          end(i) + 'protocols',
         );
     }
     if (
@@ -150,7 +160,7 @@ export function interfaceCompatibility(doc) {
       b?.protocols?.length &&
       !a.protocols.some((p) => b.protocols.some((q) => p.toLowerCase() === q.toLowerCase()))
     )
-      add('interface-protocol', 'error', tr('The declared endpoints have no common protocol.'));
+      add('interface-protocol', 'error', tr('The declared endpoints have no common protocol.'), 'protocol');
     const missing = missingInterfaceDeclarations(doc, wire);
     if (missing.length)
       add(

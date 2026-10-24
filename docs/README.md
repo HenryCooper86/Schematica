@@ -26,6 +26,7 @@ Simplified Chinese while keeping your board open in its original tab.
 | I want to… | Read |
 | --- | --- |
 | Make my first diagram | [Build and edit a board](user-guide.md#build-and-edit-a-board) |
+| Get a board ready to hand off, one stage at a time | [Review path](user-guide.md#follow-the-review-path) |
 | Understand Checked, Failed and Unassessed | [Review the design](user-guide.md#review-the-design) |
 | Set numeric interface limits or record requirement evidence | [Engineering workflows](engineering-workflows.md) |
 | Keep a backup or recover an earlier board | [Save and recover](user-guide.md#save-and-recover) |

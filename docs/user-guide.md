@@ -10,6 +10,7 @@ The instructions use English button names. Toolbar icons show their names on hov
 
 - [Build and edit a board](#build-and-edit-a-board)
 - [Review the design](#review-the-design)
+  - [Follow the review path](#follow-the-review-path)
 - [Save and recover](#save-and-recover)
 - [Share and export](#share-and-export)
 - [Compare and import](#compare-and-import)
@@ -83,6 +84,27 @@ See the [editor reference](editor-reference.md) for alignment, clipboard,
 custom-part and subsystem-related controls.
 
 ## Review the design
+
+### Follow the review path
+
+Choose **Review path** in the toolbar (the three linked dots beside **Check**)
+to see the whole job as four stages: **Prepare**, **Check**, **Resolve** and
+**Handoff**. The panel shows one stage at a time, the one that needs work next,
+and each open item has a **Go** button that opens the exact control:
+
+| Stage | What it lists | Where Go takes you |
+| --- | --- | --- |
+| Prepare | A board title, at least two parts, a connection, and every interface that still has blank declarations | The title field, the palette, the Connect form, or Interfaces with the first missing field focused |
+| Check | Whether checks have run on this version of the board | The Check dialog |
+| Resolve | Every error and warning from the last check | Interfaces with the conflicting field focused, the requirement record, or the affected items selected on the canvas |
+| Handoff | A saved revision of this version and the downloaded review package | A revision label form in the panel, and the download |
+
+Any edit changes the version, so **Check** and **Resolve** reopen until you run
+checks again; the panel says so. Checking from the toolbar counts, and so does a
+review package downloaded from Engineering. Click a stage name to look at any
+stage; the panel returns to the current one when reopened. The path is a view
+over the existing checks and records, not a separate approval: "Handed off" means
+this version was checked, found clean, saved and packaged, nothing more.
 
 ### Check drawings and interface declarations
 
