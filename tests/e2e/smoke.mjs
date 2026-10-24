@@ -19,6 +19,7 @@ import { runPresentationChecks } from './presentation.mjs';
 import { runAdoptionChecks } from './adoption.mjs';
 import { runExploreChecks } from './explore.mjs';
 import { runReplayChecks } from './replay.mjs';
+import { runStudyChecks } from './study.mjs';
 // Browser smoke test: serves the repo, drives a headless Chrome over the
 // DevTools Protocol, and checks the interactions unit tests cannot reach
 // (hover-revealed ports, dragging a wire, panning, renaming, zone resizing,
@@ -339,6 +340,8 @@ try {
     await runKiCadUpdateChecks({js,check,sleep});
   } else if (process.env.GUIDED_REVIEW_E2E_ONLY) {
     await runGuidedReviewChecks({js,key,check,sleep,click,center});
+  } else if (process.env.STUDY_E2E_ONLY) {
+    await runStudyChecks({ js, key, check, sleep, send, origin, artifactDir, capture: teamTools.capture });
   } else if (process.env.ENHANCEMENTS_E2E_ONLY) {
     await runEnhancementChecks({js,check});
   } else if (process.env.LAYOUT_E2E_ONLY) {
@@ -1532,6 +1535,7 @@ try {
   await send('Page.navigate',{url:origin+'/'});
   await waitFor(`!!document.getElementById('first-project')`);
   await runGuidedReviewChecks({js,key,check,sleep,click,center});
+  await runStudyChecks({ js, key, check, sleep, send, origin, artifactDir, capture: teamTools.capture });
   await runKiCadUpdateChecks({js,check,sleep});
   await runTeamReviewChecks(teamTools);
   await runAssistantHistoryChecks({ send, js, check, sleep, fakeSeen, capture: teamTools.capture, origin });

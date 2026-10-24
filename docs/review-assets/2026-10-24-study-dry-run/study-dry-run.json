@@ -1,0 +1,17 @@
+{
+  "kind": "study-rehearsal",
+  "note": "Scripted rehearsal of the facilitator script on the seeded board; not participant observations.",
+  "date": "2026-10-24",
+  "seededFindings": [
+    "Interface w2: Required bandwidth exceeds endpoint 2 capacity.",
+    "Interface w3: The connection voltage range exceeds endpoint 2 limits.",
+    "Interface w4: The protocol is not supported by endpoint 2.",
+    "Verified requirement REQ-2 has no evidence."
+  ],
+  "scriptedMs": {
+    "review": 224,
+    "repair": 1064,
+    "recover": 211,
+    "handoff": 228
+  }
+}

@@ -42,7 +42,10 @@ The numeric values above illustrate the schema only. Replace every value with
 observations. Alternate `baseline-first` and `schematica-first` ordering across
 sessions to expose learning effects. Use the same task complexity and seeded
 interface conflict; record all failures and help. Follow the existing
-[study kit](../engineer-study-kit.md) for the session tasks and debrief.
+[study kit](../engineer-study-kit.md) for the session tasks and debrief, and
+the [study materials](study/README.md) for the facilitator script, seeded
+board, answer key, recipient quiz and observation sheet. Rehearse the tasks
+on the release with `STUDY_E2E_ONLY=1 node tests/e2e/smoke.mjs`.
 
 ```sh
 node scripts/evaluate-evidence.mjs /path/to/actual-study-results.json

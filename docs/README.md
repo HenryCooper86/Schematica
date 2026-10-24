@@ -58,7 +58,7 @@ They are dated records, not the primary usage instructions.
 - [Category-readiness assessment and remaining gaps](category-readiness-2026-10-07.md)
 - [Performance measurements](performance.md)
 - [Validation tools and evidence requirements](validation/README.md)
-- [Engineer study kit](engineer-study-kit.md)
+- [Engineer study kit](engineer-study-kit.md) and its [session materials](validation/study/README.md): facilitator script, seeded board, answer key, recipient quiz
 - [Earlier engineering release notes](architecture-release-2026-09-15.md)
 - [Review and rendering improvements](enhancements-2026-10-06.md)
 

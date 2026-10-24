@@ -3,6 +3,14 @@
 This kit is ready for five practicing embedded/system architects. No interviews
 or outreach have been conducted, and no participant data has been invented.
 
+**Session materials (24 October 2026):** the
+[study folder](validation/study/README.md) holds the facilitator script with
+the current control names, the seeded review board and its answer key, the
+recipient quiz, the observation sheet, a per-participant results template and
+the scripted rehearsal that confirmed the tasks work on this release. Use
+those for the review, repair, recover and handoff tasks below; the
+participant tracker there is empty until engineers are recruited.
+
 ## Recruitment brief
 
 Seek engineers who own interfaces across hardware and firmware, including one

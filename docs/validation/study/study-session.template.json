@@ -1,0 +1,19 @@
+{
+  "id": "participant-pseudonym",
+  "consented": true,
+  "date": "YYYY-MM-DD",
+  "device": "CPU, memory and display",
+  "browser": "Browser and full version",
+  "baselineTool": "Participant's current tool",
+  "taskOrder": "baseline-first",
+  "observations": [
+    { "task": "create", "tool": "baseline", "seconds": 1, "completed": false, "helpRequests": 0, "missedCritical": 0, "dataLoss": false, "evidence": "session-notes path" },
+    { "task": "create", "tool": "schematica", "seconds": 1, "completed": false, "helpRequests": 0, "missedCritical": 0, "dataLoss": false, "evidence": "session-notes path" },
+    { "task": "review", "tool": "baseline", "seconds": 1, "completed": false, "helpRequests": 0, "missedCritical": 0, "dataLoss": false, "evidence": "session-notes path" },
+    { "task": "review", "tool": "schematica", "seconds": 1, "completed": false, "helpRequests": 0, "missedCritical": 0, "dataLoss": false, "evidence": "session-notes path" },
+    { "task": "recover", "tool": "baseline", "seconds": 1, "completed": false, "helpRequests": 0, "missedCritical": 0, "dataLoss": false, "evidence": "session-notes path" },
+    { "task": "recover", "tool": "schematica", "seconds": 1, "completed": false, "helpRequests": 0, "missedCritical": 0, "dataLoss": false, "evidence": "session-notes path" },
+    { "task": "handoff", "tool": "baseline", "seconds": 1, "completed": false, "helpRequests": 0, "missedCritical": 0, "dataLoss": false, "evidence": "session-notes path" },
+    { "task": "handoff", "tool": "schematica", "seconds": 1, "completed": false, "helpRequests": 0, "missedCritical": 0, "dataLoss": false, "evidence": "session-notes path" }
+  ]
+}
