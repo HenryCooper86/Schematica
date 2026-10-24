@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { serialize, deserialize, migrateRaw, MAX_TEXT, MAX_COORD } from '../src/serialize.js';
+import { serialize, deserialize, migrateRaw, MAX_TEXT, MAX_COORD, HEX_COLOR } from '../src/serialize.js';
 import { SCHEMA_VERSION } from '../src/state.js';
 import { PORT_ALIASES } from '../src/palette.js';
 import { Store, addNode, addWire, addZone, addNote, setLock } from '../src/state.js';
@@ -702,4 +702,12 @@ test('a node condition round-trips, null is dropped, and an unknown one is warne
   assert.ok(warnings.some((w) => /unknown condition "hacked"/.test(w)), JSON.stringify(warnings));
   const again = deserialize(serialize(doc)).doc;
   assert.equal(again.nodes[0].condition, 'compromised');
+});
+
+test('HEX_COLOR is the one colour rule shared with the assistant\'s edits', () => {
+  for (const c of ['#abc', '#abcd', '#aabbcc', '#aabbccdd']) assert.ok(HEX_COLOR.test(c), c);
+  for (const c of ['#abcde', '#abcdefa', 'red', '#ggg', '#aabbccddee']) assert.ok(!HEX_COLOR.test(c), c);
+  const { doc, warnings } = deserialize(JSON.stringify({ zones: [{ id: 'z1', x: 0, y: 0, w: 10, h: 10, color: '#12345' }] }));
+  assert.equal(doc.zones[0].color, '#4a90d9');
+  assert.equal(warnings.length, 1);
 });

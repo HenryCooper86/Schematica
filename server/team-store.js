@@ -2,7 +2,7 @@ import {mkdir, open, readFile, realpath, rename, stat, unlink, lstat} from 'node
 import {resolve, sep, join} from 'node:path';
 import {randomUUID} from 'node:crypto';
 
-export const MAX_STORE_BYTES = 64 * 1024 * 1024;
+const MAX_STORE_BYTES = 64 * 1024 * 1024;
 const MAX_PENDING_MUTATIONS = 32;
 
 export function teamError(status, message) {

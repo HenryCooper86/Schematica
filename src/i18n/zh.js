@@ -1584,7 +1584,7 @@ export default {
   'unknown provider "{provider}"': '未知服务商“{provider}”',
   'The connection test did not complete ({stop}); try again.': '连接测试未完成（{stop}）；请重试。',
   // ---- provider help (PROVIDERS[x].help) ----
-  'Keys come from console.anthropic.com. Claude Opus 5 is the default; Sonnet 5 is cheaper, Haiku 4.5 runs without adaptive thinking.': '密钥来自 console.anthropic.com。默认使用 Claude Opus 5；Sonnet 5 更便宜，Haiku 4.5 不使用自适应思考。',
+  'Keys come from console.anthropic.com. The Base URL is https://api.anthropic.com (a trailing /v1 is accepted). Claude Opus 5 is the default; Sonnet 5 is cheaper, Haiku 4.5 runs without adaptive thinking.': '密钥来自 console.anthropic.com。Base URL 为 https://api.anthropic.com（末尾带 /v1 也可）。默认使用 Claude Opus 5；Sonnet 5 更便宜，Haiku 4.5 不使用自适应思考。',
   'One key for hundreds of models; "List models" fetches the catalogue. Keys come from openrouter.ai/keys.': '一个密钥可用数百个模型；“列出模型”会获取目录。密钥来自 openrouter.ai/keys。',
   'Z.AI\'s GLM models over their OpenAI-compatible endpoint. Keys come from z.ai.': '通过 Z.AI 的 OpenAI 兼容端点使用 GLM 模型。密钥来自 z.ai。',
   'Moonshot\'s Kimi models over their OpenAI-compatible endpoint, through the relay because api.moonshot.ai does not answer browser requests. Keys come from platform.kimi.ai.': '通过 Moonshot 的 OpenAI 兼容端点使用 Kimi 模型，并经中继转发，因为 api.moonshot.ai 不响应浏览器请求。密钥来自 platform.kimi.ai。',
@@ -2110,4 +2110,5 @@ export default {
   'Your own CVE database': '你自己的 CVE 数据库',
   'Open Record source in the dialog and enter a URL template containing {id}, for example https://cve.internal.example/api/{id}. It replaces CVE.org and NVD and is remembered on this device. The endpoint must allow requests from this site and return a CVE JSON 5 record, an NVD 2.0 response, or a plain summary with id, title, description, cvss, cwe, affected, references and solution.': '在对话框中打开“记录源”，输入包含 {id} 的网址模板，例如 https://cve.internal.example/api/{id}。它会取代 CVE.org 和 NVD，并记住在此设备上。该接口必须允许来自本站点的请求，并返回 CVE JSON 5 记录、NVD 2.0 响应，或包含 id、title、description、cvss、cwe、affected、references 和 solution 的简要摘要。',
   // ---- security scene bands ----
+  '{source} did not return JSON.': '{source}未返回 JSON。',
 };

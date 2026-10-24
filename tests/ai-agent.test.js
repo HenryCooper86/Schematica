@@ -352,3 +352,22 @@ test('a failed later stream keeps both completed rounds and its partial answer',
   store.undo();
   assert.equal(store.doc.nodes.length, 0);
 });
+
+test('Stop during cve_explainer leaves the board alone and ends as aborted', async () => {
+  const record = { id: 'CVE-2026-74669', title: 'Example kernel flaw', description: 'A flaw.', cwes: [{ id: 'CWE-787', name: '' }], cvss: { score: 9.8, severity: 'critical', vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H', attackVector: 'network', privileges: 'none', userInteraction: 'none', scope: 'unchanged', confidentiality: 'high', integrity: 'high', availability: 'high' }, affected: [{ vendor: 'Linux', product: 'Linux kernel', versions: '6.1' }], references: [], solution: '', workaround: '', published: '', kev: false, source: 'your CVE database' };
+  const store = new Store(newDoc('T'));
+  let commits = 0;
+  const executor = createExecutor({ getDoc: () => store.doc, commit: (fn) => { commits += 1; store.mutate(fn); }, fetchCve: () => new Promise((r) => setTimeout(() => r(record), 30)) });
+  const provider = scripted([
+    { text: '', toolCalls: [{ id: 'c1', name: 'cve_explainer', input: { cve: 'CVE-2026-74669' } }], stop: 'tool_use' },
+    { text: 'done', stop: 'end' },
+  ]);
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), 5);
+  const res = await runRequest({ provider, executor, store, system: SYSTEM, history: [], userText: 'x', boardText: 'b', signal: controller.signal });
+  assert.equal(res.stop, 'aborted');
+  assert.equal(res.error, undefined);
+  assert.equal(commits, 0, 'the board was not replaced after Stop');
+  assert.equal(store.doc.title, 'T');
+  assert.equal(store.doc.nodes.length, 0);
+});

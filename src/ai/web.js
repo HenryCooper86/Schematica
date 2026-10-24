@@ -3,7 +3,7 @@ import { BACKEND } from './runtime.js';
 export const WEB_TEXT_LIMIT = 24000;
 export const WEB_SOURCE_LIMIT = 4;
 const trimText = text => text.replace(/\r/g,'').replace(/[\t ]+/g,' ').replace(/ *\n */g,'\n').replace(/\n{3,}/g,'\n\n').trim();
-export function extractPage(html, url, documentImpl = globalThis.document) {
+function extractPage(html, url, documentImpl = globalThis.document) {
   // Template contents are inert: no scripts, frames, resource loads or event
   // handlers. Never insert these nodes into the live document.
   const template = documentImpl.createElement('template');

@@ -3,14 +3,14 @@ import { BlockList, isIP } from 'node:net';
 import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 
-export const WEB_MAX_BYTES = 2 * 1024 * 1024;
+const WEB_MAX_BYTES = 2 * 1024 * 1024;
 export const WEB_TIMEOUT_MS = 15000;
 const denied = new BlockList();
 for (const [address, prefix] of [['0.0.0.0',8],['10.0.0.0',8],['100.64.0.0',10],['127.0.0.0',8],['169.254.0.0',16],['172.16.0.0',12],['192.0.0.0',24],['192.0.2.0',24],['192.88.99.0',24],['192.168.0.0',16],['198.18.0.0',15],['198.51.100.0',24],['203.0.113.0',24],['224.0.0.0',4],['240.0.0.0',4]]) denied.addSubnet(address,prefix,'ipv4');
 for (const [address, prefix] of [['2001::',23],['2001:db8::',32],['2002::',16],['3fff::',20]]) denied.addSubnet(address,prefix,'ipv6');
 const globalV6 = new BlockList();
 globalV6.addSubnet('2000::',3,'ipv6');
-export const webError = (status, message) => Object.assign(new Error(message), { status, code:'schematica_web' });
+const webError = (status, message) => Object.assign(new Error(message), { status, code:'schematica_web' });
 export function isPublicAddress(address) {
   const family = isIP(address);
   if (family === 4) return !denied.check(address,'ipv4');

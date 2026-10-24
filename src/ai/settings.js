@@ -36,7 +36,7 @@ export const PROVIDERS = {
   anthropic: {
     name: 'Anthropic (Claude)', adapter: 'anthropic', baseUrl: 'https://api.anthropic.com', model: 'claude-opus-5', needsKey: true,
     models: ['claude-opus-5', 'claude-sonnet-5', 'claude-haiku-4-5'],
-    help: 'Keys come from console.anthropic.com. Claude Opus 5 is the default; Sonnet 5 is cheaper, Haiku 4.5 runs without adaptive thinking.',
+    help: 'Keys come from console.anthropic.com. The Base URL is https://api.anthropic.com (a trailing /v1 is accepted). Claude Opus 5 is the default; Sonnet 5 is cheaper, Haiku 4.5 runs without adaptive thinking.',
   },
   openai: {
     name: 'OpenAI-compatible', adapter: 'openai', baseUrl: 'https://api.openai.com/v1', model: '', needsKey: true,

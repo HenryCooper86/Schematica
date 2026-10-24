@@ -278,3 +278,40 @@ test('cve_explainer draws a record via the injected fetch and reports its source
   assert.equal(failed.isError, true);
   assert.match(failed.text, /has no record/);
 });
+
+const kernelRecord = () => ({ id: 'CVE-2026-74669', title: 'Example kernel flaw', description: 'A flaw.', cwes: [{ id: 'CWE-787', name: '' }], cvss: { score: 9.8, severity: 'critical', vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H', attackVector: 'network', privileges: 'none', userInteraction: 'none', scope: 'unchanged', confidentiality: 'high', integrity: 'high', availability: 'high' }, affected: [{ vendor: 'Linux', product: 'Linux kernel', versions: '6.1 .. 6.1.183' }], references: [], solution: '', workaround: '', published: '', kev: true, source: 'your CVE database' });
+
+test('Stop cancels cve_explainer before the board is replaced', async () => {
+  const doc = { schema: 4, title: 'Untitled', nodes: [], wires: [], zones: [], notes: [], journey: [] };
+  const commits = [];
+  const signals = [];
+  // A fetch that ignores the signal and resolves after Stop: the check before commit still holds.
+  const ignoring = createExecutor({ getDoc: () => doc, commit: (fn) => { commits.push(1); fn(doc); }, fetchCve: (id, options) => { signals.push(options?.signal); return new Promise((r) => setTimeout(() => r(kernelRecord()), 30)); } });
+  const c1 = new AbortController();
+  setTimeout(() => c1.abort(), 5);
+  await assert.rejects(ignoring.run('cve_explainer', { cve: 'CVE-2026-74669' }, { signal: c1.signal }), (e) => e.name === 'AbortError');
+  assert.equal(signals[0], c1.signal, 'the signal reaches the fetch');
+  assert.equal(commits.length, 0, 'nothing is committed after Stop');
+  assert.equal(doc.title, 'Untitled');
+  assert.equal(doc.nodes.length, 0);
+  // A fetch that honours the signal rejects with its reason; that is Stop, not a record error.
+  const honouring = createExecutor({ getDoc: () => doc, commit: (fn) => { commits.push(1); fn(doc); }, fetchCve: (id, { signal }) => new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason))) });
+  const c2 = new AbortController();
+  setTimeout(() => c2.abort(), 5);
+  await assert.rejects(honouring.run('cve_explainer', { cve: 'CVE-2026-74669' }, { signal: c2.signal }), (e) => e.name === 'AbortError');
+  assert.equal(commits.length, 0);
+});
+
+test('a rejected apply_edits batch never reaches commit', () => {
+  const doc = newDoc('T');
+  let commits = 0;
+  const ex = createExecutor({ getDoc: () => doc, commit: (fn) => { commits += 1; fn(doc); } });
+  const bad = ex.run('apply_edits', { ops: [{ op: 'add_part', ref: 'a', kind: 'nope' }] });
+  assert.equal(bad.isError, true);
+  assert.equal(commits, 0, 'a batch that changed nothing does not notify subscribers');
+  assert.equal(doc.nodes.length, 0);
+  const good = ex.run('apply_edits', { ops: [{ op: 'add_part', ref: 'a', kind: 'mcu' }] });
+  assert.equal(good.isError, false);
+  assert.equal(commits, 1);
+  assert.equal(doc.nodes.length, 1);
+});

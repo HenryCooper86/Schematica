@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyEdits, MAX_OPS, OP_TYPES, EDIT_SCHEMA, pickPort, pickPorts } from '../src/ai/ops.js';
 import { newDoc } from '../src/state.js';
-import { MAX_TEXT } from '../src/serialize.js';
+import { MAX_TEXT, serialize, deserialize } from '../src/serialize.js';
 
 function node(id, kind, x = 0, y = 0, extra = {}) {
   return {
@@ -687,4 +687,34 @@ test('the schema documents custom and template', () => {
   assert.equal(props.custom.type, 'object');
   assert.equal(props.template.type, 'string');
   assert.match(props.kind.description, /custom/);
+});
+
+test('zone colours accept only the hex lengths a saved file keeps', () => {
+  const doc = newDoc('T');
+  doc.nodes.push(node('m', 'mcu'));
+  for (const color of ['#12345', '#1234567', '#123456789']) {
+    const res = applyEdits(doc, [{ op: 'add_zone', ref: 'q', label: 'Q', members: ['m'], color }]);
+    assert.equal(res.ok, false, color);
+    assert.match(res.errors[0].message, /colour must be/);
+  }
+  for (const color of ['#abc', '#abcd', '#aabbcc', '#aabbccdd']) {
+    const res = applyEdits(doc, [{ op: 'add_zone', ref: 'q', label: 'Q', members: ['m'], color }]);
+    assert.equal(res.ok, true, color);
+    Object.assign(doc.zones.at(-1), { w: 100, h: 100 }); // a new zone is sized by layout later; a reload drops an empty one
+    assert.equal(deserialize(serialize(doc)).doc.zones.at(-1).color, color, 'the colour survives a save and reload');
+  }
+});
+
+test('replace_part applies the label, notes and fields given with it', () => {
+  const doc = newDoc('T');
+  doc.nodes.push(node('m', 'mcu', 0, 0, { label: 'Old', notes: 'old' }));
+  const res = applyEdits(doc, [{ op: 'replace_part', id: 'm', kind: 'malware', label: 'Worm', notes: 'hello', fields: { severity: 'high' } }]);
+  assert.equal(res.ok, true, JSON.stringify(res));
+  const m = doc.nodes[0];
+  assert.deepEqual([m.kind, m.label, m.notes, m.fields], ['malware', 'Worm', 'hello', { severity: 'high' }]);
+  assert.match(res.changes[0], /^replaced m with malware \(kept 0, rewired 0, dropped 0\); set label, notes, fields$/);
+  const bad = applyEdits(doc, [{ op: 'replace_part', id: 'm', kind: 'sbc', fields: { severity: 'high' } }]);
+  assert.equal(bad.ok, false);
+  assert.match(bad.errors[0].message, /no schema fields|unknown field/);
+  assert.equal(doc.nodes[0].kind, 'malware', 'a rejected patch leaves the part as it was');
 });

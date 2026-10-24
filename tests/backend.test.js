@@ -324,6 +324,9 @@ test('the CVE proxy forwards one id to the configured source with its headers, h
 
   const bad = await fetch(`${origin}/api/cve/not-an-id`);
   assert.equal(bad.status, 400);
+  const malformed = await fetch(`${origin}/api/cve/%E0`);
+  assert.equal(malformed.status, 400, 'a malformed percent-escape is a bad request, not a crash');
+  assert.match((await malformed.json()).error.message, /Ask for one CVE id/);
   const withQuery = await fetch(`${origin}/api/cve/CVE-2026-74669?x=1`);
   assert.equal(withQuery.status, 400, 'a query string is refused');
   const post = await fetch(`${origin}/api/cve/CVE-2026-74669`, { method: 'POST' });

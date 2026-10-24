@@ -9,7 +9,7 @@ import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-export const DEFAULT_BASE_URLS = [
+const DEFAULT_BASE_URLS = [
   'https://ollama.com/v1', 'https://api.moonshot.ai/v1',
   'https://api.openai.com/v1', 'https://openrouter.ai/api/v1',
   'https://api.z.ai/api/paas/v4', 'https://api.anthropic.com/v1',
@@ -169,7 +169,9 @@ export function createAppServer({
           throw error(403, 'Use the CVE lookup from this website. Cross-origin API access is not enabled.', POLICY_CODE);
         }
         if (!cveSource) throw error(404, 'No CVE record source is configured on this server.');
-        const id = decodeURIComponent(url.pathname.slice('/api/cve/'.length)).toUpperCase();
+        // A malformed percent-escape is the caller's mistake, not a server fault.
+        let id;
+        try { id = decodeURIComponent(url.pathname.slice('/api/cve/'.length)).toUpperCase(); } catch { id = ''; }
         if (!CVE_ID.test(id) || url.search) throw error(400, 'Ask for one CVE id, such as /api/cve/CVE-2021-44228.');
         if (active >= maxConcurrent) { res.setHeader('retry-after', '5'); throw error(429, 'The server is busy. Try again shortly.'); }
         active++;

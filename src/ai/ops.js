@@ -9,7 +9,7 @@ import { PARTS, DISPOSITIONS, CONDITIONS } from '../palette.js';
 import { normalizePart, partOf, mergePortIds, mergeFieldIds } from '../custom.js';
 import { BUSES } from '../buses.js';
 import { uid, NODE_STATUSES, NODE_FLAGS } from '../state.js';
-import { MAX_TEXT, MAX_COORD } from '../serialize.js';
+import { MAX_TEXT, MAX_COORD, HEX_COLOR } from '../serialize.js';
 
 export const MAX_OPS = 200;
 export const OP_TYPES = [
@@ -21,7 +21,6 @@ export const OP_TYPES = [
 export const SHARED_BUSES = new Set(['power', 'gnd', 'i2c', 'can', 'canfd', 'rs485']);
 export const UNTYPED_BUSES = new Set(['flow', 'link']);
 const WIRE_STYLES = ['solid', 'dashed', 'dotted', 'sneakernet'];
-const HEX_COLOR = /^#[0-9a-fA-F]{3,8}$/;
 const DEFAULT_ZONE_COLOR = '#4a90d9';
 
 class OpError extends Error {}
@@ -596,8 +595,14 @@ HANDLERS.replace_part = (ctx, op) => {
   delete node.interfacePorts;
   delete node.part;
   const counts = rewireNode(ctx, node, oldPart, part);
+  // The schema offers label, notes, fields and the rest on every op; a model
+  // that sets them with the new kind expects them applied, validated against
+  // the new kind's fields.
+  const patch = nodePatch(ctx, part, op, node);
+  assignPatch(node, patch);
+  const set = Object.keys(patch);
   ctx.touched.add(node.id);
-  ctx.changes.push(`replaced ${node.id} with ${part.kind} (kept ${counts.kept}, rewired ${counts.rewired}, dropped ${counts.dropped})`);
+  ctx.changes.push(`replaced ${node.id} with ${part.kind} (kept ${counts.kept}, rewired ${counts.rewired}, dropped ${counts.dropped})${set.length ? `; set ${set.join(', ')}` : ''}`);
 };
 
 HANDLERS.remove = (ctx, op) => {

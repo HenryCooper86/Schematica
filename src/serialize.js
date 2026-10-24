@@ -35,6 +35,8 @@ const MIGRATIONS = {
 // from stalling the renderer or the panels.
 export const MAX_TEXT = 20000;
 export const MAX_COORD = 1e6;
+// The one colour rule: the assistant's edits accept exactly what a reload keeps.
+export const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 
 export async function deserializeFile(file) {
   if (file.size > 16 * 1024 * 1024) throw new Error(tr('Board file exceeds 16 MiB.'));
@@ -102,7 +104,6 @@ export function deserialize(text, { depth = 0 } = {}) {
   const doc = newDoc(typeof raw.title === 'string' && raw.title.trim() ? str(raw.title) : tr('Untitled Board'));
   const seen = new Set();
   const validId = (v) => typeof v === 'string' && v.length > 0;
-  const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
   const coerced = new Set(); // nodes whose unknown kind became a custom box
 
   for (const n of raw.nodes ?? []) {

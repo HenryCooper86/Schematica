@@ -8,7 +8,7 @@ import { deserialize } from './serialize.js';
 import { uid } from './state.js';
 
 export const REGISTRY_KEY = 'schematica.projects';
-export const LEGACY_PROJECT = 'main';
+const LEGACY_PROJECT = 'main';
 export const LEGACY_SLOT = 'schematica.autosave';
 export const slotFor = id => (id === LEGACY_PROJECT ? LEGACY_SLOT : `${LEGACY_SLOT}.${id}`);
 const MAX_PROJECTS = 50;

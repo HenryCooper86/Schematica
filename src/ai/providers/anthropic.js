@@ -163,7 +163,9 @@ const sleep = (ms, signal) => new Promise((resolve, reject) => {
 });
 
 export function anthropicProvider({ baseUrl, apiKey, model, effort, fetchImpl = globalThis.fetch }) {
-  const url = `${String(baseUrl).replace(/\/+$/, '')}/v1/messages`;
+  // The backend's allowlist documents the base as https://api.anthropic.com/v1,
+  // so a trailing /v1 is part of the base, not a second path segment.
+  const url = `${String(baseUrl).replace(/\/+$/, '').replace(/\/v1$/, '')}/v1/messages`;
   async function post(body, signal) {
     try {
       return await providerFetch(url, {

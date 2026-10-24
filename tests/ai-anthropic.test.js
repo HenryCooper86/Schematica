@@ -251,3 +251,12 @@ test('Stop during rate-limit backoff does not send another request', async () =>
   await assert.rejects(() => p.chat({ system: SYSTEM, messages: [], tools: [], signal: controller.signal }), (e) => e.name === 'AbortError');
   assert.equal(calls, 1);
 });
+
+test('a Base URL given with the documented /v1 suffix still posts to one /v1/messages', async () => {
+  for (const baseUrl of ['https://api.anthropic.com/v1', 'https://api.anthropic.com/v1/', 'https://api.anthropic.com']) {
+    const seen = [];
+    const p = anthropicProvider({ baseUrl, apiKey: 'sk', model: 'm', effort: 'low', fetchImpl: async (url) => { seen.push(url); return sse([['message_start', { message: { usage: {} } }], ['message_delta', { delta: { stop_reason: 'end_turn' }, usage: {} }], ['message_stop', {}]]); } });
+    await p.chat({ system: SYSTEM, messages: [{ role: 'user', content: [{ type: 'text', text: 'x' }] }], tools: [] });
+    assert.equal(seen[0], 'https://api.anthropic.com/v1/messages', baseUrl);
+  }
+});

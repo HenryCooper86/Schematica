@@ -145,21 +145,20 @@ export function createExecutor({ getDoc, commit, selection = () => [], library =
       // Some models stringify the array; accept a JSON string that parses to one.
       if (typeof ops === 'string') { try { ops = JSON.parse(ops); } catch { ops = null; } }
       if (!Array.isArray(ops)) return err('apply_edits needs an ops array');
-      input = { ...input, ops };
-      let res;
-      commit((doc) => {
-        const chaptersBefore = new Set((doc.journey || []).map(s => s.id));
-        res = applyEdits(doc, input.ops, { library });
-        if (res.ok) {
-          placeNew(doc, res.layout);
-          for (const chapter of doc.journey || []) {
-            if (!chaptersBefore.has(chapter.id)) chapter.view = resolveStep(doc, chapter).view;
-          }
-        }
-      });
+      // applyEdits works on a copy and writes to the document only when every
+      // op passes, so a rejected batch leaves it untouched and must not reach
+      // commit: subscribers would re-render and autosave for nothing.
+      const chaptersBefore = new Set((getDoc().journey || []).map(s => s.id));
+      const res = applyEdits(getDoc(), ops, { library });
       if (!res.ok) {
         return err(`Batch rejected, nothing applied:\n${res.errors.map((e) => `#${e.index}: ${e.message}`).join('\n')}`);
       }
+      commit((doc) => {
+        placeNew(doc, res.layout);
+        for (const chapter of doc.journey || []) {
+          if (!chaptersBefore.has(chapter.id)) chapter.view = resolveStep(doc, chapter).view;
+        }
+      });
       for (const id of res.touched) touched.add(id);
       const refs = Object.entries(res.refs).map(([r, id]) => `${r}=${id}`).join(' ');
       let text = `Applied ${res.changes.length} change(s).`;
@@ -186,15 +185,21 @@ export function createExecutor({ getDoc, commit, selection = () => [], library =
       const phases = result.phases.map((p) => `${p.name} (${p.count} action(s))`).join('; ');
       return ok(`Rebuilt "${result.doc.title}": ${result.doc.nodes.length} parts, ${result.doc.wires.length} wires, ${result.doc.zones.length} zones, ${steps} steps.\nPhases, one presentation chapter each: ${phases}\nThe board carries a note that it was reconstructed from a log. Kinds default to process cards unless the log names them; you may refine kinds, labels and notes with apply_edits.`);
     },
-    async cve_explainer(input) {
+    async cve_explainer(input, options) {
       const id = String(input.cve || '').trim();
       if (!id) return err('Pass a CVE id in cve, such as CVE-2021-44228.');
       const doc = getDoc();
       const hasWork = doc.nodes.length || doc.zones.length || doc.notes.length || (doc.journey || []).length;
       if (hasWork && input.replace !== true) return err('The board is not empty and the explainer replaces it. Ask the user to confirm, then call again with replace: true.');
+      const signal = options?.signal;
       let record, built;
-      try { record = await fetchCve(id); } catch (error) { return err(error.message); }
+      // Stop is the user's, not a record error: it propagates as an abort so
+      // the request ends as stopped rather than reporting a failed lookup.
+      try { record = await fetchCve(id, { signal }); } catch (error) { signal?.throwIfAborted(); return err(error.message); }
       try { built = buildCveExplainer(record); } catch (error) { return err(error.message); }
+      // The fetch may resolve after Stop; the board is replaced only if the
+      // request still stands.
+      signal?.throwIfAborted();
       commit((d) => { for (const key of ['title', 'nodes', 'wires', 'zones', 'notes', 'journey', 'incident']) { if (built.doc[key] === undefined) delete d[key]; else d[key] = built.doc[key]; } });
       for (const n of getDoc().nodes) touched.add(n.id);
       const assume = built.assumptions.length ? `\nAssumptions written in the note: ${built.assumptions.length}.` : '';
