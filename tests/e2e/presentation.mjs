@@ -28,8 +28,14 @@ export async function runPresentationChecks({ js, key, check, sleep }) {
   await js(`document.getElementById('undo').click(); document.getElementById('journey-present').click(); document.querySelector('#present-stops button').click(); true`);
   check('clicking a stop focuses its part and caption', await js(`document.querySelector('#canvas .node[data-id="n5"]').classList.contains('story-match') && document.getElementById('present-caption').textContent === 'Read sensors'`));
   await js(`document.getElementById('present-speed').value='2000'; document.getElementById('present-play').click(); true`);
-  await sleep(2150);
-  check('timed playback advances to the next stop', await js(`document.querySelector('#present-stops button:last-child').getAttribute('aria-current') === 'true' && document.getElementById('present-caption').textContent === 'Sample temperature'`));
+  // The 2 s interval fires from a timer; a loaded CI runner can deliver it
+  // late, so poll for the advance instead of sleeping a fixed margin.
+  let advanced = false;
+  for (let i = 0; i < 40 && !advanced; i++) {
+    await sleep(150);
+    advanced = await js(`document.querySelector('#present-stops button:last-child').getAttribute('aria-current') === 'true' && document.getElementById('present-caption').textContent === 'Sample temperature'`);
+  }
+  check('timed playback advances to the next stop', advanced);
   check('stop transition reveals exact wire, ports and unspecified direction', await js(`document.querySelector('#canvas .wire[data-id="w6"]').classList.contains('story-match') && document.querySelectorAll('#canvas .wire.story-match').length === 1 && document.querySelectorAll('#canvas .portg.story-port').length === 2 && document.getElementById('present-relationship').textContent.includes('Direction unspecified') && document.querySelector('#canvas .node[data-id="n6"]').classList.contains('story-current')`));
   await js(`(() => { const input = document.querySelectorAll('[data-stop-caption]')[1]; input.value='Updated while presenting'; input.dispatchEvent(new Event('change')); return true; })()`);
   check('editing the active stop pauses playback and preserves its identity', await js(`document.getElementById('present-play').getAttribute('aria-pressed') === 'false' && document.getElementById('present-caption').textContent === 'Updated while presenting' && document.querySelector('#present-stops button:last-child').getAttribute('aria-current') === 'true'`));
