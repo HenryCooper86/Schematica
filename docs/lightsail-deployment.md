@@ -60,7 +60,11 @@ deployments. Releases/images are retained for recovery; prune older inactive one
 only after identifying the current and last healthy releases.
 
 The deployment's `.env` sets `SCHEMATICA_DOMAIN=bionicloud.net` and
-`CADDY_CONFIG=./deploy/Caddyfile`. DNS points to the Lightsail static IP above.
+`CADDY_CONFIG=./deploy/Caddyfile`. To let the CVE explainer use a private CVE
+database, add `CVE_SOURCE_URL` (a `{id}` template) and, if needed,
+`CVE_SOURCE_HEADERS` (a JSON object of request headers) to the same `.env`, then
+recreate the app container with `docker compose --env-file .env up -d app` from
+the current release directory. The token stays on the server and out of Git. DNS points to the Lightsail static IP above.
 Caddy manages the domain's trusted HTTPS certificate and automatic renewal.
 Keep inbound TCP 80 and 443 enabled and the static IP attached to this instance.
 The previous IP-based configuration is saved on the server in

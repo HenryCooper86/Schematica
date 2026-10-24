@@ -86,6 +86,22 @@ and keep its upstream Host header equal to the website hostname. Set:
 | `PORT` | `3000` | Node listen port. |
 | `PUBLIC_ORIGIN` | Local mode | Exact website origin, such as `https://schematica.example.com`. Required for public hosting. |
 | `AI_BASE_URLS` | Empty | Comma-separated additional trusted provider base URLs. |
+| `CVE_SOURCE_URL` | Empty | A private CVE database as a URL template containing `{id}`, such as `http://cve.internal.example:8080/api/v1/cves/{id}`. When set, the site's **Import → CVE explainer** asks this server at `/api/cve/{id}` first and falls back to CVE.org and NVD for ids the database does not hold. The browser never sees the upstream address. |
+| `CVE_SOURCE_HEADERS` | Empty | A JSON object of request headers the database needs, such as `{"x-cve-api-token":"…","x-cve-actor":"schematica"}`. The token stays on the server. |
+
+A server-configured CVE database powers **Import → CVE explainer** without the
+assistant. Set `CVE_SOURCE_URL` to a template such as
+`http://cve.internal.example:8080/api/v1/cves/{id}` and, when the database needs
+them, `CVE_SOURCE_HEADERS` to a JSON object of request headers, for example
+`{"x-cve-api-token":"…","x-cve-actor":"schematica"}`. The browser then asks the
+site at `/api/cve/{id}`; the server fetches the record, rejecting redirects, and
+returns only its JSON. The upstream address and token stay on the server. Ids the
+database does not hold return 404 and the browser falls back to CVE.org and NVD.
+The server reads a CVE JSON 5 record, an NVD 2.0 response, a plain summary, or a
+research database's full record (the CVE under `cve.effective`, the CVSS under the
+assessment payload, versions under `affected_versions.ranges`). To apply a change
+to these variables, update the deployment's `.env` and recreate the app
+container; no code deploy is needed.
 
 The built-in allowlist contains Ollama, Moonshot, OpenAI, OpenRouter, Z.AI,
 Anthropic, DeepSeek, BigModel, Kimi Code, MiniMax, Qwen, Gemini, Groq and Mistral,

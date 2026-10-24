@@ -385,6 +385,15 @@ CVE JSON 5 record, an NVD 2.0 response, or a plain summary with `id`, `title`,
 `affected` (`{vendor, product, versions}`), `references` and `solution`. The
 template is remembered on this device.
 
+A CVE database can also be configured once on the server, which is the right
+place for one that needs an API token or sits on an internal network. When the
+operator sets it (see [server setup](backend.md)), the CVE explainer queries it
+automatically, records it does not hold fall back to CVE.org, and the database's
+address and token never reach the browser. The record it returns may be a CVE
+JSON 5 record, an NVD 2.0 response, a plain summary, or a research database's
+full record with the CVE under `cve.effective`, the score under the assessment
+payload and the affected versions under `affected_versions.ranges`.
+
 ### Replay an incident
 
 A board rebuilt from a log shows **Replay incident** at the top left of the

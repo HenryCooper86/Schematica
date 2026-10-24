@@ -7,6 +7,7 @@ import { parseIncidentLog, reconstructIncident } from '../incident-replay.js';
 import { fetchCveRecord, buildCveExplainer, readWriteup, cveId, CVE_SOURCE_KEY, CVE_SOURCES } from '../cve-explainer.js';
 import { toast, openModal, escAttr } from './press.js';
 import { tr } from '../i18n.js';
+import { CVE_PROXY } from '../ai/runtime.js';
 
 const BOARD_KEYS = ['title', 'nodes', 'wires', 'zones', 'notes', 'journey', 'incident'];
 const MAX_FILE = 2 * 1024 * 1024;
@@ -24,6 +25,8 @@ export function initImportMenu({ store, storage = null }) {
   const write = (k, v) => { try { if (v) storage?.setItem(k, v); else storage?.removeItem(k); } catch { /* blocked storage: the session still works */ } };
   sourceField.value = read(CVE_SOURCE_KEY);
   sourceField.placeholder = CVE_SOURCES.cve;
+  const serverHint = dialog.querySelector('#import-source-server');
+  if (serverHint && CVE_PROXY) serverHint.hidden = false;
   let dismiss = null, busy = false, request = 0;
 
   function close() {

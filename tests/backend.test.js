@@ -5,7 +5,7 @@ import { request as httpRequest } from 'node:http';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createAppServer, POLICY_CODE } from '../server/index.js';
+import { createAppServer, POLICY_CODE, parseCveSource } from '../server/index.js';
 import { providerFetch } from '../src/ai/providers/transport.js';
 import { mapHttpError, POLICY_CODE as CLIENT_POLICY_CODE } from '../src/ai/providers/errors.js';
 import { backendBaseUrl, RELAY } from '../src/ai/settings.js';
@@ -284,4 +284,70 @@ test('new provider presets and regional endpoints pass the proxy while lookalike
   for (const url of ['https://api.kimi.com.evil.test/coding/v1/chat/completions', 'https://api.kimi.com/coding/v1/../../admin', 'https://api.deepseek.com/balance', 'http://api.deepseek.com/chat/completions']) {
     assert.equal((await request(url, POST)).status, 403, url);
   }
+});
+
+
+test('parseCveSource validates the template and headers', () => {
+  assert.equal(parseCveSource('', ''), null);
+  assert.deepEqual(parseCveSource('https://db.example/cve/{id}', ''), { url: 'https://db.example/cve/{id}', headers: {} });
+  assert.deepEqual(parseCveSource('http://db.example/cve/{id}', '{"x-token":"abc","x-actor":"schematica"}'), { url: 'http://db.example/cve/{id}', headers: { 'x-token': 'abc', 'x-actor': 'schematica' } });
+  assert.throws(() => parseCveSource('https://db.example/cve/noplaceholder', ''), /must be an http\(s\) URL template containing \{id\}/);
+  assert.throws(() => parseCveSource('ftp://db.example/{id}', ''), /http\(s\) URL template/);
+  assert.throws(() => parseCveSource('https://db.example/{id}', 'not json'), /JSON object of header names/);
+  assert.throws(() => parseCveSource('https://db.example/{id}', '{"x-token":5}'), /JSON object of header names/);
+});
+
+test('the CVE proxy forwards one id to the configured source with its headers, hiding the upstream', async (t) => {
+  const seen = [];
+  const fetchImpl = async (url, init) => {
+    seen.push({ url, headers: init.headers, redirect: init.redirect });
+    if (url.endsWith('CVE-2026-74669')) return new Response(JSON.stringify({ cve: { cve_id: 'CVE-2026-74669' } }), { status: 200, headers: { 'content-type': 'application/json' } });
+    return new Response('{"error":"not found"}', { status: 404 });
+  };
+  const server = createAppServer({ cveSource: parseCveSource('http://cve.internal.example:8080/api/v1/cves/{id}', '{"x-cve-api-token":"secret","x-cve-actor":"supervisor"}'), fetchImpl });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  t.after(() => new Promise((r) => { server.close(r); server.closeAllConnections(); }));
+  const origin = `http://127.0.0.1:${server.address().port}`;
+
+  const ok = await fetch(`${origin}/api/cve/cve-2026-74669`);
+  assert.equal(ok.status, 200);
+  assert.equal((await ok.json()).cve.cve_id, 'CVE-2026-74669');
+  assert.equal(seen[0].url, 'http://cve.internal.example:8080/api/v1/cves/CVE-2026-74669', 'the id is upper-cased and placed in the template');
+  assert.equal(seen[0].headers['x-cve-api-token'], 'secret');
+  assert.equal(seen[0].headers['x-cve-actor'], 'supervisor');
+  assert.equal(seen[0].redirect, 'error', 'redirects are not followed');
+
+  const missing = await fetch(`${origin}/api/cve/CVE-2000-0001`);
+  assert.equal(missing.status, 404);
+  assert.match((await missing.json()).error.message, /has no record for CVE-2000-0001/);
+
+  const bad = await fetch(`${origin}/api/cve/not-an-id`);
+  assert.equal(bad.status, 400);
+  const withQuery = await fetch(`${origin}/api/cve/CVE-2026-74669?x=1`);
+  assert.equal(withQuery.status, 400, 'a query string is refused');
+  const post = await fetch(`${origin}/api/cve/CVE-2026-74669`, { method: 'POST' });
+  assert.equal(post.status, 405);
+
+  const runtime = await (await fetch(`${origin}/src/ai/runtime.js`)).text();
+  assert.match(runtime, /export const CVE_PROXY = true;/);
+});
+
+test('the CVE proxy is absent until a source is configured, and refuses cross-origin use', async (t) => {
+  const none = createAppServer({ publicOrigin: 'https://schematica.example.com', fetchImpl: async () => Response.json({}) });
+  none.listen(0, '127.0.0.1');
+  await once(none, 'listening');
+  t.after(() => new Promise((r) => { none.close(r); none.closeAllConnections(); }));
+  const host = 'schematica.example.com';
+  const call = (headers) => new Promise((resolve, reject) => {
+    const req = httpRequest({ host: '127.0.0.1', port: none.address().port, path: '/api/cve/CVE-2021-44228', method: 'GET', headers: { host, ...headers } }, (res) => { res.resume(); res.on('end', () => resolve(res.statusCode)); });
+    req.on('error', reject); req.end();
+  });
+  assert.equal(await call({}), 404, 'no source configured');
+  assert.equal(await call({ origin: 'https://evil.example' }), 403, 'cross-origin blocked even with no source');
+  const runtime = await new Promise((resolve, reject) => {
+    const req = httpRequest({ host: '127.0.0.1', port: none.address().port, path: '/src/ai/runtime.js', method: 'GET', headers: { host } }, (res) => { let b = ''; res.on('data', (d) => (b += d)); res.on('end', () => resolve(b)); });
+    req.on('error', reject); req.end();
+  });
+  assert.match(runtime, /export const CVE_PROXY = false;/);
 });

@@ -6,6 +6,8 @@ services:
     environment:
       PUBLIC_ORIGIN: https://${SCHEMATICA_DOMAIN:?Set SCHEMATICA_DOMAIN in .env}
       AI_BASE_URLS: ${AI_BASE_URLS:-}
+      CVE_SOURCE_URL: ${CVE_SOURCE_URL:-}
+      CVE_SOURCE_HEADERS: ${CVE_SOURCE_HEADERS:-}
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]

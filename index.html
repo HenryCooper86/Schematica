@@ -329,6 +329,7 @@
         <summary>Record source</summary>
         <label>URL template with {id} <input id="import-source" autocomplete="off" spellcheck="false"></label>
         <small>Empty uses CVE.org, with NVD for a missing score. A private database works when its URL returns a CVE JSON 5 record, an NVD 2.0 response, or a plain summary with id, title, description, cvss, cwe, affected and references.</small>
+        <p id="import-source-server" hidden>This site already queries a CVE database configured on the server. Leave this blank to use it; records it does not hold fall back to CVE.org.</p>
       </details>
       <div id="import-status" role="status" aria-live="polite"></div>
       <div class="rec-buttons">

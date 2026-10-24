@@ -2052,6 +2052,8 @@ export default {
   'e.g. 12 Harbour Rd': '例如 海港路 12 号',
   // ---- incident replay ----
   // ---- import menu: incident log, CVE explainer, write-up ----
+  'your CVE database': '你的 CVE 数据库',
+  'This site already queries a CVE database configured on the server. Leave this blank to use it; records it does not hold fall back to CVE.org.': '本站点已查询服务器上配置的 CVE 数据库。留空即可使用它；它没有的记录会回退到 CVE.org。',
   'Import an incident log, a CVE id or a write-up': '导入事件日志、CVE 编号或文章',
   'Incident log (JSON)…': '事件日志（JSON）…',
   'Rebuild an incident from timestamped actions and replay it': '根据带时间戳的操作重建事件并回放',

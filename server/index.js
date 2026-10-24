@@ -111,9 +111,28 @@ function readBody(req, limit, signal) {
   });
 }
 
+// An operator's private CVE database: a URL template containing {id} and the
+// headers it needs (a token). The browser asks this server for a record by id
+// and never sees the upstream address or credentials. CVE_SOURCE_HEADERS is a
+// JSON object of header names to values.
+export function parseCveSource(url = '', headers = '') {
+  if (!url) return null;
+  if (!/^https?:\/\//i.test(url) || !url.includes('{id}')) throw new Error('CVE_SOURCE_URL must be an http(s) URL template containing {id}.');
+  let parsed = {};
+  if (headers) {
+    try { parsed = JSON.parse(headers); } catch { throw new Error('CVE_SOURCE_HEADERS must be a JSON object of header names to values.'); }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || Object.values(parsed).some((v) => typeof v !== 'string')) throw new Error('CVE_SOURCE_HEADERS must be a JSON object of header names to values.');
+  }
+  return { url, headers: parsed };
+}
+const CVE_ID = /^CVE-\d{4}-\d{4,}$/i;
+const CVE_TIMEOUT_MS = 15_000;
+const CVE_BODY_LIMIT = 4 * 1024 * 1024;
+
 export function createAppServer({
   teamService = null, root = ROOT, fetchImpl = globalThis.fetch, baseUrls = DEFAULT_BASE_URLS, webFetch = fetchPublicSource,
   publicOrigin = '', maxBodyBytes = 8 * 1024 * 1024, timeoutMs = 120_000, idleTimeoutMs = 120_000, maxConcurrent = 16,
+  cveSource = null,
 } = {}) {
   const allowed = baseUrls.map(parseBase);
   const publicUrl = publicOrigin ? new URL(publicOrigin) : null;
@@ -140,6 +159,44 @@ export function createAppServer({
           res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
           res.end('{"enabled":false}');
         } else await teamService.handle(req, res, url, origin);
+        return;
+      }
+
+      if (url.pathname.startsWith('/api/cve/')) {
+        if (req.method !== 'GET') throw error(405, 'Only GET is supported.');
+        if ((req.headers.origin && req.headers.origin !== origin)
+          || (req.headers['sec-fetch-site'] && !['same-origin', 'none'].includes(req.headers['sec-fetch-site']))) {
+          throw error(403, 'Use the CVE lookup from this website. Cross-origin API access is not enabled.', POLICY_CODE);
+        }
+        if (!cveSource) throw error(404, 'No CVE record source is configured on this server.');
+        const id = decodeURIComponent(url.pathname.slice('/api/cve/'.length)).toUpperCase();
+        if (!CVE_ID.test(id) || url.search) throw error(400, 'Ask for one CVE id, such as /api/cve/CVE-2021-44228.');
+        if (active >= maxConcurrent) { res.setHeader('retry-after', '5'); throw error(429, 'The server is busy. Try again shortly.'); }
+        active++;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), CVE_TIMEOUT_MS);
+        const disconnected = () => controller.abort();
+        req.on('aborted', disconnected); res.on('close', disconnected);
+        try {
+          let upstream;
+          try {
+            upstream = await fetchImpl(cveSource.url.replace('{id}', encodeURIComponent(id)), { headers: { accept: 'application/json', ...cveSource.headers }, redirect: 'error', signal: controller.signal });
+          } catch (err) {
+            if (controller.signal.aborted) throw error(504, 'The CVE record source did not answer in time.');
+            throw error(502, 'The CVE record source could not be reached.');
+          }
+          if (upstream.status === 404) throw error(404, `The CVE record source has no record for ${id}.`);
+          if (!upstream.ok) throw error(502, `The CVE record source answered ${upstream.status}.`);
+          if (Number(upstream.headers.get('content-length')) > CVE_BODY_LIMIT) throw error(502, 'The CVE record is too large.');
+          const text = await upstream.text();
+          if (text.length > CVE_BODY_LIMIT) throw error(502, 'The CVE record is too large.');
+          try { JSON.parse(text); } catch { throw error(502, 'The CVE record source did not return JSON.'); }
+          if (res.destroyed) return;
+          res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+          res.end(text);
+        } finally {
+          clearTimeout(timer); req.off('aborted', disconnected); res.off('close', disconnected); active--;
+        }
         return;
       }
 
@@ -239,7 +296,7 @@ export function createAppServer({
       }
       if (url.pathname === '/src/ai/runtime.js') {
         res.writeHead(200, { 'content-type': MIME['.js'], 'cache-control': 'no-store' });
-        res.end(req.method === 'HEAD' ? undefined : 'export const BACKEND = true;\n');
+        res.end(req.method === 'HEAD' ? undefined : `export const BACKEND = true;\nexport const CVE_PROXY = ${cveSource ? 'true' : 'false'};\n`);
         return;
       }
       let pathname;
@@ -276,6 +333,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   const teamService = teamDirectory ? await createTeamService({ directory: teamDirectory, identitiesFile: teamIdentities, root: ROOT }) : null;
   const server = createAppServer({
     teamService,
+    cveSource: parseCveSource(process.env.CVE_SOURCE_URL || '', process.env.CVE_SOURCE_HEADERS || ''),
     publicOrigin: process.env.PUBLIC_ORIGIN || '',
     baseUrls: [...DEFAULT_BASE_URLS, ...(process.env.AI_BASE_URLS || '').split(',').map((s) => s.trim()).filter(Boolean)],
   });
