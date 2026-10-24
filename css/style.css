@@ -627,16 +627,6 @@ g.node:hover .ports,
   text-align: left;
 }
 #examples-menu button:hover { background: var(--bg3); }
-#import-dialog .import-card { width: min(520px, calc(100vw - 32px)); }
-#import-dialog label { display: block; margin: 10px 0 0; font-size: 12.5px; color: var(--muted); }
-#import-dialog input:not([type=file]), #import-dialog textarea { display: block; width: 100%; margin-top: 4px; box-sizing: border-box; font: inherit; font-size: 13px; color: var(--text); background: var(--bg0); border: 1px solid var(--line2); border-radius: 7px; padding: 7px 9px; }
-#import-dialog textarea { resize: vertical; min-height: 120px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
-#import-dialog .import-source { margin-top: 12px; font-size: 12px; color: var(--muted); }
-#import-dialog .import-source summary { cursor: pointer; }
-#import-dialog .import-source small { display: block; margin-top: 6px; line-height: 1.45; color: var(--faint); }
-#import-dialog #import-status { min-height: 1.2em; margin-top: 10px; font-size: 12.5px; color: var(--muted); white-space: pre-wrap; }
-#import-dialog #import-status.error { color: #f87171; }
-#import-dialog[data-mode=cve] [data-when=poc], #import-dialog[data-mode=poc] [data-when=cve] { display: none; }
 #examples-menu .menu-group {
   margin: 8px 10px 4px;
   font-size: 10px;
@@ -2147,3 +2137,40 @@ html[data-theme="light"] :is(.replay-stream .tag, .replay-stream .replay-conditi
   -webkit-appearance: none; appearance: none; padding-right: 20px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%2394a3b8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 5px center; background-size: 10px 10px;
 }
+
+/* ---- Build from a source dialog ---- */
+/* The same chrome as the part and compare dialogs (no browser frame, the
+   card carries the shadow) and the engineering dialog's fields and buttons. */
+#import-dialog { padding: 0; border: none; background: transparent; }
+#import-dialog::backdrop { background: transparent; }
+#import-dialog .import-card { width: min(520px, calc(100vw - 32px)); }
+#import-dialog .import-card label { display: flex; flex-direction: column; align-items: stretch; gap: 6px; margin: 12px 0 0; padding: 0; font-size: 12px; color: var(--muted); }
+#import-dialog .import-card label.import-file { flex-direction: row; align-items: center; gap: 10px; }
+#import-dialog input:not([type=file]), #import-dialog textarea {
+  width: 100%; min-width: 0; padding: 8px 10px; color: var(--text); background: var(--bg0);
+  border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 12.5px; line-height: 1.4;
+}
+#import-dialog textarea { resize: vertical; min-height: 120px; font-family: var(--mono); font-size: 12px; }
+#import-dialog input:focus, #import-dialog textarea:focus { outline: none; border-color: var(--accent); }
+#import-dialog input[type=file] { font-size: 11px; color: var(--muted); }
+#import-dialog input::file-selector-button {
+  background: var(--bg2); border: 1px solid var(--line); color: var(--muted); border-radius: 8px;
+  padding: 6px 11px; margin: 0 10px 0 0; font: inherit; font-size: 12px; cursor: pointer;
+}
+#import-dialog input::file-selector-button:hover { color: var(--text); border-color: var(--line2); background: var(--bg3); }
+#import-dialog .import-source { margin-top: 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg0); font-size: 12px; color: var(--muted); }
+#import-dialog .import-source summary { cursor: pointer; font-size: 10px; text-transform: uppercase; letter-spacing: 1.4px; color: var(--faint); }
+#import-dialog .import-source summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#import-dialog .import-source label { margin-top: 10px; }
+#import-dialog .import-source small, #import-dialog .import-source p { display: block; margin: 8px 0 0; font-size: 11px; line-height: 1.45; color: var(--faint); }
+#import-dialog #import-status { min-height: 1.2em; margin-top: 12px; font-size: 12.5px; color: var(--muted); white-space: pre-wrap; }
+#import-dialog #import-status.error { color: #f87171; }
+html[data-theme="light"] #import-dialog #import-status.error { color: #b91c1c; }
+#import-dialog .rec-buttons button {
+  background: var(--bg2); border: 1px solid var(--line); color: var(--text); border-radius: 8px;
+  padding: 8px 14px; font: inherit; font-size: 12.5px; cursor: pointer;
+}
+#import-dialog .rec-buttons button:hover:not(:disabled) { border-color: var(--accent); }
+#import-dialog .rec-buttons button[type=submit] { background: var(--accent-dim); border-color: var(--accent); }
+#import-dialog .rec-buttons button:disabled { opacity: .4; cursor: default; }
+#import-dialog[data-mode=cve] [data-when=poc], #import-dialog[data-mode=poc] [data-when=cve] { display: none; }

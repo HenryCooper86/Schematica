@@ -10,7 +10,7 @@ import {
   portPosition, wireGeomToPoint, noteLines, noteHeight,
   nodeRect, nodeSize, NOTE_W, NOTE_FONT_SIZE, NOTE_FONT_FAMILY, LANE_TITLE_H,
   LABEL_LINE_H, META_LINE_H, SHAPE_LINE_H, WIRE_LABEL_LINE_H,
-  FIGURE_LABEL_LINE_H, FIGURE_LABEL_FONT_SIZE, FIGURE_META_LINE_H, FIGURE_META_FONT_SIZE, FIGURE_LAYOUT, OUTCOME_TAIL,
+  FIGURE_LABEL_LINE_H, FIGURE_LABEL_FONT_SIZE, FIGURE_META_LINE_H, FIGURE_META_FONT_SIZE, FIGURE_LAYOUT,
   zoneLabelLayout, ZONE_LABEL_H, ZONE_LABEL_LINE_H, ZONE_LABEL_FONT_SIZE, ZONE_LABEL_FONT_WEIGHT, measureZoneLabelText,
 } from './geometry.js';
 
@@ -115,7 +115,7 @@ function shapeMarkup(part, W, H, acc, selected) {
 // large illustrations on the numbers geometry.js owns (FIGURE_LAYOUT): a
 // pictogram at illustration scale with the wrapped label and the shared mono
 // meta lines under it — a capsule sets its text beside the pictogram inside a
-// pill, an outcome callout points a tail at what it concludes about. The
+// pill, an outcome card is a wider tile with room for a longer label. The
 // surface, text fills and threat dashes are the badge cards' own, so themes
 // and exports restyle both alike, and the label and meta stay editable text.
 const FIGURE_STROKE = 2.1;
@@ -133,16 +133,9 @@ function figureMarkup(part, W, H, acc, selected, labelLines, metaLines) {
     s += `<rect class="card" width="${W}" height="${H}" rx="${H / 2}" ${style}/>`;
   } else {
     s += `<rect class="card" width="${W}" height="${H}" rx="${P.rx}" ${style}/>`;
-    if (part.figure === 'outcome') {
-      // The callout tail: an open triangle whose gradient fill covers the
-      // card's left border, leaving only its two stroked edges visible.
-      s += `<path d="M1.5 ${H / 2 - 9} L-${OUTCOME_TAIL} ${H / 2} L1.5 ${H / 2 + 9}" fill="url(#cardGrad)" stroke="${stroke}"`
-        + ` stroke-width="${strokeW}"${dash} stroke-linejoin="round"/>`;
-    } else {
-      // A wide tinted panel behind the pictogram: the badge tint at figure scale.
-      const bw = P.glyph + 26;
-      s += `<rect x="${(W - bw) / 2}" y="${P.padTop - 8}" width="${bw}" height="${P.glyph + 16}" rx="16" fill="${c}" opacity="0.13"/>`;
-    }
+    // A wide tinted panel behind the pictogram: the badge tint at figure scale.
+    const bw = P.glyph + 26;
+    s += `<rect x="${(W - bw) / 2}" y="${P.padTop - 8}" width="${bw}" height="${P.glyph + 16}" rx="16" fill="${c}" opacity="0.13"/>`;
   }
   // The pictogram: the catalogue's 24-unit glyph at figure scale. Its line
   // weight is set in screen pixels (FIGURE_STROKE), not scaled with the

@@ -43,4 +43,29 @@ export async function runPolishChecks({ js, check, sleep, waitFor, capture = asy
   const row = JSON.parse(await js(`(() => { const row = document.querySelector('#assistant .ai-build-row'); if (!row) return 'null'; const r = row.getBoundingClientRect(); const panel = document.getElementById('assistant').getBoundingClientRect(); return JSON.stringify({ visible: r.height > 0 && r.width > 0, inside: r.left >= panel.left && r.right <= panel.right + 0.5, buttons: [...row.querySelectorAll('[data-build]')].map((b) => b.getBoundingClientRect().width > 0).length }); })()`));
   check('Build from a source is visible inside the Assistant under Options & sources with three usable buttons', row && row.visible && row.inside && row.buttons === 3, JSON.stringify(row));
   await capture('polish-assistant-build-row');
+
+  // The Build dialogs wear the project's dialog chrome in the light theme too:
+  // no browser frame, the card's own shadow, styled fields and buttons.
+  await js(`(async () => { const t = await import('/src/theme.js'); t.setThemePreference('light'); return true; })()`);
+  await sleep(150);
+  const dialogLook = () => js(`(() => {
+    const d = document.getElementById('import-dialog'); const cs = getComputedStyle(d);
+    const build = d.querySelector('#import-build'), cancel = d.querySelector('#import-cancel');
+    const bs = getComputedStyle(build), xs = getComputedStyle(cancel);
+    return JSON.stringify({ open: d.open, frame: cs.borderStyle + '/' + cs.borderWidth, dialogBg: cs.backgroundColor, buildRadius: bs.borderRadius, cancelRadius: xs.borderRadius, buildAccented: bs.borderColor !== xs.borderColor, theme: document.documentElement.dataset.theme });
+  })()`);
+  await js(`document.querySelector('#assistant [data-build=cve]').click(); true`);
+  await waitFor(`document.getElementById('import-dialog').open`);
+  let look = JSON.parse(await dialogLook());
+  check('the CVE dialog has no browser frame and the project\'s buttons in the light theme', look.open && look.theme === 'light' && /none/.test(look.frame) && /0px/.test(look.frame) && look.dialogBg === 'rgba(0, 0, 0, 0)' && look.buildRadius === '8px' && look.cancelRadius === '8px' && look.buildAccented, JSON.stringify(look));
+  await capture('polish-build-dialog-cve-light');
+  await js(`document.getElementById('import-cancel').click(); true`);
+  await js(`document.querySelector('#assistant [data-build=poc]').click(); true`);
+  await waitFor(`document.getElementById('import-dialog').open && document.getElementById('import-dialog').dataset.mode === 'poc'`);
+  look = JSON.parse(await dialogLook());
+  check('the write-up dialog shares that chrome', look.open && /none/.test(look.frame) && look.buildRadius === '8px', JSON.stringify(look));
+  await capture('polish-build-dialog-writeup-light');
+  await js(`document.getElementById('import-cancel').click(); true`);
+  await js(`(async () => { const t = await import('/src/theme.js'); t.setThemePreference('system'); return true; })()`);
+  await sleep(100);
 }

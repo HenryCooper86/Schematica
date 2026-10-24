@@ -664,7 +664,7 @@ test('catalogue figures render as large illustrations with editable text', () =>
   assert.ok(req.includes('text-anchor="start"'), 'capsule text sits beside the pictogram');
   assert.ok(!req.includes('stroke-dasharray="5 3.5"'), 'a capsule is not a threat');
   const crash = nodeGroup(m, 'crash');
-  assert.ok(crash.includes('L-13 '), 'an outcome callout points a tail');
+  assert.ok(!crash.includes('L-13 ') && crash.includes('opacity="0.13"'), 'an outcome card is a plain figure card with the tinted glyph panel and no tail');
 });
 
 test('figure labels and meta stay inert text on the canvas', () => {

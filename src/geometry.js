@@ -150,10 +150,6 @@ export const FIGURE_LABEL_LINE_H = 16;
 export const FIGURE_META_FONT_SIZE = 10.5;
 export const FIGURE_META_LINE_H = 13;
 // Sized to sit beside ordinary 104px cards: a little larger, never dominant.
-// An outcome callout's tail: an open triangle this long, pointing left from
-// the card's mid-height at the cause it concludes about. Wires that enter the
-// card from the left end on its tip (anchor), so the arrow meets the tail.
-export const OUTCOME_TAIL = 13;
 export const FIGURE_LAYOUT = Object.freeze({
   capsule: { w: 196, glyph: 40, padX: 18, padTop: 17, gap: 10, padBottom: 17, side: true, rx: 0 },
   tile: { w: 136, glyph: 52, padX: 16, padTop: 14, gap: 8, padBottom: 12, rx: 14 },
@@ -244,10 +240,7 @@ export function nodeSize(node) {
 
 export function nodeRect(node) {
   const { w, h } = nodeSize(node);
-  const rect = { x: node.x, y: node.y, w, h };
-  // The router works on rects alone, so a callout's tail travels with its rect.
-  if (partOf(node).figure === 'outcome') rect.tail = 'w';
-  return rect;
+  return { x: node.x, y: node.y, w, h };
 }
 
 export function portPosition(node, portDef) {
@@ -289,9 +282,6 @@ function anchor(rect, origin, toward, pad) {
   const t = Math.max(0, Math.min(tx, ty));
   const p = { x: origin.x + dx * t, y: origin.y + dy * t };
   const clamp = (v, lo, hi) => (lo > hi ? (lo + hi) / 2 : Math.max(lo, Math.min(hi, v)));
-  // A ray leaving through a callout's tail side ends on the tail's tip, the
-  // same pad short of it that every other end keeps from its card edge.
-  if (tx <= ty && dx < 0 && rect.tail === 'w') return { x: rect.x - OUTCOME_TAIL - pad, y: rect.y + rect.h / 2 };
   if (tx <= ty) p.y = clamp(p.y, rect.y + CORNER_INSET, rect.y + rect.h - CORNER_INSET);
   else p.x = clamp(p.x, rect.x + CORNER_INSET, rect.x + rect.w - CORNER_INSET);
   return p;
@@ -373,7 +363,6 @@ export function wireGeom(a, b, offset = 0, obstacles = []) {
   const p2 = anchor(b, ob, oa, ANCHOR_PAD);
   let direct = cubic({ x: r2(p1.x), y: r2(p1.y) }, { x: r2(p2.x), y: r2(p2.y) });
   // Each tangent follows the edge it actually exits, including steep diagonals.
-  // A point at or beyond the padded side edge (a tail tip sits further out) exits that side.
   const normal = (r, p) => p.x <= r.x - ANCHOR_PAD + .02 ? { x: -1, y: 0 }
     : p.x >= r.x + r.w + ANCHOR_PAD - .02 ? { x: 1, y: 0 }
       : { x: 0, y: p.y < r.y ? -1 : 1 };
@@ -397,7 +386,6 @@ export function wireGeom(a, b, offset = 0, obstacles = []) {
       x: r2(c.x + Math.max(CORNER_INSET - r.w / 2, Math.min(r.w / 2 - CORNER_INSET, fan))),
       y: r2(side === 'top' ? r.y - ANCHOR_PAD : r.y + r.h + ANCHOR_PAD),
     };
-    if (side === 'left' && r.tail === 'w') return { x: r2(r.x - OUTCOME_TAIL - ANCHOR_PAD), y: r2(c.y) };
     return { x: r2(side === 'left' ? r.x - ANCHOR_PAD : r.x + r.w + ANCHOR_PAD),
       y: r2(c.y + Math.max(CORNER_INSET - r.h / 2, Math.min(r.h / 2 - CORNER_INSET, fan))) };
   };
@@ -1039,7 +1027,7 @@ export function wireScene(doc, rects = new Map(doc.nodes.map(n => [n.id, nodeRec
     const scale = Math.min(1, room / (fanExtent.get(pairKey(wire)) || 1));
     const offset = lane * scale;
     const old = previous?.routes.get(wire.id);
-    const key = [wire.from.node, wire.to.node, a.x, a.y, a.w, a.h, a.tail || '', b.x, b.y, b.w, b.h, b.tail || '', offset].join('|');
+    const key = [wire.from.node, wire.to.node, a.x, a.y, a.w, a.h, b.x, b.y, b.w, b.h, offset].join('|');
     const reusable = old?.key === key && !changed.some(r => old.queries.some(q => touches(q, r)));
     let entry = old;
     if (!reusable) {
