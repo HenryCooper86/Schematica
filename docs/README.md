@@ -4,7 +4,8 @@
 
 Schematica helps you draw an architecture, whether embedded hardware, an
 enterprise network or a security incident, review its declared interfaces and
-share the result. Start with the tutorial, then use the guides below for a
+share the result. A CVE id, a write-up or an incident log can be drawn directly
+from the Import menu without an assistant. Start with the tutorial, then use the guides below for a
 specific task. The application supports English and Simplified Chinese; these
 guides use the English control names.
 

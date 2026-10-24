@@ -4,13 +4,16 @@ Draw, review and share system architecture in your browser: embedded hardware,
 enterprise networks and the security incidents that cross them. Place
 controllers, sensors, servers, firewalls and people, connect their ports, record
 interface requirements, mark what an incident did to each part, then export a
-design review or replay an incident log on a clock.
+design review or replay an incident log on a clock. Give it a CVE id or a
+write-up and it draws the explainer from the published record, no assistant
+needed.
 
 **[Open Schematica](https://bionicloud.net/)** · **[Static edition](https://henrycooper86.github.io/Schematica/)** · **[Getting started](docs/getting-started.md)** · **[User guide](docs/user-guide.md)**
 
 Choose **How to use** in the editor toolbar to open the website's user guide.
-It covers your first board, drawing tools, layout, reviews, saving, exports and
-shortcuts, and follows your English/Chinese and appearance preferences.
+It covers your first board, drawing tools, layout, reviews, saving, exports,
+the assistant, CVE and incident imports and shortcuts, and follows your
+English/Chinese and appearance preferences.
 
 No account is needed to draw, save or export a board. Your working board is saved
 in this browser; download a `.schematica.json` file to keep a portable copy.
