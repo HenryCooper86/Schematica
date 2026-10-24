@@ -366,6 +366,25 @@ incident, or you can pick it in the **Skill** selector.
   hop further right. Rebuilding replaces the board, so on a non-empty board
   the assistant asks first.
 
+### Import a log, a CVE or a write-up without the assistant
+
+**Import** in the toolbar builds the same kinds of board with no provider
+configured. Nothing is sent to a model; each build replaces the board after a
+confirmation and is one Undo step.
+
+| Entry | What it does |
+| --- | --- |
+| **Incident log (JSON)…** | Choose a log in the shape above. The board is rebuilt locally with its timeline, so **Replay incident** appears. |
+| **CVE explainer…** | Type a CVE id. The record is fetched from CVE.org, with NVD for a missing score, and drawn as who acts (the attack vector decides where the attacker stands and a person appears when user interaction is required), the boundary crossed, the affected products, the flaw with its CWE and CVSS, the impact for confidentiality, integrity and availability, and the fix from the record. A five-chapter presentation is added, and a note records the source, the references and any assumptions. Only the id leaves the browser. |
+| **Write-up or proof of concept…** | Paste or choose an advisory, blog post or proof-of-concept document. It is read for the CVE it names, whose record is then fetched, and for the steps it describes: numbered or bulleted lines, shell prompts, request lines and code-fence commands. Steps are quoted as stops in a "Steps from the write-up" chapter on a proof-of-concept card; nothing is run, resolved or tested. A document that names no CVE still draws, with every missing fact listed as an assumption in the note. |
+
+**Record source** under the dialog takes a URL template containing `{id}` so a
+private CVE database replaces the public sites. It works when the URL returns a
+CVE JSON 5 record, an NVD 2.0 response, or a plain summary with `id`, `title`,
+`description`, `cvss` (a score and vector, or a vector string), `cwe`,
+`affected` (`{vendor, product, versions}`), `references` and `solution`. The
+template is remembered on this device.
+
 ### Replay an incident
 
 A board rebuilt from a log shows **Replay incident** at the top left of the

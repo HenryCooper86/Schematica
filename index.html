@@ -101,6 +101,7 @@
           <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 2.5v8 M5.5 7.5 9 11l3.5-3.5 M3 14.5h12"/></svg></button>
         <button id="btn-open" title="Open a .schematica.json file">
           <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 11V3 M5.5 6.5 9 3l3.5 3.5 M3 14.5h12"/></svg></button>
+        <button id="btn-import" title="Import an incident log, a CVE id or a write-up" aria-haspopup="menu" aria-expanded="false" aria-controls="import-menu">Import <span aria-hidden="true">&#9662;</span></button>
         <button id="btn-examples" title="Load an example board">Examples <span aria-hidden="true">&#9662;</span></button>
         <button id="btn-check" title="Run design rule checks">
           <svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="6.5"/><path d="M6.2 9.3l2 2 3.6-4.2"/></svg></button>
@@ -170,6 +171,7 @@
       <div id="legend" hidden></div>
       <div id="bus-popover" hidden></div>
       <div id="examples-menu" hidden></div>
+      <div id="import-menu" role="menu" hidden></div>
       <input id="inline-editor" type="text" spellcheck="false" hidden>
       <div id="toast" role="status" aria-live="polite" hidden></div>
       <aside id="props" hidden></aside>
@@ -179,6 +181,7 @@
   </div>
   <input type="file" id="file-input" accept=".json,application/json" hidden>
   <input type="file" id="parts-file-input" accept=".json,application/json" hidden>
+  <input type="file" id="import-log-input" accept=".json,application/json" hidden>
   <dialog id="compare-dialog">
     <div class="review-card">
       <h3>Compare saved board</h3>
@@ -312,6 +315,27 @@
         <button id="shortcuts-close">Close</button>
       </div>
     </div>
+  </dialog>
+  <dialog id="import-dialog" data-mode="cve">
+    <form class="rec-card import-card" method="dialog">
+      <h3 data-when="cve">Build a CVE explainer</h3>
+      <h3 data-when="poc">Build an explainer from a write-up</h3>
+      <p data-when="cve">The record is fetched by id and drawn as who acts, the boundary crossed, the affected system, the flaw, the impact and the fix. Only the id leaves the browser.</p>
+      <p data-when="poc">The document is read for the CVE it names and the steps it describes. Steps are quoted as presentation stops; nothing is run, resolved or tested.</p>
+      <label data-when="cve">CVE id <input id="import-cve-id" placeholder="e.g. CVE-2021-44228" autocomplete="off" spellcheck="false"></label>
+      <label data-when="poc">Write-up text <textarea id="import-poc-text" rows="8" placeholder="Paste an advisory, blog post or proof-of-concept write-up"></textarea></label>
+      <label data-when="poc" class="import-file">Or choose a file <input id="import-poc-file" type="file" accept=".txt,.md,.markdown,.html,.htm,.py,.sh,.rb,.go,.js,.http,.json,.yaml,.yml"></label>
+      <details class="import-source">
+        <summary>Record source</summary>
+        <label>URL template with {id} <input id="import-source" autocomplete="off" spellcheck="false"></label>
+        <small>Empty uses CVE.org, with NVD for a missing score. A private database works when its URL returns a CVE JSON 5 record, an NVD 2.0 response, or a plain summary with id, title, description, cvss, cwe, affected and references.</small>
+      </details>
+      <div id="import-status" role="status" aria-live="polite"></div>
+      <div class="rec-buttons">
+        <button id="import-build" type="submit">Build</button>
+        <button id="import-cancel" type="button">Cancel</button>
+      </div>
+    </form>
   </dialog>
   <script type="module" src="src/main.js"></script>
 </body>

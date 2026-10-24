@@ -600,7 +600,8 @@ g.node:hover .ports,
 #bus-popover button:hover { background: var(--bg3); }
 
 /* ---- Examples menu ---- */
-#examples-menu {
+#examples-menu,
+#import-menu {
   position: fixed;
   z-index: 30;
   background: var(--bg1);
@@ -613,7 +614,8 @@ g.node:hover .ports,
   max-height: calc(100dvh - 16px);
   overflow: auto;
 }
-#examples-menu button {
+#examples-menu button,
+#import-menu button {
   display: block;
   width: 100%;
   background: none;
@@ -626,7 +628,20 @@ g.node:hover .ports,
   color: var(--text);
   text-align: left;
 }
-#examples-menu button:hover { background: var(--bg3); }
+#examples-menu button:hover,
+#import-menu button:hover,
+#import-menu button:focus-visible { background: var(--bg3); }
+#import-menu button small { display: block; color: var(--faint); font-size: 11px; margin-top: 2px; }
+#import-dialog .import-card { width: min(520px, calc(100vw - 32px)); }
+#import-dialog label { display: block; margin: 10px 0 0; font-size: 12.5px; color: var(--muted); }
+#import-dialog input:not([type=file]), #import-dialog textarea { display: block; width: 100%; margin-top: 4px; box-sizing: border-box; font: inherit; font-size: 13px; color: var(--text); background: var(--bg0); border: 1px solid var(--line2); border-radius: 7px; padding: 7px 9px; }
+#import-dialog textarea { resize: vertical; min-height: 120px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+#import-dialog .import-source { margin-top: 12px; font-size: 12px; color: var(--muted); }
+#import-dialog .import-source summary { cursor: pointer; }
+#import-dialog .import-source small { display: block; margin-top: 6px; line-height: 1.45; color: var(--faint); }
+#import-dialog #import-status { min-height: 1.2em; margin-top: 10px; font-size: 12.5px; color: var(--muted); white-space: pre-wrap; }
+#import-dialog #import-status.error { color: #f87171; }
+#import-dialog[data-mode=cve] [data-when=poc], #import-dialog[data-mode=poc] [data-when=cve] { display: none; }
 #examples-menu .menu-group {
   margin: 8px 10px 4px;
   font-size: 10px;
