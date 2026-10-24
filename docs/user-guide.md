@@ -312,7 +312,8 @@ incident, or you can pick it in the **Skill** selector.
 - To rebuild an incident, attach a JSON log of timestamped actions and ask what
   happened. The log is `{"incident", "blastRadius", "stages": [{id, name}],
   "trustBoundaries": [{id, name}], "nodes": {name: kind}, "actions": [{ts,
-  actor, action, target, note, phase, stage, boundary, command, evidence}]}` or
+  actor, action, target, note, phase, stage, boundary, command, evidence,
+  condition}]}` or
   a bare array of actions; only `ts`, `actor` and `action` are required.
   `command` is what was run and `evidence` what the log shows came of it.
   Repeated actions within five minutes collapse into one step, each phase
@@ -339,6 +340,17 @@ Each stage appears as a band under the timeline.
 | **←** / **→** | Previous or next logged step |
 | **Home** / Restart | Back to before the first action |
 | **Esc** or × | Leave the replay |
+
+As the clock passes each step, the part it targeted takes on the condition
+that step leaves it in, as a tag and halo on the card: a scan marks it
+suspicious, an exploit marks it exploited, ransomware marks it infected, an
+export marks it exfiltrating, and so on. A log can state the condition
+outright with a `condition` on the action (compromised, infected, outage,
+exfil, breach, exploited, ddos, vulnerable, suspicious, issue); otherwise it
+is read from the action's words, and a step the replay cannot read sets
+nothing. The live stream names the condition after each action. These marks
+are part of the replay view only: leaving the replay restores the conditions
+the board itself carries.
 
 The timeline is saved with the board, so a downloaded file or share link
 replays the same way. Steps are what the log recorded, not independent proof

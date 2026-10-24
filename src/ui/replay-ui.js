@@ -1,13 +1,15 @@
 // Incident replay: plays a reconstructed board's timeline (doc.incident) on
 // a clock. Parts and links start dim and light up as the attacker reaches
-// them; a dock shows the clock, actions replayed, the active phase, reach,
-// phase activity, a live action stream and volume per day. It reuses the
-// presenting layout (toolbar, palette and panels hidden) and never edits
-// the board.
-import { replayState, eventIndexAt, incidentSpan, utcLong, utcShort, utcDay } from '../incident-data.js';
+// them and wear the condition each action leaves them in (compromised,
+// infected, ...); a dock shows the clock, actions replayed, the active phase,
+// reach, phase activity, a live action stream and volume per day. It reuses
+// the presenting layout (toolbar, palette and panels hidden) and never edits
+// the board: the conditions are a view overlay that leaves with the replay.
+import { replayState, eventIndexAt, incidentSpan, utcLong, utcShort, utcDay, conditionFor } from '../incident-data.js';
+import { CONDITIONS } from '../palette.js';
 import { contentBounds } from '../geometry.js';
 import { escAttr as esc } from './press.js';
-import { tr, onLanguageChange } from '../i18n.js';
+import { tr, trd, onLanguageChange } from '../i18n.js';
 
 const SPEEDS = [0.5, 1, 2, 4];
 const BASE_MS = 40000; // the whole incident at 1×
@@ -133,7 +135,7 @@ export function initReplay({ store, tools, render, svg }) {
         <span class="tag" style="color:${colorOf(e.phase)};border-color:${colorOf(e.phase)}">${esc(e.phase)}</span>
         <code>${esc(e.command || e.action)}${e.count > 1 ? ` <small>×${e.count}</small>` : ''}</code>
         ${e.evidence || e.note ? `<p>↳ ${esc(e.evidence || e.note)}</p>` : ''}
-        <small class="who">${esc(e.target ? `${e.actor} → ${e.target}` : e.actor)}</small></li>`).join('')
+        <small class="who">${esc(e.target ? `${e.actor} → ${e.target}` : e.actor)}${conditionChip(e)}</small></li>`).join('')
       : `<li class="empty">${esc(tr('Press play to watch the incident unfold.'))}</li>`;
     const dayMax = Math.max(1, ...s.perDay.map((d) => d.total));
     q('days').innerHTML = s.perDay.map((d) => `<div class="replay-day${clock >= d.ts && clock < d.ts + 86400000 ? ' current' : ''}">
@@ -142,7 +144,15 @@ export function initReplay({ store, tools, render, svg }) {
     const lit = new Set([...s.nodes, ...s.wires]);
     tools.ui.story = lit.size ? lit : new Set([NOTHING]);
     tools.ui.storyCurrent = s.current?.nodes.at(-1) || null;
+    tools.ui.conditions = s.conditions;
     render();
+  }
+  // The condition an action leaves its target in, as a small tag after the
+  // actor → target line of the stream.
+  function conditionChip(e) {
+    const c = e.target ? conditionFor(e) : null;
+    if (!c) return '';
+    return ` <span class="replay-condition" style="color:${CONDITIONS[c].color};border-color:${CONDITIONS[c].color}">${esc(trd(CONDITIONS[c].name))}</span>`;
   }
 
   function seek(t) {
@@ -219,6 +229,7 @@ export function initReplay({ store, tools, render, svg }) {
     tools.ui.presenting = false;
     tools.ui.story = null;
     tools.ui.storyCurrent = null;
+    tools.ui.conditions = null;
     app.classList.remove('presenting', 'replaying');
     syncChip();
     render();

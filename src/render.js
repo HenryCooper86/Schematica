@@ -348,7 +348,10 @@ function nodeMarkup(node, selected, ui, animating, now, wires) {
   const { w: W, h: H, labelLines, metaLines } = nodeSize(node);
   let s = `<g class="node" data-id="${esc(node.id)}" data-type="node" transform="translate(${node.x} ${node.y})">`;
   const flags = (node.flags || []).filter((f) => FLAG_META[f]);
-  s += haloMarkup(node, W, H, animating, now);
+  // A replay shows the condition the clock has reached, over whatever the
+  // card itself carries, without editing the board.
+  const shown = ui?.conditions?.has(node.id) ? { ...node, condition: ui.conditions.get(node.id) } : node;
+  s += haloMarkup(shown, W, H, animating, now);
   if (selected) {
     s += `<rect x="-5" y="-5" width="${W + 10}" height="${H + 10}" rx="18" fill="none"`
       + ` stroke="${esc(acc)}" stroke-opacity="0.4" stroke-width="1.6"/>`;
@@ -391,7 +394,7 @@ function nodeMarkup(node, selected, ui, animating, now, wires) {
       metaY += m.lines.length * META_LINE_H;
     }
   }
-  s += tagsMarkup(node, animating, now);
+  s += tagsMarkup(shown, animating, now);
   s += flagBadgesMarkup(flags, W);
   if (node.locked) s += lockMarkup(W - 16, H - 16);
   if (ui.ports !== false) s += portsMarkup(node, part, acc, W, H);

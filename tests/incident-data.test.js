@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseIncidentLog, reconstructIncident } from '../src/incident-replay.js';
-import { replayState, eventIndexAt, incidentSpan, normalizeIncident, utcLong, utcShort } from '../src/incident-data.js';
+import { replayState, eventIndexAt, incidentSpan, normalizeIncident, utcLong, utcShort, conditionFor, replayConditions } from '../src/incident-data.js';
 import { serialize, deserialize } from '../src/serialize.js';
 
 const log = {
@@ -104,4 +104,37 @@ test('a log without stages has none and the replay shows no stage', () => {
   assert.equal(build().incident.stages, undefined);
   assert.equal(s.stage, null);
   assert.deepEqual(s.stages, []);
+});
+
+// The replay marks what each action leaves its target in: stated in the log,
+// or read from the action's words. The latest action on a part decides.
+test('conditions are read from the log or inferred from the action, and accumulate per target as the clock advances', () => {
+  const doc = build();
+  const [recon, rce, exfil] = doc.incident.events;
+  assert.equal(conditionFor(recon), 'suspicious', 'nmap recon');
+  assert.equal(conditionFor(rce), 'exploited');
+  assert.equal(conditionFor(exfil), 'exfil');
+  assert.equal(conditionFor({ action: 'pushes', phase: 'impact' }), null, 'unrecognised words set nothing');
+  assert.equal(conditionFor({ action: 'dumps credentials', phase: 'access' }), 'compromised', 'credentials outrank the dump');
+  assert.equal(conditionFor({ action: 'encrypts shares', condition: 'outage' }), 'outage', 'an explicit condition wins');
+  assert.equal(conditionFor({ action: 'x', condition: 'hacked' }), null, 'an unknown explicit condition is ignored');
+  const api = doc.nodes.find((n) => n.label === 'api').id, store = doc.nodes.find((n) => n.label === 'store').id;
+  assert.deepEqual([...replayConditions(doc.incident.events, -1)], []);
+  assert.deepEqual([...replayConditions(doc.incident.events, 0)], [[api, 'suspicious']]);
+  assert.deepEqual([...replayState(doc.incident, 1).conditions], [[api, 'exploited']], 'the later action on the API replaces the earlier');
+  assert.deepEqual([...replayState(doc.incident, 2).conditions], [[api, 'exploited'], [store, 'exfil']]);
+});
+
+test('a condition stated in the log travels with the timeline and an invalid one is dropped on load', () => {
+  const stated = { ...log, actions: log.actions.map((a, i) => (i === 3 ? { ...a, condition: 'breach' } : a)) };
+  const doc = reconstructIncident(parseIncidentLog(JSON.stringify(stated))).doc;
+  assert.equal(doc.incident.events[2].condition, 'breach');
+  const back = deserialize(serialize(doc)).doc;
+  assert.equal(back.incident.events[2].condition, 'breach');
+  const raw = JSON.parse(serialize(doc));
+  raw.incident.events[2].condition = 'hacked';
+  const warnings = [];
+  const inc = normalizeIncident(raw.incident, doc, warnings);
+  assert.ok(!('condition' in inc.events[2]));
+  assert.deepEqual(warnings, []);
 });

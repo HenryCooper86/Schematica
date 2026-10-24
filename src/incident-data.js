@@ -9,6 +9,7 @@
 // Events are clustered log steps in time order; `count` is how many logged
 // actions the step stands for. Times are epoch milliseconds, shown in UTC.
 import { tr } from './i18n.js';
+import { CONDITIONS } from './palette.js';
 
 export const MAX_EVENTS = 20000;
 const MAX_FIELD = 500;
@@ -33,6 +34,7 @@ export function buildIncident({ title, blast = '', phases, steps, idOf, wireBetw
         ...(s.note ? { note: clip(s.note) } : {}),
         ...(s.command ? { command: clip(s.command) } : {}),
         ...(s.evidence ? { evidence: clip(s.evidence) } : {}),
+        ...(Object.hasOwn(CONDITIONS, s.condition) ? { condition: s.condition } : {}),
         nodes: [...new Set([from, to].filter(Boolean))],
         wires: wire ? [wire] : [],
       };
@@ -61,6 +63,7 @@ export function normalizeIncident(raw, doc, warnings = []) {
       ...(e.note ? { note: clip(e.note) } : {}),
       ...(e.command ? { command: clip(e.command) } : {}),
       ...(e.evidence ? { evidence: clip(e.evidence) } : {}),
+      ...(typeof e.condition === 'string' && Object.hasOwn(CONDITIONS, e.condition) ? { condition: e.condition } : {}),
       nodes: (Array.isArray(e.nodes) ? e.nodes : []).filter((id) => nodeIds.has(id)),
       wires: (Array.isArray(e.wires) ? e.wires : []).filter((id) => wireIds.has(id)),
     });
@@ -90,6 +93,44 @@ export function incidentSpan(incident) {
   const days = [];
   for (let d = dayStart(start); d <= end; d += DAY) days.push(d);
   return { start, end: end > start ? end : start + 60000, days };
+}
+
+// What an event leaves its target in. A log can say so outright with a
+// `condition` on the action; otherwise the words of the action, phase,
+// command and note are read for the usual incident vocabulary. The first
+// matching rule wins, so "dumps credentials" is a compromise, not a breach,
+// and an action the rules do not recognise sets nothing.
+const CONDITION_RULES = [
+  ['infected', /ransom|encrypt|malware|infect|implant|backdoor|beacon|trojan|worm/],
+  ['exfil', /exfil|export|steal|stole|leak|upload.*(data|telemetry|archive)/],
+  ['compromised', /credential|password|phish|login|logon|session|token|lateral|pivot|compromis|takeover|hijack|control/],
+  ['breach', /breach|dump|database|records/],
+  ['exploited', /\brce\b|exploit|cve-|code exec|shell|\broot\b|inject|overflow|deserial/],
+  ['ddos', /ddos|\bdos\b|flood|amplif/],
+  ['outage', /outage|offline|\bdown\b|crash|wipe|delet|destroy|halt|denied|unavailable/],
+  ['vulnerable', /vuln|unpatched|exposed|misconfig|default password|open port/],
+  ['suspicious', /recon|scan|enumerat|probe|brute|discover|sweep|unusual|anomal/],
+];
+export function conditionFor(event) {
+  if (event.condition && Object.hasOwn(CONDITIONS, event.condition)) return event.condition;
+  const text = [event.action, event.phase, event.command, event.note].filter(Boolean).join(' ').toLowerCase();
+  if (!text) return null;
+  for (const [condition, re] of CONDITION_RULES) if (re.test(text)) return condition;
+  return null;
+}
+
+// The condition each reached part is in after event i: the latest event
+// that targeted it decides. An actor-only event marks nothing; an action on
+// a target marks the target.
+export function replayConditions(events, i) {
+  const out = new Map();
+  for (const e of events.slice(0, i + 1)) {
+    if (!e.target || !e.nodes.length) continue;
+    const condition = conditionFor(e);
+    if (!condition) continue;
+    out.set(e.nodes.at(-1), condition);
+  }
+  return out;
 }
 
 // Index of the last event at or before t (-1 before the first).
@@ -142,6 +183,7 @@ export function replayState(incident, i, { streamSize = 6 } = {}) {
     phase: current?.phase || null,
     current,
     nodes, wires,
+    conditions: replayConditions(events, i),
     reachedParts: nodes.size,
     perPhase: [...perPhase.entries()].map(([name, v]) => ({ name, ...v })),
     perDay: [...perDay.entries()].map(([ts, v]) => ({ ts, ...v })),

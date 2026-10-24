@@ -693,3 +693,14 @@ test('a condition shows as a tag and its halo outranks disposition and flags', (
   assert.deepEqual([steady[1], steady[2]], ['fxhalo', '#94a3b8'], 'an outage rings steadily');
   assert.ok(!draw({}).includes('fxhalo'), 'no condition, no halo');
 });
+
+test('a replay condition overlay draws over the card without the board carrying it', () => {
+  const doc = sampleDoc();
+  doc.nodes = [node('h', 'server', 0, 0, { label: 'api', condition: 'vulnerable' })];
+  doc.wires = [];
+  const over = nodeGroup(diagramMarkup(doc, { conditions: new Map([['h', 'exploited']]) }), 'h');
+  assert.ok(over.includes('>EXPLOITED</text>') && !over.includes('>VULNERABLE</text>'), 'the overlay replaces the stored condition');
+  assert.equal(doc.nodes[0].condition, 'vulnerable', 'the board is untouched');
+  const plain = nodeGroup(diagramMarkup(doc, {}), 'h');
+  assert.ok(plain.includes('>VULNERABLE</text>'));
+});

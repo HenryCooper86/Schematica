@@ -155,6 +155,9 @@ export function parseIncidentLog(input) {
       stage: text(entry.stage),
       command: text(entry.command || entry.cmd),
       evidence: text(entry.evidence || entry.output || entry.result),
+      // What the action left its target in, when the log says so
+      // (compromised, infected, outage, ...); otherwise the replay infers it.
+      condition: text(entry.condition || entry.state).toLowerCase(),
     };
   }).sort((a, b) => a.ts - b.ts);
   const incident = text(data && !Array.isArray(data) ? (data.incident || data.title) : '');
@@ -189,11 +192,13 @@ export function reconstructIncident(parsed) {
       if (action.note && !last.note) last.note = action.note;
       if (action.command && !last.command) last.command = action.command;
       if (action.evidence && !last.evidence) last.evidence = action.evidence;
+      if (action.condition) last.condition = action.condition;
     } else {
       steps.push({
         ts: action.ts, lastTs: action.ts, actor: action.actor, action: action.action,
         target: action.target, note: action.note, phase, boundary: action.boundary,
         kind: action.kind, count: 1, command: action.command, evidence: action.evidence, stage: action.stage,
+        condition: action.condition,
       });
     }
   }

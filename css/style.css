@@ -2042,6 +2042,7 @@ html[data-theme="light"] #ai-preview-dialog .preview-removals h3 { color: #b91c1
 .replay-stream code { font-family: var(--mono); font-size: 11.5px; color: var(--text); overflow-wrap: anywhere; }
 .replay-stream li p, .replay-stream .who { grid-column: 3; margin: 0; font-size: 11px; color: var(--muted); }
 .replay-stream .who { color: var(--faint); }
+.replay-stream .replay-condition { font-size: 9px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; border: 1px solid; border-radius: 4px; padding: 0 4px; margin-left: 6px; vertical-align: 1px; }
 .replay-stream .empty { display: block; color: var(--faint); }
 @keyframes replay-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 .replay-days div[data-r=days] { display: flex; align-items: flex-end; gap: 6px; height: 150px; }
@@ -2071,4 +2072,4 @@ html[data-theme="light"] .replay-kicker, html[data-theme="light"] .replay-metric
 .replay-phases h4.current { color: #f87171; }
 .replay-metrics div:nth-child(2) span { display: block; }
 /* Phase colours are chosen for the dark dock; darken them on white. */
-html[data-theme="light"] :is(.replay-stream .tag, .replay-metrics [data-r=phase]) { filter: brightness(.72) saturate(1.3); }
+html[data-theme="light"] :is(.replay-stream .tag, .replay-stream .replay-condition, .replay-metrics [data-r=phase]) { filter: brightness(.72) saturate(1.3); }

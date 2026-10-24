@@ -103,6 +103,8 @@ function uiState() {
     grid: tools.ui.grid,
     animate: tools.ui.animate,
     highlight: tools.ui.highlight,
+    // The incident replay's condition overlay (node id -> condition).
+    conditions: tools.ui.conditions,
   };
 }
 

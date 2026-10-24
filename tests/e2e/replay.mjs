@@ -29,8 +29,11 @@ export async function runReplayChecks({ js, key, check, sleep, loadBoard }) {
   await sleep(150);
   const two = await js(`(() => ({ actions: document.querySelector('[data-r=actions]').textContent, phase: document.querySelector('[data-r=phase]').textContent,
     lit: document.querySelectorAll('#canvas .node.story-match').length, stream: [...document.querySelectorAll('[data-r=stream] code')].map(c => c.textContent),
-    evidence: document.querySelector('[data-r=stream] li p')?.textContent || '' }))()`);
+    evidence: document.querySelector('[data-r=stream] li p')?.textContent || '',
+    tags: [...document.querySelectorAll('#canvas .node text')].map((t) => t.textContent).filter((t) => t === 'EXPLOITED' || t === 'SUSPICIOUS'),
+    chip: document.querySelector('[data-r=stream] .replay-condition')?.textContent || '' }))()`);
   check('stepping through events lights reached parts and streams commands with evidence, newest first', two.actions === '2' && two.phase === 'rce' && two.lit === 2 && two.stream[0] === 'id' && two.stream[1] === 'nmap -sV api' && /uid=0/.test(two.evidence), JSON.stringify(two));
+  check('the replayed action marks its target: the API wears EXPLOITED after the rce step and the stream names it', JSON.stringify(two.tags) === '["EXPLOITED"]' && two.chip === 'Exploited', JSON.stringify(two));
   await js(`document.querySelector('[data-speed="4"]').click(); document.querySelector('[data-r=play]').click(); true`);
   let end = null;
   for (let i = 0; i < 80; i++) {
@@ -41,6 +44,8 @@ export async function runReplayChecks({ js, key, check, sleep, loadBoard }) {
   check('playing at 4× reaches the end of the incident with every part lit', end.actions === '4' && end.muted === 0 && /4 of 4/.test(end.reach), JSON.stringify(end));
   await key('Escape', 'Escape', 27);
   await sleep(150);
-  const out = await js(`({ dock: document.getElementById('replay-dock').hidden, mode: document.getElementById('app').classList.contains('replaying'), muted: document.querySelectorAll('#canvas .node.story-muted').length, chip: !document.getElementById('replay-chip').hidden })`);
+  const out = await js(`({ dock: document.getElementById('replay-dock').hidden, mode: document.getElementById('app').classList.contains('replaying'), muted: document.querySelectorAll('#canvas .node.story-muted').length, chip: !document.getElementById('replay-chip').hidden,
+    tags: [...document.querySelectorAll('#canvas .node text')].filter((t) => ['EXPLOITED', 'SUSPICIOUS', 'EXFIL'].includes(t.textContent)).length })`);
   check('Escape leaves the replay and restores the board', out.dock && !out.mode && out.muted === 0 && out.chip, JSON.stringify(out));
+  check('leaving the replay removes the condition overlay from the cards', out.tags === 0, JSON.stringify(out));
 }
