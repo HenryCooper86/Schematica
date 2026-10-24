@@ -140,7 +140,7 @@ async function fakeAnthropic(req, res) {
 // ---- static server ----
 const server = createServer(async (req, res) => {
   if (process.env.WEB_E2E_ONLY && req.url === '/src/ai/runtime.js') {
-    res.writeHead(200, {'content-type':'text/javascript'});res.end('export const BACKEND = true;');return;
+    res.writeHead(200, {'content-type':'text/javascript'});res.end('export const BACKEND = true;\nexport const CVE_PROXY = false;');return;
   }
   if (process.env.WEB_E2E_ONLY && req.method === 'POST' && req.url === '/api/ai') return fakeAnthropic(req,res);
   if (process.env.WEB_E2E_ONLY && req.method === 'POST' && req.url === '/api/web') {
