@@ -311,14 +311,15 @@ syncAnimation();
     const { doc, warnings } = deserialize(text);
     const prev = store.doc;
     const hasWork = prev.nodes.length || prev.wires.length || prev.zones.length
-      || prev.notes.length || (prev.journey || []).length;
+      || prev.notes.length || (prev.journey || []).length || prev.engineering || prev.incident;
     if (hasWork) {
       try {
         localStorage.setItem('schematica.autosave.backup', serialize(prev));
       } catch { /* backup is best-effort; the in-memory copy still restores */ }
     }
-    history.replaceState(null, '', location.pathname + location.search);
+    // A declined load (unsaved engineering drafts) keeps the link in place.
     if (store.replaceDoc(doc) === false) return;
+    history.replaceState(null, '', location.pathname + location.search);
     if (moment.has('step')) journeyUI.openMoment(moment);
     const notes = warnings.length ? tr('\n\nLoaded with warnings:\n{list}', { list: warnings.join('\n') }) : '';
     if (hasWork) {

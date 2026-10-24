@@ -41,6 +41,7 @@ export function buildClip(doc, ids) {
   if (!nodes.length && !zones.length && !notes.length) return null;
   const kept = new Set(nodes.map((n) => n.id));
   const wires = doc.wires.filter((w) => kept.has(w.from.node) && kept.has(w.to.node));
+  const engineering = selectedEngineering(doc, [...nodes, ...wires, ...zones, ...notes].map(i => i.id));
   return {
     schematica: CLIP_MARK,
     v: CLIP_VERSION,
@@ -51,7 +52,7 @@ export function buildClip(doc, ids) {
     wires: structuredClone(wires),
     zones: structuredClone(zones),
     notes: structuredClone(notes),
-    ...(selectedEngineering(doc, [...nodes, ...wires, ...zones, ...notes].map(i => i.id)) ? { engineering: selectedEngineering(doc, [...nodes, ...wires, ...zones, ...notes].map(i => i.id)) } : {}),
+    ...(engineering ? { engineering } : {}),
   };
 }
 

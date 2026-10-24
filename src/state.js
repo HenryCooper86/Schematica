@@ -70,6 +70,9 @@ export class Store {
       this.selection = selection;
       throw error;
     }
+    // An edit may delete what was selected (rewiring a part drops its wires);
+    // a stale id would keep Remove enabled for an item that no longer exists.
+    this._pruneSelection();
     // An unchanged property blur must not trigger document work, cost an
     // undo step, or clear redo. Batch notifications still track live edits.
     if (this._batchSnap === null) {
@@ -99,6 +102,7 @@ export class Store {
       this._push(this._batchSnap);
     }
     this._batchSnap = null;
+    this._pruneSelection();
     this.emit();
   }
 

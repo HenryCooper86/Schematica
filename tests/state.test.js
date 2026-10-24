@@ -695,3 +695,19 @@ test('a failed edit restores its selection together with the document', () => {
   assert.deepEqual([...store.selection], [id]);
   assert.equal(store.undoStack.length, undoDepth);
 });
+
+test('an edit that removes a selected item also drops it from the selection', () => {
+  const store = new Store();
+  const a = addNode(store, 'mcu', 0, 0), b = addNode(store, 'temp', 300, 0);
+  const wire = addWire(store, 'i2c', { node: a, port: 'i2c' }, { node: b, port: 'i2c' });
+  store.setSelection([wire, a]);
+  const events = [];
+  store.subscribe(kind => events.push(kind));
+  store.apply(doc => { doc.wires = []; });
+  assert.deepEqual([...store.selection], [a]);
+  assert.deepEqual(events, ['document'], 'one document notification carries the pruned selection');
+  store.beginBatch();
+  store.mutate(doc => { doc.nodes = doc.nodes.filter(n => n.id !== a); });
+  store.endBatch();
+  assert.equal(store.selection.size, 0);
+});

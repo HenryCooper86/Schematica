@@ -879,3 +879,43 @@ test('Ctrl-A feeds the multi-selection actions it exists for', async () => {
   tools.alignSelection('left');
   assert.deepEqual(store.doc.nodes.map((n) => n.x), [0, 0, 0]);
 });
+
+test('a multi-line note is not opened in the single-line inline editor', async () => {
+  const { svg, store, editor, ev } = await setup();
+  const id = addNote(store, 0, 0, 'line one\nline two');
+  const el = makeEl({ dataset: { type: 'note', id } });
+  svg.dispatch('pointerdown', ev(el));
+  svg.dispatch('pointerup', ev(el));
+  svg.dispatch('pointerdown', ev(el));
+  assert.equal(editor.hidden, true, 'the panel textarea keeps the line breaks');
+  assert.equal(store.doc.notes[0].text, 'line one\nline two');
+});
+
+test('committing an unchanged inline edit costs no undo step', async () => {
+  const { svg, store, editor, ev } = await setup();
+  const id = addNode(store, 'mcu', 0, 0);
+  const line = makeEl({ dataset: { edit: 'label' }, parent: nodeEl(id) });
+  svg.dispatch('pointerdown', ev(line));
+  svg.dispatch('pointerup', ev(line));
+  svg.dispatch('pointerdown', ev(line));
+  assert.equal(editor.hidden, false);
+  const depth = store.undoStack.length;
+  editor.dispatch('keydown', { key: 'Enter', stopPropagation() {} });
+  assert.equal(editor.hidden, true);
+  assert.equal(store.undoStack.length, depth);
+});
+
+test('two quick shift-clicks toggle the selection twice instead of opening a rename', async () => {
+  const { svg, store, editor, ev } = await setup();
+  const a = addNode(store, 'mcu', 0, 0);
+  const b = addNode(store, 'temp', 300, 0);
+  store.setSelection([b]);
+  const el = nodeEl(a);
+  svg.dispatch('pointerdown', ev(el, { shiftKey: true }));
+  svg.dispatch('pointerup', ev(el, { shiftKey: true }));
+  assert.deepEqual([...store.selection].sort(), [a, b].sort());
+  svg.dispatch('pointerdown', ev(el, { shiftKey: true }));
+  svg.dispatch('pointerup', ev(el, { shiftKey: true }));
+  assert.equal(editor.hidden, true, 'no rename editor');
+  assert.deepEqual([...store.selection], [b]);
+});

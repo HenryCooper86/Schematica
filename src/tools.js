@@ -280,7 +280,9 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
     const itemEl = e.target.closest('[data-type]');
     if (itemEl) {
       const id = itemEl.dataset.id;
-      if (isDoubleClick(id, e)) {
+      // Two quick shift-clicks are two selection toggles, not a rename.
+      if (e.shiftKey) lastPress = { key: null, t: 0, x: 0, y: 0 };
+      else if (isDoubleClick(id, e)) {
         const editEl = e.target.closest('[data-edit]');
         openInlineEditor(id, editEl?.dataset.edit || EDIT_FIELDS[itemEl.dataset.type], e.clientX, e.clientY);
         return;
@@ -600,6 +602,12 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
       svg.classList.remove('panning');
     }
   });
+  // The keyup never arrives when the window loses focus while Space is held
+  // (app switch), which would leave the next left press panning.
+  window.addEventListener('blur', () => {
+    spaceDown = false;
+    svg.classList.remove('panning');
+  });
 
   function portBus(ref) {
     const node = store.doc.nodes.find((n) => n.id === ref.node);
@@ -693,13 +701,17 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
   }
 
   const editor = document.getElementById('inline-editor');
-  let editing = null; // { id, field }
+  let editing = null; // { id, field, original }
 
   function openInlineEditor(id, field, cx, cy) {
     const found = findItem(store.doc, id);
     if (!found) return;
-    editing = { id, field };
-    editor.value = readField(found.item, field) ?? '';
+    const original = readField(found.item, field) ?? '';
+    // A single-line input would silently flatten a multi-line note on blur;
+    // such text is edited in the panel's textarea instead.
+    if (/[\r\n]/.test(original)) return;
+    editing = { id, field, original };
+    editor.value = original;
     editor.style.left = `${Math.min(cx - 100, window.innerWidth - 210)}px`;
     editor.style.top = `${cy - 14}px`;
     editor.hidden = false;
@@ -731,7 +743,7 @@ export function createTools({ svg, store, requestRender, onToolChange, onSave, l
   function commitInlineEditor() {
     if (!editing) return;
     const cur = findItem(store.doc, editing.id)?.item;
-    if (cur) updateItem(store, editing.id, fieldPatch(cur, editing.field, editor.value));
+    if (cur && editor.value !== editing.original) updateItem(store, editing.id, fieldPatch(cur, editing.field, editor.value));
     editing = null;
     editor.hidden = true;
   }
