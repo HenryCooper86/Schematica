@@ -1188,6 +1188,7 @@ g.node:hover .ports,
 #drc-dialog,
 #compare-dialog,
 #part-dialog,
+#import-dialog,
 #shortcuts-dialog {
   position: fixed;
   inset: 0;
@@ -1211,6 +1212,7 @@ g.node:hover .ports,
 #drc-dialog[open],
 #compare-dialog[open],
 #part-dialog[open],
+#import-dialog[open],
 #shortcuts-dialog[open] { display: flex; }
 #rec-dialog::backdrop,
 #export-dialog::backdrop,
@@ -1218,6 +1220,7 @@ g.node:hover .ports,
 #drc-dialog::backdrop,
 #compare-dialog::backdrop,
 #part-dialog::backdrop,
+#import-dialog::backdrop,
 #shortcuts-dialog::backdrop { background: transparent; }
 .rec-card {
   width: 380px;
@@ -1288,6 +1291,7 @@ g.node:hover .ports,
 #drc-dialog .rec-buttons button,
 #compare-dialog .rec-buttons button,
 #part-dialog .rec-buttons button,
+#import-dialog .rec-buttons button,
 #shortcuts-dialog .rec-buttons button {
   background: var(--bg2);
   border: 1px solid var(--line);
@@ -1303,6 +1307,7 @@ g.node:hover .ports,
 #drc-dialog .rec-buttons button:hover,
 #compare-dialog .rec-buttons button:hover,
 #part-dialog .rec-buttons button:hover,
+#import-dialog .rec-buttons button:hover,
 #shortcuts-dialog .rec-buttons button:hover { border-color: var(--accent); }
 #export-cancel, #bom-close { color: var(--muted); }
 
@@ -2139,10 +2144,8 @@ html[data-theme="light"] :is(.replay-stream .tag, .replay-stream .replay-conditi
 }
 
 /* ---- Build from a source dialog ---- */
-/* The same chrome as the part and compare dialogs (no browser frame, the
-   card carries the shadow) and the engineering dialog's fields and buttons. */
-#import-dialog { padding: 0; border: none; background: transparent; }
-#import-dialog::backdrop { background: transparent; }
+/* The dialog shares the part and compare dialogs' chrome above (a full-viewport
+   overlay with the card centred, so its shadow has room); these are its fields. */
 #import-dialog .import-card { width: min(520px, calc(100vw - 32px)); }
 #import-dialog .import-card label { display: flex; flex-direction: column; align-items: stretch; gap: 6px; margin: 12px 0 0; padding: 0; font-size: 12px; color: var(--muted); }
 #import-dialog .import-card label.import-file { flex-direction: row; align-items: center; gap: 10px; }
@@ -2166,11 +2169,6 @@ html[data-theme="light"] :is(.replay-stream .tag, .replay-stream .replay-conditi
 #import-dialog #import-status { min-height: 1.2em; margin-top: 12px; font-size: 12.5px; color: var(--muted); white-space: pre-wrap; }
 #import-dialog #import-status.error { color: #f87171; }
 html[data-theme="light"] #import-dialog #import-status.error { color: #b91c1c; }
-#import-dialog .rec-buttons button {
-  background: var(--bg2); border: 1px solid var(--line); color: var(--text); border-radius: 8px;
-  padding: 8px 14px; font: inherit; font-size: 12.5px; cursor: pointer;
-}
-#import-dialog .rec-buttons button:hover:not(:disabled) { border-color: var(--accent); }
 #import-dialog .rec-buttons button[type=submit] { background: var(--accent-dim); border-color: var(--accent); }
 #import-dialog .rec-buttons button:disabled { opacity: .4; cursor: default; }
 /* Outranks every field rule above, so a mode's foreign controls stay hidden. */

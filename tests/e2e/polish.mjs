@@ -52,12 +52,13 @@ export async function runPolishChecks({ js, check, sleep, waitFor, capture = asy
     const d = document.getElementById('import-dialog'); const cs = getComputedStyle(d);
     const build = d.querySelector('#import-build'), cancel = d.querySelector('#import-cancel');
     const bs = getComputedStyle(build), xs = getComputedStyle(cancel);
-    return JSON.stringify({ open: d.open, frame: cs.borderStyle + '/' + cs.borderWidth, dialogBg: cs.backgroundColor, buildRadius: bs.borderRadius, cancelRadius: xs.borderRadius, buildAccented: bs.borderColor !== xs.borderColor, theme: document.documentElement.dataset.theme });
+    const vw = document.documentElement.clientWidth, dr = d.getBoundingClientRect();
+    return JSON.stringify({ open: d.open, frame: cs.borderStyle + '/' + cs.borderWidth, dialogBg: cs.backgroundColor, overlay: Math.round(dr.width) >= vw - 1, buildRadius: bs.borderRadius, cancelRadius: xs.borderRadius, buildAccented: bs.borderColor !== xs.borderColor, theme: document.documentElement.dataset.theme });
   })()`);
   await js(`document.querySelector('#assistant [data-build=cve]').click(); true`);
   await waitFor(`document.getElementById('import-dialog').open`);
   let look = JSON.parse(await dialogLook());
-  check('the CVE dialog has no browser frame and the project\'s buttons in the light theme', look.open && look.theme === 'light' && /none/.test(look.frame) && /0px/.test(look.frame) && look.dialogBg === 'rgba(0, 0, 0, 0)' && look.buildRadius === '8px' && look.cancelRadius === '8px' && look.buildAccented, JSON.stringify(look));
+  check('the CVE dialog is the project\'s full-viewport overlay with no browser frame and the project\'s buttons in the light theme', look.open && look.theme === 'light' && /none/.test(look.frame) && /0px/.test(look.frame) && look.dialogBg === 'rgba(4, 6, 12, 0.6)' && look.overlay && look.buildRadius === '8px' && look.cancelRadius === '8px' && look.buildAccented, JSON.stringify(look));
   await capture('polish-build-dialog-cve-light');
   await js(`document.getElementById('import-cancel').click(); true`);
   await js(`document.querySelector('#assistant [data-build=poc]').click(); true`);
