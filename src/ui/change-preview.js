@@ -3,10 +3,10 @@ import { compareBoards } from '../compare.js';
 import { tr } from '../i18n.js';
 import { escAttr as esc } from './press.js';
 
-const labels = () => ({ added: tr('Added'), removed: tr('Removed'), changed: tr('Changed'), rewired: tr('Rewired'), moved: tr('Layout changed') });
+export const changeLabels = () => ({ added: tr('Added'), removed: tr('Removed'), changed: tr('Changed'), rewired: tr('Rewired'), moved: tr('Layout changed') });
 
 export function paintComparison(beforeView, afterView, before, after, changes) {
-  const byId = new Map(), names = labels();
+  const byId = new Map(), names = changeLabels();
   for (const change of changes) {
     if (!byId.has(change.id)) byId.set(change.id, []);
     byId.get(change.id).push(change);
@@ -32,7 +32,7 @@ export function paintComparison(beforeView, afterView, before, after, changes) {
 }
 
 export function renderChangePreview(container, before, after) {
-  const { changes } = compareBoards(before, after), names = labels();
+  const { changes } = compareBoards(before, after), names = changeLabels();
   container.innerHTML = `<h3>${esc(tr('Visual change preview'))}</h3>
     <p>${esc(tr('Read-only diagrams share the same scale. Select a change to highlight it.'))}</p>
     <p class="change-legend">${Object.entries(names).map(([type, label]) => `<span class="legend-${type}">${esc(label)}</span>`).join(' · ')}</p>

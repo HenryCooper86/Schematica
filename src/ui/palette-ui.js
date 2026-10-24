@@ -75,8 +75,9 @@ export function initPalette({ svg, store, tools, library, editor, storage = null
   myHead.addEventListener('click', (e) => {
     if (e.target.closest('button')) return;
     myCollapsed = !myCollapsed;
-    myGrid.hidden = myCollapsed;
     myHead.classList.toggle('collapsed', myCollapsed);
+    // On this board sits under the same heading, so it folds with it.
+    applySearch();
   });
 
   function relabelHeader() {
@@ -85,7 +86,6 @@ export function initPalette({ svg, store, tools, library, editor, storage = null
     b('parts-new', tr('Define a new part'));
     b('parts-export', tr('Download My parts as a file'));
     b('parts-import', tr('Import a parts file'));
-    renderMine();
     mine.querySelector('#board-parts-head').textContent = tr('On this board');
   }
 
@@ -344,7 +344,7 @@ export function initPalette({ svg, store, tools, library, editor, storage = null
     const showRecent = !q && recent.length > 0;
     recentHead.hidden = !showRecent;
     recentGrid.hidden = !showRecent;
-    const onBoard = boardGrid.children.length > 0 && !q;
+    const onBoard = boardGrid.children.length > 0 && !q && !myCollapsed;
     boardHead.hidden = !onBoard;
     boardGrid.hidden = !onBoard;
   }

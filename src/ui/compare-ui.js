@@ -1,9 +1,9 @@
 import { compareBoards } from '../compare.js';
 import { deserialize } from '../serialize.js';
 import { download } from '../export.js';
-import { paintComparison } from './change-preview.js';
+import { paintComparison, changeLabels } from './change-preview.js';
 import { tr, onLanguageChange } from '../i18n.js';
-import { openModal } from './press.js';
+import { openModal, assertBoardFileSize } from './press.js';
 
 export function initCompare({ store, getRootDoc = () => store.doc }) {
   const dialog = document.getElementById('compare-dialog');
@@ -14,13 +14,12 @@ export function initCompare({ store, getRootDoc = () => store.doc }) {
   const afterView = document.getElementById('compare-after');
   const receipt = document.getElementById('compare-download');
   let baseline = null, report = null, last = '', request = 0;
-  const names = () => ({ added: tr('Added'), removed: tr('Removed'), changed: tr('Changed'), rewired: tr('Rewired'), moved: tr('Layout changed') });
   function paint() {
     if (!baseline) return;
     const current = getRootDoc();
     last = JSON.stringify(current);
     report = compareBoards(baseline, current);
-    const labels = names();
+    const labels = changeLabels();
     status.textContent = report.changes.length ? Object.entries(report.counts).map(([k, n]) => `${labels[k]}: ${n}`).join(' · ') : tr('No differences.');
     paintComparison(beforeView, afterView, baseline, current, report.changes);
     list.replaceChildren();
@@ -61,7 +60,7 @@ export function initCompare({ store, getRootDoc = () => store.doc }) {
     document.getElementById('compare-warning').textContent = '';
     status.textContent = '';
     try {
-      if (file.size > 16 * 1024 * 1024) throw new Error(tr('Board file exceeds 16 MiB.'));
+      assertBoardFileSize(file);
       const text = await file.text();
       if (token !== request) return;
       const loaded = deserialize(text);

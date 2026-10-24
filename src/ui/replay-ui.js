@@ -39,7 +39,9 @@ export function initReplay({ store, tools, render, svg }) {
 
   function syncChip() {
     const inc = store.doc.incident;
-    chip.hidden = active || !inc?.events?.length;
+    // A journey presentation uses the same layout; the chip stays out of it
+    // so a replay cannot start under, or end, that presentation.
+    chip.hidden = active || app.classList.contains('presenting') || !inc?.events?.length;
     chip.innerHTML = `<svg viewBox="0 0 18 18" aria-hidden="true"><path d="M6 4.5v9l7-4.5z"/></svg>${esc(tr('Replay incident'))}`;
   }
 
@@ -203,7 +205,7 @@ export function initReplay({ store, tools, render, svg }) {
 
   function enter() {
     incident = store.doc.incident;
-    if (!incident?.events?.length || active) return;
+    if (!incident?.events?.length || active || app.classList.contains('presenting')) return;
     span = incidentSpan(incident);
     // Start a moment before the first logged action, so nothing has
     // happened yet when the replay opens.
@@ -238,6 +240,7 @@ export function initReplay({ store, tools, render, svg }) {
 
   chip.addEventListener('click', enter);
   window.addEventListener('keydown', (e) => {
+    if (document.querySelector('dialog[open]')) return;
     if (!active || e.target.closest?.('input[type=text], textarea')) return;
     const keys = { ' ': () => (playing ? pause() : play()), ArrowRight: () => step(1), ArrowLeft: () => step(-1), Home: () => { pause(); seek(span.start); }, Escape: exit };
     const fn = keys[e.key];
@@ -247,6 +250,7 @@ export function initReplay({ store, tools, render, svg }) {
     fn();
   }, true);
   window.addEventListener('resize', () => { if (active) frameBoard(); });
+  new MutationObserver(syncChip).observe(app, { attributes: true, attributeFilter: ['class'] });
   // A different board ends the replay; an edit to this one keeps it running.
   let generation = store.generation;
   store.subscribe(() => {

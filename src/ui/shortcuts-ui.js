@@ -52,11 +52,12 @@ export function initShortcuts({ platform = typeof navigator === 'undefined' ? {}
 
   document.addEventListener('keydown', (e) => {
     // Shift-/ on most layouts, so the modifier flags are not checked beyond
-    // ruling out Ctrl/Cmd/Alt. A field being typed in, or any dialog already
-    // open (this one included), keeps the key.
+    // ruling out Ctrl/Cmd/Alt. A field being typed in, any dialog already
+    // open (this one included), or a presentation or replay keeps the key.
     if (e.key !== '?' || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
     if (e.target.closest('input, textarea, select, [contenteditable="true"]')
-      || document.querySelector('dialog[open]')) return;
+      || document.querySelector('dialog[open]')
+      || document.getElementById('app')?.classList.contains('presenting')) return;
     e.preventDefault();
     open();
   });

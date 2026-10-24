@@ -20,7 +20,7 @@ import { powerSummary, formatCurrent } from '../power.js';
 import { exposePort } from '../subsystems.js';
 import { download } from '../export.js';
 import { serialize } from '../serialize.js';
-import { escAttr as esc, openModal, toast, keepFocus } from './press.js';
+import { escAttr as esc, openModal, keepFocus, safe, eng, assertBoardFileSize, downloadCSV } from './press.js';
 import { tr, onLanguageChange } from '../i18n.js';
 
 export function initEngineering({ store, revisions, startupRecovery, navigation, persistence, flush, importKiCad, explorer, tools }) {
@@ -67,9 +67,7 @@ export function initEngineering({ store, revisions, startupRecovery, navigation,
   const submit = label => `<button type="submit">${esc(label)}</button>`;
   const items = () => [...store.doc.nodes, ...store.doc.wires].map(i => [i.id, i.label || `${i.id} (${i.bus})`]);
   const act = (id, label) => `<button type="button" data-action="${id}">${esc(label)}</button>`;
-  const safe = fn => async event => { event?.preventDefault(); try { await fn(event); } catch (error) { toast(error.message); } };
   const edit = fn => { store.apply(fn); saved(submittingForm); reusePreview = null; paint(); };
-  const eng = doc => (doc.engineering ||= {});
   function paint() {
     if (painting) return;
     painting = true;
@@ -159,7 +157,7 @@ export function initEngineering({ store, revisions, startupRecovery, navigation,
           });
         });
       };
-      actions.csv = () => download('interfaces.csv', interfaceCSV(store.doc), 'text/csv');
+      actions.csv = () => downloadCSV('interfaces.csv', interfaceCSV(store.doc));
       mountInterfaceGuide(body, store.doc, wire, statuses, id => {
         selected = id; reuseTargets.clear(); reusePreview = null;
         store.setSelection([id]); paint();
@@ -258,8 +256,8 @@ export function initEngineering({ store, revisions, startupRecovery, navigation,
         <label>${esc(tr('Import KiCad XML netlist'))}<input type="file" id="engineering-kicad" accept=".xml,.net"></label>
         <p>${esc(tr('KiCad updates preserve authored layout and annotations. Removed allocations remain missing; unsafe removals must be resolved before updating.'))}</p>
         <label>${esc(tr('Preview KiCad update'))}<input type="file" id="engineering-kicad-update" accept=".xml,.net"></label><div id="kicad-update-preview" role="status"></div>${act('icd', tr('Export ICD CSV'))}`;
-      actions.icd = () => download('interfaces.csv', interfaceCSV(store.doc), 'text/csv');
-      const importFile = (id, fn) => { body.querySelector(id).onchange = safe(async e => { const file = e.target.files[0]; if (!file) return; if (file.size > 16 * 1024 * 1024) throw new Error(tr('Board file exceeds 16 MiB.')); const stamp = captureKiCadUpdate(store); const text = await file.text(); assertKiCadUpdateCurrent(store, stamp); fn(text); paint(); }); };
+      actions.icd = () => downloadCSV('interfaces.csv', interfaceCSV(store.doc));
+      const importFile = (id, fn) => { body.querySelector(id).onchange = safe(async e => { const file = e.target.files[0]; if (!file) return; assertBoardFileSize(file); const stamp = captureKiCadUpdate(store); const text = await file.text(); assertKiCadUpdateCurrent(store, stamp); fn(text); paint(); }); };
       importFile('#engineering-csv', csv => edit(doc => importInterfaces(doc, csv)));
       importFile('#engineering-kicad', xml => store.replaceDoc(importKiCad(xml)));
       let updateRequest = 0;
@@ -267,7 +265,7 @@ export function initEngineering({ store, revisions, startupRecovery, navigation,
         const request = ++updateRequest, file = e.target.files[0], target = body.querySelector('#kicad-update-preview');
         target.replaceChildren();
         if (!file) return;
-        if (file.size > 16 * 1024 * 1024) throw new Error(tr('Board file exceeds 16 MiB.'));
+        assertBoardFileSize(file);
         const stamp = captureKiCadUpdate(store), xml = await file.text();
         assertKiCadUpdateCurrent(store, stamp);
         if (request !== updateRequest || !target.isConnected || !dialog.open) return;

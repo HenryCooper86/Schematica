@@ -81,8 +81,10 @@ export function initToolbarMore() {
   button.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); if (menu.hidden) open(); menu.querySelector('button:not([hidden])')?.focus(); }
   });
-  // A chosen item runs its own handler first, then the menu closes.
-  menu.addEventListener('click', (e) => { if (e.target.closest('button')) setTimeout(() => close(), 0); });
+  // A chosen item runs its own handler first, then the menu closes. A
+  // keyboard activation (detail 0) hands focus back to the More button, or it
+  // would stay on a button inside the hidden menu; a pointer leaves it be.
+  menu.addEventListener('click', (e) => { if (e.target.closest('button')) setTimeout(() => close({ focus: !e.detail }), 0); });
   menu.addEventListener('keydown', (e) => {
     const items = [...menu.querySelectorAll('button:not([hidden])')];
     const at = items.indexOf(document.activeElement);

@@ -60,8 +60,12 @@ export function initImport({ store, storage = null }) {
   logInput.addEventListener('change', async () => {
     const file = logInput.files[0];
     logInput.value = '';
+    // The read is asynchronous: a board that changed meanwhile is not the one
+    // the confirmation would describe.
+    const generation = store.generation, snapshot = JSON.stringify(store.doc);
     try {
       const result = reconstructIncident(parseIncidentLog(await readFile(file)));
+      if (store.generation !== generation || JSON.stringify(store.doc) !== snapshot) throw Error(tr('The board changed while the file was loading. Open the file again.'));
       if (!place(result.doc, result.doc.title)) return;
       toast(tr('Rebuilt "{title}": {steps} step(s) in {phases} phase(s). Press Replay incident to play it on a clock.', { title: result.doc.title, steps: result.timeline.length, phases: result.phases.length }));
     } catch (error) { toast(error.message); }

@@ -1,4 +1,6 @@
 // Shared helpers for the floating panels.
+import { download } from '../export.js';
+import { tr } from '../i18n.js';
 
 // Panel buttons act on pointerdown. A plain click handler loses the first
 // click after editing a field: the blur commits, the store emits, and the
@@ -99,4 +101,27 @@ export function toast(message, { action = null } = {}) {
 // showModal() throws on a dialog that is already open.
 export function openModal(dialog) {
   if (!dialog.open) dialog.showModal();
+}
+
+// A handler that keeps a thrown message in a toast instead of the console.
+// The event is optional so the same wrapper serves submit, change and click
+// handlers as well as calls made without one.
+export const safe = fn => async event => { event?.preventDefault(); try { await fn(event); } catch (error) { toast(error.message); } };
+
+// The engineering record on a board, created on first write.
+export const eng = doc => (doc.engineering ||= {});
+
+export const option = (value, label) => `<option value="${escAttr(value)}">${escAttr(label)}</option>`;
+
+// Board and interchange files are read whole into memory before parsing.
+export const MAX_BOARD_FILE_BYTES = 16 * 1024 * 1024;
+export function assertBoardFileSize(file) {
+  if (file.size > MAX_BOARD_FILE_BYTES) throw new Error(tr('Board file exceeds 16 MiB.'));
+}
+
+// Excel for Windows reads a UTF-8 CSV without a byte order mark in the
+// system code page, so a Chinese header opens as mojibake; the mark names the
+// encoding. The importer in tabular.js strips it again.
+export function downloadCSV(filename, csv) {
+  download(filename, '\uFEFF' + csv, 'text/csv;charset=utf-8');
 }

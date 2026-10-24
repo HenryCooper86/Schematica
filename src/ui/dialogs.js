@@ -13,7 +13,7 @@ import { buildBOM, bomCSV, bomMarkdown, bomHeaders, bomTotalMa, bomSummary } fro
 import { formatCurrent, formatCapacity, formatHours, powerSummary } from '../power.js';
 import { checkDoc, NEEDS_AUTHOR } from '../drc.js';
 import { encodeShare } from '../share.js';
-import { toast, openModal } from './press.js';
+import { toast, openModal, downloadCSV } from './press.js';
 import { tr, trd, onLanguageChange } from '../i18n.js';
 
 export function initDialogs({ store, getRootDoc = () => store.doc }) {
@@ -194,7 +194,7 @@ export function initDialogs({ store, getRootDoc = () => store.doc }) {
   // Rows are re-derived at click time so exports always match the live board,
   // even if it was edited (e.g. via undo) while the dialog was open.
   document.getElementById('bom-csv').addEventListener('click', () => {
-    download(safeName('.bom.csv'), bomCSV(buildBOM(store.doc)), 'text/csv');
+    downloadCSV(safeName('.bom.csv'), bomCSV(buildBOM(store.doc)));
   });
   document.getElementById('bom-md').addEventListener('click', () => {
     navigator.clipboard.writeText(bomMarkdown(buildBOM(store.doc)))

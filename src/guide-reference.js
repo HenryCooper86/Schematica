@@ -7,7 +7,7 @@ import { FLAG_META } from './render.js';
 import { escAttr as esc } from './ui/press.js';
 import { GUIDE_ICONS } from './guide-icons.js';
 import { PART_HELP } from './guide-parts.js';
-import { TOOLBAR_HELP, PALETTE_HELP, PANEL_HELP, ASSISTANT_HELP, STARTER_HELP } from './guide-controls.js';
+import { TOOLBAR_HELP, TOOLBAR_GROUPS, PALETTE_HELP, PANEL_HELP, ASSISTANT_HELP, STARTER_HELP } from './guide-controls.js';
 
 const text = (en, zh) => getLang() === 'zh' ? zh : en;
 const svg = (body, box = 18) => `<svg viewBox="0 0 ${box} ${box}" aria-hidden="true">${body}</svg>`;
@@ -27,11 +27,7 @@ const heading = (en, zh) => `<h3>${esc(text(en, zh))}</h3>`;
 const paragraph = (en, zh) => `<p>${esc(text(en, zh))}</p>`;
 
 export function toolbarReference(mac) {
-  const groups = [
-    [0, 6, 'Drawing tools', '绘图工具'], [6, 14, 'History and view', '历史与视图'],
-    [14, 26, 'Display and panels', '显示与面板'], [26, TOOLBAR_HELP.length, 'Files, review and sharing', '文件、评审与分享'],
-  ];
-  return groups.map(([from, to, en, zh]) => heading(en, zh) + '<div class="guide-control-list">' + TOOLBAR_HELP.slice(from, to).map(row => entry(row, row[0] === 'appearance' ? ['light','dark','system'].map(mode => symbol(`theme-${mode}`)).join('') : symbol(row[0]), row[5].replace('MOD', mac ? '⌘' : 'Ctrl'))).join('') + '</div>').join('');
+  return TOOLBAR_GROUPS.map(([group, en, zh]) => heading(en, zh) + '<div class="guide-control-list">' + TOOLBAR_HELP.filter(row => row[6] === group).map(row => entry(row, row[0] === 'appearance' ? ['light','dark','system'].map(mode => symbol(`theme-${mode}`)).join('') : symbol(row[0]), row[5].replace('MOD', mac ? '⌘' : 'Ctrl'))).join('') + '</div>').join('');
 }
 export function paletteReference(query = '') {
   const needle = query.trim().toLocaleLowerCase();

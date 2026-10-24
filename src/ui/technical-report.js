@@ -1,7 +1,7 @@
 import { buildTechnicalReport, technicalReportHTML } from '../technical-report.js';
 import { normalizeReportSettings, MAX_REPORT_LOGO_BYTES } from '../report-settings.js';
 import { download } from '../export.js';
-import { escAttr as esc, toast } from './press.js';
+import { escAttr as esc, safe, eng } from './press.js';
 import { tr } from '../i18n.js';
 
 export function renderTechnicalReport({ body, store, baseline, onSaved = () => {} }) {
@@ -50,7 +50,6 @@ export function renderTechnicalReport({ body, store, baseline, onSaved = () => {
       throw new Error(tr('The project or report details changed. Preview again before exporting.'));
     }
   };
-  const safe = fn => async event => { event.preventDefault(); try { await fn(); } catch (error) { toast(error.message); } };
   form.addEventListener('input', () => invalidate(tr('Report details changed. Preview again before exporting.')));
   form.addEventListener('change', () => invalidate(tr('Report details changed. Preview again before exporting.')));
   const unsubscribe = store.subscribe(() => {
@@ -59,7 +58,7 @@ export function renderTechnicalReport({ body, store, baseline, onSaved = () => {
   form.addEventListener('submit', safe(() => {
     if (logoPending) throw new Error(tr('Wait for the logo to finish loading before previewing.'));
     const settings = read();
-    store.apply(doc => { (doc.engineering ||= {}).technicalReport = settings; });
+    store.apply(doc => { eng(doc).technicalReport = settings; });
     onSaved(form);
     const report = buildTechnicalReport(store.doc, { baseline });
     preview = { document: JSON.stringify(store.doc), settings: JSON.stringify(settings), html: technicalReportHTML(report),

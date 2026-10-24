@@ -116,7 +116,7 @@ export function initJourney({ svg, store, tools, render, recorder, propsPanel })
     onPress(document.getElementById('journey-add'), () => {
       addStep(store, currentCenter());
     });
-    onPress(document.getElementById('journey-present'), presentEnter);
+    onPress(document.getElementById('journey-present'), () => presentEnter());
     journeyPanel.querySelectorAll('[data-jfield]').forEach((input) => {
       input.addEventListener('change', () => {
         const id = input.closest('.journey-step').dataset.step;
@@ -249,12 +249,13 @@ export function initJourney({ svg, store, tools, render, recorder, propsPanel })
     }
   }
 
-  function presentEnter() {
+  // Starts at the first chapter unless a position is given (a story link).
+  function presentEnter({ index = 0, stop = -1 } = {}) {
     if (!(store.doc.journey || []).length) return;
     presentState.active = true;
     tools.ui.presenting = true;
-    presentState.index = 0;
-    presentState.stop = -1;
+    presentState.index = index;
+    presentState.stop = stop;
     document.getElementById('app').classList.add('presenting');
     overlay.hidden = false;
     window.addEventListener('keydown', presentKeys, true);
@@ -346,9 +347,7 @@ export function initJourney({ svg, store, tools, render, recorder, propsPanel })
   return { openMoment(params) {
     const moment = readStoryMoment(store.doc.journey || [], params);
     if (!moment) return;
-    presentEnter();
-    presentState.index = moment.chapter; presentState.stop = moment.stop;
-    presentShow();
+    presentEnter({ index: moment.chapter, stop: moment.stop });
   } };
 
 }

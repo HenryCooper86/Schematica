@@ -2110,5 +2110,8 @@ export default {
   'Your own CVE database': '你自己的 CVE 数据库',
   'Open Record source in the dialog and enter a URL template containing {id}, for example https://cve.internal.example/api/{id}. It replaces CVE.org and NVD and is remembered on this device. The endpoint must allow requests from this site and return a CVE JSON 5 record, an NVD 2.0 response, or a plain summary with id, title, description, cvss, cwe, affected, references and solution.': '在对话框中打开“记录源”，输入包含 {id} 的网址模板，例如 https://cve.internal.example/api/{id}。它会取代 CVE.org 和 NVD，并记住在此设备上。该接口必须允许来自本站点的请求，并返回 CVE JSON 5 记录、NVD 2.0 响应，或包含 id、title、description、cvss、cwe、affected、references 和 solution 的简要摘要。',
   // ---- security scene bands ----
+  // ---- assistant starter drafts ----
+  'Build a board for: \nMust have: \nPower: \nConnectivity: ': '构建一块板图：\n必须包含：\n电源：\n连接方式：',
+  'Fill in blank part numbers, addresses, rails, and notes from the presets. Change nothing else.': '根据预设填写空白的型号、地址、电压和备注。不要改动其他内容。',
   '{source} did not return JSON.': '{source}未返回 JSON。',
 };

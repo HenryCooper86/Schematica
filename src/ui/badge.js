@@ -3,7 +3,7 @@
 import { CATEGORY_COLORS } from '../palette.js';
 import { escAttr } from './press.js';
 
-export function badgeColor(part) {
+function badgeColor(part) {
   return part.accent || CATEGORY_COLORS[part.category] || '#38bdf8';
 }
 

@@ -669,7 +669,8 @@ export function initAssistant({ store, tools, render, svg, library = null, setti
   async function send(text, { targets = [] } = {}) {
     const userText = String(text ?? '').trim();
     if (!userText || busy || pendingPreview || attachments.isImporting()) return;
-    if (!settings.configured()) { open(); showSettings(true); toast(tr('Add a provider and key first.')); return; }
+    // open() shows the settings sheet itself while nothing is configured.
+    if (!settings.configured()) { open(); toast(tr('Add a provider and key first.')); return; }
     if (sessionsOpen) showHistory(false);
     const gen = store.generation;
     const s = settings.get();
@@ -792,18 +793,21 @@ export function initAssistant({ store, tools, render, svg, library = null, setti
     review: () => draftSkill('review', tr('Review the architecture against the Blueprint and report findings without changing the board. ')),
     build: () => {
       activeSkill = 'auto'; el('ai-skill').value = activeSkill;
-      input.value = 'Build a board for: \nMust have: \nPower: \nConnectivity: ';
+      const draft = tr('Build a board for: \nMust have: \nPower: \nConnectivity: ');
+      input.value = draft;
       grow();
       scheduleSave();
       input.focus();
-      input.setSelectionRange(19, 19);
+      // The caret lands at the end of the first line, where the request goes.
+      const caret = draft.includes('\n') ? draft.indexOf('\n') : draft.length;
+      input.setSelectionRange(caret, caret);
     },
     fix: () => {
       const findings = checkDoc(store.doc);
       if (!findings.length) { toast(tr('The board passes every check.')); return; }
       send(`Fix these findings:\n${findings.map((f) => `${f.level} ${f.rule} "${f.message}" ids: ${f.ids.join(' ')}`).join('\n')}`, { targets: findings.filter((f) => f.level !== 'info') });
     },
-    fill: () => send('Fill in blank part numbers, addresses, rails, and notes from the presets. Change nothing else.'),
+    fill: () => send(tr('Fill in blank part numbers, addresses, rails, and notes from the presets. Change nothing else.')),
   };
 
   document.addEventListener('schematica:fix-finding', (e) => {

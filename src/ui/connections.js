@@ -2,7 +2,7 @@ import { connectionOptions, connectionSnapshot, connectPorts } from '../connecti
 import { nodePart } from '../rdk/profiles.js';
 import { BUSES } from '../buses.js';
 import { tr, trd, onLanguageChange } from '../i18n.js';
-import { escAttr as esc, openModal, toast } from './press.js';
+import { escAttr as esc, openModal, toast, option } from './press.js';
 
 export function initConnections({ store }) {
   // Opened from a selected card's Connect… button, Shift+C, or the guided
@@ -13,7 +13,6 @@ export function initConnections({ store }) {
   dialog.setAttribute('aria-labelledby', 'connect-heading');
   document.body.append(dialog);
   let pending, trigger;
-  const option = (value, label) => `<option value="${esc(value)}">${esc(label)}</option>`;
   const endpoint = end => ({ node: dialog.querySelector(`#connect-${end}-node`).value, port: dialog.querySelector(`#connect-${end}-port`).value });
   const select = (id, label) => `<label for="${id}">${esc(label)}</label><select id="${id}" required></select>`;
 
@@ -80,8 +79,7 @@ export function initConnections({ store }) {
   }
   dialog.addEventListener('close', () => { if (trigger?.isConnected) trigger.focus(); else document.getElementById('canvas')?.focus?.(); });
   document.addEventListener('schematica:connect-ports', () => { if (!dialog.open) open(); });
-  const translate = () => { if (dialog.open) dialog.close(); };
-  onLanguageChange(translate);
-  translate();
+  // The form's labels are built on open, so a language switch closes it.
+  onLanguageChange(() => { if (dialog.open) dialog.close(); });
   return { open };
 }

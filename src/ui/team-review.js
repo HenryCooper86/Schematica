@@ -47,7 +47,7 @@ export function initTeamReview({navigation}){
   body.querySelector('#team-create').onsubmit=run(async (_event,data)=>{const title=data.get('title').trim();const {board}=reviewSnapshot(navigation.rootDoc());({project}=await client.request('/projects',{title,board}));selected=project.latestRevisionId;rememberProject();paint();});
   if(!project)return;
   const panel=body.querySelector('#team-project'),rev=revision(),canEdit=project.members[user.id]==='editor';
-  panel.innerHTML=`<h3>${esc(project.title)}</h3><p>${esc(tr('Project version'))}: ${project.version}</p>
+  panel.innerHTML=`<h3>${esc(project.title)}</h3><p>${esc(tr('Project version'))}: ${esc(project.version)}</p>
    <label>${esc(tr('Review snapshot'))}<select id="team-revision">${project.revisions.map(r=>`<option value="${esc(r.id)}"${r.id===selected?' selected':''}>${esc(r.title||r.id)} · ${esc(r.createdAt)} · ${esc(actor(r.author))}</option>`).join('')}</select></label>
    ${action('team-publish',tr('Publish local board as new revision'),!canEdit)} ${action('team-export',tr('Export shared review'))}
    ${rev?`<p class="team-hash">${esc(tr('Snapshot hash'))}: ${esc(rev.hash)}</p><p id="team-local-state" role="status"></p><div id="team-diagram" class="team-diagram"></div>${action('team-report',tr('Download snapshot review package'))}

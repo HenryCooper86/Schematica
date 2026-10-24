@@ -35,6 +35,18 @@ export function initReviewPath({ store, navigation, revisions, engineering, conn
     const doc = normalized(navigation.rootDoc());
     return { doc, path: reviewPath(doc, { checked, exported, revisions: revisionMarks() }) };
   };
+  const stageOf = path => path.complete ? 'complete' : path.current;
+  // A hidden panel needs the stage alone, for the button, yet every document
+  // notice would normalise the board and run the checks to get it. The stage
+  // is remembered against the board's own text and the bookkeeping it depends
+  // on, so a notice that changed neither (a revision list refresh, a saved
+  // view, a second notice for one edit) costs one serialisation.
+  let remembered = null;
+  function hiddenStage() {
+    const key = [JSON.stringify(navigation.rootDoc()), checked, exported, ...revisions.list().map(r => r.id)].join('\u0000');
+    if (remembered?.key !== key) remembered = { key, stage: stageOf(current().path) };
+    return remembered.stage;
+  }
   const label = () => { button.title = tr('Review path'); button.setAttribute('aria-label', tr('Review path')); };
   const intro = id => ({
     prepare: tr('Build the board and declare what you know about each interface. Blank values stay unknown.'),
@@ -44,11 +56,11 @@ export function initReviewPath({ store, navigation, revisions, engineering, conn
   })[id];
 
   function paint() {
-    const { path } = current();
     button.setAttribute('aria-pressed', String(!panel.hidden));
     button.classList.toggle('active', !panel.hidden);
-    button.dataset.stage = path.complete ? 'complete' : path.current;
-    if (panel.hidden) return;
+    if (panel.hidden) { button.dataset.stage = hiddenStage(); return; }
+    const { path } = current();
+    button.dataset.stage = stageOf(path);
     const restoreFocus = keepFocus(panel);
     const stage = path.stages.find(s => s.id === shownStage) || path.stages.find(s => s.id === path.current);
     const items = stage.items;
@@ -103,7 +115,7 @@ export function initReviewPath({ store, navigation, revisions, engineering, conn
   document.addEventListener('schematica:review-exported', () => { exported = designFingerprint(normalized(navigation.rootDoc())); paint(); });
   store.subscribe(() => { if (!store.isDragging()) paint(); }, { documentOnly: true });
   revisions.subscribe?.(() => paint());
-  onLanguageChange(() => { label(); paint(); });
+  onLanguageChange(() => { label(); remembered = null; paint(); });
   label();
   paint();
   return { open() { if (panel.hidden) button.click(); }, isOpen: () => !panel.hidden };

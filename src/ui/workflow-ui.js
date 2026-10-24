@@ -9,21 +9,10 @@ import {
 } from "../workflows.js";
 import { uid } from "../state.js";
 import { download } from "../export.js";
-import { escAttr as esc, toast } from "./press.js";
+import { escAttr as esc, safe, eng, option, assertBoardFileSize, downloadCSV } from "./press.js";
 import { tr } from "../i18n.js";
 const field = (name, label, value = "") =>
   `<label>${esc(label)}<input name="${name}" value="${esc(value)}" maxlength="20000" required></label>`;
-const option = (value, label) =>
-  `<option value="${esc(value)}">${esc(label)}</option>`;
-const safe = (fn) => async (e) => {
-  e?.preventDefault();
-  try {
-    await fn(e);
-  } catch (error) {
-    toast(error.message);
-  }
-};
-const eng = (doc) => (doc.engineering ||= {});
 export function renderWorkflow({
   tab,
   body,
@@ -68,10 +57,9 @@ export function renderWorkflow({
     body.querySelector("#matrix-filter").oninput = draw;
     body.querySelector("#matrix-review").onchange = draw;
     body.querySelector("#matrix-export").onclick = () =>
-      download(
+      downloadCSV(
         "verification.csv",
         verificationCSV(navigation.rootDoc(), baseline),
-        "text/csv",
       );
     draw();
   } else if (tab === "views") {
@@ -194,8 +182,7 @@ export function renderWorkflow({
     body.querySelector("#comments-import").onchange = safe(async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      if (file.size > 16 * 1024 * 1024)
-        throw new Error(tr("Board file exceeds 16 MiB."));
+      assertBoardFileSize(file);
       const snapshot = JSON.stringify(store.doc),
         generation = store.generation,
         text = await file.text();
