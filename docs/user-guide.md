@@ -353,6 +353,11 @@ incident, or you can pick it in the **Skill** selector.
 
 - Describe the attack in your own words, or paste a link to an advisory. The
   assistant reads only links you give it, and only on the Node-backed edition.
+- Give the assistant a CVE id and it draws the explainer from the published
+  record, using the organisation's configured CVE database when the server has
+  one and otherwise CVE.org and NVD. It reports the source it used. This is the
+  same drawing as **Import → CVE explainer**, so it needs no provider reading of
+  NVD or MITRE pages.
 - To rebuild an incident, attach a JSON log of timestamped actions and ask what
   happened. The log is `{"incident", "blastRadius", "stages": [{id, name}],
   "trustBoundaries": [{id, name}], "nodes": {name: kind}, "actions": [{ts,

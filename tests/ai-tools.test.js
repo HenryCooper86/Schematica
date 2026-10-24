@@ -10,8 +10,8 @@ function plain(doc) {
   return createExecutor({ getDoc: () => doc, commit: (fn) => fn(doc), selection: () => ['n5'] });
 }
 
-test('ten tools with the expected names and strict flags', () => {
-  assert.deepEqual(TOOLS.map((t) => t.name), ['read_skill', 'read_url', 'rdk_reference', 'search_parts', 'get_board', 'run_checks', 'list_presets', 'apply_edits', 'reconstruct_from_log', 'arrange']);
+test('eleven tools with the expected names and strict flags', () => {
+  assert.deepEqual(TOOLS.map((t) => t.name), ['read_skill', 'read_url', 'rdk_reference', 'search_parts', 'get_board', 'run_checks', 'list_presets', 'apply_edits', 'reconstruct_from_log', 'cve_explainer', 'arrange']);
   for (const t of TOOLS) {
     assert.equal(typeof t.description, 'string');
     assert.equal(t.input_schema.type, 'object');
@@ -252,4 +252,29 @@ test('reconstruct_from_log inside an assistant reply batch is one undo step', ()
   store.undo();
   assert.equal(store.doc.nodes.length, 0);
   assert.equal(store.doc.journey.length, 0);
+});
+
+test('cve_explainer draws a record via the injected fetch and reports its source', async () => {
+  const doc = { schema: 4, title: 'Untitled', nodes: [], wires: [], zones: [], notes: [], journey: [] };
+  const record = { id: 'CVE-2026-74669', title: 'Example kernel flaw', description: 'A flaw.', cwes: [{ id: 'CWE-787', name: '' }], cvss: { score: 9.8, severity: 'critical', vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H', attackVector: 'network', privileges: 'none', userInteraction: 'none', scope: 'unchanged', confidentiality: 'high', integrity: 'high', availability: 'high' }, affected: [{ vendor: 'Linux', product: 'Linux kernel', versions: '6.1 .. 6.1.183' }], references: [], solution: '', workaround: '', published: '', kev: true, source: 'your CVE database' };
+  const asked = [];
+  const ex = createExecutor({ getDoc: () => doc, commit: (fn) => fn(doc), fetchCve: async (id) => { asked.push(id); return record; } });
+  const res = await ex.run('cve_explainer', { cve: 'CVE-2026-74669' });
+  assert.equal(res.isError, false);
+  assert.deepEqual(asked, ['CVE-2026-74669']);
+  assert.match(res.text, /from your CVE database/);
+  assert.match(res.text, /five-chapter presentation/);
+  assert.equal(doc.title, 'CVE-2026-74669: Example kernel flaw');
+  assert.ok(doc.nodes.some((n) => n.kind === 'vulnerability'));
+
+  const busy = await ex.run('cve_explainer', { cve: 'CVE-2026-74669' });
+  assert.equal(busy.isError, true);
+  assert.match(busy.text, /replaces it/);
+  const ok2 = await ex.run('cve_explainer', { cve: 'CVE-2026-74669', replace: true });
+  assert.equal(ok2.isError, false);
+  const missing = await ex.run('cve_explainer', { cve: '' });
+  assert.equal(missing.isError, true);
+  const failed = await createExecutor({ getDoc: () => ({ schema: 4, title: 'x', nodes: [], wires: [], zones: [], notes: [], journey: [] }), commit: (fn) => fn(), fetchCve: async () => { throw Error('CVE.org has no record for CVE-2000-0001.'); } }).run('cve_explainer', { cve: 'CVE-2000-0001' });
+  assert.equal(failed.isError, true);
+  assert.match(failed.text, /has no record/);
 });

@@ -18,6 +18,7 @@ import { searchRdk } from '../rdk/catalogue.js';
 import { referenceText, rdkProfile } from '../rdk/guide.js';
 import { tr } from '../i18n.js';
 import { parseIncidentLog, reconstructIncident } from '../incident-replay.js';
+import { fetchCveRecord, buildCveExplainer } from '../cve-explainer.js';
 
 const EMPTY = { type: 'object', properties: {}, additionalProperties: false };
 
@@ -62,6 +63,12 @@ export const TOOLS = [
     strict: true,
   },
   {
+    name: 'cve_explainer',
+    description: 'Draw a published CVE as an explainer board from its record, the same as Import \u2192 CVE explainer. Pass the CVE id in cve. The record comes from the organisation\u2019s CVE database when the server has one configured, otherwise CVE.org with NVD for a missing score; prefer this over read_url for a CVE id so the configured database is used. It builds the attacker, the trust boundary, the affected products, the flaw (CWE, CVSS), the impact and the fix, with a short presentation, and a note recording the source and any assumptions. It replaces the whole board, so on a non-empty board ask the user first and then pass replace: true. The returned source line says where the record came from; report it. Use read_url only for an advisory the user links or when no record is found.',
+    input_schema: { type: 'object', properties: { cve: { type: 'string' }, replace: { type: 'boolean' } }, required: ['cve'], additionalProperties: false },
+    strict: true,
+  },
+  {
     name: 'arrange',
     description: 'Lay the whole board out again from scratch. Moves every card except locked ones, which stay where they are; use only when the user asks to tidy or rearrange.',
     input_schema: EMPTY,
@@ -81,6 +88,7 @@ export function statusLine(name, input = {}) {
     case 'list_presets': return tr('presets for {kind}', { kind: i.kind ?? '' });
     case 'apply_edits': return tr('applying {n} edits', { n: Array.isArray(i.ops) ? i.ops.length : 0 });
     case 'reconstruct_from_log': return tr('rebuilding the incident from the log');
+    case 'cve_explainer': return tr('drawing CVE explainer: {cve}', { cve: i.cve ?? '' });
     case 'arrange': return tr('arranging the board');
     default: return name;
   }
@@ -88,7 +96,7 @@ export function statusLine(name, input = {}) {
 
 const findingLine = (f) => `${f.level} ${f.rule} "${f.message}" ids: ${f.ids.join(' ')}`;
 
-export function createExecutor({ getDoc, commit, selection = () => [], library = null, readUrl = createWebReader(), attachment = () => null }) {
+export function createExecutor({ getDoc, commit, selection = () => [], library = null, readUrl = createWebReader(), attachment = () => null, fetchCve = fetchCveRecord }) {
   const touched = new Set();
   const ok = (text) => ({ text, isError: false });
   const err = (text) => ({ text, isError: true });
@@ -177,6 +185,20 @@ export function createExecutor({ getDoc, commit, selection = () => [], library =
       const steps = result.timeline.length;
       const phases = result.phases.map((p) => `${p.name} (${p.count} action(s))`).join('; ');
       return ok(`Rebuilt "${result.doc.title}": ${result.doc.nodes.length} parts, ${result.doc.wires.length} wires, ${result.doc.zones.length} zones, ${steps} steps.\nPhases, one presentation chapter each: ${phases}\nThe board carries a note that it was reconstructed from a log. Kinds default to process cards unless the log names them; you may refine kinds, labels and notes with apply_edits.`);
+    },
+    async cve_explainer(input) {
+      const id = String(input.cve || '').trim();
+      if (!id) return err('Pass a CVE id in cve, such as CVE-2021-44228.');
+      const doc = getDoc();
+      const hasWork = doc.nodes.length || doc.zones.length || doc.notes.length || (doc.journey || []).length;
+      if (hasWork && input.replace !== true) return err('The board is not empty and the explainer replaces it. Ask the user to confirm, then call again with replace: true.');
+      let record, built;
+      try { record = await fetchCve(id); } catch (error) { return err(error.message); }
+      try { built = buildCveExplainer(record); } catch (error) { return err(error.message); }
+      commit((d) => { for (const key of ['title', 'nodes', 'wires', 'zones', 'notes', 'journey', 'incident']) { if (built.doc[key] === undefined) delete d[key]; else d[key] = built.doc[key]; } });
+      for (const n of getDoc().nodes) touched.add(n.id);
+      const assume = built.assumptions.length ? `\nAssumptions written in the note: ${built.assumptions.length}.` : '';
+      return ok(`Drew "${built.doc.title}" from ${record.source || 'the record'}: ${built.doc.nodes.length} parts, ${built.doc.wires.length} wires, a five-chapter presentation.${assume}\nReport the source to the user. This is an illustration of a published record, not an assessment; nothing was run or tested. Refine labels or add the mitigation with apply_edits if needed.`);
     },
     arrange() {
       const doc = getDoc();

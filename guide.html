@@ -178,7 +178,7 @@
           <h2>Explain an attack or incident</h2>
           <p>Ask the assistant to draw how an attack works. It builds the picture from threat parts, trust-boundary zones and labelled wires, then adds a step-by-step presentation.</p>
           <ol class="guide-steps">
-            <li><h3>Describe the attack</h3><p>Open Assistant (A) and describe the vulnerability or attack, or paste a link to an advisory. The assistant reads only the links you give it.</p></li>
+            <li><h3>Describe the attack</h3><p>Open Assistant (A) and describe the vulnerability or attack, or paste a link to an advisory. The assistant reads only the links you give it. Give it a CVE id and it draws the published record, using the CVE database configured on the server when there is one and otherwise CVE.org and NVD, and tells you the source.</p></li>
             <li><h3>Rebuild an incident from a log</h3><p>Attach a JSON log of timestamped actions (ts, actor, action, and optionally target and phase) and ask the assistant to show what happened. Each phase becomes a presentation chapter, with one stop per step in time order.</p></li>
             <li><h3>Review, edit and present</h3><p>Review the preview, then choose Apply changes. Edit the result like any other board, and choose Present to walk through the steps.</p></li>
           </ol>

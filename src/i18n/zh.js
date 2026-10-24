@@ -6,7 +6,7 @@ export default {
   "The Assistant is a movable panel. Drag its title bar anywhere on the page, or focus the title bar and use the arrow keys (Shift for larger moves). It remembers its position on this device; resizing or collapsing keeps a drag grip reachable.": "助手是可移动面板。拖动标题栏可将其移到页面上的任意位置；也可聚焦标题栏后按方向键移动（按住 Shift 可加大步幅）。它会在此设备记住位置；调整窗口大小或折叠后仍保留可拖动的区域。",
   "Ask the assistant to draw how an attack works. It builds the picture from threat parts, trust-boundary zones and labelled wires, then adds a step-by-step presentation.": "让助手画出攻击是如何发生的。它会用威胁部件、信任边界分区和带标签的连线构建图示，再添加分步演示。",
   "Describe the attack": "描述攻击",
-  "Open Assistant (A) and describe the vulnerability or attack, or paste a link to an advisory. The assistant reads only the links you give it.": "打开助手（A），描述漏洞或攻击，或粘贴安全公告链接。助手只读取你提供的链接。",
+  "Open Assistant (A) and describe the vulnerability or attack, or paste a link to an advisory. The assistant reads only the links you give it. Give it a CVE id and it draws the published record, using the CVE database configured on the server when there is one and otherwise CVE.org and NVD, and tells you the source.": "打开助手（A），描述漏洞或攻击，或粘贴安全公告链接。助手只读取你提供的链接。输入 CVE 编号时，助手会绘制公开记录：服务器配置了 CVE 数据库时使用该数据库，否则使用 CVE.org 和 NVD，并告知来源。",
   "Rebuild an incident from a log": "根据日志重建事件",
   "Attach a JSON log of timestamped actions (ts, actor, action, and optionally target and phase) and ask the assistant to show what happened. Each phase becomes a presentation chapter, with one stop per step in time order.": "附加一个带时间戳动作的 JSON 日志（ts、actor、action，以及可选的 target 和 phase），然后让助手展示发生了什么。每个阶段成为一个演示章节，每个步骤按时间顺序成为一个停靠点。",
   "Review, edit and present": "审阅、编辑并演示",
@@ -2053,6 +2053,7 @@ export default {
   // ---- incident replay ----
   // ---- import menu: incident log, CVE explainer, write-up ----
   'your CVE database': '你的 CVE 数据库',
+  'drawing CVE explainer: {cve}': '正在绘制 CVE 讲解图：{cve}',
   'This site already queries a CVE database configured on the server. Leave this blank to use it; records it does not hold fall back to CVE.org.': '本站点已查询服务器上配置的 CVE 数据库。留空即可使用它；它没有的记录会回退到 CVE.org。',
   'Import an incident log, a CVE id or a write-up': '导入事件日志、CVE 编号或文章',
   'Incident log (JSON)…': '事件日志（JSON）…',
