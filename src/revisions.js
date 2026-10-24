@@ -14,8 +14,10 @@ export function createRevisions(
     indexedDB = null,
     database = null,
     onChange = () => {},
+    project = null,
   } = {},
 ) {
+  const mine = (e) => project === null || (e.project || "main") === project;
   const memory = new Map();
   const durable = new Map();
   const listeners = new Set([onChange]);
@@ -83,16 +85,14 @@ export function createRevisions(
   }
   function list() {
     const entries = new Map([...durable, ...memory]);
-    if (useDB)
-      return [...entries.values()].sort(
-        (a, b) => b.at - a.at || b.id.localeCompare(a.id),
-      );
-    try {
-      for (const entry of legacy()) entries.set(entry.id, { ...entry, durable: true });
-    } catch (error) {
-      onError(error);
+    if (!useDB) {
+      try {
+        for (const entry of legacy()) entries.set(entry.id, { ...entry, durable: true });
+      } catch (error) {
+        onError(error);
+      }
     }
-    return [...entries.values()].sort(
+    return [...entries.values()].filter(mine).sort(
       (a, b) => b.at - a.at || b.id.localeCompare(a.id),
     );
   }
@@ -137,6 +137,7 @@ export function createRevisions(
       reason,
       text,
       durable: false,
+      ...(project ? { project } : {}),
     };
     memory.set(entry.id, entry);
     if (useDB) {
@@ -158,6 +159,17 @@ export function createRevisions(
     restore,
     ready,
     flush: () => queue,
+    // Remove every snapshot of one project; the caller has confirmed.
+    purge(id) {
+      for (const e of [...durable.values(), ...memory.values()]) if ((e.project || "main") === id) { durable.delete(e.id); memory.delete(e.id); }
+      if (!useDB) {
+        try { for (const e of legacy()) if ((e.project || "main") === id) storage.removeItem(REVISION_PREFIX + e.id); } catch (error) { onError(error); }
+        notify();
+        return Promise.resolve();
+      }
+      queue = queue.then(async () => { await ready; if (!db) db = database || await openRevisionDB(indexedDB); if (db.remove) await db.remove(e => (e.project || "main") === id); await refresh(); }).catch((error) => { onError(error); notify(); });
+      return queue;
+    },
     retry: () => (useDB ? persist() : Promise.resolve(persistLocal([...memory.values()]))),
     subscribe(fn) {
       listeners.add(fn);
@@ -172,8 +184,7 @@ export function createRevisions(
 
 // Detect another writer before replacing its autosave. The UI decides which
 // board to continue; both snapshots are recoverable before that decision.
-export function conflictStorage(storage, { getDoc, revisions, onConflict }) {
-  const key = "schematica.autosave";
+export function conflictStorage(storage, { getDoc, revisions, onConflict, key = "schematica.autosave" }) {
   let observed = storage?.getItem(key) ?? null;
   let conflict = null;
   function observe(value) {
@@ -192,6 +203,7 @@ export function conflictStorage(storage, { getDoc, revisions, onConflict }) {
     }
   }
   return {
+    key,
     getItem: (name) => storage?.getItem(name),
     setItem(name, value) {
       if (!storage) throw new Error("Storage unavailable");

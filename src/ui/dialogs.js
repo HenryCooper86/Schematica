@@ -21,6 +21,8 @@ export function initDialogs({ store, getRootDoc = () => store.doc }) {
 
   function saveJSON() {
     download(safeName('.schematica.json'), serialize(getRootDoc()), 'application/json');
+    // The project registry records this as the board's file backup.
+    document.dispatchEvent(new CustomEvent('schematica:board-saved'));
   }
 
   document.getElementById('btn-new').addEventListener('click', () => {

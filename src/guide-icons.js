@@ -31,6 +31,7 @@ export const GUIDE_ICONS = {
   "btn-open": "<svg viewBox=\"0 0 18 18\" aria-hidden=\"true\"><path d=\"M9 11V3 M5.5 6.5 9 3l3.5 3.5 M3 14.5h12\"/></svg>",
   "btn-examples": "Examples ▾",
   "btn-review-path": "<svg viewBox=\"0 0 18 18\" aria-hidden=\"true\"><circle cx=\"4\" cy=\"9\" r=\"2\"/><circle cx=\"14\" cy=\"4.5\" r=\"2\"/><circle cx=\"14\" cy=\"13.5\" r=\"2\"/><path d=\"M6 8.3l6-3.2M6 9.7l6 3.2\"/></svg>",
+  "btn-projects": "<svg viewBox=\"0 0 18 18\" aria-hidden=\"true\"><path d=\"M2 5.5A1.5 1.5 0 0 1 3.5 4h3.2l1.6 1.8h6.2A1.5 1.5 0 0 1 16 7.3v5.2a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 2 12.5z\"/></svg>",
   "btn-check": "<svg viewBox=\"0 0 18 18\" aria-hidden=\"true\"><circle cx=\"9\" cy=\"9\" r=\"6.5\"/><path d=\"M6.2 9.3l2 2 3.6-4.2\"/></svg>",
   "btn-bom": "BOM",
   "btn-lang": "中文",

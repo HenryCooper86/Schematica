@@ -1,5 +1,7 @@
 import { createSettings } from './ai/settings.js';
 import { createStartupRecovery, RECOVERY_PREFIX } from './startup-recovery.js';
+import { createProjects } from './projects.js';
+import { initProjects } from './ui/projects-ui.js';
 import { initTeamReview } from './ui/team-review.js';
 import { initOnboarding } from './ui/onboarding.js';
 import { initReviewPath } from './ui/review-path-ui.js';
@@ -48,7 +50,9 @@ initI18n({ storage: langStorage });
 translateStatic();
 initAppearance(langStorage);
 
-const startupRecovery = createStartupRecovery(langStorage);
+// Which of this browser's projects is open decides every storage key below.
+const projects = createProjects(langStorage, { untitled: () => tr('Untitled Board') });
+const startupRecovery = createStartupRecovery(langStorage, { key: projects.key() });
 const store = new Store(startupRecovery.doc || newDoc());
 const renderer = createRenderer(svg);
 let dialogs = null;
@@ -62,7 +66,7 @@ let engineeringUI = null;
 const navigation = createSubsystemNavigation(store);
 let recoveryDB = null;
 try { recoveryDB = globalThis.indexedDB; } catch { /* blocked storage */ }
-const revisions = createRevisions(storage, { indexedDB: recoveryDB, onError: () => toast(tr('Revision storage failed. Export a board file to keep a durable copy.')) });
+const revisions = createRevisions(storage, { indexedDB: recoveryDB, project: projects.activeId(), onError: () => toast(tr('Revision storage failed. Export a board file to keep a durable copy.')) });
 store.beforeReplace.add(() => {
   if (navigation.navigating()) return;
   if (engineeringUI?.confirmDiscardDrafts() === false) return false;
@@ -73,15 +77,15 @@ store.beforeReplace.add(() => {
 window.addEventListener('focus', () => revisions.refresh().catch(() => {}));
 let persistence;
 try {
-  persistence = conflictStorage(storage, { getDoc: () => navigation.rootDoc(), revisions,
+  persistence = conflictStorage(storage, { getDoc: () => navigation.rootDoc(), revisions, key: projects.key(),
     onConflict: () => { showSaveState(); toast(tr('Another tab changed this board. Open Engineering to choose which version to keep.'), {
       action: { label: tr('Review versions'), run: () => engineeringUI?.openRevisions() },
     }); } });
-} catch { persistence = conflictStorage(null, { getDoc: () => navigation.rootDoc(), revisions, onConflict: () => {} }); }
+} catch { persistence = conflictStorage(null, { getDoc: () => navigation.rootDoc(), revisions, key: projects.key(), onConflict: () => {} }); }
 window.addEventListener('storage', event => {
   if (event.storageArea !== storage) return;
   if (event.key === null || event.key?.startsWith(RECOVERY_PREFIX)) startupRecovery.refresh();
-  if (event.key === 'schematica.autosave' || event.key === null) {
+  if (event.key === persistence.key || event.key === null) {
     persistence.observe(event.newValue);
     showSaveState();
   }
@@ -207,7 +211,7 @@ const showSaveState = () => {
 };
 recoveryStatus.onclick = () => engineeringUI?.openRevisions();
 revisions.subscribe(showSaveState); startupRecovery.subscribe(showSaveState); onLanguageChange(showSaveState);
-const autosave = createAutosave({ store, storage: startupRecovery.protect(persistence), getDoc: () => navigation.rootDoc(), onStatus: state => { autosaveState = state; showSaveState(); }, onError: () => {
+const autosave = createAutosave({ store, storage: startupRecovery.protect(persistence), getDoc: () => navigation.rootDoc(), key: projects.key(), onStatus: state => { autosaveState = state; showSaveState(); }, onError: () => {
   if (persistence.pending()) return;
   if (startupRecovery.blocked()) {
     toast(tr('Autosave is paused to protect the original data. Export your current board or retry recovery.'), { action: { label: tr('Review versions'), run: () => engineeringUI?.openRevisions() } });
@@ -271,6 +275,7 @@ const connections = initConnections({ store });
 initTeamReview({navigation});
 initOnboarding({ store, navigation, revisions, engineering: engineeringUI, tools, connections });
 initReviewPath({ store, navigation, revisions, engineering: engineeringUI, connections });
+initProjects({ projects, store, navigation, revisions, autosave, engineering: engineeringUI });
 const recorder = initRecording({ svg, store });
 const journeyUI = initJourney({ svg, store, tools, render, recorder, propsPanel });
 initExamplesMenu({ store });

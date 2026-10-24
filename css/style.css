@@ -67,6 +67,18 @@ html, body {
   font-size: 13px;
 }
 #title:focus { outline: none; border-color: var(--accent); }
+#btn-projects { position: relative; }
+#btn-projects .projects-count { position: absolute; top: -4px; right: -4px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px; background: var(--accent); color: #0b1220; font-size: 9px; font-weight: 700; line-height: 14px; text-align: center; }
+#btn-projects .projects-count:empty { display: none; }
+#projects-menu { position: fixed; z-index: 30; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px); overflow: auto; padding: 4px; background: var(--bg1); border: 1px solid var(--line2); border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6); }
+#projects-menu button { display: block; width: 100%; background: none; border: none; border-radius: 7px; padding: 7px 10px; cursor: pointer; font-size: 12.5px; font-family: inherit; color: var(--text); text-align: left; }
+#projects-menu button:hover, #projects-menu button:focus-visible { background: var(--bg3); outline: none; }
+#projects-menu button:disabled { opacity: .5; cursor: default; }
+#projects-menu button[aria-checked="true"] { box-shadow: inset 3px 0 0 var(--accent); }
+#projects-menu button small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+#projects-menu .menu-group { margin: 8px 10px 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 1.6px; color: var(--faint); user-select: none; }
+#projects-menu .menu-group:first-child { margin-top: 4px; }
+#projects-menu p { margin: 6px 10px 8px; font-size: 11px; color: var(--muted); line-height: 1.4; }
 
 .group {
   display: flex;

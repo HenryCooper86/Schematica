@@ -29,6 +29,7 @@ Simplified Chinese while keeping your board open in its original tab.
 | Get a board ready to hand off, one stage at a time | [Review path](user-guide.md#follow-the-review-path) |
 | Understand Checked, Failed and Unassessed | [Review the design](user-guide.md#review-the-design) |
 | Set numeric interface limits or record requirement evidence | [Engineering workflows](engineering-workflows.md) |
+| Switch between the boards kept in this browser | [Work on several projects](user-guide.md#work-on-several-projects) |
 | Keep a backup or recover an earlier board | [Save and recover](user-guide.md#save-and-recover) |
 | Choose between JSON, HTML, images and review packages | [Share and export](user-guide.md#share-and-export) |
 | Import a KiCad netlist or compare a change | [Compare and import](user-guide.md#compare-and-import) |

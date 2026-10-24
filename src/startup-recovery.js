@@ -4,14 +4,14 @@ import { tr } from './i18n.js';
 
 // Original bytes live outside the rotating, normalized revision history.
 export const RECOVERY_PREFIX = 'schematica.recovery.';
-const AUTOSAVE = 'schematica.autosave';
+
 const validArchive = entry => entry && typeof entry.id === 'string' && entry.id.length > 0
   && typeof entry.text === 'string' && Number.isFinite(entry.at) && Math.abs(entry.at) <= 8.64e15;
 const inspect = text => {
   try { return { ...deserialize(text), error: '' }; }
   catch (error) { return { doc: null, warnings: [], error: error.message }; }
 };
-export function createStartupRecovery(storage) {
+export function createStartupRecovery(storage, { key: AUTOSAVE = 'schematica.autosave' } = {}) {
   const entries = new Map(), listeners = new Set();
   const notify = () => listeners.forEach(fn => fn());
   let original = null, doc = null, readError = '';

@@ -35,6 +35,7 @@ what you should see and how to recover your previous board.
 | Draw parts, connect ports and organize a board | [Build and edit](docs/user-guide.md#build-and-edit-a-board) |
 | Follow the Prepare → Check → Resolve → Handoff path | [Review path](docs/user-guide.md#follow-the-review-path) |
 | Check interface declarations and record requirements | [Review the design](docs/user-guide.md#review-the-design) |
+| Keep several projects in one browser | [Work on several projects](docs/user-guide.md#work-on-several-projects) |
 | Save work, restore a revision and choose an export | [Save and recover](docs/user-guide.md#save-and-recover), [share and export](docs/user-guide.md#share-and-export) |
 | Generate a technical report for a client or manager | [Client technical reports](docs/engineering-workflows.md#client-technical-reports) |
 | Compare changes or import a KiCad netlist | [Compare and import](docs/user-guide.md#compare-and-import) |

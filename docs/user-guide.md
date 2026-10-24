@@ -168,6 +168,28 @@ battery-runtime estimate. These are calculations from declared values;
 
 ## Save and recover
 
+### Work on several projects
+
+The folder button beside the board title opens **Projects on this device**:
+every board this browser keeps, with the one open now, when each was last
+edited, and whether it has been saved to a file. Each project has its own
+board, autosave and revision history; nothing is shared between them, and a
+change in one tab to a different project is not a conflict for this one.
+
+- **New project** starts an empty board in a fresh project and reloads the
+  editor on it. Use **Open** to bring a file into it.
+- Choose a project to switch. The editor saves what you were doing, then
+  reloads on that project's board. Unsaved Engineering drafts are confirmed
+  first.
+- **Remove this project from the browser…** deletes the open project's board
+  and revisions after a confirmation. It is disabled while only one project
+  exists. A file saved with **Save** is the only copy outside the browser.
+
+The board you had before projects existed is the project called by its own
+title; its storage did not move. The menu reads **No file backup**, **Backed
+up to a file** with the time, or **Changed since the file backup**; the last
+compares the board with the file you downloaded, not with a file on disk.
+
 | Method | What it keeps | When to use it |
 | --- | --- | --- |
 | Browser autosave | The working board for this site in this browser | Continue after a normal reload |

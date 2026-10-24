@@ -4,6 +4,7 @@ import { runTeamReviewChecks } from './team-review.mjs';
 import { runKiCadUpdateChecks } from './kicad-update.mjs';
 import { runGuidedReviewChecks } from './guided-review.mjs';
 import { runReviewPathChecks } from './review-path.mjs';
+import { runProjectChecks } from './projects.mjs';
 import { runLayoutChecks } from './layout.mjs';
 import { runEnhancementChecks } from './enhancements.mjs';
 import { runWebChecks } from './web.mjs';
@@ -341,6 +342,8 @@ try {
     await runKiCadUpdateChecks({js,check,sleep});
   } else if (process.env.GUIDED_REVIEW_E2E_ONLY) {
     await runGuidedReviewChecks({js,key,check,sleep,click,center});
+  } else if (process.env.PROJECTS_E2E_ONLY) {
+    await runProjectChecks({ js, key, check, sleep, waitFor, capture: teamTools.capture });
   } else if (process.env.REVIEW_PATH_E2E_ONLY) {
     await runReviewPathChecks({ js, key, check, sleep, waitFor, capture: teamTools.capture });
   } else if (process.env.STUDY_E2E_ONLY) {
@@ -1539,6 +1542,7 @@ try {
   await waitFor(`!!document.getElementById('first-project')`);
   await runGuidedReviewChecks({js,key,check,sleep,click,center});
   await runReviewPathChecks({ js, key, check, sleep, waitFor });
+  await runProjectChecks({ js, key, check, sleep, waitFor });
   await runStudyChecks({ js, key, check, sleep, send, origin, artifactDir, capture: teamTools.capture });
   await runKiCadUpdateChecks({js,check,sleep});
   await runTeamReviewChecks(teamTools);

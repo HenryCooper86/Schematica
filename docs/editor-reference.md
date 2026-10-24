@@ -35,6 +35,7 @@ start with [Getting started](getting-started.md).
 | Delete | `Delete` / `Backspace` — a mixed selection loses its unlocked items and a notice says how many locked ones were kept |
 | Keyboard shortcuts | `?` or the **?** button in the zoom group — every shortcut, grouped, with ⌘ or Ctrl to match the platform |
 | How to use | Book icon and **How to use** in the toolbar — opens the website guide in another tab, with a quick start, common tasks, troubleshooting and the same shortcut reference |
+| Projects | Folder button beside the title — the boards kept in this browser, each with its own autosave slot and revision history; switch, create or remove a project (the editor reloads on the chosen one); shows when each was last saved to a file and whether it changed since |
 | Save / open | Toolbar — downloads/reads `*.schematica.json` |
 | Export | Export button — PNG at any pixel size, SVG, single-page PDF, or a seamless loop GIF, cropped to content |
 | Record | Rec button — WebM/MP4 video (optional mic or music audio) or animated GIF |

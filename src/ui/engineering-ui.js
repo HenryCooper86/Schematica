@@ -107,7 +107,7 @@ export function initEngineering({ store, revisions, startupRecovery, navigation,
         + act('retry', tr('Retry saving revisions')) + `<p>${esc(tr('Up to 30 recent revisions are kept on this device. Export important milestones to a file.'))}</p><ul>${revisions.list().map(r => `<li><strong>${esc(r.label)}</strong> <span>${esc(r.durable ? tr('Saved on this device') : tr('Not saved — export or retry'))}</span> <time>${esc(new Date(r.at).toLocaleString())}</time>
           <button data-restore="${esc(r.id)}">${esc(tr('Restore'))}</button><button data-export="${esc(r.id)}">${esc(tr('Export'))}</button><button data-baseline="${esc(r.id)}">${esc(tr('Use as baseline'))}</button></li>`).join('')}</ul>`;
       formHandler = data => { revisions.save(navigation.rootDoc(), data.get('label')); saved(submittingForm); paint(); };
-      actions.keep = () => { persistence.resolve(); startupRecovery.protect(persistence).setItem('schematica.autosave', JSON.stringify(navigation.rootDoc())); flush(); paint(); };
+      actions.keep = () => { persistence.resolve(); startupRecovery.protect(persistence).setItem(persistence.key, JSON.stringify(navigation.rootDoc())); flush(); paint(); };
       actions.remote = () => { const doc = persistence.pending()?.doc; if (doc && store.replaceDoc(doc) === false) return; persistence.resolve(); flush(); paint(); };
       body.querySelectorAll('[data-restore]').forEach(b => b.onclick = safe(() => { store.replaceDoc(revisions.restore(b.dataset.restore)); paint(); }));
       body.querySelectorAll('[data-export]').forEach(b => b.onclick = safe(() => download('revision.schematica.json', serialize(revisions.restore(b.dataset.export)), 'application/json')));

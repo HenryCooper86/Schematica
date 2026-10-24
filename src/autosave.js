@@ -1,7 +1,7 @@
 // Persist document changes only. Selection notifications must neither rewrite
 // storage nor postpone a pending save. Page lifecycle events flush immediately.
 export function createAutosave({ store, storage, onError = () => {}, onStatus = () => {}, delay = 300,
-  schedule = setTimeout, cancel = clearTimeout, getDoc = () => store.doc }) {
+  schedule = setTimeout, cancel = clearTimeout, getDoc = () => store.doc, key = 'schematica.autosave' }) {
   let saved = JSON.stringify(getDoc());
   let pending = saved;
   let timer = null;
@@ -14,7 +14,7 @@ export function createAutosave({ store, storage, onError = () => {}, onStatus = 
     if (pending === saved) { broken = false; onStatus('saved'); return; }
     try {
       if (!storage) throw new Error('Storage unavailable');
-      storage.setItem('schematica.autosave', pending);
+      storage.setItem(key, pending);
       saved = pending;
       broken = false; onStatus('saved');
     } catch (error) {

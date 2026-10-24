@@ -38,10 +38,14 @@ export function openRevisionDB(indexedDB) {
               const sorted = [...all.values()].sort(
                 (a, b) => b.at - a.at || b.id.localeCompare(a.id),
               );
-              let bytes = 0;
-              sorted.forEach((entry, i) => {
-                bytes += JSON.stringify(entry).length * 2;
-                if (i && (i >= 30 || bytes > 6 * 1024 * 1024))
+              // Rotation is per project: one busy board never evicts another's history.
+              const counts = new Map();
+              sorted.forEach((entry) => {
+                const project = entry.project || "main";
+                const tally = counts.get(project) || { count: 0, bytes: 0 };
+                tally.count += 1; tally.bytes += JSON.stringify(entry).length * 2;
+                counts.set(project, tally);
+                if (tally.count > 1 && (tally.count > 30 || tally.bytes > 6 * 1024 * 1024))
                   store.delete(entry.id);
                 else store.put(entry);
               });
@@ -58,7 +62,16 @@ export function openRevisionDB(indexedDB) {
           tx.onabort = tx.onerror = () =>
             fail(tx.error || new Error("Recovery write failed"));
         });
-      resolve({ read, write, close: () => db.close() });
+      const remove = (match) =>
+        new Promise((ok, fail) => {
+          const tx = db.transaction("revisions", "readwrite");
+          const store = tx.objectStore("revisions");
+          const req = store.getAll();
+          req.onsuccess = () => { for (const e of req.result) if (match(e)) store.delete(e.id); };
+          tx.oncomplete = () => ok();
+          tx.onabort = tx.onerror = () => fail(tx.error || new Error("Recovery delete failed"));
+        });
+      resolve({ read, write, remove, close: () => db.close() });
     };
   });
 }
