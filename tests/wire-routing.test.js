@@ -194,6 +194,8 @@ test('wire ends stay on the straight part of a card edge, never in a rounded cor
   const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
   const onStraightEdge = (p, r) => {
     const inset = (len) => Math.min(18, len / 2);
+    // An outcome callout's left-side end sits on its tail tip at mid-height.
+    if (r.tail === 'w' && Math.abs(p.x - (r.x - 13 - 5)) < 0.05) return Math.abs(p.y - (r.y + r.h / 2)) < 0.05;
     const side = Math.abs(p.x - (r.x - 5)) < 0.05 || Math.abs(p.x - (r.x + r.w + 5)) < 0.05;
     return side
       ? p.y >= r.y + inset(r.h) - 0.05 && p.y <= r.y + r.h - inset(r.h) + 0.05

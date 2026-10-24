@@ -10,7 +10,7 @@ import {
   portPosition, wireGeomToPoint, noteLines, noteHeight,
   nodeRect, nodeSize, NOTE_W, NOTE_FONT_SIZE, NOTE_FONT_FAMILY, LANE_TITLE_H,
   LABEL_LINE_H, META_LINE_H, SHAPE_LINE_H, WIRE_LABEL_LINE_H,
-  FIGURE_LABEL_LINE_H, FIGURE_LABEL_FONT_SIZE, FIGURE_META_LINE_H, FIGURE_META_FONT_SIZE, FIGURE_LAYOUT,
+  FIGURE_LABEL_LINE_H, FIGURE_LABEL_FONT_SIZE, FIGURE_META_LINE_H, FIGURE_META_FONT_SIZE, FIGURE_LAYOUT, OUTCOME_TAIL,
   zoneLabelLayout, ZONE_LABEL_H, ZONE_LABEL_LINE_H, ZONE_LABEL_FONT_SIZE, ZONE_LABEL_FONT_WEIGHT, measureZoneLabelText,
 } from './geometry.js';
 
@@ -136,7 +136,7 @@ function figureMarkup(part, W, H, acc, selected, labelLines, metaLines) {
     if (part.figure === 'outcome') {
       // The callout tail: an open triangle whose gradient fill covers the
       // card's left border, leaving only its two stroked edges visible.
-      s += `<path d="M1.5 ${H / 2 - 9} L-13 ${H / 2} L1.5 ${H / 2 + 9}" fill="url(#cardGrad)" stroke="${stroke}"`
+      s += `<path d="M1.5 ${H / 2 - 9} L-${OUTCOME_TAIL} ${H / 2} L1.5 ${H / 2 + 9}" fill="url(#cardGrad)" stroke="${stroke}"`
         + ` stroke-width="${strokeW}"${dash} stroke-linejoin="round"/>`;
     } else {
       // A wide tinted panel behind the pictogram: the badge tint at figure scale.

@@ -390,7 +390,7 @@ export const PARTS = {
   credential: nd('credential', 'threats', 'Stolen credentials', '#eab308', '<circle cx="14.25" cy="9.75" r="4.5"/><path d="M11.25 12.75 3 21"/><path d="m6 18 2.25 2.25"/><path d="M8.25 15.75 10.5 18"/>',
     sides('link', 'LINK'), { threat: true, fields: [f('type', 'Credential', { options: ['password', 'API key', 'signing key', 'certificate', 'session token', 'SIM / eSIM'] }), SEVERITY] }),
   dataleak: nd('dataleak', 'threats', 'Data exfiltration', '#e879f9', '<path d="M4.5 13.5v6h15v-6"/><path d="M12 15V3.75"/><path d="M8.25 7.5 12 3.75l3.75 3.75"/>',
-    sides('link', 'LINK'), { threat: true, fields: [f('channel', 'Channel', { options: ['HTTPS', 'DNS', 'cellular', 'USB', 'removable media', 'Bluetooth'] }), f('data', 'Data at risk', { placeholder: 'e.g. telemetry, keys' }), SEVERITY] }),
+    sides('link', 'LINK'), { threat: true, figure: 'outcome', fields: [f('channel', 'Channel', { options: ['HTTPS', 'DNS', 'cellular', 'USB', 'removable media', 'Bluetooth'] }), f('data', 'Data at risk', { placeholder: 'e.g. telemetry, keys' }), SEVERITY] }),
   physical: nd('physical', 'threats', 'Physical tampering', '#f87171', '<path d="M15.75 3.75 20.25 8.25 9 19.5 4.5 21 6 16.5z"/><path d="m13.5 6 4.5 4.5"/>',
     sides('link', 'LINK'), { threat: true, fields: [f('access', 'Access point', { options: ['debug port', 'OBD-II', 'ECU housing', 'harness', 'key fob', 'charging port'] }), SEVERITY] }),
   // ---- Security figures ----

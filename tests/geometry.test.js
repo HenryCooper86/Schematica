@@ -847,3 +847,25 @@ test('every figure part exposes the four logical link ports the wire lanes addre
     }
   }
 });
+
+
+test('nodeRect marks an outcome callout with its tail side and nothing else', () => {
+  const callout = nodeRect({ id: 'c', kind: 'codeexec', x: 10, y: 20, label: 'Code runs' });
+  assert.equal(callout.tail, 'w');
+  assert.deepEqual([callout.x, callout.y, callout.w], [10, 20, 156]);
+  assert.equal(nodeRect({ id: 's', kind: 'server', x: 0, y: 0, label: 'API' }).tail, undefined);
+});
+
+test('wireGeom ends on a callout tail tip when the wire enters from the left, and is untouched from above', () => {
+  const a = { x: 0, y: 0, w: 160, h: 100 };
+  const callout = { x: 400, y: 60, w: 156, h: 150, tail: 'w' };
+  const g = wireGeom(a, callout);
+  // 13px tail plus the 5px pad every end keeps from the surface it meets, at mid-height.
+  assert.deepEqual(g.p2, { x: 382, y: 135 });
+  assert.deepEqual(g.c2, { x: 382 - Math.round(Math.max(382 - g.p1.x, Math.abs(135 - g.p1.y)) * 0.4 * 100) / 100, y: 135 }, 'the tangent still enters horizontally');
+  const plain = wireGeom(a, { ...callout, tail: undefined });
+  assert.notDeepEqual(plain.p2, g.p2, 'a card without a tail keeps the ray anchor');
+  const above = { x: 0, y: 0, w: 156, h: 100 };
+  const below = { x: 0, y: 400, w: 156, h: 150, tail: 'w' };
+  assert.deepEqual(wireGeom(above, below).p2, { x: 78, y: 395 }, 'entering from above ignores the tail');
+});
