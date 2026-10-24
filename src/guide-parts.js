@@ -80,6 +80,7 @@ export const PART_HELP = {
   preparation: ['An initialization or setup step. Describe what must be ready before the next action begins.', '初始化或准备步骤。说明下一个动作开始前必须具备的条件。'],
   manualinput: ['Information entered by a person. State what is entered and connect it to the step that uses it.', '人工输入的信息。说明输入内容，并连接使用该信息的步骤。'],
   delay: ['A waiting period or timing gate. Record the wait condition or duration and the action that resumes afterward.', '等待阶段或时间门槛。记录等待条件或时长，以及恢复后执行的动作。'],
+  storage: ['Stored data in a workflow: a file store, archive or disk. Name what is kept and connect the steps that write and read it.', '工作流中的数据存储：文件库、归档或磁盘。说明保存的内容，并连接写入和读取它的步骤。'],
   connector: ['A continuation marker for a busy flowchart. Give matching markers consistent labels so readers can follow the path.', '复杂流程图中的延续标记。为对应标记使用一致标签，方便读者跟踪路径。'],
   threatactor: ['An adversary or threat source in a threat model. Record the actor type, motivation and related targets.', '威胁模型中的对手或威胁来源。记录行为者类型、动机及相关目标。'],
   insider: ['Risk associated with trusted access inside the organization. Describe the access and whether the scenario is accidental, malicious or compromised.', '组织内部可信访问带来的风险。描述访问权限及误操作、恶意行为或账户失陷等情景。'],

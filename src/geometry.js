@@ -118,7 +118,7 @@ function shapeSize(shape, label) {
   const pad = shape === 'decision' || shape === 'data' || shape === 'manual' ? 70 : 44;
   const per = shape === 'decision' ? 7.5 : 7;
   const labelLines = L * per <= w - pad ? [label] : wrapLines(label, w - pad, measureShapeText);
-  const base = shape === 'decision' ? 76 : (shape === 'document' ? 62 : 54);
+  const base = shape === 'decision' ? 76 : (shape === 'document' || shape === 'storage' ? 62 : 54);
   let h = base + (labelLines.length - 1) * SHAPE_LINE_H;
   if (shape === 'decision' && labelLines.length > 1) {
     // A diamond narrows to a point at top and bottom, so a wrapped block's

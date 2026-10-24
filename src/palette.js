@@ -269,17 +269,20 @@ export const PARTS = {
     [...pwr(), p('canfd1', 'CAN FD1', 'right', 0.2, 'canfd'), p('canfd2', 'CAN FD2', 'right', 0.4, 'canfd'),
       p('can', 'CAN', 'right', 0.6, 'can'), p('t1', 'T1', 'right', 0.8, 't1'), p('obd', 'OBD', 'bottom', 0.5, 'can')], DRAWS),
   // System & Cloud
-  cloud: part('cloud', 'system', 'Cloud / MQTT', 'M5 12a3 3 0 0 1-.4-6A4.5 4.5 0 0 1 13.3 7 2.5 2.5 0 0 1 12.5 12z',
+  // The hosts share the 24-box glyph style of the rest of the category so
+  // the palette reads at one line weight (cloud, server, database and pc-case
+  // are Lucide; the gateway and app are drawn here).
+  cloud: nd('cloud', 'system', 'Cloud / MQTT', '#38bdf8', '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
     [p('net', 'NET', 'left', 0.5, 'eth'), p('rf', 'RF', 'bottom', 0.5, 'rf')], { fields: NET_FIELDS }),
-  server: part('server', 'system', 'Server', 'M3 2h10v5H3z M3 9h10v5H3z M5 4.5h.01 M5 11.5h.01 M8 4.5h3 M8 11.5h3',
+  server: nd('server', 'system', 'Server', '#818cf8', '<rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/>',
     [p('net', 'NET', 'left', 0.5, 'eth'), p('db', 'DB', 'right', 0.5, 'eth')], { fields: NET_FIELDS }),
-  database: part('database', 'system', 'Database', 'M8 2c3 0 5 .9 5 2s-2 2-5 2-5-.9-5-2 2-2 5-2z M3 4v8c0 1.1 2 2 5 2s5-.9 5-2V4 M3 8c0 1.1 2 2 5 2s5-.9 5-2',
+  database: nd('database', 'system', 'Database', '#f59e0b', '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>',
     [p('net', 'NET', 'left', 0.5, 'eth')], { fields: NET_FIELDS }),
-  gateway: part('gateway', 'system', 'Edge gateway', 'M2 9h12v4H2z M4.5 11h.01 M7 11h.01 M8 9V3 M5 6l3-3 3 3',
-    [p('lan', 'LAN', 'left', 0.5, 'eth'), p('wan', 'WAN', 'right', 0.5, 'eth'), p('rf', 'RF', 'top', 0.5, 'rf')]),
-  mobile: part('mobile', 'system', 'Mobile app', 'M5 1.5h6a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1z M7 12.5h2',
-    [p('ble', 'BLE', 'left', 0.5, 'rf'), p('net', 'NET', 'bottom', 0.5, 'eth')]),
-  hostpc: part('hostpc', 'system', 'Host PC', 'M3 3h10v7H3z M1.5 12.5h13L13 10H3z',
+  gateway: nd('gateway', 'system', 'Edge gateway', '#2dd4bf', '<rect x="2.5" y="13" width="19" height="7" rx="1.5"/><path d="M6.5 16.5h.01M10 16.5h.01"/><path d="M12 13V5"/><path d="m8.5 8.5 3.5-3.5 3.5 3.5"/>',
+    [p('lan', 'LAN', 'left', 0.5, 'eth'), p('wan', 'WAN', 'right', 0.5, 'eth'), p('rf', 'RF', 'top', 0.5, 'rf')], { fields: NET_FIELDS }),
+  mobile: nd('mobile', 'system', 'Mobile app', '#f472b6', '<rect x="6" y="2.5" width="12" height="19" rx="2"/><rect x="8.5" y="7" width="3" height="3" rx=".6"/><rect x="12.5" y="7" width="3" height="3" rx=".6"/><rect x="8.5" y="11" width="3" height="3" rx=".6"/><rect x="12.5" y="11" width="3" height="3" rx=".6"/><path d="M11 18h2"/>',
+    [p('ble', 'BLE', 'left', 0.5, 'rf'), p('net', 'NET', 'bottom', 0.5, 'eth')], { fields: [f('platform', 'Platform', { options: ['iOS', 'Android', 'web', 'desktop'] }), VERSION] }),
+  hostpc: nd('hostpc', 'system', 'Host PC', '#60a5fa', '<rect width="14" height="20" x="5" y="2" rx="2"/><path d="M15 14h.01"/><path d="M9 6h6"/><path d="M9 10h6"/>',
     [p('usb', 'USB', 'left', 0.5, 'usb'), p('eth', 'ETH', 'bottom', 0.5, 'eth')], { fields: NET_FIELDS }),
   // ---- Network, Security & Edge, Process Flow, and Threats ----
   // Modelled on net_draw's types: 24-box glyphs, per-type accents, real
@@ -335,6 +338,8 @@ export const PARTS = {
     sides('flow', 'FLOW'), { shape: 'delay' }),
   connector: nd('connector', 'flow', 'Connector', '#64748b', '<circle cx="12" cy="12" r="7"/>',
     sides('flow', 'FLOW'), { shape: 'connector', defaultLabel: 'A' }),
+  storage: nd('storage', 'flow', 'Storage', '#2dd4bf', '<path d="M3 7.5v9c0 1.4 4 2.5 9 2.5s9-1.1 9-2.5v-9"/><ellipse cx="12" cy="7.5" rx="9" ry="2.5"/>',
+    sides('flow', 'FLOW'), { shape: 'storage' }),
   // Threats
   threatactor: nd('threatactor', 'threats', 'Threat Actor', '#ef4444', '<path d="m12.5 17-.5-1-.5 1h1z"/><path d="M15 22a1 1 0 0 0 1-1v-1a2 2 0 0 0 1.56-3.25 8 8 0 1 0-11.12 0A2 2 0 0 0 8 20v1a1 1 0 0 0 1 1z"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="12" r="1"/>',
     sides('link', 'LINK'), { threat: true, fields: [f('type', 'Type (STIX)', { options: STIX_ACTOR_TYPES }), f('sophistication', 'Sophistication (STIX)', { options: STIX_SOPHISTICATION }), f('motivation', 'Motivation (STIX)', { options: STIX_MOTIVATION }), f('org', 'Attribution', { placeholder: 'e.g. group / country' }), f('origin', 'Origin', { placeholder: 'e.g. 203.0.113.7' }), SEVERITY] }),
@@ -350,27 +355,28 @@ export const PARTS = {
     sides('link', 'LINK'), { threat: true, fields: [f('campaign', 'Campaign', { placeholder: 'e.g. Q3 invoice lure' }), f('email', 'Sender / lure address', { placeholder: 'e.g. billing@example.net' }), SEVERITY] }),
   c2: nd('c2', 'threats', 'C2 Server', '#f87171', '<path d="M4.9 16.1C1 12.2 1 5.8 4.9 1.9"/><path d="M7.8 4.7a6.14 6.14 0 0 0-.8 7.5"/><circle cx="12" cy="9" r="2"/><path d="M16.2 4.8c2 2 2.26 5.11.8 7.47"/><path d="M19.1 1.9a9.96 9.96 0 0 1 0 14.1"/><path d="M9.5 18h5"/><path d="m8 22 4-11 4 11"/>',
     sides('link', 'LINK'), { threat: true, fields: [f('ip', 'IP address', { placeholder: 'e.g. 198.51.100.7' }), f('dns', 'DNS name', { placeholder: 'e.g. cdn-update.example.net' }), SEVERITY] }),
-  // More threats and weaknesses, drawn in Schematica's own 16-box icon style.
-  vulnerability: part('vulnerability', 'threats', 'Vulnerability', 'M8 1.5 13.5 3.5v4c0 3.5-2.5 6-5.5 7-3-1-5.5-3.5-5.5-7v-4z M8 5v3.5 M8 10.5h.01',
-    sides('link', 'LINK'), { threat: true, accent: '#f97316', fields: [f('cve', 'CVE / reference', { placeholder: 'e.g. CVE-2025-1234' }), f('cvss', 'CVSS score', { placeholder: 'e.g. 8.1' }), f('affected', 'Affected component', { placeholder: 'e.g. bootloader' }), SEVERITY] }),
-  misconfig: part('misconfig', 'threats', 'Misconfiguration', 'M3 4h10 M3 8h10 M3 12h10 M6 2.5v3 M10 6.5v3 M5 10.5v3',
-    sides('link', 'LINK'), { threat: true, accent: '#fbbf24', fields: [f('control', 'Control / CWE', { placeholder: 'e.g. CWE-284, open debug port' }), f('affected', 'Affected component'), SEVERITY] }),
-  exploit: part('exploit', 'threats', 'Exploit', 'M9 1.5 4 9h4l-1 5.5L12 7H8z',
-    sides('link', 'LINK'), { threat: true, accent: '#f43f5e', fields: [f('cve', 'CVE / reference', { placeholder: 'e.g. CVE-2025-1234' }), f('technique', 'ATT&CK technique', { placeholder: 'e.g. T1190' }), SEVERITY] }),
-  supplychain: part('supplychain', 'threats', 'Supply-chain compromise', 'M2 9h5v5H2z M9 2h5v5H9z M7 11.5h2 M11.5 7v2 M4.5 9V6.5h4.5',
-    sides('link', 'LINK'), { threat: true, accent: '#e879f9', fields: [f('vector', 'Vector', { options: ['dependency', 'build system', 'firmware image', 'vendor access', 'hardware implant'] }), f('affected', 'Affected component'), SEVERITY] }),
-  ddos: part('ddos', 'threats', 'DDoS flood', 'M8 8m-1.5 0a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0 M8 1.5v3 M8 11.5v3 M1.5 8h3 M11.5 8h3 M3.5 3.5l2 2 M12.5 3.5l-2 2 M3.5 12.5l2-2 M12.5 12.5l-2-2',
-    sides('link', 'LINK'), { threat: true, accent: '#f97316', fields: [f('volume', 'Volume', { placeholder: 'e.g. 40 Gbps' }), f('vector', 'Vector', { options: ['volumetric', 'protocol', 'application', 'amplification'] }), SEVERITY] }),
-  mitm: part('mitm', 'threats', 'On-path attacker', 'M1.5 8h4 M10.5 8h4 M8 8m-2.5 0a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0 M8 5.5V3 M6.5 3h3',
-    sides('link', 'LINK'), { threat: true, accent: '#ef4444', fields: [f('position', 'Position', { options: ['LAN', 'Wi-Fi', 'cellular', 'CAN bus', 'GNSS', 'OTA path'] }), SEVERITY] }),
-  spoofing: part('spoofing', 'threats', 'Sensor spoofing', 'M2 10a6 6 0 0 1 12 0 M4.5 10a3.5 3.5 0 0 1 7 0 M8 10h.01 M3 13 13 3',
-    sides('link', 'LINK'), { threat: true, accent: '#fb923c', fields: [f('target', 'Spoofed input', { options: ['GNSS', 'camera', 'radar', 'lidar', 'CAN', 'RF key', 'ultrasonic'] }), SEVERITY] }),
-  credential: part('credential', 'threats', 'Stolen credentials', 'M9.5 6.5m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0 M7.5 8.5 2 14 M4 12l1.5 1.5 M5.5 10.5 7 12',
-    sides('link', 'LINK'), { threat: true, accent: '#eab308', fields: [f('type', 'Credential', { options: ['password', 'API key', 'signing key', 'certificate', 'session token', 'SIM / eSIM'] }), SEVERITY] }),
-  dataleak: part('dataleak', 'threats', 'Data exfiltration', 'M3 9v4h10V9 M8 10V2.5 M5.5 5 8 2.5 10.5 5',
-    sides('link', 'LINK'), { threat: true, accent: '#e879f9', fields: [f('channel', 'Channel', { options: ['HTTPS', 'DNS', 'cellular', 'USB', 'removable media', 'Bluetooth'] }), f('data', 'Data at risk', { placeholder: 'e.g. telemetry, keys' }), SEVERITY] }),
-  physical: part('physical', 'threats', 'Physical tampering', 'M10.5 2.5 13.5 5.5 6 13 3 14 4 11z M9 4l3 3',
-    sides('link', 'LINK'), { threat: true, accent: '#f87171', fields: [f('access', 'Access point', { options: ['debug port', 'OBD-II', 'ECU housing', 'harness', 'key fob', 'charging port'] }), SEVERITY] }),
+  // More threats and weaknesses: 24-box glyphs drawn here, so the category
+  // keeps one line weight (Misconfiguration is Lucide's sliders-horizontal).
+  vulnerability: nd('vulnerability', 'threats', 'Vulnerability', '#f97316', '<path d="M12 2.5 19.5 5.5v6c0 5-3.5 8.3-7.5 9.5-4-1.2-7.5-4.5-7.5-9.5v-6z"/><path d="M12 7.5v4.5"/><path d="M12 15.5h.01"/>',
+    sides('link', 'LINK'), { threat: true, fields: [f('cve', 'CVE / reference', { placeholder: 'e.g. CVE-2025-1234' }), f('cvss', 'CVSS score', { placeholder: 'e.g. 8.1' }), f('affected', 'Affected component', { placeholder: 'e.g. bootloader' }), SEVERITY] }),
+  misconfig: nd('misconfig', 'threats', 'Misconfiguration', '#fbbf24', '<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>',
+    sides('link', 'LINK'), { threat: true, fields: [f('control', 'Control / CWE', { placeholder: 'e.g. CWE-284, open debug port' }), f('affected', 'Affected component'), SEVERITY] }),
+  exploit: nd('exploit', 'threats', 'Exploit', '#f43f5e', '<path d="M13.5 2.5 5.5 13.5h6l-1.5 8 8-11h-6z"/>',
+    sides('link', 'LINK'), { threat: true, fields: [f('cve', 'CVE / reference', { placeholder: 'e.g. CVE-2025-1234' }), f('technique', 'ATT&CK technique', { placeholder: 'e.g. T1190' }), SEVERITY] }),
+  supplychain: nd('supplychain', 'threats', 'Supply-chain compromise', '#e879f9', '<rect x="3" y="13" width="7.5" height="7.5" rx="1"/><rect x="13.5" y="3.5" width="7.5" height="7.5" rx="1"/><path d="M10.5 16.75h3"/><path d="M17.25 11v3"/><path d="M6.75 13V9.5h6.75"/>',
+    sides('link', 'LINK'), { threat: true, fields: [f('vector', 'Vector', { options: ['dependency', 'build system', 'firmware image', 'vendor access', 'hardware implant'] }), f('affected', 'Affected component'), SEVERITY] }),
+  ddos: nd('ddos', 'threats', 'DDoS flood', '#f97316', '<circle cx="12" cy="12" r="2.25"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/><path d="m5.3 5.3 2.8 2.8M18.7 5.3l-2.8 2.8M5.3 18.7l2.8-2.8M18.7 18.7l-2.8-2.8"/>',
+    sides('link', 'LINK'), { threat: true, fields: [f('volume', 'Volume', { placeholder: 'e.g. 40 Gbps' }), f('vector', 'Vector', { options: ['volumetric', 'protocol', 'application', 'amplification'] }), SEVERITY] }),
+  mitm: nd('mitm', 'threats', 'On-path attacker', '#ef4444', '<path d="M2.5 12h5.75M15.75 12h5.75"/><circle cx="12" cy="12" r="3.75"/><path d="M12 8.25V4.5M9.75 4.5h4.5"/>',
+    sides('link', 'LINK'), { threat: true, fields: [f('position', 'Position', { options: ['LAN', 'Wi-Fi', 'cellular', 'CAN bus', 'GNSS', 'OTA path'] }), SEVERITY] }),
+  spoofing: nd('spoofing', 'threats', 'Sensor spoofing', '#fb923c', '<path d="M3 15a9 9 0 0 1 18 0"/><path d="M6.75 15a5.25 5.25 0 0 1 10.5 0"/><path d="M12 15h.01"/><path d="M4.5 19.5 19.5 4.5"/>',
+    sides('link', 'LINK'), { threat: true, fields: [f('target', 'Spoofed input', { options: ['GNSS', 'camera', 'radar', 'lidar', 'CAN', 'RF key', 'ultrasonic'] }), SEVERITY] }),
+  credential: nd('credential', 'threats', 'Stolen credentials', '#eab308', '<circle cx="14.25" cy="9.75" r="4.5"/><path d="M11.25 12.75 3 21"/><path d="m6 18 2.25 2.25"/><path d="M8.25 15.75 10.5 18"/>',
+    sides('link', 'LINK'), { threat: true, fields: [f('type', 'Credential', { options: ['password', 'API key', 'signing key', 'certificate', 'session token', 'SIM / eSIM'] }), SEVERITY] }),
+  dataleak: nd('dataleak', 'threats', 'Data exfiltration', '#e879f9', '<path d="M4.5 13.5v6h15v-6"/><path d="M12 15V3.75"/><path d="M8.25 7.5 12 3.75l3.75 3.75"/>',
+    sides('link', 'LINK'), { threat: true, fields: [f('channel', 'Channel', { options: ['HTTPS', 'DNS', 'cellular', 'USB', 'removable media', 'Bluetooth'] }), f('data', 'Data at risk', { placeholder: 'e.g. telemetry, keys' }), SEVERITY] }),
+  physical: nd('physical', 'threats', 'Physical tampering', '#f87171', '<path d="M15.75 3.75 20.25 8.25 9 19.5 4.5 21 6 16.5z"/><path d="m13.5 6 4.5 4.5"/>',
+    sides('link', 'LINK'), { threat: true, fields: [f('access', 'Access point', { options: ['debug port', 'OBD-II', 'ECU housing', 'harness', 'key fob', 'charging port'] }), SEVERITY] }),
   // ---- Security figures ----
   // Original illustrated vocabulary for security composition scenes:
   // request/payload/dump capsules, target-side memory/secrets/limit tiles,
@@ -585,19 +591,21 @@ export const PARTS = {
   ot: nd('ot', 'endpoints', 'OT device', '#2dd4bf', '<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
     sides('eth', 'ETH'), { fields: NET_FIELDS }),
   // People
+  // People and places link to what they use or contain, and carry the
+  // identity lines net_draw's nodes have (owner, address, coordinates).
   person: nd('person', 'people', 'Person', '#f472b6', '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
-    []),
+    sides('link', 'LINK'), { fields: [f('role', 'Role / title', { placeholder: 'e.g. Finance manager' }), f('email', 'Email address', { placeholder: 'e.g. a.lee@example.com' }), f('org', 'Organisation', { placeholder: 'e.g. Example Ltd' })] }),
   email: nd('email', 'people', 'Email', '#f472b6', '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>',
-    []),
+    sides('link', 'LINK'), { fields: [f('email', 'Email address', { placeholder: 'e.g. billing@example.com' }), f('owner', 'Owner / user', { placeholder: 'e.g. accounts team' })] }),
   // Locations
   organisation: nd('organisation', 'facilities', 'Organisation', '#f59e0b', '<circle cx="9" cy="8" r="3"/><path d="M3 21a6 6 0 0 1 12 0"/><circle cx="16" cy="9" r="2"/><path d="M16 15a4 4 0 0 1 5 4"/>',
-    []),
+    sides('link', 'LINK'), { fields: [f('sector', 'Sector / industry', { placeholder: 'e.g. logistics' }), f('dns', 'Domain', { placeholder: 'e.g. example.com' }), f('hq', 'Headquarters', { placeholder: 'e.g. Shenzhen' })] }),
   city: nd('city', 'facilities', 'City', '#f59e0b', '<path d="M2 21h20"/><path d="M4 21V8h5v13M9 12h3M9 16h3"/><path d="M12 21V5h5v16M12 9h3M12 13h3"/><path d="M17 21V10h5v11"/>',
-    []),
+    sides('link', 'LINK'), { fields: [f('country', 'Country', { placeholder: 'e.g. China' }), f('coords', 'Coordinates', { placeholder: 'e.g. 22.54, 114.06' })] }),
   location: nd('location', 'facilities', 'Location / site', '#f59e0b', '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/>',
-    []),
+    sides('link', 'LINK'), { fields: [f('address', 'Address', { placeholder: 'e.g. 12 Harbour Rd' }), f('coords', 'Coordinates', { placeholder: 'e.g. 22.54, 114.06' })] }),
   poi: nd('poi', 'facilities', 'Place of interest', '#f59e0b', '<line x1="3" x2="21" y1="22" y2="22"/><line x1="6" x2="6" y1="18" y2="11"/><line x1="10" x2="10" y1="18" y2="11"/><line x1="14" x2="14" y1="18" y2="11"/><line x1="18" x2="18" y1="18" y2="11"/><polygon points="12 2 20 7 4 7"/>',
-    []),
+    sides('link', 'LINK'), { fields: [f('address', 'Address', { placeholder: 'e.g. 12 Harbour Rd' }), f('coords', 'Coordinates', { placeholder: 'e.g. 22.54, 114.06' })] }),
 };
 
 export function getPart(kind) {

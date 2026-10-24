@@ -29,10 +29,11 @@ for every committed asset. This script is maintenance tooling, never runtime cod
 
 ## Lucide
 
-The 24-box glyphs of the Network, Security & Edge, and Threats parts in
-`src/palette.js` (internet, access point, router, switch, ASN, IP address,
-firewall, WAF, proxy, CDN, load balancer, API gateway, threat actor, insider
-threat, malware, ransomware, botnet, phishing, C2 server) and the assistant
+The 24-box glyphs of the Network, Security & Edge, System & Cloud and Threats
+parts in `src/palette.js` (internet, access point, router, switch, ASN, IP
+address, firewall, WAF, proxy, CDN, load balancer, API gateway, cloud, server,
+database, host PC (pc-case), misconfiguration (sliders-horizontal), threat
+actor, insider threat, malware, ransomware, botnet, phishing, C2 server) and the assistant
 panel's controls in `src/ui/assistant-ui.js` (sparkles, message-square-plus,
 settings-2, x, arrow-up, square, undo-2, scan-search, layout-template,
 wrench, file-pen-line, check, circle-alert, circle-check, eye, eye-off) are

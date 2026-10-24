@@ -102,6 +102,10 @@ function shapeMarkup(part, W, H, acc, selected) {
     case 'delay': s = `<path class="card" d="M0 0 H ${W - H / 2} A ${H / 2} ${H / 2} 0 0 1 ${W - H / 2} ${H} H 0 Z" ${style}/>`; break;
     case 'document': s = `<path class="card" d="M0 0 H ${W} V ${H - 10} C ${W * 0.7} ${H - 22}, ${W * 0.3} ${H + 10}, 0 ${H - 8} Z" ${style}/>`; break;
     case 'connector': s = `<circle class="card" cx="${W / 2}" cy="${H / 2}" r="${W / 2}" ${style}/>`; break;
+    // A cylinder: the body with both rims, then the front rim's lower arc so
+    // the top reads as a lid.
+    case 'storage': s = `<path class="card" d="M0 8 A ${W / 2} 8 0 0 1 ${W} 8 V ${H - 8} A ${W / 2} 8 0 0 1 0 ${H - 8} Z" ${style}/>`
+      + `<path d="M0 8 A ${W / 2} 8 0 0 0 ${W} 8" stroke="${esc(acc)}" stroke-opacity="0.5" stroke-width="1.2" fill="none"/>`; break;
     default: s = `<rect class="card" width="${W}" height="${H}" rx="9" ${style}/>`;
   }
   return s;

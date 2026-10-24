@@ -121,7 +121,7 @@ test('network, security, process-flow, and threat parts follow the net_draw mode
     assert.match(part.accent, /^#[0-9a-f]{6}$/i, `${part.kind} accent`);
     assert.ok((part.glyph && part.glyph.startsWith('<')) || (part.icon && part.icon.startsWith('M')), `${part.kind} glyph or icon`);
   }
-  const SHAPES = new Set(['terminator', 'process', 'decision', 'data', 'document', 'predefined', 'prep', 'manual', 'delay', 'connector']);
+  const SHAPES = new Set(['terminator', 'process', 'decision', 'data', 'document', 'predefined', 'prep', 'manual', 'delay', 'connector', 'storage']);
   // Figure capsules (the security vocabulary) are illustrated message cards,
   // not flowchart symbols; geometry.js owns their presentation.
   for (const part of byCat('flow')) assert.ok(part.figure || SHAPES.has(part.shape), `${part.kind} shape`);
@@ -139,13 +139,13 @@ test('network, security, process-flow, and threat parts follow the net_draw mode
   assert.ok(PARTS.threatactor.ports.every((q) => q.bus === 'link'), 'threats connect with links');
 });
 
-test('every threat part has a field schema with a severity; the new threats use original icons', () => {
+test('every threat part has a field schema with a severity; the new threats use original glyphs', () => {
   for (const kind of ['vulnerability', 'misconfig', 'exploit', 'supplychain', 'ddos', 'mitm', 'spoofing', 'credential', 'dataleak', 'physical']) {
     const p = PARTS[kind];
     assert.ok(p, kind);
     assert.equal(p.category, 'threats', kind);
     assert.equal(p.threat, true, kind);
-    assert.ok(p.icon.startsWith('M') && !p.glyph, `${kind} draws its own 16-box icon`);
+    assert.ok(p.glyph.startsWith('<') && !p.icon, `${kind} draws a 24-box glyph`);
   }
   for (const p of Object.values(PARTS).filter((q) => q.category === 'threats')) {
     assert.ok(Array.isArray(p.fields) && p.fields.length, `${p.kind} fields`);
@@ -209,4 +209,34 @@ test('no 24-box glyph is one of the net_draw originals, and each is plain stroke
     for (const t of tags) assert.ok(['path', 'circle', 'rect', 'ellipse', 'line', 'polyline', 'polygon', 'text'].includes(t), `${key} uses <${t}>`);
     assert.ok(!/<(script|image|use|foreignObject)/i.test(part.glyph), `${key} glyph is inert`);
   }
+});
+
+// A category draws at one line weight: the 16-box hardware icons and the
+// 24-box glyphs render at different stroke widths in the palette badge, so
+// the IT-side categories (modelled on net_draw) carry glyphs throughout and
+// the hardware categories keep their 16-box icons.
+test('each category uses one icon system', () => {
+  const GLYPH_CATEGORIES = new Set(['endpoints', 'system', 'os', 'network', 'security', 'facilities', 'people', 'flow', 'threats']);
+  for (const part of Object.values(PARTS)) {
+    if (GLYPH_CATEGORIES.has(part.category)) assert.ok(part.glyph && !part.icon, `${part.kind} should be a 24-box glyph`);
+    else assert.ok(part.icon && !part.glyph, `${part.kind} should be a 16-box icon`);
+  }
+});
+
+// People and places link to what they use or contain and carry the identity
+// lines net_draw's nodes have; the storage shape joins the flowchart set.
+test('people and places can be wired and describe themselves', () => {
+  const ids = (kind) => PARTS[kind].fields.map((fd) => fd.id);
+  for (const kind of ['person', 'email', 'organisation', 'city', 'location', 'poi']) {
+    assert.ok(PARTS[kind].ports.length === 4 && PARTS[kind].ports.every((q) => q.bus === 'link'), `${kind} links on every side`);
+    assert.ok(PARTS[kind].fields.length >= 2, `${kind} fields`);
+  }
+  assert.deepEqual(ids('person'), ['role', 'email', 'org']);
+  assert.deepEqual(ids('location'), ['address', 'coords']);
+  assert.deepEqual(ids('poi'), ['address', 'coords']);
+  assert.deepEqual(ids('city'), ['country', 'coords']);
+  assert.deepEqual(ids('gateway'), ['ip', 'dns'], 'an edge gateway is a host like its neighbours');
+  assert.deepEqual(ids('mobile'), ['platform', 'version']);
+  assert.equal(PARTS.storage.shape, 'storage');
+  assert.equal(PARTS.storage.category, 'flow');
 });
