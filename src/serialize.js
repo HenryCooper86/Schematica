@@ -6,7 +6,7 @@ import { normalizeTargets, normalizeStops } from './journey.js';
 import { normalizeIncident } from './incident-data.js';
 import { knownPorts } from './rdk/profiles.js';
 import { BUSES, DEFAULT_BUS } from './buses.js';
-import { PARTS, DISPOSITIONS, PORT_ALIASES, KIND_ALIASES } from './palette.js';
+import { PARTS, DISPOSITIONS, CONDITIONS, PORT_ALIASES, KIND_ALIASES } from './palette.js';
 import { newDoc, NODE_STATUSES, NODE_FLAGS, SCHEMA_VERSION } from './state.js';
 import { nodeSize } from './geometry.js';
 import { normalizePart, partOf, LIMITS } from './custom.js';
@@ -190,6 +190,10 @@ export function deserialize(text, { depth = 0 } = {}) {
     if (n.disposition != null) {
       if (typeof n.disposition === 'string' && Object.hasOwn(DISPOSITIONS, n.disposition)) node.disposition = n.disposition;
       else warnings.push(tr('Ignored unknown disposition "{value}" on node "{id}".', { value: n.disposition, id: n.id }));
+    }
+    if (n.condition != null) {
+      if (typeof n.condition === 'string' && Object.hasOwn(CONDITIONS, n.condition)) node.condition = n.condition;
+      else warnings.push(tr('Ignored unknown condition "{value}" on node "{id}".', { value: n.condition, id: n.id }));
     }
     // Older files stored a fixed card size. Cards now size to their content,
     // so shift the top-left corner to keep the card centered where it was.

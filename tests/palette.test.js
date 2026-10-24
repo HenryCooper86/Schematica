@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CATEGORIES, CATEGORY_COLORS, PARTS, getPart, SEVERITIES, DISPOSITIONS } from '../src/palette.js';
+import { CATEGORIES, CATEGORY_COLORS, PARTS, getPart, SEVERITIES, DISPOSITIONS, CONDITIONS } from '../src/palette.js';
 import { BUSES } from '../src/buses.js';
 
 const SIDES = ['left', 'right', 'top', 'bottom'];
@@ -239,4 +239,17 @@ test('people and places can be wired and describe themselves', () => {
   assert.deepEqual(ids('mobile'), ['platform', 'version']);
   assert.equal(PARTS.storage.shape, 'storage');
   assert.equal(PARTS.storage.category, 'flow');
+});
+
+// net_draw's status badges: the incident state an object is in, distinct
+// from lifecycle status (about the design) and disposition (whose side).
+test('the condition vocabulary covers the net_draw incident states with a colour and a pulse flag each', () => {
+  for (const id of ['issue', 'vulnerable', 'outage', 'suspicious', 'ddos', 'exploited', 'infected', 'exfil', 'breach', 'compromised']) {
+    const c = CONDITIONS[id];
+    assert.ok(c && c.name, id);
+    assert.match(c.color, /^#[0-9a-f]{6}$/i, id);
+    assert.equal(typeof c.pulse, 'boolean', id);
+  }
+  assert.equal(CONDITIONS.compromised.pulse, true, 'an active attack pulses');
+  assert.equal(CONDITIONS.outage.pulse, false, 'a standing state rings steadily');
 });

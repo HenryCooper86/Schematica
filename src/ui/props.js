@@ -5,7 +5,7 @@ import {
 } from '../state.js';
 import { BUSES, BUS_ORDER } from '../buses.js';
 import { presetsFor, presetPatch } from '../presets.js';
-import { DISPOSITIONS } from '../palette.js';
+import { DISPOSITIONS, CONDITIONS } from '../palette.js';
 import { partOf, definitionFrom } from '../custom.js';
 import { nodePart } from '../rdk/profiles.js';
 import { onPress, escAttr, toast, keepFocus } from './press.js';
@@ -169,6 +169,11 @@ function nodeFields(item, doc) {
     const on = item.disposition === k;
     return `<button class="chip${on ? ' active' : ''}" data-disp="${k}"${on ? ` style="border-color:${d.color};color:${d.color};background:${d.color}1c"` : ''}>${trd(d.name)}</button>`;
   }).join('')}</div>`;
+  // Condition: what is happening to this object in an incident.
+  html += `<label>${escAttr(tr('Condition'))}</label><div class="chips">${Object.entries(CONDITIONS).map(([k, c]) => {
+    const on = item.condition === k;
+    return `<button class="chip${on ? ' active' : ''}" data-cond="${k}"${on ? ` style="border-color:${c.color};color:${c.color};background:${c.color}1c"` : ''}>${trd(c.name)}</button>`;
+  }).join('')}</div>`;
   html += `<label>${escAttr(tr('Accent color'))}</label><div class="swatches">${ACCENT_SWATCHES.map((c) => (
     `<button class="swatch${item.color === c ? ' active' : ''}" data-swatch="${c}" style="background:${c}" title="${c}"></button>`
   )).join('')}<button class="swatch swatch-auto${item.color === null ? ' active' : ''}" data-swatch="" title="${escAttr(tr('Category color'))}">${escAttr(tr('Auto'))}</button></div>`;
@@ -281,6 +286,10 @@ export function createPropsPanel({ store, editor, tools }) {
     toggleIn('[data-disp]', (btn) => {
       const cur = findItem(store.doc, item.id)?.item;
       updateItem(store, item.id, { disposition: cur?.disposition === btn.dataset.disp ? null : btn.dataset.disp });
+    });
+    toggleIn('[data-cond]', (btn) => {
+      const cur = findItem(store.doc, item.id)?.item;
+      updateItem(store, item.id, { condition: cur?.condition === btn.dataset.cond ? null : btn.dataset.cond });
     });
     toggleIn('[data-status]', (btn) => {
       const st = btn.dataset.status;

@@ -5,7 +5,7 @@ import { nodePart, profileFor } from '../rdk/profiles.js';
 // applied to a working copy and reaches the document only if every
 // operation succeeds. Diagram items are placed by src/ai/layout.js; only
 // presentation fallback cameras carry explicit view coordinates.
-import { PARTS, DISPOSITIONS } from '../palette.js';
+import { PARTS, DISPOSITIONS, CONDITIONS } from '../palette.js';
 import { normalizePart, partOf, mergePortIds, mergeFieldIds } from '../custom.js';
 import { BUSES } from '../buses.js';
 import { uid, NODE_STATUSES, NODE_FLAGS } from '../state.js';
@@ -57,6 +57,7 @@ export const EDIT_SCHEMA = {
           },
           template: { type: 'string', description: 'add_part with kind custom: a library template id from search_parts, instead of custom' },
           disposition: { type: ['string', 'null'], enum: [...Object.keys(DISPOSITIONS), null] },
+          condition: { type: ['string', 'null'], enum: [...Object.keys(CONDITIONS), null], description: 'Incident state of the object (compromised, infected, outage, ...) or null to clear' },
           locked: { type: 'boolean', description: 'update_part/update_zone/update_note: pin the item where it is (true) or release it (false). A locked item cannot be removed or moved by arrange.' },
           near: { type: 'string', description: 'Layout anchor: an existing node id or a ref' },
           in: { type: 'string', description: 'Zone id or ref to place the part in' },
@@ -196,6 +197,12 @@ function nodePatch(ctx, part, op, node) {
     }
     patch.disposition = op.disposition;
   }
+  if (op.condition !== undefined) {
+    if (op.condition !== null && !Object.hasOwn(CONDITIONS, op.condition)) {
+      fail(`unknown condition "${op.condition}"; one of ${Object.keys(CONDITIONS).join(', ')} or null`);
+    }
+    patch.condition = op.condition;
+  }
   if (op.locked !== undefined) patch.locked = lockFlag(op.locked);
   if (op.fields !== undefined) {
     if (!op.fields || typeof op.fields !== 'object' || Array.isArray(op.fields)) fail('fields must be an object of strings');
@@ -220,11 +227,11 @@ function nodePatch(ctx, part, op, node) {
   return patch;
 }
 
-// Null disposition and empty fields are absent keys, as in a saved file.
+// Null disposition or condition and empty fields are absent keys, as in a saved file.
 function assignPatch(node, patch) {
   for (const [k, v] of Object.entries(partChangePatch(node, patch))) {
     if (v === undefined) delete node[k];
-    else if (k === 'disposition' && v === null) delete node.disposition;
+    else if ((k === 'disposition' || k === 'condition') && v === null) delete node[k];
     else if (k === 'fields' && !Object.keys(v).length) delete node.fields;
     else if (k === 'locked') setLocked(node, v);
     else node[k] = v;

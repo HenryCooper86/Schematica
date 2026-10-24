@@ -5,7 +5,7 @@ import { connectionFocus, readingDepth } from './explore.js';
 import { displayPart, nodePart } from './rdk/profiles.js';
 import { tr, trd } from './i18n.js';
 import { BUSES } from './buses.js';
-import { CATEGORY_COLORS, DISPOSITIONS, SEVERITY_COLORS } from './palette.js';
+import { CATEGORY_COLORS, DISPOSITIONS, SEVERITY_COLORS, CONDITIONS } from './palette.js';
 import {
   portPosition, wireGeomToPoint, noteLines, noteHeight,
   nodeRect, nodeSize, NOTE_W, NOTE_FONT_SIZE, NOTE_FONT_FAMILY, LANE_TITLE_H,
@@ -244,6 +244,10 @@ function tagsMarkup(node, animating, now) {
   if (st) tags.push({ label: st.label, color: st.color, blink: node.status === 'deprecated' });
   const disp = node.disposition && DISPOSITIONS[node.disposition];
   if (disp) tags.push({ label: disp.name.toUpperCase(), color: disp.color });
+  // The condition tag is the short code (COMPROMISED, OUTAGE), not the
+  // sentence-case name, so it sits in the row like the others.
+  const cond = node.condition && CONDITIONS[node.condition];
+  if (cond) tags.push({ label: node.condition.toUpperCase(), color: cond.color, blink: cond.pulse });
   const sev = node.fields?.severity;
   if (sev && SEVERITY_COLORS[sev]) tags.push({ label: sev.toUpperCase(), color: SEVERITY_COLORS[sev] });
   let s = '';
@@ -316,10 +320,14 @@ const GLOW = {
 
 function haloMarkup(node, W, H, animating, now) {
   const flags = (node.flags || []).filter((f) => FLAG_META[f]);
-  const glow = node.disposition && GLOW[node.disposition];
+  // An incident condition is the most urgent thing about a card, so its halo
+  // outranks the disposition glow and the flags: active attack states pulse
+  // like an adversary does, standing states (issue, vulnerable, outage) ring.
+  const cond = node.condition && CONDITIONS[node.condition];
+  const glow = cond ? { color: cond.color, pulse: cond.pulse } : (node.disposition && GLOW[node.disposition]);
   let color;
   let pulse;
-  if (glow && (glow.pulse || !flags.length)) {
+  if (glow && (cond || glow.pulse || !flags.length)) {
     color = glow.color;
     pulse = glow.pulse;
   } else if (flags.length) {

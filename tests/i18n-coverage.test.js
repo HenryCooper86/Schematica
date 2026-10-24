@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import zh from '../src/i18n/zh.js';
-import { PARTS, CATEGORIES, DISPOSITIONS } from '../src/palette.js';
+import { PARTS, CATEGORIES, DISPOSITIONS, CONDITIONS } from '../src/palette.js';
 import { BUSES } from '../src/buses.js';
 import { PRESETS } from '../src/presets.js';
 import { RDK_PRODUCTS } from '../src/rdk/catalogue.js';
@@ -87,6 +87,7 @@ for (const p of Object.values(PARTS)) {
 }
 for (const c of CATEGORIES) data.add(c.name);
 for (const d of Object.values(DISPOSITIONS)) data.add(d.name);
+for (const c of Object.values(CONDITIONS)) data.add(c.name);
 for (const b of Object.values(BUSES)) data.add(b.name);
 for (const list of Object.values(PRESETS)) for (const p of list) data.add(p.notes);
 for (const p of RDK_PRODUCTS) {

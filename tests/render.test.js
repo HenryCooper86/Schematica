@@ -676,3 +676,20 @@ test('figure labels and meta stay inert text on the canvas', () => {
   }
   assert.doesNotMatch(markup, /<svg\b/i, 'source text cannot introduce a nested active SVG');
 });
+
+test('a condition shows as a tag and its halo outranks disposition and flags', () => {
+  const draw = (extra, animating = false) => {
+    const doc = sampleDoc();
+    doc.nodes = [node('h', 'server', 0, 0, { label: 'web01', ...extra })];
+    doc.wires = [];
+    return nodeGroup(diagramMarkup(doc, { animate: animating }), 'h');
+  };
+  const g = draw({ condition: 'compromised', disposition: 'victim', flags: ['bug'] });
+  assert.ok(g.includes('>COMPROMISED</text>'), 'condition tag');
+  assert.ok(g.includes('>VICTIM</text>'), 'disposition tag still shown');
+  const halo = g.match(/<rect class="(fxhalo[^"]*)"[^>]*stroke="(#[0-9a-f]{6})"/);
+  assert.deepEqual([halo[1], halo[2]], ['fxhalo anim', '#dc2626'], 'the compromised halo pulses and wins');
+  const steady = draw({ condition: 'outage' }).match(/<rect class="(fxhalo[^"]*)"[^>]*stroke="(#[0-9a-f]{6})"/);
+  assert.deepEqual([steady[1], steady[2]], ['fxhalo', '#94a3b8'], 'an outage rings steadily');
+  assert.ok(!draw({}).includes('fxhalo'), 'no condition, no halo');
+});

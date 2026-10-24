@@ -46,6 +46,7 @@ test('add_part validates kind, status, flags, disposition, and fields', () => {
     [{ op: 'add_part', ref: 'a', kind: 'mcu', status: 'shiny' }, /unknown status/],
     [{ op: 'add_part', ref: 'a', kind: 'mcu', flags: ['bug', 'wet'] }, /unknown flags wet/],
     [{ op: 'add_part', ref: 'a', kind: 'mcu', disposition: 'pal' }, /unknown disposition/],
+    [{ op: 'add_part', ref: 'a', kind: 'server', condition: 'hacked' }, /unknown condition/],
     [{ op: 'add_part', ref: 'a', kind: 'crystal', fields: { ip: '1.2.3.4' } }, /has no schema fields/],
     [{ op: 'add_part', ref: 'a', kind: 'mcu', fields: { ip: '1.2.3.4' } }, /unknown field "ip" on MCU/],
     [{ op: 'add_part', ref: 'a', kind: 'threatactor', fields: { nope: 'x' } }, /unknown field "nope"/],

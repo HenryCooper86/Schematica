@@ -30,6 +30,7 @@ export function nodeLine(doc, node) {
   if (node.status) s += ` status=${node.status}`;
   if (node.flags?.length) s += ` flags=${node.flags.join(',')}`;
   if (node.disposition) s += ` disposition=${node.disposition}`;
+  if (node.condition) s += ` condition=${node.condition}`;
   // The model must see a lock: it cannot remove the node, and arrange leaves it.
   if (node.locked) s += ' locked=true';
   for (const fd of part.fields || []) {

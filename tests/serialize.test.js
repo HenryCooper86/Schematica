@@ -689,3 +689,17 @@ test('a kind named like an Object prototype key is not treated as an alias', () 
   const text = JSON.stringify({ schema: 2, nodes: [{ id: 'a', kind: 'constructor', x: 0, y: 0 }], wires: [], zones: [], notes: [], journey: [] });
   assert.equal(deserialize(text).doc.nodes[0].kind, 'generic');
 });
+
+test('a node condition round-trips, null is dropped, and an unknown one is warned about and ignored', () => {
+  const file = JSON.stringify({ version: 1, title: 'c', nodes: [
+    { id: 'n1', kind: 'server', x: 0, y: 0, condition: 'compromised' },
+    { id: 'n2', kind: 'server', x: 0, y: 0, condition: 'hacked' },
+    { id: 'n3', kind: 'server', x: 0, y: 0, condition: null },
+  ], wires: [], zones: [], notes: [] });
+  const { doc, warnings } = deserialize(file);
+  assert.equal(doc.nodes[0].condition, 'compromised');
+  assert.ok(!('condition' in doc.nodes[1]) && !('condition' in doc.nodes[2]));
+  assert.ok(warnings.some((w) => /unknown condition "hacked"/.test(w)), JSON.stringify(warnings));
+  const again = deserialize(serialize(doc)).doc;
+  assert.equal(again.nodes[0].condition, 'compromised');
+});

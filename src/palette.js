@@ -51,6 +51,22 @@ export const DISPOSITIONS = {
   adversary: { name: 'Adversary', color: '#ef4444' },
   victim: { name: 'Victim', color: '#fbbf24' },
 };
+// What is happening to an object right now (net_draw's status badges): an
+// incident state a host, service or site is in, shown as a tag and a halo.
+// Separate from lifecycle status (planned ... deprecated), which is about the
+// design, and from disposition, which is about whose side it is on.
+export const CONDITIONS = {
+  issue: { name: 'Issue', color: '#fbbf24', pulse: false },
+  vulnerable: { name: 'Vulnerable', color: '#f97316', pulse: false },
+  outage: { name: 'Outage', color: '#94a3b8', pulse: false },
+  suspicious: { name: 'Suspicious activity', color: '#fb923c', pulse: true },
+  ddos: { name: 'Under DDoS', color: '#f97316', pulse: true },
+  exploited: { name: 'Exploited', color: '#f43f5e', pulse: true },
+  infected: { name: 'Infected', color: '#ef4444', pulse: true },
+  exfil: { name: 'Exfiltrating', color: '#e879f9', pulse: true },
+  breach: { name: 'Breached', color: '#ef4444', pulse: true },
+  compromised: { name: 'Compromised', color: '#dc2626', pulse: true },
+};
 const STIX_ACTOR_TYPES = ['activist', 'competitor', 'crime-syndicate', 'criminal', 'hacker', 'insider-accidental',
   'insider-disgruntled', 'nation-state', 'sensationalist', 'spy', 'terrorist', 'unknown'];
 const STIX_SOPHISTICATION = ['none', 'minimal', 'intermediate', 'advanced', 'expert', 'innovator', 'strategic'];
