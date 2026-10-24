@@ -4,7 +4,8 @@ import {
   snap, nodeRect, nodeSize, nodeMeta, portPosition, wireGeom, wireGeomToPoint, curvePoint, wireLanes, WIRE_FAN,
   rectsIntersect, normRect, wrapText, noteHeight, NOTE_W, contentBounds, textUnits, wireLabelRect, SHAPE_LINE_H,
   measureShapeText, measureFigureLabelText, measureFigureMetaText, FIGURE_LABEL_LINE_H, FIGURE_META_LINE_H, FIGURE_LAYOUT,
-  zoneLabelLayout, ZONE_LABEL_LINE_H, measureZoneLabelText, zoneRect,
+  zoneLabelLayout, ZONE_LABEL_LINE_H, measureZoneLabelText, zoneRect, curveIntersectsRect, wireScene,
+  nodeTags, tagPillWidth, tagRowEnd,
 } from '../src/geometry.js';
 import { EXAMPLE_OVERLAYS_ZH } from '../src/examples.js';
 import { normalizePart, partOf } from '../src/custom.js';
@@ -855,4 +856,104 @@ test('nodeRect is a plain rectangle for every figure, outcome cards included', (
   assert.deepEqual([rect.x, rect.y, rect.w], [10, 20, 156]);
   const g = wireGeom({ x: 0, y: 0, w: 160, h: 100 }, { ...rect, x: 400, y: 60 });
   assert.equal(g.p2.x, 395, 'a wire entering from the left ends the usual pad short of the card edge');
+});
+
+// Process-flow shapes are drawn inside their box (render.js shapeMarkup), so
+// a wire that stopped at the box would float beside a diamond's slant or a
+// connector's circle. Wire ends sit the usual 5px off the drawn silhouette.
+const segmentDistance = (p, a, b) => {
+  const ex = b.x - a.x, ey = b.y - a.y;
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * ex + (p.y - a.y) * ey) / (ex * ex + ey * ey || 1)));
+  return Math.hypot(p.x - (a.x + ex * t), p.y - (a.y + ey * t));
+};
+const polygonDistance = (p, poly) => Math.min(...poly.map((a, i) => segmentDistance(p, a, poly[(i + 1) % poly.length])));
+const diamondOf = (r) => [
+  { x: r.x + r.w / 2, y: r.y }, { x: r.x + r.w, y: r.y + r.h / 2 },
+  { x: r.x + r.w / 2, y: r.y + r.h }, { x: r.x, y: r.y + r.h / 2 },
+];
+
+test('nodeRect carries a process-flow shape, and nothing else', () => {
+  assert.equal(nodeRect({ kind: 'decision', label: 'Valid?', x: 200, y: 0 }).shape, 'decision');
+  assert.deepEqual(nodeRect({ kind: 'mcu', label: 'MCU', x: 10, y: 20 }), { x: 10, y: 20, w: 104, h: 74 });
+  assert.deepEqual(nodeRect({ kind: 'mcu', label: 'MCU', x: NaN, y: undefined }), { x: 0, y: 0, w: 104, h: 74 },
+    'a card without coordinates sits at the origin instead of poisoning routes');
+});
+
+test('a diagonal wire ends on a decision diamond\'s slant, not its box', () => {
+  const decision = nodeRect({ kind: 'decision', label: 'Valid?', x: 200, y: 0 });
+  const mcu = nodeRect({ kind: 'mcu', label: 'MCU', x: 0, y: 200 });
+  const g = wireGeom(mcu, decision);
+  const gap = polygonDistance(g.p2, diamondOf(decision));
+  assert.ok(Math.abs(gap - 5) < 0.3, `the wire end sits 5px off the diamond edge, got ${gap}`);
+  assert.ok(g.p2.y < 76, 'the end is inside the box the diamond is drawn in');
+  // The tangent at the diamond points along the ray into the shape: the
+  // control point lies further out along the same line.
+  const toCentre = Math.hypot(decision.x + decision.w / 2 - g.c2.x, decision.y + decision.h / 2 - g.c2.y);
+  assert.ok(toCentre > Math.hypot(decision.x + decision.w / 2 - g.p2.x, decision.y + decision.h / 2 - g.p2.y));
+  // The plain card keeps its box anchor.
+  assert.equal(g.p1.y, 195, 'leaves the plain card through its top edge, 5px out');
+  const back = wireGeom(decision, mcu);
+  assert.ok(Math.abs(polygonDistance(back.p1, diamondOf(decision)) - 5) < 0.3, 'the same from the other end');
+});
+
+test('a wire into a connector ends on its circle; a straight run into a diamond stays straight', () => {
+  const mcu = nodeRect({ kind: 'mcu', label: 'MCU', x: 0, y: 0 });
+  const connector = nodeRect({ kind: 'connector', label: 'A', x: 200, y: 200 });
+  const g = wireGeom(mcu, connector);
+  const radial = Math.hypot(g.p2.x - 223, g.p2.y - 223);
+  assert.ok(Math.abs(radial - 28) < 0.2, `ends 5px off the 23px circle, got ${radial}`);
+  const process = nodeRect({ kind: 'process', label: 'Process', x: 0, y: 0 });
+  const decision = nodeRect({ kind: 'decision', label: 'Valid?', x: 300, y: -11 });
+  const straight = wireGeom(process, decision);
+  assert.deepEqual(straight.p1, { x: 101, y: 27 });
+  assert.deepEqual(straight.p2, { x: 295, y: 27 }, 'ends 5px before the diamond\'s left apex');
+  assert.equal(straight.d, 'M 101 27 C 178.6 27, 217.4 27, 295 27');
+  const draft = wireGeomToPoint(decision, { x: 100, y: 300 });
+  assert.ok(Math.abs(polygonDistance(draft.p1, diamondOf(decision)) - 5) < 0.3, 'a dragged wire leaves the diamond edge');
+  assert.deepEqual(draft.p2, { x: 100, y: 300 });
+});
+
+test('a detour from a diamond leaves through its silhouette and the route reaches the far card', () => {
+  const decision = nodeRect({ kind: 'decision', label: 'Valid?', x: 0, y: 0 });
+  const far = nodeRect({ kind: 'mcu', label: 'MCU', x: 600, y: 0 });
+  const blocker = { x: 280, y: -10, w: 104, h: 94 };
+  const g = wireGeom(decision, far, 0, [blocker]);
+  assert.ok(Math.abs(polygonDistance(g.p1, diamondOf(decision)) - 5) < 0.3, `leaves 5px off the diamond, got ${polygonDistance(g.p1, diamondOf(decision))}`);
+  assert.ok(g.p2.x === 595 || g.p2.y === -5 || g.p2.y === 79, `enters the plain card 5px off its box: ${JSON.stringify(g.p2)}`);
+  assert.ok(!curveIntersectsRect(g, blocker), 'the detour clears the blocking card');
+});
+
+test('contentBounds tolerates a document without notes or zones', () => {
+  const b = contentBounds({ nodes: [{ kind: 'mcu', label: 'M', x: 10, y: 20 }] });
+  assert.deepEqual(b, { x: 10, y: 20, w: 104, h: 74 });
+  assert.equal(contentBounds({ nodes: [], zones: [] }), null);
+});
+
+test('a route through a card without coordinates resolves without a full subdivision', () => {
+  const doc = { nodes: [
+    { id: 'a', kind: 'mcu', label: 'a', x: 0, y: 0 },
+    { id: 'b', kind: 'mcu', label: 'b', x: NaN, y: NaN },
+    { id: 'c', kind: 'mcu', label: 'c', x: 300, y: 0 },
+  ], wires: [{ id: 'w', from: { node: 'a', port: 'i2c' }, to: { node: 'c', port: 'i2c' }, bus: 'i2c' }], zones: [], notes: [] };
+  let queries = 0;
+  const geo = wireGeom({ x: 0, y: 0, w: 104, h: 74 }, { x: NaN, y: NaN, w: 104, h: 74 }, 0, () => { queries++; return []; });
+  assert.ok(queries < 50, `the visitor stops on a non-finite curve (${queries} queries)`);
+  assert.ok(geo.d.length);
+  const { routes } = wireScene(doc);
+  assert.ok(routes.get('w').d.startsWith('M '), 'the finite wire still routes');
+});
+
+// Tags run right from x=10 and flag badges run left from the right edge: a
+// card wearing both grows so the row and one badge sit apart (render.js
+// collapses the rest into "+N" from there). Tags alone never resize a card.
+test('nodeSize widens a flagged card for its tag row, and only then', () => {
+  const tags = nodeTags({ status: 'deprecated', disposition: 'adversary', condition: 'outage', fields: { severity: 'high' } });
+  assert.deepEqual(tags.map((t) => [t.field, t.label]), [['status', 'DEPRECATED'], ['disposition', 'ADVERSARY'], ['condition', 'OUTAGE'], ['severity', 'HIGH']]);
+  assert.equal(tagPillWidth('PROD'), 35.6);
+  assert.equal(tagRowEnd([]), 0);
+  assert.equal(tagRowEnd(tags.slice(0, 2)), 144.6, 'DEPRECATED, a 4px gap, ADVERSARY');
+  assert.deepEqual(size({ label: 'a', status: 'deprecated', disposition: 'adversary', flags: ['bug'] }), { w: 172.1, h: 74 });
+  assert.deepEqual(size({ label: 'a', status: 'deprecated', disposition: 'adversary' }), { w: 104, h: 74 }, 'no flags, no growth');
+  assert.deepEqual(size({ label: 'a', status: 'tested', flags: ['bug', 'eol'] }), { w: 104, h: 74 }, 'a short row leaves room already');
+  assert.deepEqual(size({ label: 'a', flags: ['bug'] }), { w: 104, h: 74 }, 'flags alone never grow a card');
 });

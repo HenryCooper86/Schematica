@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PARTS, CATEGORY_COLORS } from '../src/palette.js';
-import { diagramMarkup, overlayMarkup, defsMarkup, flowOffset, LOOP_MS } from '../src/render.js';
-import { nodeSize, FIGURE_LAYOUT } from '../src/geometry.js';
+import { diagramMarkup, overlayMarkup, defsMarkup, flowOffset, LOOP_MS, FLAG_META } from '../src/render.js';
+import { nodeSize, FIGURE_LAYOUT, FLAG_KINDS } from '../src/geometry.js';
 import { EXAMPLES } from '../src/examples.js';
 import { buildExportSVG } from '../src/export.js';
 import { initI18n, setLang } from '../src/i18n.js';
@@ -299,15 +299,43 @@ test('cards follow the net_draw layout: 38px badge, label at 62, mono meta lines
 
 test('status is a top-left tag; flags are icon badges top-right that collapse into +N', () => {
   const doc = sampleDoc();
-  doc.nodes[0].status = 'production';
   doc.nodes[0].flags = ['bug', 'thermal', 'power', 'lead', 'safety', 'eol'];
+  const bare = nodeGroup(diagramMarkup(doc), 'a');
+  assert.equal((bare.match(/class="fxbadge"/g) || []).length, 3, 'a 104px card without tags fits three badges');
+  assert.ok(bare.includes('<title>Bug</title>') && bare.includes('<title>Thermal</title>'), 'first two flags shown with tooltips');
+  assert.ok(bare.includes('>+4</text>') && bare.includes('<title>Power hungry, Long lead time, Safety critical, EOL part</title>'), 'overflow badge lists the rest');
+  doc.nodes[0].status = 'production';
   const g = nodeGroup(diagramMarkup(doc), 'a');
   assert.ok(g.includes('<rect x="10" y="-8" width="35.6" height="16" rx="8" fill="#0d1526" stroke="#34d399"'), 'PROD tag');
   assert.ok(g.includes('>PROD</text>'));
-  assert.equal((g.match(/class="fxbadge"/g) || []).length, 3, 'a 104px card fits three badges');
-  assert.ok(g.includes('<title>Bug</title>') && g.includes('<title>Thermal</title>'), 'first two flags shown with tooltips');
+  assert.ok(g.includes('<rect class="card" width="104"'), 'a short tag row leaves the card at its minimum width');
+  // The PROD pill ends at x=45.6: a third badge (centre 45) would sit on
+  // it, so the badges collapse one earlier than on a bare card.
+  assert.equal((g.match(/class="fxbadge"/g) || []).length, 2, 'the badges stop short of the tag row');
   assert.ok(g.includes('<circle cx="91" cy="0" r="10.5" fill="#0d1526" stroke="#f87171" stroke-width="1.6"/>'), 'badges hang on the top edge');
-  assert.ok(g.includes('>+4</text>') && g.includes('<title>Power hungry, Long lead time, Safety critical, EOL part</title>'), 'overflow badge lists the rest');
+  assert.ok(g.includes('<circle cx="68" cy="0" r="10.5" fill="#0d1526" stroke="#8b9bb4"'), 'the collapse badge is the second slot');
+  assert.ok(g.includes('>+5</text>') && g.includes('<title>Thermal, Power hungry, Long lead time, Safety critical, EOL part</title>'), 'overflow badge lists the rest');
+});
+
+test('a card whose tag row would meet its flag badges grows until they sit apart', () => {
+  const doc = sampleDoc();
+  doc.nodes = [node('t', 'mcu', 0, 0, { label: 'a', status: 'deprecated', disposition: 'adversary', flags: ['bug'] })];
+  doc.wires = [];
+  const g = nodeGroup(diagramMarkup(doc), 't');
+  // DEPRECATED (68) + 4 + ADVERSARY (62.6) ends at 144.6; one badge needs 27.5 more.
+  assert.ok(g.includes('<rect class="card" width="172.1" height="74"'), 'the card widens for the tag row and one badge');
+  assert.ok(g.includes('<circle cx="159.1" cy="0" r="10.5"'), 'the badge sits past the tags');
+  assert.equal((g.match(/class="fxbadge"/g) || []).length, 1);
+  doc.nodes[0].flags = [];
+  const plain = nodeGroup(diagramMarkup(doc), 't');
+  assert.ok(plain.includes('<rect class="card" width="104" height="74"'), 'without flags the card keeps its size');
+  assert.equal((plain.match(/y="-8" width=/g) || []).length, 2, 'and still wears both tags');
+  doc.nodes[0].flags = ['nonsense'];
+  assert.ok(nodeGroup(diagramMarkup(doc), 't').includes('<rect class="card" width="104"'), 'an unknown flag reserves no room');
+});
+
+test('the flags geometry reserves room for are exactly the flags render draws', () => {
+  assert.deepEqual(Object.keys(FLAG_META), [...FLAG_KINDS]);
 });
 
 test('defsMarkup provides the grid, card gradient, shadow, and arrow marker', () => {
@@ -703,4 +731,30 @@ test('a replay condition overlay draws over the card without the board carrying 
   assert.equal(doc.nodes[0].condition, 'vulnerable', 'the board is untouched');
   const plain = nodeGroup(diagramMarkup(doc, {}), 'h');
   assert.ok(plain.includes('>VULNERABLE</text>'));
+});
+
+// Baked frames must show what the live CSS shows at the same instant:
+// `@keyframes blink` is full at 0% and 0.45 at 50%.
+test('blinkOpacity is in phase with the CSS blink keyframes', async () => {
+  const { blinkOpacity } = await import('../src/render-animation.js');
+  assert.equal(blinkOpacity(0), '1.000');
+  assert.equal(blinkOpacity(750), '0.450');
+  assert.equal(blinkOpacity(1500), '1.000');
+  const css = await import('node:fs').then((fs) => fs.readFileSync(new URL('../css/style.css', import.meta.url), 'utf8'));
+  assert.match(css, /@keyframes blink \{ 0%, 100% \{ opacity: 1; \} 50% \{ opacity: 0\.45; \} \}/);
+});
+
+test('the overlay reuses the scene the diagram was drawn from', async () => {
+  const { createDiagramScene } = await import('../src/render.js');
+  const doc = sampleDoc();
+  const scene = createDiagramScene();
+  assert.equal(scene.indexFor(doc), null, 'nothing rendered yet');
+  scene.render(doc, {});
+  const index = scene.indexFor(doc);
+  assert.ok(index?.routes.get('w1'), 'the rendered document\'s index is available');
+  assert.equal(scene.indexFor(sampleDoc()), null, 'another document gets no stale index');
+  index.routes.set('w1', { ...index.routes.get('w1'), d: 'M 1 2 C 3 4, 5 6, 7 8' });
+  const overlay = overlayMarkup(doc, { highlight: new Set(['w1']), scene: index });
+  assert.ok(overlay.includes('d="M 1 2 C 3 4, 5 6, 7 8"'), 'the highlight glow follows the given scene');
+  assert.ok(!overlayMarkup(doc, { highlight: new Set(['w1']) }).includes('M 1 2 C'), 'without one it routes afresh');
 });

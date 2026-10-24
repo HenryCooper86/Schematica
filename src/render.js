@@ -11,6 +11,7 @@ import {
   nodeRect, nodeSize, NOTE_W, NOTE_FONT_SIZE, NOTE_FONT_FAMILY, LANE_TITLE_H,
   LABEL_LINE_H, META_LINE_H, SHAPE_LINE_H, WIRE_LABEL_LINE_H,
   FIGURE_LABEL_LINE_H, FIGURE_LABEL_FONT_SIZE, FIGURE_META_LINE_H, FIGURE_META_FONT_SIZE, FIGURE_LAYOUT,
+  nodeTags, tagPillWidth, tagRowEnd,
   zoneLabelLayout, ZONE_LABEL_H, ZONE_LABEL_LINE_H, ZONE_LABEL_FONT_SIZE, ZONE_LABEL_FONT_WEIGHT, measureZoneLabelText,
 } from './geometry.js';
 
@@ -121,7 +122,9 @@ function shapeMarkup(part, W, H, acc, selected) {
 const FIGURE_STROKE = 2.1;
 
 function figureMarkup(part, W, H, acc, selected, labelLines, metaLines) {
-  const P = FIGURE_LAYOUT[part.figure];
+  // The same fallback figureSize uses, so an unknown presentation draws on
+  // the box geometry sized for it instead of throwing.
+  const P = FIGURE_LAYOUT[part.figure] ?? FIGURE_LAYOUT.tile;
   const threat = !!part.threat && !selected;
   const stroke = selected ? esc(acc) : (threat ? 'rgba(248,113,113,0.4)' : CARD_LINE);
   const strokeW = selected ? 1.6 : 1;
@@ -190,12 +193,10 @@ function portsMarkup(node, part, acc, W, H) {
   return s + '</g>';
 }
 
-const STATUS_META = {
-  planned: { label: 'PLANNED', color: '#94a3b8' },
-  prototype: { label: 'PROTO', color: '#f59e0b' },
-  tested: { label: 'TESTED', color: '#38bdf8' },
-  production: { label: 'PROD', color: '#34d399' },
-  deprecated: { label: 'DEPRECATED', color: '#f87171' },
+// Lifecycle tag colours; the labels live with the tag geometry in
+// geometry.js (STATUS_LABELS), which sizes the card for the row.
+const STATUS_COLORS = {
+  planned: '#94a3b8', prototype: '#f59e0b', tested: '#38bdf8', production: '#34d399', deprecated: '#f87171',
 };
 
 // Flags render like net_draw's effect badges: a ringed circle with a small
@@ -230,42 +231,42 @@ export const FLAG_META = {
 };
 
 // Tags along the top-left edge, in a row: lifecycle status, disposition,
-// and severity. A deprecated part blinks while animating.
-function tagsMarkup(node, animating, now) {
-  const tags = [];
-  const st = node.status && STATUS_META[node.status];
-  if (st) tags.push({ label: st.label, color: st.color, blink: node.status === 'deprecated' });
-  const disp = node.disposition && DISPOSITIONS[node.disposition];
-  if (disp) tags.push({ label: disp.name.toUpperCase(), color: disp.color });
-  // The condition tag is the short code (COMPROMISED, OUTAGE), not the
-  // sentence-case name, so it sits in the row like the others.
-  const cond = node.condition && CONDITIONS[node.condition];
-  if (cond) tags.push({ label: node.condition.toUpperCase(), color: cond.color, blink: cond.pulse });
-  const sev = node.fields?.severity;
-  if (sev && SEVERITY_COLORS[sev]) tags.push({ label: sev.toUpperCase(), color: SEVERITY_COLORS[sev] });
+// condition and severity (geometry.js nodeTags owns the list and the pill
+// sizes). A deprecated part and an active attack condition blink while
+// animating.
+function tagColor(t) {
+  if (t.field === 'status') return STATUS_COLORS[t.key];
+  if (t.field === 'disposition') return DISPOSITIONS[t.key].color;
+  if (t.field === 'condition') return CONDITIONS[t.key].color;
+  return SEVERITY_COLORS[t.key];
+}
+
+function tagsMarkup(tags, animating, now) {
   let s = '';
   let x = 10;
   for (const t of tags) {
-    // Tag labels are Latin codes (PROTO, ADVERSARY, HIGH) that never
-    // localize, so this pill is deliberately sized by `.length` rather than
-    // by textUnits() the way the label and note pills are.
-    const pw = Math.round((t.label.length * 5.4 + 14) * 100) / 100;
-    const blink = animating && t.blink
+    const blinks = t.field === 'status' ? t.key === 'deprecated' : t.field === 'condition' && CONDITIONS[t.key].pulse;
+    const pw = tagPillWidth(t.label);
+    const color = tagColor(t);
+    const blink = animating && blinks
       ? ` class="blink"${now != null ? ` opacity="${blinkOpacity(now)}"` : ''}`
       : '';
     s += `<g${blink}><rect x="${x}" y="-8" width="${pw}" height="16" rx="8"`
-      + ` fill="${CHIP_BG}" stroke="${t.color}" stroke-opacity="0.8" stroke-width="1.2"/>`
+      + ` fill="${CHIP_BG}" stroke="${color}" stroke-opacity="0.8" stroke-width="1.2"/>`
       + `<text x="${Math.round((x + pw / 2) * 100) / 100}" y="3.2" text-anchor="middle" font-size="8" font-weight="700"`
-      + ` letter-spacing="0.5" fill="${t.color}" class="acc-t" style="--a:${t.color}" pointer-events="none">${esc(t.label)}</text></g>`;
+      + ` letter-spacing="0.5" fill="${color}" class="acc-t" style="--a:${color}" pointer-events="none">${esc(t.label)}</text></g>`;
     x = Math.round((x + pw + 4) * 100) / 100;
   }
   return s;
 }
 
-// Flag badges along the top-right edge; when they would run into the card,
-// the overflow collapses into a "+N" badge (net_draw's effect badges).
-function flagBadgesMarkup(flags, W) {
-  const maxBadges = Math.max(1, Math.floor((W - 26) / 23));
+// Flag badges along the top-right edge; when they would run into the card
+// or into the tag row ending at `tagEnd`, the overflow collapses into a
+// "+N" badge (net_draw's effect badges). A card has grown for at least one
+// badge past its tags (geometry.js nodeSize), so the collapse never covers
+// them; without tags the strip stops 26px from the left edge as before.
+function flagBadgesMarkup(flags, W, tagEnd = 0) {
+  const maxBadges = Math.max(1, Math.floor((W - Math.max(26, tagEnd + 4.5)) / 23));
   const shown = flags.length > maxBadges ? flags.slice(0, maxBadges - 1) : flags;
   let s = '';
   shown.forEach((k, i) => {
@@ -387,8 +388,9 @@ function nodeMarkup(node, selected, ui, animating, now, wires) {
       metaY += m.lines.length * META_LINE_H;
     }
   }
-  s += tagsMarkup(shown, animating, now);
-  s += flagBadgesMarkup(flags, W);
+  const tags = nodeTags(shown);
+  s += tagsMarkup(tags, animating, now);
+  s += flagBadgesMarkup(flags, W, tagRowEnd(tags));
   if (node.locked) s += lockMarkup(W - 16, H - 16);
   if (ui.ports !== false) s += portsMarkup(node, part, acc, W, H);
   s += '</g>';
@@ -616,10 +618,15 @@ function itemMarkup(kind, item, index, ui) {
 }
 
 // Document changes rebuild geometry. Selection changes reuse that scene and
-// generate markup only for items whose selection changed.
+// generate markup only for items whose selection changed. `indexFor(doc)`
+// hands the index back for the document it was built from, so the overlay
+// can reuse the routes the diagram is drawn with instead of rebuilding them.
 export function createDiagramScene() {
   let document = null, index = null, selected = new Set(), items = new Map();
   return {
+    indexFor(doc) {
+      return document === doc ? index : null;
+    },
     render(doc, ui = {}) {
       document = doc;
       index = sceneIndex(doc);
@@ -672,7 +679,7 @@ export function overlayMarkup(doc, ui) {
   // Items the assistant just touched: a ring on cards, zones, and notes, a
   // glow along wires. Cleared by the next pointerdown on the canvas.
   if (ui.highlight && ui.highlight.size) {
-    const { byId, routes } = sceneIndex(doc);
+    const { byId, routes } = ui.scene || sceneIndex(doc);
     const ring = (r, rx) => `<rect class="hl anim" x="${r.x - 6}" y="${r.y - 6}" width="${r.w + 12}" height="${r.h + 12}"`
       + ` rx="${rx}" fill="none" stroke="${ACCENT}" stroke-width="2" stroke-opacity="0.8" pointer-events="none"/>`;
     for (const id of ui.highlight) {
@@ -792,7 +799,9 @@ export function createRenderer(svg) {
       }
     },
     renderOverlay(doc, ui = {}) {
-      overlay.innerHTML = overlayMarkup(doc, ui);
+      // The diagram's own index serves the highlight rings when it was built
+      // for this document; another document (undo, open) gets a fresh one.
+      overlay.innerHTML = overlayMarkup(doc, { ...ui, scene: ui.scene || scene.indexFor(doc) });
     },
     render(doc, view, ui = {}) {
       this.setView(view, ui.grid !== false);

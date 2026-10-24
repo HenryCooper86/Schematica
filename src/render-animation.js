@@ -19,8 +19,10 @@ export function pulseOpacity(nowMs) {
   return (0.22 + 0.63 * (0.5 - 0.5 * Math.cos((2 * Math.PI * nowMs) / PULSE_MS))).toFixed(3);
 }
 
+// Mirrors CSS `@keyframes blink` (style.css): full at 0%, 0.45 at 50%, so a
+// baked frame at t=0 matches what the live canvas shows at the same instant.
 export function blinkOpacity(nowMs) {
-  return (0.45 + 0.55 * (0.5 + 0.5 * Math.sin((2 * Math.PI * nowMs) / PULSE_MS))).toFixed(3);
+  return (0.45 + 0.55 * (0.5 + 0.5 * Math.cos((2 * Math.PI * nowMs) / PULSE_MS))).toFixed(3);
 }
 
 export function footstepPoint(geo, nowMs, j) {

@@ -393,3 +393,26 @@ test('rows follow the mean row of neighbours in the column nearer the hub', () =
   assert.equal(byId.x.y < byId.y.y, byId.c.y < byId.a.y, 'column 2 follows the rows of the neighbours in column 1');
   noOverlaps(doc);
 });
+
+test('pushApart keeps going when a pushed zone lands on one it had already cleared', () => {
+  const doc = newDoc('P');
+  // Id order is zA, zB, zC but zA sits lowest on the board: zC pushed below
+  // zB lands on zA, which the first pass had already checked against zC.
+  doc.nodes.push(node('a', 'mcu', { x: 100, y: 420 }), node('b', 'temp', { x: 100, y: 100 }), node('c', 'imu', { x: 100, y: 180 }));
+  const zones = [['zA', 'a'], ['zB', 'b'], ['zC', 'c']].map(([id, member]) => {
+    const zone = { id, x: 0, y: 0, w: 0, h: 0, label: id, color: '#4a90d9' };
+    doc.zones.push(zone);
+    fitZone(doc, zone, [member]);
+    return { id, members: [member] };
+  });
+  const [zA, zB, zC] = doc.zones;
+  assert.ok(rectsIntersect(zoneRect(zB), zoneRect(zC)) && !rectsIntersect(zoneRect(zA), zoneRect(zC)), 'only zB and zC start overlapping');
+  pushApart(doc, zones);
+  for (const [p, q] of [[zA, zB], [zA, zC], [zB, zC]]) {
+    assert.ok(!rectsIntersect(zoneRect(p), zoneRect(q)), `${p.id} and ${q.id} end apart`);
+  }
+  assert.ok(zC.y > zA.y + zA.h, 'zC ended below zA as well as zB');
+  assert.ok(contains(zC, nodeRect(doc.nodes[2])), 'c moved with its zone');
+  assert.deepEqual(doc.nodes.slice(0, 2).map((n) => [n.x, n.y]), [[100, 420], [100, 100]], 'a and b did not move');
+  noOverlaps(doc);
+});

@@ -1880,8 +1880,8 @@ html[data-theme="light"] .ai-result.warn { color: #92400e; }
 #btn-review-path.active { color: var(--accent); }
 #btn-review-path[data-stage="complete"] svg { color: var(--ok, #22c55e); }
 
-#btn-guide, #btn-connect, #btn-team { display: block; width: calc(100% - 24px); margin: 0 12px 12px; padding: 8px; color: var(--text); background: var(--bg2); border: 1px solid var(--line); border-radius: 7px; cursor: pointer; }
-#btn-guide:focus-visible, #btn-connect:focus-visible, #btn-team:focus-visible { outline: 2px solid var(--accent); }
+#btn-team { display: block; width: calc(100% - 24px); margin: 0 12px 12px; padding: 8px; color: var(--text); background: var(--bg2); border: 1px solid var(--line); border-radius: 7px; cursor: pointer; }
+#btn-team:focus-visible { outline: 2px solid var(--accent); }
 .workflow-dialog button, #first-project button { font: inherit; padding: 7px 10px; color: var(--text); background: var(--bg2); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
 .workflow-dialog button:disabled { opacity: .5; cursor: default; }
 .workflow-dialog button:focus-visible, #first-project button:focus-visible { outline: 2px solid var(--accent); }

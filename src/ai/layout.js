@@ -182,33 +182,43 @@ export function fitZone(doc, zone, memberIds) {
 // rectangles — while the raw zone and its members still move together.
 // A push whose moved cards would land on a card that did not move is
 // undone: cards never overlap, zone rectangles occasionally do.
+// A zone pushed below one neighbour can land on another it had already
+// cleared, so the pass repeats until no pair moves; every push moves a zone
+// strictly down past an earlier one, so the passes are bounded by the number
+// of zones.
 export function pushApart(doc, zones) {
   const byId = new Map(doc.zones.map((z) => [z.id, z]));
   const nodeById = new Map(doc.nodes.map((n) => [n.id, n]));
   const ordered = [...zones].sort((a, b) => cmp(a.id, b.id));
-  for (let i = 0; i < ordered.length; i++) {
-    for (let j = i + 1; j < ordered.length; j++) {
-      const zi = byId.get(ordered[i].id);
-      const zj = byId.get(ordered[j].id);
-      if (!zi || !zj) continue;
-      const vi = zoneRect(zi);
-      const vj = zoneRect(zj);
-      if (!rectsIntersect(vi, vj)) continue;
-      const dy = up(vi.y + vi.h + NOTE_GAP - vj.y);
-      const moved = ordered[j].members.map((id) => nodeById.get(id)).filter(Boolean);
-      // A locked zone, or one holding a locked card, is not pushed anywhere.
-      if (zj.locked || moved.some((n) => n.locked)) continue;
-      const movedIds = new Set(moved.map((n) => n.id));
-      const before = { x: zj.x, y: zj.y, w: zj.w, h: zj.h };
-      for (const n of moved) n.y += dy;
-      fitZone(doc, zj, ordered[j].members);
-      const still = doc.nodes.filter((n) => !movedIds.has(n.id)).map(nodeRect);
-      const collides = moved.some((n) => still.some((r) => rectsIntersect(nodeRect(n), r)));
-      if (collides) {
-        for (const n of moved) n.y -= dy;
-        Object.assign(zj, before);
+  for (let pass = 0; pass < ordered.length; pass++) {
+    let pushed = false;
+    for (let i = 0; i < ordered.length; i++) {
+      for (let j = i + 1; j < ordered.length; j++) {
+        const zi = byId.get(ordered[i].id);
+        const zj = byId.get(ordered[j].id);
+        if (!zi || !zj) continue;
+        const vi = zoneRect(zi);
+        const vj = zoneRect(zj);
+        if (!rectsIntersect(vi, vj)) continue;
+        const dy = up(vi.y + vi.h + NOTE_GAP - vj.y);
+        const moved = ordered[j].members.map((id) => nodeById.get(id)).filter(Boolean);
+        // A locked zone, or one holding a locked card, is not pushed anywhere.
+        if (zj.locked || moved.some((n) => n.locked)) continue;
+        const movedIds = new Set(moved.map((n) => n.id));
+        const before = { x: zj.x, y: zj.y, w: zj.w, h: zj.h };
+        for (const n of moved) n.y += dy;
+        fitZone(doc, zj, ordered[j].members);
+        const still = doc.nodes.filter((n) => !movedIds.has(n.id)).map(nodeRect);
+        const collides = moved.some((n) => still.some((r) => rectsIntersect(nodeRect(n), r)));
+        if (collides) {
+          for (const n of moved) n.y -= dy;
+          Object.assign(zj, before);
+        } else {
+          pushed = true;
+        }
       }
     }
+    if (!pushed) break;
   }
 }
 

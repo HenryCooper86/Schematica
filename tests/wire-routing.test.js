@@ -189,10 +189,19 @@ test('an automatic bus pill on a too-short wire is left off; a typed label keeps
 });
 
 test('wire ends stay on the straight part of a card edge, never in a rounded corner', async () => {
-  const { nodeRect, wireScene } = await import('../src/geometry.js');
+  const { nodeRect, wireScene, shapeOutline } = await import('../src/geometry.js');
   let seed = 11;
   const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  // A process-flow shape has no rounded box corner to avoid: its wire ends
+  // sit the same 5px off the drawn silhouette instead.
+  const segmentDistance = (p, a, b) => {
+    const ex = b.x - a.x, ey = b.y - a.y;
+    const t = Math.max(0, Math.min(1, ((p.x - a.x) * ex + (p.y - a.y) * ey) / (ex * ex + ey * ey || 1)));
+    return Math.hypot(p.x - (a.x + ex * t), p.y - (a.y + ey * t));
+  };
   const onStraightEdge = (p, r) => {
+    const outline = shapeOutline(r);
+    if (outline) return Math.abs(Math.min(...outline.map((a, i) => segmentDistance(p, a, outline[(i + 1) % outline.length]))) - 5) < 0.3;
     const inset = (len) => Math.min(18, len / 2);
     const side = Math.abs(p.x - (r.x - 5)) < 0.05 || Math.abs(p.x - (r.x + r.w + 5)) < 0.05;
     return side

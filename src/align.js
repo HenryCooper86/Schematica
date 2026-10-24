@@ -7,7 +7,7 @@
 // Positions land on two decimals, the same precision geometry.js keeps for
 // wire coordinates: an even gap rarely divides into whole pixels, and rounding
 // each item to an integer would make the gaps unequal again by up to a pixel.
-const r2 = (v) => Math.round(v * 100) / 100 + 0;
+import { r2 } from './geometry.js';
 
 // A mode names the axis it works on, the edge it reads off an item, and where
 // that item's top-left has to go for its edge to land on the target.

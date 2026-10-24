@@ -12,7 +12,9 @@ export function initKeepClear({ svg, store, tools, render }) {
   let pressed = false, pending = false, raf = null;
 
   const visiblePanels = () => PANELS.map((id) => document.getElementById(id))
-    .filter((el) => el && !el.hidden && el.offsetParent !== null)
+    // A panel the user dragged is position:fixed, so offsetParent is null for
+    // it even while it is on screen; a client rect is the reliable test.
+    .filter((el) => el && !el.hidden && el.getClientRects().length > 0)
     .map((el) => el.getBoundingClientRect())
     .filter((r) => r.width && r.height);
   const overlaps = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;

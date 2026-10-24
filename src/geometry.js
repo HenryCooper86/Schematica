@@ -1,5 +1,6 @@
 import { BUSES } from './buses.js';
 import { partOf } from './custom.js';
+import { DISPOSITIONS, CONDITIONS, SEVERITY_COLORS } from './palette.js';
 
 export function snap(v, grid = 8) {
   // "+ 0" folds the -0 that rounding small negatives produces into +0, so
@@ -204,6 +205,49 @@ function figureSize(figure, label, meta) {
   return { w: P.w, h, labelLines, metaLines };
 }
 
+// ---- Tag row (status, disposition, condition, severity) ----
+// The pills render.js draws along a card's top-left edge, in this order,
+// and their geometry. Tag labels are Latin codes (PROTO, ADVERSARY, HIGH)
+// that never localize, so a pill is sized by `.length` rather than by
+// textUnits() the way the label and note pills are.
+export const STATUS_LABELS = Object.freeze({
+  planned: 'PLANNED', prototype: 'PROTO', tested: 'TESTED', production: 'PROD', deprecated: 'DEPRECATED',
+});
+// The flags render.js knows (FLAG_META); any other value on a card is ignored
+// there, so it reserves no badge room here either.
+export const FLAG_KINDS = Object.freeze(['bug', 'thermal', 'power', 'lead', 'safety', 'eol']);
+const TAG_X = 10;        // where the row starts
+const TAG_GAP = 4;       // between pills
+// A flag badge is a 10.5px-radius circle centred 13px in from the right
+// edge, so a card needs this much past the tag row's end for one badge (the
+// "+N" collapse) to clear the tags by TAG_GAP.
+const TAG_BADGE_ROOM = TAG_GAP + 13 + 10.5;
+
+export function nodeTags(node) {
+  const tags = [];
+  if (node.status && STATUS_LABELS[node.status]) tags.push({ field: 'status', key: node.status, label: STATUS_LABELS[node.status] });
+  if (node.disposition && DISPOSITIONS[node.disposition]) tags.push({ field: 'disposition', key: node.disposition, label: DISPOSITIONS[node.disposition].name.toUpperCase() });
+  // The condition tag is the short code (COMPROMISED, OUTAGE), not the
+  // sentence-case name, so it sits in the row like the others.
+  if (node.condition && CONDITIONS[node.condition]) tags.push({ field: 'condition', key: node.condition, label: node.condition.toUpperCase() });
+  const sev = node.fields?.severity;
+  if (sev && SEVERITY_COLORS[sev]) tags.push({ field: 'severity', key: sev, label: String(sev).toUpperCase() });
+  return tags;
+}
+
+export function tagPillWidth(label) {
+  return Math.round((label.length * 5.4 + 14) * 100) / 100;
+}
+
+// The x where the last pill ends (0 for no tags): render.js collapses flag
+// badges before they reach it.
+export function tagRowEnd(tags) {
+  if (!tags.length) return 0;
+  let x = TAG_X;
+  for (const t of tags) x = r2(x + tagPillWidth(t.label) + TAG_GAP);
+  return r2(x - TAG_GAP);
+}
+
 export function nodeSize(node) {
   const part = partOf(node);
   if (part.figure) return figureSize(part.figure, String(node.label ?? ''), nodeMeta(node));
@@ -211,7 +255,15 @@ export function nodeSize(node) {
   const meta = nodeMeta(node);
   const labelNeed = textUnits(node.label) * 6.8 + 24;
   const metaNeeds = meta.map((m) => textUnits(m.text) * 5.9 + 26);
-  const need = Math.max(NODE_W, labelNeed, ...metaNeeds);
+  // Tags run right from the top-left corner and flag badges run left from
+  // the top-right one. A card wearing both grows until the row and at least
+  // one badge sit apart; the badges collapse into "+N" from there. A card
+  // without flags keeps its size: a long tag row may hang past a narrow
+  // card's edge as it always has, so existing boards never re-flow.
+  const tags = nodeTags(node);
+  const flagged = (node.flags || []).some((f) => FLAG_KINDS.includes(f));
+  const tagsNeed = tags.length && flagged ? tagRowEnd(tags) + TAG_BADGE_ROOM : 0;
+  const need = Math.max(NODE_W, labelNeed, tagsNeed, ...metaNeeds);
   let w = Math.min(NODE_MAX_W, need);
   if (part.custom) {
     const on = (side) => part.ports.filter((p) => p.side === side).length;
@@ -238,9 +290,16 @@ export function nodeSize(node) {
   return { w, h, labelLines, metaLines };
 }
 
+// A card's box. A process-flow card also names its shape so wire geometry
+// can end on the drawn silhouette (see shapeOutline); plain cards and
+// figures stay bare {x, y, w, h}. A missing or non-finite coordinate reads
+// as 0 so one broken card cannot poison every route it touches with NaN.
 export function nodeRect(node) {
   const { w, h } = nodeSize(node);
-  return { x: node.x, y: node.y, w, h };
+  const rect = { x: Number.isFinite(node.x) ? node.x : 0, y: Number.isFinite(node.y) ? node.y : 0, w, h };
+  const shape = partOf(node).shape;
+  if (shape && SHAPED.has(shape)) rect.shape = shape;
+  return rect;
 }
 
 export function portPosition(node, portDef) {
@@ -256,7 +315,10 @@ export function portPosition(node, portDef) {
 // card's center crosses the card's edge (padded 5px). Edge-normal tangents
 // keep entry and exit tidy; obstructed runs try smooth outside corridors.
 
-const r2 = (v) => Math.round(v * 100) / 100 + 0;
+// Two-decimal rounding for every coordinate geometry hands out (wire ends,
+// pill boxes, alignment moves): "+ 0" folds -0 into +0 so nothing ever
+// serializes as "-0". align.js shares it so moves land on the same grid.
+export const r2 = (v) => Math.round(v * 100) / 100 + 0;
 
 const ANCHOR_PAD = 5;
 
@@ -285,6 +347,117 @@ function anchor(rect, origin, toward, pad) {
   if (tx <= ty) p.y = clamp(p.y, rect.y + CORNER_INSET, rect.y + rect.h - CORNER_INSET);
   else p.x = clamp(p.x, rect.x + CORNER_INSET, rect.x + rect.w - CORNER_INSET);
   return p;
+}
+
+// ---- Shape silhouettes ----
+// Process-flow cards draw their shape inside the card box (render.js
+// shapeMarkup): a diamond, a circle, a stadium, slanted sides. A wire that
+// stopped at the box would float in the empty corner beside the slant, so
+// these shapes carry an outline — a convex polygon in board coordinates,
+// arcs sampled — and wire ends sit ANCHOR_PAD off it instead. Shapes whose
+// outline hugs the box (process, predefined, document, storage) keep the
+// box path, as do plain cards and figures.
+const SHAPED = new Set(['decision', 'connector', 'terminator', 'data', 'manual', 'prep', 'delay']);
+const ARC_STEPS = 16; // segments per half circle: chord error under 0.3px at r = 60
+
+function arcPoints(cx, cy, r, from, to) {
+  const points = [];
+  for (let i = 0; i <= ARC_STEPS; i++) {
+    const t = from + (to - from) * (i / ARC_STEPS);
+    points.push({ x: cx + r * Math.cos(t), y: cy + r * Math.sin(t) });
+  }
+  return points;
+}
+
+export function shapeOutline(r) {
+  if (!r.shape || !SHAPED.has(r.shape)) return null;
+  const { x, y, w, h } = r;
+  const local = (pts) => pts.map(([px, py]) => ({ x: x + px, y: y + py }));
+  // Angles in screen space: -π/2 is the top of a circle, +π/2 its bottom.
+  const right = arcPoints(x + w - h / 2, y + h / 2, h / 2, -Math.PI / 2, Math.PI / 2);
+  switch (r.shape) {
+    case 'decision': return local([[w / 2, 0], [w, h / 2], [w / 2, h], [0, h / 2]]);
+    case 'data': return local([[20, 0], [w, 0], [w - 20, h], [0, h]]);
+    case 'manual': return local([[0, 12], [w, 0], [w, h], [0, h]]);
+    case 'prep': return local([[14, 0], [w - 14, 0], [w, h / 2], [w - 14, h], [14, h], [0, h / 2]]);
+    case 'connector': return arcPoints(x + w / 2, y + h / 2, w / 2, -Math.PI, Math.PI).slice(0, -1);
+    case 'terminator': return [...right, ...arcPoints(x + h / 2, y + h / 2, h / 2, Math.PI / 2, 3 * Math.PI / 2)];
+    case 'delay': return [...local([[0, 0]]), ...right, ...local([[0, h]])];
+    default: return null;
+  }
+}
+
+// Strictly inside a convex outline: every edge sees the point on the same
+// side as the outline's winding.
+function insideOutline(p, poly) {
+  let sign = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length];
+    const cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+    if (Math.abs(cross) < 1e-9) return false;
+    if (!sign) sign = Math.sign(cross);
+    else if (Math.sign(cross) !== sign) return false;
+  }
+  return true;
+}
+
+function outlineDistance(p, poly) {
+  let best = Infinity;
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length];
+    const ex = b.x - a.x, ey = b.y - a.y;
+    const t = Math.max(0, Math.min(1, ((p.x - a.x) * ex + (p.y - a.y) * ey) / (ex * ex + ey * ey || 1)));
+    best = Math.min(best, Math.hypot(p.x - (a.x + ex * t), p.y - (a.y + ey * t)));
+  }
+  return best;
+}
+
+// Where the ray from `origin` toward `toward` leaves the outline, pushed on
+// along the ray until it sits `pad` clear of the shape — a perpendicular pad
+// on a flat edge, a plain pad past an apex (the way a card's grown box pads
+// a side and a corner). Null when the origin is not inside the outline, so
+// the caller falls back to the box anchor.
+function outlineAnchor(poly, origin, toward, pad) {
+  const dx = toward.x - origin.x, dy = toward.y - origin.y;
+  const len = Math.hypot(dx, dy);
+  if (!len || !insideOutline(origin, poly)) return null;
+  const u = { x: dx / len, y: dy / len };
+  let exit = -1;
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length];
+    const ex = b.x - a.x, ey = b.y - a.y;
+    const denom = u.x * ey - u.y * ex;
+    if (Math.abs(denom) < 1e-9) continue;
+    const mx = a.x - origin.x, my = a.y - origin.y;
+    const t = (mx * ey - my * ex) / denom;
+    const s = (mx * u.y - my * u.x) / denom;
+    if (s >= -1e-9 && s <= 1 + 1e-9 && t > exit) exit = t;
+  }
+  if (exit < 0) return null;
+  const hit = { x: origin.x + u.x * exit, y: origin.y + u.y * exit };
+  // The clearance grows with the push; bisect it to the pad (a grazing exit
+  // settles for the cap).
+  let lo = 0, hi = pad * 4;
+  for (let i = 0; i < 16; i++) {
+    const mid = (lo + hi) / 2;
+    if (outlineDistance({ x: hit.x + u.x * mid, y: hit.y + u.y * mid }, poly) < pad) lo = mid;
+    else hi = mid;
+  }
+  const push = (lo + hi) / 2;
+  return { x: hit.x + u.x * push, y: hit.y + u.y * push };
+}
+
+// Whether a route runs through a shaped card's own silhouette: sampled, as
+// the ends already sit clear of it and the test only ranks detours.
+function curveEntersOutline(geo, poly) {
+  for (let i = 1; i < 32; i++) if (insideOutline(curvePoint(geo, i / 32), poly)) return true;
+  return false;
+}
+
+// A wire end on a card: the box anchor, or the silhouette anchor for a
+// process-flow shape.
+function cardAnchor(rect, outline, origin, toward, pad) {
+  return (outline && outlineAnchor(outline, origin, toward, pad)) || anchor(rect, origin, toward, pad);
 }
 
 function cubic(p1, p2) {
@@ -318,6 +491,10 @@ function cubicGeometry(p1, c1, c2, p2) {
 // Cards that share at least this much span across the run (after the
 // corner inset at each end) are joined by a perfectly straight wire.
 const STRAIGHT_MIN_SPAN = 16;
+
+// Fixed tangent lengths tried for detours that leave and enter through
+// different sides, on top of fractions of the run itself.
+const TURN_REACHES = [60, 90, 120, 180, 260, 360, 500, 750];
 
 // Straight-run origins for cards that overlap across the run's axis: both
 // ends sit on the middle of the shared span, so cards that are nearly but
@@ -359,14 +536,24 @@ export function wireGeom(a, b, offset = 0, obstacles = []) {
     oa = origin(a, ca);
     ob = origin(b, cb);
   }
-  const p1 = anchor(a, oa, ob, ANCHOR_PAD);
-  const p2 = anchor(b, ob, oa, ANCHOR_PAD);
+  const outA = shapeOutline(a), outB = shapeOutline(b);
+  const p1 = cardAnchor(a, outA, oa, ob, ANCHOR_PAD);
+  const p2 = cardAnchor(b, outB, ob, oa, ANCHOR_PAD);
   let direct = cubic({ x: r2(p1.x), y: r2(p1.y) }, { x: r2(p2.x), y: r2(p2.y) });
-  // Each tangent follows the edge it actually exits, including steep diagonals.
-  const normal = (r, p) => p.x <= r.x - ANCHOR_PAD + .02 ? { x: -1, y: 0 }
-    : p.x >= r.x + r.w + ANCHOR_PAD - .02 ? { x: 1, y: 0 }
-      : { x: 0, y: p.y < r.y ? -1 : 1 };
-  const na = normal(a, p1), nb = normal(b, p2);
+  // Each tangent follows the edge it actually exits, including steep
+  // diagonals. A shaped card has no flat side to name, so its tangent runs
+  // along the ray the wire left on: a straight run stays straight and a
+  // diagonal enters a diamond or circle pointing at its centre.
+  const normal = (r, p, origin = rectCenter(r)) => {
+    if (r.shape && SHAPED.has(r.shape)) {
+      const len = Math.hypot(p.x - origin.x, p.y - origin.y) || 1;
+      return { x: (p.x - origin.x) / len, y: (p.y - origin.y) / len };
+    }
+    return p.x <= r.x - ANCHOR_PAD + .02 ? { x: -1, y: 0 }
+      : p.x >= r.x + r.w + ANCHOR_PAD - .02 ? { x: 1, y: 0 }
+        : { x: 0, y: p.y < r.y ? -1 : 1 };
+  };
+  const na = normal(a, p1, oa), nb = normal(b, p2, ob);
   const reach = Math.max(Math.abs(p2.x - p1.x), Math.abs(p2.y - p1.y)) * .4;
   if (reach) direct = cubicGeometry(direct.p1,
     { x: r2(p1.x + na.x * reach), y: r2(p1.y + na.y * reach) },
@@ -380,21 +567,33 @@ export function wireGeom(a, b, offset = 0, obstacles = []) {
   const horizontal = Math.abs(cb.x - ca.x) >= Math.abs(cb.y - ca.y);
   const sides = horizontal ? ['top', 'bottom', 'left', 'right'] : ['left', 'right', 'top', 'bottom'];
   const fan = offset * (horizontal ? Math.sign(cb.x - ca.x) || 1 : -(Math.sign(cb.y - ca.y) || 1));
+  const edgePoints = new Map();
   const edgePoint = (r, side) => {
+    const key = (r === a ? 'a' : 'b') + side;
+    if (edgePoints.has(key)) return edgePoints.get(key);
     const c = rectCenter(r);
-    if (side === 'top' || side === 'bottom') return {
+    let p = side === 'top' || side === 'bottom' ? {
       x: r2(c.x + Math.max(CORNER_INSET - r.w / 2, Math.min(r.w / 2 - CORNER_INSET, fan))),
       y: r2(side === 'top' ? r.y - ANCHOR_PAD : r.y + r.h + ANCHOR_PAD),
-    };
-    return { x: r2(side === 'left' ? r.x - ANCHOR_PAD : r.x + r.w + ANCHOR_PAD),
+    } : { x: r2(side === 'left' ? r.x - ANCHOR_PAD : r.x + r.w + ANCHOR_PAD),
       y: r2(c.y + Math.max(CORNER_INSET - r.h / 2, Math.min(r.h / 2 - CORNER_INSET, fan))) };
+    // On a shaped card the side point slides in along its ray onto the
+    // silhouette, so a detour also leaves the drawn edge.
+    const outline = r === a ? outA : outB;
+    if (outline) {
+      const on = outlineAnchor(outline, c, p, ANCHOR_PAD);
+      if (on) p = { x: r2(on.x), y: r2(on.y) };
+    }
+    edgePoints.set(key, p);
+    return p;
   };
+  const crossesOwn = (geo, r, outline) => outline ? curveEntersOutline(geo, outline) : curveIntersectsRect(geo, r);
   let best = direct, bestHits = hits.length, bestLength = curveLength(direct);
   const choose = candidates => {
     const ranked = candidates.map(geo => ({ geo, length: curveLength(geo) })).sort((a, b) => a.length - b.length);
     for (const { geo, length } of ranked) {
       if (!bestHits && length >= bestLength) break;
-      if (curveIntersectsRect(geo, a) || curveIntersectsRect(geo, b)) continue;
+      if (crossesOwn(geo, a, outA) || crossesOwn(geo, b, outB)) continue;
       const count = crossed(geo, bestHits).length;
       if (count < bestHits || (count === bestHits && length < bestLength)) {
         best = geo; bestHits = count; bestLength = length;
@@ -421,11 +620,15 @@ export function wireGeom(a, b, offset = 0, obstacles = []) {
   // Stacked cards can block the same-side corridors. A different exit side
   // at each end can thread the available space while retaining edge-normal
   // tangents and the existing single-cubic animation contract.
+  // Tangent lengths climb a ladder from compact to the full run, and the
+  // shortest clear candidate wins, so a long run only grows into a wide arc
+  // when nothing tighter clears the cards in between.
   const turns = [];
-  for (const factor of [.25, .5, 1]) for (const from of sides) for (const to of sides) {
+  const run = Math.hypot(cb.x - ca.x, cb.y - ca.y);
+  const reaches = [...new Set([...TURN_REACHES, run * .25, run * .5, run])].filter(v => v > 0);
+  for (const length of reaches) for (const from of sides) for (const to of sides) {
     if (from === to) continue;
     const start = edgePoint(a, from), end = edgePoint(b, to);
-    const length = Math.hypot(end.x - start.x, end.y - start.y) * factor;
     const first = normal(a, start), last = normal(b, end);
     const geo = cubicGeometry(start,
       { x: r2(start.x + first.x * length), y: r2(start.y + first.y * length) },
@@ -438,7 +641,7 @@ export function wireGeom(a, b, offset = 0, obstacles = []) {
 
 // A wire being dragged out: leaves the card toward the cursor, ends on it.
 export function wireGeomToPoint(node, pt) {
-  const p1 = anchor(node, rectCenter(node), pt, ANCHOR_PAD);
+  const p1 = cardAnchor(node, shapeOutline(node), rectCenter(node), pt, ANCHOR_PAD);
   return cubic({ x: r2(p1.x), y: r2(p1.y) }, { x: r2(pt.x), y: r2(pt.y) });
 }
 
@@ -597,7 +800,7 @@ export function wrapText(text, maxChars = 22, measure = textUnits) {
 // card or pill has a fixed width. Shared by cards, shapes and wire labels so
 // their text never spills out of a measured box. An empty string stays a
 // single empty line, so an unnamed card keeps its minimum height.
-export function wrapLines(text, maxChars, measure = textUnits) {
+function wrapLines(text, maxChars, measure = textUnits) {
   return wrapText(text, maxChars, measure)
     .flatMap(line => splitWideToken({ text: line, space: false }, maxChars, measure).map(t => t.text));
 }
@@ -784,10 +987,7 @@ function measureNoteText(text) {
 export function noteLines(text) {
   const key = String(text);
   if (noteLineCache.has(key)) return noteLineCache.get(key);
-  const lines = wrapText(key, NOTE_TEXT_W, measureNoteText)
-    // A punctuation carry can itself exceed the width when attached to a long
-    // token. Containment takes priority over that typographic preference.
-    .flatMap(text => splitWideToken({ text, space: false }, NOTE_TEXT_W, measureNoteText).map(t => t.text));
+  const lines = wrapLines(key, NOTE_TEXT_W, measureNoteText);
   if (noteLineCache.size >= 128) noteLineCache.delete(noteLineCache.keys().next().value);
   noteLineCache.set(key, lines);
   return lines;
@@ -804,8 +1004,8 @@ export function noteHeight(text) {
 export function contentBounds(doc, scene = null) {
   const rects = [
     ...doc.nodes.map(nodeRect),
-    ...doc.zones.map(zoneRect),
-    ...doc.notes.map((n) => ({ x: n.x, y: n.y, w: NOTE_W, h: noteHeight(n.text) })),
+    ...(doc.zones || []).map(zoneRect),
+    ...(doc.notes || []).map((n) => ({ x: n.x, y: n.y, w: NOTE_W, h: noteHeight(n.text) })),
   ];
   if (doc.wires?.length) {
     const { routes, labels } = scene || wireScene(doc);
@@ -900,6 +1100,9 @@ function curveCrossings(geo, obstacles, limit) {
   const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
   const visit = (part, depth) => {
     const bounds = controlBounds(part);
+    // A non-finite curve (a card with no coordinates) has no extent to halve:
+    // without this exit the subdivision runs to full depth on every wire.
+    if (!Number.isFinite(bounds.w + bounds.h)) return;
     if (Math.max(bounds.w, bounds.h) <= 192 || depth === 16) {
       check(part, nearby(obstacles, bounds));
       return;
@@ -1027,7 +1230,7 @@ export function wireScene(doc, rects = new Map(doc.nodes.map(n => [n.id, nodeRec
     const scale = Math.min(1, room / (fanExtent.get(pairKey(wire)) || 1));
     const offset = lane * scale;
     const old = previous?.routes.get(wire.id);
-    const key = [wire.from.node, wire.to.node, a.x, a.y, a.w, a.h, b.x, b.y, b.w, b.h, offset].join('|');
+    const key = [wire.from.node, wire.to.node, a.x, a.y, a.w, a.h, a.shape || '', b.x, b.y, b.w, b.h, b.shape || '', offset].join('|');
     const reusable = old?.key === key && !changed.some(r => old.queries.some(q => touches(q, r)));
     let entry = old;
     if (!reusable) {
