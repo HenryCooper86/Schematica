@@ -2,7 +2,8 @@
 
 [Project home](../README.md) · [Open Schematica](https://bionicloud.net/) · [Static edition](https://henrycooper86.github.io/Schematica/)
 
-Schematica helps you draw an architecture, review its declared interfaces and
+Schematica helps you draw an architecture, whether embedded hardware, an
+enterprise network or a security incident, review its declared interfaces and
 share the result. Start with the tutorial, then use the guides below for a
 specific task. The application supports English and Simplified Chinese; these
 guides use the English control names.

@@ -29,7 +29,7 @@ for every committed asset. This script is maintenance tooling, never runtime cod
 
 ## Lucide
 
-The 24-box glyphs of the Network, Security & Edge, System & Cloud and Threats
+The 24-box glyphs of the System & Cloud, Network, Security & Edge and Threats
 parts in `src/palette.js` (internet, access point, router, switch, ASN, IP
 address, firewall, WAF, proxy, CDN, load balancer, API gateway, cloud, server,
 database, host PC (pc-case), misconfiguration (sliders-horizontal), threat

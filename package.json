@@ -1,5 +1,6 @@
 {
   "name": "schematica",
+  "description": "Draw, review and share embedded-system, network and security architecture diagrams in the browser.",
   "private": true,
   "license": "MIT",
   "type": "module",

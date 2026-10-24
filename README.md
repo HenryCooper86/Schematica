@@ -1,8 +1,10 @@
 # Schematica
 
-Draw, review and share embedded-system architecture in your browser. Place
-controllers, sensors, power supplies and other parts, connect their ports, then
-record interface requirements and export a design review.
+Draw, review and share system architecture in your browser: embedded hardware,
+enterprise networks and the security incidents that cross them. Place
+controllers, sensors, servers, firewalls and people, connect their ports, record
+interface requirements, mark what an incident did to each part, then export a
+design review or replay an incident log on a clock.
 
 **[Open Schematica](https://bionicloud.net/)** · **[Static edition](https://henrycooper86.github.io/Schematica/)** · **[Getting started](docs/getting-started.md)** · **[User guide](docs/user-guide.md)**
 
@@ -37,7 +39,7 @@ what you should see and how to recover your previous board.
 | Compare changes or import a KiCad netlist | [Compare and import](docs/user-guide.md#compare-and-import) |
 | Present a guided tour of the architecture | [Present your board](docs/user-guide.md#present-your-board) |
 | Use the assistant with your own provider | [Assistant guide](docs/user-guide.md#use-the-assistant) |
-| Explain an attack or rebuild an incident from a log | [Explain an attack or incident](docs/user-guide.md#explain-an-attack-or-incident) |
+| Draw an enterprise network, explain an attack or replay an incident from a log | [Explain an attack or incident](docs/user-guide.md#explain-an-attack-or-incident) |
 | Review a shared snapshot with a team | [Team reviews](docs/user-guide.md#review-with-a-team) |
 
 The interface supports English and Simplified Chinese. **中文 / EN** changes the
@@ -77,8 +79,8 @@ For measured results and known gaps, see the [October implementation report](doc
 
 ## Licence
 
-Schematica is released under the [MIT licence](LICENSE). The device and threat
-icons of the Network, Security & Edge, and Threats parts come from
+Schematica is released under the [MIT licence](LICENSE). Some of the glyphs of the
+System & Cloud, Network, Security & Edge and Threats parts come from
 [Lucide](https://lucide.dev) under the ISC licence; see
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
